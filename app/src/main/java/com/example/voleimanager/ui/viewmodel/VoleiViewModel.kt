@@ -1,6 +1,7 @@
 package com.example.voleimanager.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -23,6 +24,9 @@ import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
+// ENUM PARA OS MODOS DE TEMA
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 class VoleiViewModel(
     application: Application,
     private val repository: VoleiRepository
@@ -37,6 +41,10 @@ class VoleiViewModel(
 
     private val _currentGroupConfig = MutableStateFlow(GroupConfig("Geral"))
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
+
+    // --- ESTADO DO TEMA (NOVO) ---
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     // --- ESTADOS DO JOGO ---
     private val _teamA = MutableStateFlow<List<Player>>(emptyList())
@@ -64,6 +72,28 @@ class VoleiViewModel(
 
     private val _presentPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
     val presentPlayerIds: StateFlow<Set<Int>> = _presentPlayerIds.asStateFlow()
+
+    // --- INICIALIZAÇÃO (Carregar Tema) ---
+    init {
+        loadThemePreference()
+    }
+
+    // --- LÓGICA DE TEMA ---
+    private fun loadThemePreference() {
+        val prefs = getApplication<Application>().getSharedPreferences("volei_prefs", Context.MODE_PRIVATE)
+        val savedThemeName = prefs.getString("theme_mode", ThemeMode.SYSTEM.name)
+        _themeMode.value = try {
+            ThemeMode.valueOf(savedThemeName ?: ThemeMode.SYSTEM.name)
+        } catch (e: Exception) {
+            ThemeMode.SYSTEM
+        }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        _themeMode.value = mode
+        val prefs = getApplication<Application>().getSharedPreferences("volei_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putString("theme_mode", mode.name).apply()
+    }
 
     // --- GERENCIAMENTO DE GRUPOS ---
     fun renameGroup(oldName: String, newName: String) {
@@ -231,7 +261,6 @@ class VoleiViewModel(
 
             _lastWinners.value = newWinners; lastLosers = newLosers
 
-            // CORREÇÃO: Usar updatePlayers para garantir que o banco atualize os valores
             repository.updatePlayers(updatedPlayers)
             repository.insertMatch(MatchHistory(date = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date()), teamA = currentA.joinToString(", ") { it.name }, teamB = currentB.joinToString(", ") { it.name }, winner = "Time $winner", eloPoints = delta, groupName = currentA.firstOrNull()?.groupName ?: "Geral"))
             _teamA.value = emptyList(); _teamB.value = emptyList()
