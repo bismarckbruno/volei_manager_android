@@ -57,11 +57,32 @@ class VoleiViewModel(
     private val _streakOwner = MutableStateFlow<String?>(null)
     val streakOwner: StateFlow<String?> = _streakOwner.asStateFlow()
 
-    private var lastWinners: List<Player> = emptyList()
+    private val _lastWinners = MutableStateFlow<List<Player>>(emptyList())
+    val lastWinners: StateFlow<List<Player>> = _lastWinners.asStateFlow()
+
     private var lastLosers: List<Player> = emptyList()
 
     private val _presentPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
     val presentPlayerIds: StateFlow<Set<Int>> = _presentPlayerIds.asStateFlow()
+
+    // --- GERENCIAMENTO DE GRUPOS ---
+    fun renameGroup(oldName: String, newName: String) {
+        viewModelScope.launch {
+            repository.renameGroup(oldName, newName)
+            if (_currentGroupConfig.value.groupName == oldName) {
+                loadGroupConfig(newName)
+            }
+        }
+    }
+
+    fun deleteGroup(groupName: String) {
+        viewModelScope.launch {
+            repository.deleteGroup(groupName)
+            if (_currentGroupConfig.value.groupName == groupName) {
+                loadGroupConfig("Geral")
+            }
+        }
+    }
 
     // --- PRESENÇA ---
     fun togglePlayerPresence(player: Player) {
@@ -75,17 +96,14 @@ class VoleiViewModel(
             _waitingList.value = currentWaiting
         } else {
             currentIds.add(player.id)
-
             val gameRunning = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty()
             val waitingForNextRound = _hasPreviousMatch.value
-
-            val isWinnerWaiting = waitingForNextRound && lastWinners.any { it.id == player.id }
+            val isWinnerWaiting = waitingForNextRound && _lastWinners.value.any { it.id == player.id }
 
             if (!isWinnerWaiting && (gameRunning || waitingForNextRound)) {
                 val isPlayingA = _teamA.value.any { it.id == player.id }
                 val isPlayingB = _teamB.value.any { it.id == player.id }
                 val isAlreadyWaiting = _waitingList.value.any { it.id == player.id }
-
                 if (!isPlayingA && !isPlayingB && !isAlreadyWaiting) {
                     _waitingList.value = _waitingList.value + player
                 }
@@ -125,15 +143,9 @@ class VoleiViewModel(
                 _currentGroupConfig.value = newConfig
                 repository.saveGroupConfig(newConfig)
             }
-
             if (!isSameGroup) {
-                _teamA.value = emptyList()
-                _teamB.value = emptyList()
-                _waitingList.value = emptyList()
-                _currentStreak.value = 0
-                _streakOwner.value = null
-                _presentPlayerIds.value = emptySet()
-                _hasPreviousMatch.value = false
+                _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
+                _currentStreak.value = 0; _streakOwner.value = null; _presentPlayerIds.value = emptySet(); _hasPreviousMatch.value = false
             }
         }
     }
@@ -156,68 +168,47 @@ class VoleiViewModel(
     fun deletePlayer(player: Player) { viewModelScope.launch { repository.deletePlayer(player) } }
 
     fun renamePlayer(player: Player, newName: String) {
-        viewModelScope.launch { repository.updatePlayer(player.copy(name = newName)) }
+        viewModelScope.launch {
+            val updatedPlayer = player.copy(name = newName)
+            repository.updatePlayer(updatedPlayer)
+
+            _teamA.value = _teamA.value.map { if (it.id == player.id) updatedPlayer else it }
+            _teamB.value = _teamB.value.map { if (it.id == player.id) updatedPlayer else it }
+            _waitingList.value = _waitingList.value.map { if (it.id == player.id) updatedPlayer else it }
+
+            _lastWinners.value = _lastWinners.value.map { if (it.id == player.id) updatedPlayer else it }
+            lastLosers = lastLosers.map { if (it.id == player.id) updatedPlayer else it }
+        }
     }
 
     // --- JOGO ---
     fun startNewAutomaticGame(allGroupPlayers: List<Player>, teamSize: Int) {
         val availablePlayers = allGroupPlayers.filter { _presentPlayerIds.value.contains(it.id) }
-
         if (availablePlayers.size < teamSize * 2) return
-
         val shuffled = availablePlayers.shuffled()
         val needed = teamSize * 2
-
         val pool = shuffled.take(needed)
         val remaining = shuffled.drop(needed)
-
         val result = TeamBalancer.createBalancedTeams(pool, teamSize)
-
-        _teamA.value = result.teamA
-        _teamB.value = result.teamB
-        _waitingList.value = remaining
-        _hasPreviousMatch.value = false
-        _currentStreak.value = 0
-        _streakOwner.value = null
+        _teamA.value = result.teamA; _teamB.value = result.teamB; _waitingList.value = remaining
+        _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
     }
 
     fun cancelGame() {
-        _waitingList.value = emptyList()
-        _teamA.value = emptyList()
-        _teamB.value = emptyList()
-        _currentStreak.value = 0
-        _streakOwner.value = null
-        _hasPreviousMatch.value = false
+        _waitingList.value = emptyList(); _teamA.value = emptyList(); _teamB.value = emptyList()
+        _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
     }
 
-    // --- CORREÇÃO 1: SUBSTITUIÇÃO MANUAL ZERA STREAK ---
     fun substitutePlayer(playerOut: Player, playerIn: Player) {
         val newA = _teamA.value.toMutableList()
         val indexA = newA.indexOfFirst { it.id == playerOut.id }
-
         val newB = _teamB.value.toMutableList()
         val indexB = newB.indexOfFirst { it.id == playerOut.id }
-
         val newWaiting = _waitingList.value.toMutableList()
         newWaiting.removeAll { it.id == playerIn.id }
         newWaiting.add(playerOut)
-
-        if (indexA != -1) {
-            newA[indexA] = playerIn
-            _teamA.value = newA
-            // Se mexeu no time A e o A era o dono do streak, zera.
-            if (_streakOwner.value == "A") {
-                _currentStreak.value = 0
-            }
-        } else if (indexB != -1) {
-            newB[indexB] = playerIn
-            _teamB.value = newB
-            // Se mexeu no time B e o B era o dono do streak, zera.
-            if (_streakOwner.value == "B") {
-                _currentStreak.value = 0
-            }
-        }
-
+        if (indexA != -1) { newA[indexA] = playerIn; _teamA.value = newA; if (_streakOwner.value == "A") _currentStreak.value = 0 }
+        else if (indexB != -1) { newB[indexB] = playerIn; _teamB.value = newB; if (_streakOwner.value == "B") _currentStreak.value = 0 }
         _waitingList.value = newWaiting
     }
 
@@ -225,44 +216,25 @@ class VoleiViewModel(
         val currentA = _teamA.value
         val currentB = _teamB.value
         if (currentA.isEmpty() || currentB.isEmpty()) return
+        if (_streakOwner.value == winner) _currentStreak.value += 1 else { _streakOwner.value = winner; _currentStreak.value = 1 }
 
-        if (_streakOwner.value == winner) {
-            _currentStreak.value += 1
-        } else {
-            _streakOwner.value = winner
-            _currentStreak.value = 1
-        }
+        if (winner == "A") { _lastWinners.value = currentA; lastLosers = currentB } else { _lastWinners.value = currentB; lastLosers = currentA }
 
-        if (winner == "A") {
-            lastWinners = currentA
-            lastLosers = currentB
-        } else {
-            lastWinners = currentB
-            lastLosers = currentA
-        }
         _hasPreviousMatch.value = true
-
         viewModelScope.launch(Dispatchers.IO) {
             val avgEloA = currentA.map { it.elo }.average()
             val avgEloB = currentB.map { it.elo }.average()
             val delta = if (winner == "A") EloCalculator.calculateEloChange(avgEloA, avgEloB) else EloCalculator.calculateEloChange(avgEloB, avgEloA)
-
-            val updatedPlayers = mutableListOf<Player>()
-            val newWinners = mutableListOf<Player>()
-            val newLosers = mutableListOf<Player>()
-
+            val updatedPlayers = mutableListOf<Player>(); val newWinners = mutableListOf<Player>(); val newLosers = mutableListOf<Player>()
             currentA.forEach { p -> updatePlayerState(p, winner == "A", delta, updatedPlayers, newWinners, newLosers) }
             currentB.forEach { p -> updatePlayerState(p, winner == "B", delta, updatedPlayers, newWinners, newLosers) }
 
-            lastWinners = newWinners
-            lastLosers = newLosers
+            _lastWinners.value = newWinners; lastLosers = newLosers
 
-            repository.insertPlayers(updatedPlayers)
-            val historyItem = MatchHistory(date = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date()), teamA = currentA.joinToString(", ") { it.name }, teamB = currentB.joinToString(", ") { it.name }, winner = "Time $winner", eloPoints = delta, groupName = currentA.firstOrNull()?.groupName ?: "Geral")
-            repository.insertMatch(historyItem)
-
-            _teamA.value = emptyList()
-            _teamB.value = emptyList()
+            // CORREÇÃO: Usar updatePlayers para garantir que o banco atualize os valores
+            repository.updatePlayers(updatedPlayers)
+            repository.insertMatch(MatchHistory(date = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date()), teamA = currentA.joinToString(", ") { it.name }, teamB = currentB.joinToString(", ") { it.name }, winner = "Time $winner", eloPoints = delta, groupName = currentA.firstOrNull()?.groupName ?: "Geral"))
+            _teamA.value = emptyList(); _teamB.value = emptyList()
         }
     }
 
@@ -278,80 +250,42 @@ class VoleiViewModel(
         val teamSize = config.teamSize
         val victoryLimit = config.victoryLimit
 
-        val activeWinners = lastWinners.filter { _presentPlayerIds.value.contains(it.id) }
-
+        val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
         val currentQueue = _waitingList.value
         val activeLosers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
         val losersShuffled = activeLosers.shuffled()
         val rawPool = currentQueue + losersShuffled
-
         var availablePool = rawPool.filter { p -> activeWinners.none { w -> w.id == p.id } }
 
-        val isStreakLimitReached = _currentStreak.value >= victoryLimit
-
-        if (isStreakLimitReached) {
-            _currentStreak.value = 0
-            _streakOwner.value = null
-
+        if (_currentStreak.value >= victoryLimit) {
+            _currentStreak.value = 0; _streakOwner.value = null
             val winnersShuffled = activeWinners.shuffled()
             val splitIndex = winnersShuffled.size / 2
-
             val seedA = winnersShuffled.take(splitIndex).toMutableList()
             val seedB = winnersShuffled.drop(splitIndex).toMutableList()
-
-            val neededA = teamSize - seedA.size
-            val neededB = teamSize - seedB.size
-            val totalNeeded = neededA + neededB
-
-            if (availablePool.size >= totalNeeded) {
-                val entrants = availablePool.take(totalNeeded)
-                val remainingQueue = availablePool.drop(totalNeeded)
-
+            val neededA = teamSize - seedA.size; val neededB = teamSize - seedB.size
+            if (availablePool.size >= neededA + neededB) {
+                val entrants = availablePool.take(neededA + neededB)
+                val remainingQueue = availablePool.drop(neededA + neededB)
                 val result = TeamBalancer.createBalancedTeams(entrants, teamSize, seedA, seedB)
-                _teamA.value = result.teamA
-                _teamB.value = result.teamB
-                _waitingList.value = remainingQueue
+                _teamA.value = result.teamA; _teamB.value = result.teamB; _waitingList.value = remainingQueue
             }
-
         } else {
             var newWinningTeam = activeWinners
-
-            // --- CORREÇÃO 2: DETECÇÃO DE MUDANÇA NO TIME ---
-            // Salva os IDs originais para comparar depois
-            val originalWinnerIds = lastWinners.map { it.id }.toSet()
-
-            // Ajuste de Tamanho (se faltar gente ou sobrar)
+            val originalWinnerIds = _lastWinners.value.map { it.id }.toSet()
             if (newWinningTeam.size < teamSize) {
                 val needed = teamSize - newWinningTeam.size
-                if (availablePool.size >= needed) {
-                    val reinforcements = availablePool.take(needed)
-                    availablePool = availablePool.drop(needed)
-                    newWinningTeam = newWinningTeam + reinforcements
-                }
+                if (availablePool.size >= needed) { val reinforcements = availablePool.take(needed); availablePool = availablePool.drop(needed); newWinningTeam = newWinningTeam + reinforcements }
+            } else if (newWinningTeam.size > teamSize) {
+                val cutPlayers = newWinningTeam.drop(teamSize); newWinningTeam = newWinningTeam.take(teamSize); availablePool = cutPlayers + availablePool
             }
-            else if (newWinningTeam.size > teamSize) {
-                val cutPlayers = newWinningTeam.drop(teamSize)
-                newWinningTeam = newWinningTeam.take(teamSize)
-                availablePool = cutPlayers + availablePool
-            }
-
             if (availablePool.size >= teamSize) {
-                val challengers = availablePool.take(teamSize)
-                val remainingQueue = availablePool.drop(teamSize)
-
-                _teamA.value = newWinningTeam
-                _teamB.value = challengers
-                _waitingList.value = remainingQueue
-
+                val challengers = availablePool.take(teamSize); val remainingQueue = availablePool.drop(teamSize)
+                _teamA.value = newWinningTeam; _teamB.value = challengers; _waitingList.value = remainingQueue
                 if (_currentStreak.value > 0) {
                     _streakOwner.value = "A"
-
-                    // Verifica se o time mudou (alguém saiu ou alguém entrou)
                     val newWinnerIds = newWinningTeam.map { it.id }.toSet()
-                    if (originalWinnerIds != newWinnerIds) {
-                        // Time mudou! Reinicia a contagem.
-                        _currentStreak.value = 0
-                    }
+                    if (originalWinnerIds != newWinnerIds) _currentStreak.value = 0
                 }
             }
         }

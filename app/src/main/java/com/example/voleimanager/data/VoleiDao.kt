@@ -1,9 +1,6 @@
 package com.example.voleimanager.data
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
+import androidx.room.*
 import com.example.voleimanager.data.model.GroupConfig
 import com.example.voleimanager.data.model.MatchHistory
 import com.example.voleimanager.data.model.Player
@@ -12,48 +9,59 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface VoleiDao {
     // --- JOGADORES ---
-
-    // ESTA É A FUNÇÃO QUE FALTAVA: Pega todos (para calcular os grupos na tela inicial)
     @Query("SELECT * FROM players ORDER BY elo DESC")
     fun getAllPlayers(): Flow<List<Player>>
-
-    @Query("SELECT * FROM players WHERE groupName = :group ORDER BY elo DESC")
-    fun getPlayersByGroup(group: String): Flow<List<Player>>
-
-    @Query("SELECT DISTINCT groupName FROM players")
-    fun getAllGroups(): Flow<List<String>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlayer(player: Player)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAllPlayers(players: List<Player>)
+    // Usado na Importação (Protege dados existentes)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPlayers(players: List<Player>)
+
+    // NOVO: Usado no Fim do Jogo (Força a atualização dos Elos)
+    @Update
+    suspend fun updatePlayers(players: List<Player>)
+
+    @Update
+    suspend fun updatePlayer(player: Player)
+
+    @Delete
+    suspend fun deletePlayer(player: Player)
 
     // --- HISTÓRICO ---
-
-    // ESTA TAMBÉM FALTAVA:
     @Query("SELECT * FROM match_history ORDER BY id DESC")
-    fun getAllHistory(): Flow<List<MatchHistory>>
+    fun getHistory(): Flow<List<MatchHistory>>
 
-    @Query("SELECT * FROM match_history WHERE groupName = :group ORDER BY id DESC")
-    fun getHistoryByGroup(group: String): Flow<List<MatchHistory>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMatch(match: MatchHistory)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAllMatches(matches: List<MatchHistory>)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertHistoryList(history: List<MatchHistory>)
 
-    // --- CONFIGURAÇÃO DE GRUPO ---
+    // --- CONFIGURAÇÕES DE GRUPO ---
     @Query("SELECT * FROM group_configs WHERE groupName = :groupName LIMIT 1")
     suspend fun getGroupConfig(groupName: String): GroupConfig?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertGroupConfig(config: GroupConfig)
+    suspend fun saveGroupConfig(config: GroupConfig)
 
-    @androidx.room.Delete
-    suspend fun deletePlayer(player: Player)
+    // --- GERENCIAMENTO DE GRUPOS ---
+    @Query("UPDATE players SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updatePlayerGroupNames(oldName: String, newName: String)
 
-    @androidx.room.Update
-    suspend fun updatePlayer(player: Player)
+    @Query("UPDATE match_history SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updateHistoryGroupNames(oldName: String, newName: String)
+
+    @Query("UPDATE group_configs SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updateConfigGroupNames(oldName: String, newName: String)
+
+    @Query("DELETE FROM players WHERE groupName = :groupName")
+    suspend fun deletePlayersByGroup(groupName: String)
+
+    @Query("DELETE FROM match_history WHERE groupName = :groupName")
+    suspend fun deleteHistoryByGroup(groupName: String)
+
+    @Query("DELETE FROM group_configs WHERE groupName = :groupName")
+    suspend fun deleteConfigByGroup(groupName: String)
 }
