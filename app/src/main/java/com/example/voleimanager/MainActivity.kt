@@ -8,6 +8,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -106,6 +111,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showCreateGroupDialog by remember { mutableStateOf(false) }
     var showAddPlayerDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+
+    var showCancelGameConfirmation by remember { mutableStateOf(false) }
+
     var playerToRename by remember { mutableStateOf<Player?>(null) }
     var playerToSubstitute by remember { mutableStateOf<Player?>(null) }
 
@@ -128,10 +136,31 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
     val errorTextColor = if (isDarkTheme) Color(0xFFEF9A9A) else Color(0xFFD32F2F)
 
+    // DIÁLOGO DE CONFIRMAÇÃO DE CANCELAMENTO
+    if (showCancelGameConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showCancelGameConfirmation = false },
+            title = { Text("Cancelar partida em andamento?") }, // Texto atualizado
+            text = { Text("Se você cancelar agora, o progresso desta partida será perdido e ela não será salva no histórico.\n\nDeseja realmente cancelar?") },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = errorTextColor),
+                    onClick = {
+                        viewModel.cancelGame()
+                        showCancelGameConfirmation = false
+                    }
+                ) { Text("Sim, cancelar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelGameConfirmation = false }) { Text("Voltar ao jogo") }
+            }
+        )
+    }
+
     if (showSwitchGroupWarning) {
         AlertDialog(
             onDismissRequest = { showSwitchGroupWarning = false; pendingGroupSwitch = null },
-            title = { Text("Trocar de Grupo?") },
+            title = { Text("Trocar de grupo?") },
             text = { Text("Existe um jogo em andamento. Se você mudar de grupo agora, a partida atual será cancelada.\n\nDeseja continuar?") },
             confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = errorTextColor), onClick = { pendingGroupSwitch?.let { group -> selectedGroup = group }; showSwitchGroupWarning = false; pendingGroupSwitch = null; scope.launch { drawerState.close() } }) { Text("Trocar") } },
             dismissButton = { TextButton(onClick = { showSwitchGroupWarning = false; pendingGroupSwitch = null }) { Text("Cancelar") } }
@@ -144,7 +173,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             title = { Text("Aparência") },
             text = {
                 Column {
-                    ThemeOption(text = "Padrão do Sistema", selected = currentThemeMode == ThemeMode.SYSTEM) { viewModel.setThemeMode(ThemeMode.SYSTEM); showThemeDialog = false }
+                    ThemeOption(text = "Padrão do sistema", selected = currentThemeMode == ThemeMode.SYSTEM) { viewModel.setThemeMode(ThemeMode.SYSTEM); showThemeDialog = false }
                     ThemeOption(text = "Claro", selected = currentThemeMode == ThemeMode.LIGHT) { viewModel.setThemeMode(ThemeMode.LIGHT); showThemeDialog = false }
                     ThemeOption(text = "Escuro", selected = currentThemeMode == ThemeMode.DARK) { viewModel.setThemeMode(ThemeMode.DARK); showThemeDialog = false }
                 }
@@ -164,9 +193,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     groupToDelete?.let { groupName ->
         AlertDialog(
             onDismissRequest = { groupToDelete = null },
-            title = { Text("Excluir Grupo '$groupName'?") },
+            title = { Text("Excluir grupo '$groupName'?") },
             text = { Text("ATENÇÃO: Isso apagará TODOS os jogadores e histórico deste grupo. Esta ação não pode ser desfeita.") },
-            confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = errorTextColor), onClick = { viewModel.deleteGroup(groupName); if(selectedGroup == groupName) selectedGroup = "Geral"; groupToDelete = null }) { Text("Excluir Definitivamente") } },
+            confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = errorTextColor), onClick = { viewModel.deleteGroup(groupName); if(selectedGroup == groupName) selectedGroup = "Geral"; groupToDelete = null }) { Text("Excluir definitivamente") } },
             dismissButton = { TextButton(onClick = { groupToDelete = null }) { Text("Cancelar") } }
         )
     }
@@ -204,15 +233,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Add, null) }, label = { Text("Criar Novo Grupo") }, selected = false, onClick = { showCreateGroupDialog = true; scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
+                    NavigationDrawerItem(icon = { Icon(Icons.Default.Add, null) }, label = { Text("Criar novo grupo") }, selected = false, onClick = { showCreateGroupDialog = true; scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
                     Divider(Modifier.padding(vertical = 8.dp))
 
                     NavigationDrawerItem(icon = { Icon(if(isDarkTheme) Icons.Default.Done else Icons.Default.Info, null) }, label = { Text("Aparência / Tema") }, selected = false, onClick = { showThemeDialog = true; scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
                     Divider(Modifier.padding(vertical = 8.dp))
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Regras do Jogo") }, selected = false, onClick = { showConfigDialog = true; scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
+                    NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Regras do jogo") }, selected = false, onClick = { showConfigDialog = true; scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
                     Divider(Modifier.padding(vertical = 8.dp))
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Person, null) }, label = { Text("Importar Jogadores") }, selected = false, onClick = { launcherImport.launch(arrayOf("text/comma-separated-values", "text/csv", "*/*")); scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Importar Histórico") }, selected = false, onClick = { launcherHistory.launch(arrayOf("text/comma-separated-values", "text/csv", "*/*")); scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
+                    NavigationDrawerItem(icon = { Icon(Icons.Default.Person, null) }, label = { Text("Importar jogadores") }, selected = false, onClick = { launcherImport.launch(arrayOf("text/comma-separated-values", "text/csv", "*/*")); scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
+                    NavigationDrawerItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Importar histórico") }, selected = false, onClick = { launcherHistory.launch(arrayOf("text/comma-separated-values", "text/csv", "*/*")); scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp))
                     Spacer(Modifier.height(32.dp))
                 }
             }
@@ -244,7 +273,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     TopAppBar(
                         title = { Column { Text("Vôlei Manager 🏐"); selectedGroup?.let { Text(it, style = MaterialTheme.typography.labelSmall) } } },
                         navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, contentDescription = "Menu") } },
-                        actions = { IconButton(onClick = { showAddPlayerDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Novo Jogador") } },
+                        actions = { IconButton(onClick = { showAddPlayerDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Novo jogador") } },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.surface,
                             titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -257,99 +286,124 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 val configuration = LocalConfiguration.current
                 val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+                // NOVO: Estado para controlar a transição
+                val isGameActive = teamA.isNotEmpty() || teamB.isNotEmpty()
+
                 Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
 
-                    if (teamA.isNotEmpty() || teamB.isNotEmpty()) {
-                        val teamAStreak = if(streakOwner == "A") currentStreak else 0
-                        val teamBStreak = if(streakOwner == "B") currentStreak else 0
+                    // TRANSITION ANIMATION: Envolvemos a lógica de UI do jogo vs Lista
+                    AnimatedContent(
+                        targetState = isGameActive,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                        },
+                        label = "GameTransition"
+                    ) { active ->
+                        if (active) {
+                            val teamAStreak = if(streakOwner == "A") currentStreak else 0
+                            val teamBStreak = if(streakOwner == "B") currentStreak else 0
 
-                        // DEFINIÇÃO MANUAL DAS CORES E TEXTOS
+                            val cardColorA = if (isDarkTheme) Color(0xFF0D47A1) else Color(0xFFE3F2FD)
+                            val btnColorA  = if (isDarkTheme) Color(0xFF90CAF9) else Color(0xFF1976D2)
 
-                        // Time A
-                        val cardColorA = if (isDarkTheme) Color(0xFF0D47A1) else Color(0xFFE3F2FD)
-                        val btnColorA  = if (isDarkTheme) Color(0xFF90CAF9) else Color(0xFF1976D2)
+                            val cardColorB = if (isDarkTheme) Color(0xFFB71C1C) else Color(0xFFFFEBEE)
+                            val btnColorB  = if (isDarkTheme) Color(0xFFEF9A9A) else Color(0xFFD32F2F)
 
-                        // Time B
-                        val cardColorB = if (isDarkTheme) Color(0xFFB71C1C) else Color(0xFFFFEBEE)
-                        val btnColorB  = if (isDarkTheme) Color(0xFFEF9A9A) else Color(0xFFD32F2F)
+                            val btnTextColor = if (isDarkTheme) Color.Black else Color.White
 
-                        // Texto dos Botões: Preto no Dark (Fundo claro), Branco no Light (Fundo escuro)
-                        val btnTextColor = if (isDarkTheme) Color.Black else Color.White
+                            val defaultStreakColor = Color(0xFFFF6F00)
+                            val yellowStreakColor = Color(0xFFFFD600)
+                            val streakColorA = defaultStreakColor
+                            val streakColorB = if (isDarkTheme) yellowStreakColor else defaultStreakColor
 
-                        Column(modifier = Modifier.padding(16.dp).fillMaxSize()) {
-                            if (isLandscape) {
-                                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                    Column(modifier = Modifier.weight(0.7f).fillMaxHeight()) {
-                                        Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                                ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, teamAStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("A") }
+                            Column(modifier = Modifier.padding(16.dp).fillMaxSize()) {
+                                if (isLandscape) {
+                                    Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                        Column(modifier = Modifier.weight(0.75f).fillMaxHeight()) {
+                                            Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                                    ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, streakColorA, teamAStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("A") }
+                                                }
+                                                Box(modifier = Modifier.width(50.dp).align(Alignment.CenterVertically), contentAlignment = Alignment.Center) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
+                                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                                    ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, streakColorB, teamBStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("B") }
+                                                }
                                             }
-                                            Box(modifier = Modifier.width(50.dp).align(Alignment.CenterVertically), contentAlignment = Alignment.Center) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
-                                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                                ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, teamBStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("B") }
+                                            // AJUSTE PAISAGEM: Botão "colado" no fundo
+                                            TextButton(
+                                                onClick = { showCancelGameConfirmation = true },
+                                                modifier = Modifier.align(Alignment.CenterHorizontally).height(24.dp), // Altura mínima possível
+                                                contentPadding = PaddingValues(0.dp) // Sem padding interno
+                                            ) {
+                                                Text("Cancelar partida", color = errorTextColor, fontSize = 12.sp) // Texto atualizado
                                             }
                                         }
-                                        TextButton(onClick = { viewModel.cancelGame() }, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)) { Text("Cancelar Partida", color = errorTextColor) }
-                                    }
-                                    Spacer(Modifier.width(16.dp)); Divider(Modifier.fillMaxHeight().width(1.dp).alpha(0.2f)); Spacer(Modifier.width(16.dp))
-                                    Column(modifier = Modifier.weight(0.3f).fillMaxHeight()) {
-                                        Text("Na Espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                        Spacer(Modifier.height(8.dp))
-                                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p) } }
-                                    }
-                                }
-                            } else {
-                                Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                        ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, teamAStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("A") }
-                                    }
-                                    Box(modifier = Modifier.height(40.dp).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
-                                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                        ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, teamBStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("B") }
-                                    }
-                                }
-                                TextButton(onClick = { viewModel.cancelGame() }, modifier = Modifier.fillMaxWidth()) { Text("Cancelar Partida", color = errorTextColor) }
-                                Spacer(Modifier.height(8.dp))
-                                Text("Na Espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall)
-                                LazyRow(modifier = Modifier.fillMaxWidth().height(60.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p) } }
-                            }
-                        }
-
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            item {
-                                EmptyStateCard(
-                                    selectedCount = presentPlayerIds.size,
-                                    currentGroup = selectedGroup ?: "Geral",
-                                    currentTeamSize = currentConfig.teamSize,
-                                    onStartManualClick = { isSetupMode = true },
-                                    onStartAutoClick = {
-                                        val minNeeded = currentConfig.teamSize * 2
-                                        if(presentPlayerIds.size < minNeeded) {
-                                            Toast.makeText(context, "Precisa de $minNeeded jogadores (Atual: ${presentPlayerIds.size})", Toast.LENGTH_LONG).show()
-                                        } else {
-                                            viewModel.startNewAutomaticGame(filteredPlayers, currentConfig.teamSize)
-                                            Toast.makeText(context, "Times sorteados com ${presentPlayerIds.size} jogadores!", Toast.LENGTH_SHORT).show()
+                                        Spacer(Modifier.width(16.dp)); Divider(Modifier.fillMaxHeight().width(1.dp).alpha(0.2f)); Spacer(Modifier.width(16.dp))
+                                        Column(modifier = Modifier.weight(0.25f).fillMaxHeight()) {
+                                            Text("Na espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) // Texto atualizado
+                                            Spacer(Modifier.height(8.dp))
+                                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p) } }
                                         }
-                                    },
-                                    hasPreviousMatch = hasPreviousMatch,
-                                    onNextRoundClick = { viewModel.startNextRound() },
-                                    lastWinners = lastWinners,
-                                    streakOwner = streakOwner,
-                                    currentStreak = currentStreak,
-                                    victoryLimit = currentConfig.victoryLimit,
-                                    errorColor = errorTextColor,
-                                    isDarkTheme = isDarkTheme
-                                )
-                            }
-                            item {
-                                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                                    Text("Lista de Presença", fontWeight = FontWeight.Bold)
-                                    val allSelected = filteredPlayers.all { presentPlayerIds.contains(it.id) }
-                                    TextButton(onClick = { viewModel.setAllPlayersPresence(filteredPlayers, !allSelected) }) { Text(if(allSelected) "Desmarcar Todos" else "Marcar Todos") }
+                                    }
+                                } else {
+                                    Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                            ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, streakColorA, teamAStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("A") }
+                                        }
+                                        Box(modifier = Modifier.height(40.dp).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
+                                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                            ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, streakColorB, teamBStreak, onPlayerClick = { playerToSubstitute = it }) { viewModel.finishGame("B") }
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = { showCancelGameConfirmation = true },
+                                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Cancelar partida", color = errorTextColor) // Texto atualizado
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Na espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall) // Texto atualizado
+                                    LazyRow(modifier = Modifier.fillMaxWidth().height(60.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p) } }
                                 }
                             }
-                            items(filteredPlayers) { player -> PlayerCard(player, presentPlayerIds.contains(player.id), { viewModel.togglePlayerPresence(player) }, { viewModel.deletePlayer(player) }, { playerToRename = player }) }
+
+                        } else {
+                            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                item {
+                                    EmptyStateCard(
+                                        selectedCount = presentPlayerIds.size,
+                                        currentGroup = selectedGroup ?: "Geral",
+                                        currentTeamSize = currentConfig.teamSize,
+                                        onStartManualClick = { isSetupMode = true },
+                                        onStartAutoClick = {
+                                            val minNeeded = currentConfig.teamSize * 2
+                                            if(presentPlayerIds.size < minNeeded) {
+                                                Toast.makeText(context, "Precisa de $minNeeded jogadores (Atual: ${presentPlayerIds.size})", Toast.LENGTH_LONG).show()
+                                            } else {
+                                                viewModel.startNewAutomaticGame(filteredPlayers, currentConfig.teamSize)
+                                                Toast.makeText(context, "Times sorteados com ${presentPlayerIds.size} jogadores!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        hasPreviousMatch = hasPreviousMatch,
+                                        onNextRoundClick = { viewModel.startNextRound() },
+                                        lastWinners = lastWinners,
+                                        streakOwner = streakOwner,
+                                        currentStreak = currentStreak,
+                                        victoryLimit = currentConfig.victoryLimit,
+                                        errorColor = errorTextColor,
+                                        isDarkTheme = isDarkTheme
+                                    )
+                                }
+                                item {
+                                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                                        Text("Lista de presença", fontWeight = FontWeight.Bold) // Texto atualizado
+                                        val allSelected = filteredPlayers.all { presentPlayerIds.contains(it.id) }
+                                        TextButton(onClick = { viewModel.setAllPlayersPresence(filteredPlayers, !allSelected) }) { Text(if(allSelected) "Desmarcar todos" else "Marcar todos") } // Texto atualizado
+                                    }
+                                }
+                                items(filteredPlayers) { player -> PlayerCard(player, presentPlayerIds.contains(player.id), { viewModel.togglePlayerPresence(player) }, { viewModel.deletePlayer(player) }, { playerToRename = player }) }
+                            }
                         }
                     }
                 }
@@ -391,12 +445,11 @@ private val DarkGrayScheme = darkColorScheme(
 )
 
 @Composable fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) { Row(modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = selected, onClick = onClick); Spacer(Modifier.width(8.dp)); Text(text) } }
-@Composable fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) { var newName by remember { mutableStateOf(oldName) }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Renomear Grupo") }, text = { OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Novo Nome") }, singleLine = true) }, confirmButton = { Button(onClick = { if (newName.isNotBlank()) onConfirm(newName) }) { Text("Salvar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
+@Composable fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) { var newName by remember { mutableStateOf(oldName) }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Renomear grupo") }, text = { OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Novo nome") }, singleLine = true) }, confirmButton = { Button(onClick = { if (newName.isNotBlank()) onConfirm(newName) }) { Text("Salvar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
 @Composable fun WaitingPlayerCard(index: Int, player: Player) { Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) { Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("${index}º", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp); Spacer(Modifier.width(8.dp)); Text(player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) } } }
 
-// ATUALIZAÇÃO NO ActiveTeamCard: Adicionado parâmetro 'buttonTextColor'
 @Composable
-fun ActiveTeamCard(name: String, players: List<Player>, cardColor: Color, buttonColor: Color, buttonTextColor: Color, streak: Int, onPlayerClick: (Player) -> Unit, onWin: () -> Unit) {
+fun ActiveTeamCard(name: String, players: List<Player>, cardColor: Color, buttonColor: Color, buttonTextColor: Color, streakColor: Color, streak: Int, onPlayerClick: (Player) -> Unit, onWin: () -> Unit) {
     val avgElo = if (players.isNotEmpty()) players.map { it.elo }.average() else 0.0
     val contentColor = if(cardColor.luminance() < 0.5f) Color.White else Color.Black
     val subContentColor = contentColor.copy(alpha = 0.8f)
@@ -408,7 +461,10 @@ fun ActiveTeamCard(name: String, players: List<Player>, cardColor: Color, button
                 Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = contentColor)
                 Spacer(Modifier.width(4.dp))
                 Text("(Méd: ${avgElo.roundToInt()})", style = MaterialTheme.typography.bodySmall, color = subContentColor)
-                if (streak > 0) { Spacer(Modifier.width(4.dp)); Text("🔥 $streak", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF6F00)) }
+                if (streak > 0) {
+                    Spacer(Modifier.width(4.dp))
+                    Text("🔥 $streak", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = streakColor)
+                }
             }
             Divider(Modifier.padding(vertical = 4.dp), color = dividerColor)
             Column(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.SpaceEvenly, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -424,8 +480,44 @@ fun ActiveTeamCard(name: String, players: List<Player>, cardColor: Color, button
 
 @Composable fun SubstitutionDialog(playerOut: Player, waitingList: List<Player>, onDismiss: () -> Unit, onConfirm: (Player) -> Unit) { AlertDialog(onDismissRequest = onDismiss, title = { Text("Substituir ${playerOut.name}") }, text = { if (waitingList.isEmpty()) { Text("Não há jogadores na espera.") } else { LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) { items(waitingList) { playerIn -> ListItem(headlineContent = { Text(playerIn.name) }, leadingContent = { Icon(Icons.Default.Person, null) }, modifier = Modifier.clickable { onConfirm(playerIn) }) } } } }, confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
 @OptIn(ExperimentalFoundationApi::class) @Composable fun PlayerCard(player: Player, isPresent: Boolean, onTogglePresence: () -> Unit, onDelete: () -> Unit, onRename: () -> Unit) { var showMenu by remember { mutableStateOf(false) }; Box(modifier = Modifier.fillMaxWidth()) { Card(modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth().combinedClickable(onClick = onTogglePresence, onLongClick = { showMenu = true }), colors = CardDefaults.cardColors(containerColor = if(isPresent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant), border = if(isPresent) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null) { Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = isPresent, onCheckedChange = { onTogglePresence() }); Spacer(Modifier.width(8.dp)); Column(modifier = Modifier.weight(1f)) { Text(text = player.name, fontWeight = FontWeight.Bold); Text(text = "Elo: ${"%.0f".format(player.elo)}", style = MaterialTheme.typography.bodySmall) }; Column(horizontalAlignment = Alignment.End) { Text(text = "${player.victories} vitórias", style = MaterialTheme.typography.bodySmall) } } }; DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, offset = DpOffset(x = 16.dp, y = 0.dp)) { DropdownMenuItem(text = { Text("Renomear") }, onClick = { showMenu = false; onRename() }, leadingIcon = { Icon(Icons.Default.Edit, null) }); DropdownMenuItem(text = { Text("Excluir", color = Color.Red) }, onClick = { showMenu = false; onDelete() }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) }) } } }
-@Composable fun RenamePlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String) -> Unit) { var newName by remember { mutableStateOf(player.name) }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Renomear Jogador") }, text = { OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Novo Nome") }, singleLine = true) }, confirmButton = { Button(onClick = { if (newName.isNotBlank()) onConfirm(newName) }) { Text("Salvar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
-@Composable fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: Int, onStartManualClick: () -> Unit, onStartAutoClick: () -> Unit, hasPreviousMatch: Boolean = false, onNextRoundClick: () -> Unit = {}, lastWinners: List<Player> = emptyList(), streakOwner: String? = null, currentStreak: Int = 0, victoryLimit: Int = 3, errorColor: Color = Color.Red, isDarkTheme: Boolean = false) { val minNeeded = currentTeamSize * 2; Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) { Column(modifier = Modifier.padding(24.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(48.dp)); Spacer(modifier = Modifier.height(8.dp)); if (hasPreviousMatch) { val limitReached = currentStreak >= victoryLimit; if (limitReached) { val kingTextColor = if (isDarkTheme) Color(0xFFFFD600) else Color(0xFFE65100); Text(text = "👑 Rei da Quadra atingiu o limite!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = kingTextColor, textAlign = TextAlign.Center); Spacer(modifier = Modifier.height(4.dp)); Text(text = "O time vencedor venceu $currentStreak seguidas e será redistribuído na próxima rodada.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) } else { val teamName = if (streakOwner == "A") "Time A" else if (streakOwner == "B") "Time B" else "Vencedor"; val playerNames = lastWinners.joinToString(", ") { it.name }; Text(text = "Vitória do $teamName", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary); Spacer(modifier = Modifier.height(4.dp)); Text(text = "($playerNames)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center); Spacer(modifier = Modifier.height(4.dp)); Text("Aguardando próxima rodada.", style = MaterialTheme.typography.bodySmall) } } else { Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold); Text(text = if(selectedCount == 0) "Nenhum jogador selecionado" else "$selectedCount jogadores presentes", color = if(selectedCount < minNeeded) errorColor else Color.Unspecified); if (selectedCount < minNeeded) { Text("Mínimo: $minNeeded", style = MaterialTheme.typography.bodySmall, color = errorColor) } }; Spacer(modifier = Modifier.height(16.dp)); if (hasPreviousMatch) { Button(onClick = onNextRoundClick, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("🔄 Próxima Rodada (Automático)", fontSize = 16.sp, color = Color.White) } } else { Button(onClick = onStartAutoClick, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = if(selectedCount >= minNeeded) Color(0xFF2E7D32) else Color.Gray)) { Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White); Spacer(Modifier.width(8.dp)); Text("Iniciar Jogo ($selectedCount selecionados)", fontSize = 16.sp, color = Color.White) } }; Spacer(modifier = Modifier.height(8.dp)); TextButton(onClick = onStartManualClick) { Text(text = "Ou montar times manualmente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), textDecoration = TextDecoration.Underline) } } } }
-@Composable fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double) -> Unit) { var name by remember { mutableStateOf("") }; var eloText by remember { mutableStateOf("1200") }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Novo Jogador") }, text = { Column { OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") }, singleLine = true); Spacer(Modifier.height(8.dp)); OutlinedTextField(value = eloText, onValueChange = { eloText = it }, label = { Text("Elo Inicial") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true) } }, confirmButton = { Button(onClick = { if(name.isNotBlank()) onConfirm(name, eloText.toDoubleOrNull() ?: 1200.0) }) { Text("Adicionar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
-@Composable fun GroupConfigDialog(groupName: String, initialTeamSize: Int, initialVictoryLimit: Int, onDismiss: () -> Unit, onConfirm: (Int, Int) -> Unit) { var teamSize by remember { mutableStateOf(initialTeamSize.toFloat()) }; var victoryLimit by remember { mutableStateOf(initialVictoryLimit.toFloat()) }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Regras: $groupName") }, text = { Column { Text("Jogadores por Time: ${teamSize.roundToInt()}"); Slider(value = teamSize, onValueChange = { teamSize = it }, valueRange = 2f..6f, steps = 3); Spacer(Modifier.height(16.dp)); Text("Limite de Vitórias: ${victoryLimit.roundToInt()}"); Slider(value = victoryLimit, onValueChange = { victoryLimit = it }, valueRange = 1f..6f, steps = 4) } }, confirmButton = { Button(onClick = { onConfirm(teamSize.roundToInt(), victoryLimit.roundToInt()) }) { Text("Salvar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
-@Composable fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) { var text by remember { mutableStateOf("") }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Criar Novo Grupo") }, text = { OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Nome do Grupo") }, singleLine = true) }, confirmButton = { Button(onClick = { if(text.isNotBlank()) onConfirm(text) }, enabled = text.isNotBlank()) { Text("Criar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
+@Composable fun RenamePlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String) -> Unit) { var newName by remember { mutableStateOf(player.name) }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Renomear jogador") }, text = { OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Novo nome") }, singleLine = true) }, confirmButton = { Button(onClick = { if (newName.isNotBlank()) onConfirm(newName) }) { Text("Salvar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
+
+@Composable
+fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: Int, onStartManualClick: () -> Unit, onStartAutoClick: () -> Unit, hasPreviousMatch: Boolean = false, onNextRoundClick: () -> Unit = {}, lastWinners: List<Player> = emptyList(), streakOwner: String? = null, currentStreak: Int = 0, victoryLimit: Int = 3, errorColor: Color = Color.Red, isDarkTheme: Boolean = false) {
+    val minNeeded = currentTeamSize * 2
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+        Column(modifier = Modifier.padding(24.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            if (hasPreviousMatch) {
+                val limitReached = currentStreak >= victoryLimit
+                if (limitReached) {
+                    val kingTextColor = if (isDarkTheme) Color(0xFFFFD600) else Color(0xFFE65100); Text(text = "👑 Rei da quadra atingiu o limite!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = kingTextColor, textAlign = TextAlign.Center); Spacer(modifier = Modifier.height(4.dp)); Text(text = "O time vencedor venceu $currentStreak seguidas e será redistribuído na próxima rodada.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                } else {
+                    val teamName = if (streakOwner == "A") "Time A" else if (streakOwner == "B") "Time B" else "Vencedor"
+                    val playerNames = lastWinners.joinToString(", ") { it.name }
+                    Text(text = "Vitória do $teamName", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "($playerNames)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Aguardando próxima rodada.", style = MaterialTheme.typography.bodySmall)
+                }
+            } else {
+                Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(text = if(selectedCount == 0) "Nenhum jogador selecionado" else "$selectedCount jogadores presentes", color = if(selectedCount < minNeeded) errorColor else Color.Unspecified)
+                if (selectedCount < minNeeded) { Text("Mínimo: $minNeeded", style = MaterialTheme.typography.bodySmall, color = errorColor) }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            if (hasPreviousMatch) {
+                Button(onClick = onNextRoundClick, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("🔄 Próxima rodada (Automático)", fontSize = 16.sp, color = Color.White) } // Texto atualizado
+            } else {
+                Button(onClick = onStartAutoClick, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = if(selectedCount >= minNeeded) Color(0xFF2E7D32) else Color.Gray)) { Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White); Spacer(Modifier.width(8.dp)); Text("Iniciar jogo ($selectedCount selecionados)", fontSize = 16.sp, color = Color.White) } // Texto atualizado
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(onClick = onStartManualClick) { Text(text = "Ou montar times manualmente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), textDecoration = TextDecoration.Underline) }
+        }
+    }
+}
+@Composable fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double) -> Unit) { var name by remember { mutableStateOf("") }; var eloText by remember { mutableStateOf("1200") }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Novo jogador") }, text = { Column { OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") }, singleLine = true); Spacer(Modifier.height(8.dp)); OutlinedTextField(value = eloText, onValueChange = { eloText = it }, label = { Text("Elo inicial") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true) } }, confirmButton = { Button(onClick = { if(name.isNotBlank()) onConfirm(name, eloText.toDoubleOrNull() ?: 1200.0) }) { Text("Adicionar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
+@Composable fun GroupConfigDialog(groupName: String, initialTeamSize: Int, initialVictoryLimit: Int, onDismiss: () -> Unit, onConfirm: (Int, Int) -> Unit) { var teamSize by remember { mutableStateOf(initialTeamSize.toFloat()) }; var victoryLimit by remember { mutableStateOf(initialVictoryLimit.toFloat()) }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Regras: $groupName") }, text = { Column { Text("Jogadores por time: ${teamSize.roundToInt()}"); Slider(value = teamSize, onValueChange = { teamSize = it }, valueRange = 2f..6f, steps = 3); Spacer(Modifier.height(16.dp)); Text("Limite de vitórias: ${victoryLimit.roundToInt()}"); Slider(value = victoryLimit, onValueChange = { victoryLimit = it }, valueRange = 1f..6f, steps = 4) } }, confirmButton = { Button(onClick = { onConfirm(teamSize.roundToInt(), victoryLimit.roundToInt()) }) { Text("Salvar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }
+@Composable fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) { var text by remember { mutableStateOf("") }; AlertDialog(onDismissRequest = onDismiss, title = { Text("Criar novo grupo") }, text = { OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Nome do grupo") }, singleLine = true) }, confirmButton = { Button(onClick = { if(text.isNotBlank()) onConfirm(text) }, enabled = text.isNotBlank()) { Text("Criar") } }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }) }

@@ -287,6 +287,7 @@ class VoleiViewModel(
         var availablePool = rawPool.filter { p -> activeWinners.none { w -> w.id == p.id } }
 
         if (_currentStreak.value >= victoryLimit) {
+            // Limite atingido: Reseta tudo e sorteia novos times
             _currentStreak.value = 0; _streakOwner.value = null
             val winnersShuffled = activeWinners.shuffled()
             val splitIndex = winnersShuffled.size / 2
@@ -300,24 +301,53 @@ class VoleiViewModel(
                 _teamA.value = result.teamA; _teamB.value = result.teamB; _waitingList.value = remainingQueue
             }
         } else {
+            // Rei da Quadra continua (Winners ficam)
             var newWinningTeam = activeWinners
             val originalWinnerIds = _lastWinners.value.map { it.id }.toSet()
+
+            // Lógica para completar time vencedor se alguém saiu
             if (newWinningTeam.size < teamSize) {
                 val needed = teamSize - newWinningTeam.size
-                if (availablePool.size >= needed) { val reinforcements = availablePool.take(needed); availablePool = availablePool.drop(needed); newWinningTeam = newWinningTeam + reinforcements }
+                if (availablePool.size >= needed) {
+                    val reinforcements = availablePool.take(needed)
+                    availablePool = availablePool.drop(needed)
+                    newWinningTeam = newWinningTeam + reinforcements
+                }
             } else if (newWinningTeam.size > teamSize) {
-                val cutPlayers = newWinningTeam.drop(teamSize); newWinningTeam = newWinningTeam.take(teamSize); availablePool = cutPlayers + availablePool
+                val cutPlayers = newWinningTeam.drop(teamSize)
+                newWinningTeam = newWinningTeam.take(teamSize)
+                availablePool = cutPlayers + availablePool
             }
+
             if (availablePool.size >= teamSize) {
-                val challengers = availablePool.take(teamSize); val remainingQueue = availablePool.drop(teamSize)
-                _teamA.value = newWinningTeam; _teamB.value = challengers; _waitingList.value = remainingQueue
+                val challengers = availablePool.take(teamSize)
+                val remainingQueue = availablePool.drop(teamSize)
+
+                // --- AQUI ESTÁ A MUDANÇA ---
+                // Verifica quem é o "Dono da Quadra" (quem ganhou) e mantém a posição
+                if (_streakOwner.value == "B") {
+                    _teamB.value = newWinningTeam // Time B ganhou, continua no B
+                    _teamA.value = challengers    // Desafiantes vão para o A
+                } else {
+                    _teamA.value = newWinningTeam // Time A ganhou (ou padrão), continua no A
+                    _teamB.value = challengers    // Desafiantes vão para o B
+                    // Se por algum motivo estiver nulo mas tem streak, força A
+                    if (_streakOwner.value == null) _streakOwner.value = "A"
+                }
+
+                _waitingList.value = remainingQueue
+
+                // Verifica se o time mudou muito (reinforcements) para resetar a streak
                 if (_currentStreak.value > 0) {
-                    _streakOwner.value = "A"
                     val newWinnerIds = newWinningTeam.map { it.id }.toSet()
+                    // Se os jogadores mudaram (alguém saiu e entrou substituto), reseta streak?
+                    // Geralmente sim, ou mantém se a base for a mesma.
+                    // Aqui mantemos a lógica que você já tinha: se os IDs não são exatos, reseta.
                     if (originalWinnerIds != newWinnerIds) _currentStreak.value = 0
                 }
             }
         }
+        _hasPreviousMatch.value = false
     }
 
     fun startManualGame(manualTeamA: List<Player>, manualTeamB: List<Player>, remainingPlayers: List<Player>) {
