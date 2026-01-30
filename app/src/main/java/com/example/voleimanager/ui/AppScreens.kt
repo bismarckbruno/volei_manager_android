@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,7 +37,14 @@ import kotlin.math.roundToInt
 fun RankingScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val rankingDate by viewModel.rankingDateFilter.collectAsState()
     val availableDates by viewModel.availableRankingDates.collectAsState()
-    val displayedPlayers = viewModel.getRankingListForDate(rankingDate)
+
+    // REATIVIDADE: Observamos as listas para que a função getRankingListForDate seja reexecutada se os dados mudarem
+    val logs by viewModel.currentGroupEloLogs.collectAsState()
+    val players by viewModel.currentGroupPlayers.collectAsState()
+
+    val displayedPlayers = remember(rankingDate, logs, players) {
+        viewModel.getRankingListForDate(rankingDate)
+    }
 
     var expandedDate by remember { mutableStateOf(false) }
 
@@ -220,73 +226,50 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Play
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-
-        // 1. ÁREA DO GRÁFICO
         Canvas(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp)) {
-            val width = size.width
-            val height = size.height
-            // Margem para os textos de Elo e Eixo X
-            val topMargin = 40f
-            val bottomMargin = 50f
+            val width = size.width; val height = size.height
+            val topMargin = 40f; val bottomMargin = 50f
             val chartHeight = height - topMargin - bottomMargin
-
             val xStep = if (uniqueDates.size > 1) width / (uniqueDates.size - 1) else width
 
             val minElo = logs.minOfOrNull { it.elo }?.toFloat() ?: 1000f
             val maxElo = logs.maxOfOrNull { it.elo }?.toFloat() ?: 1400f
             val eloRange = (maxElo - minElo).coerceAtLeast(10f)
 
-            // LINHAS DO EIXO X (Datas)
+            // Eixo X (Datas)
             val lineY = height - bottomMargin
             drawLine(Color.Gray.copy(alpha = 0.5f), Offset(0f, lineY), Offset(width, lineY), 2f)
-
-            // DESENHA AS DATAS NO EIXO X
             uniqueDates.forEachIndexed { index, date ->
                 val x = index * xStep
                 val shortDate = try { val d = date.split("-"); "${d[2]}/${d[1]}" } catch (e: Exception) { "" }
                 drawContext.canvas.nativeCanvas.drawText(shortDate, x, height - 10f, textPaint)
             }
 
-            // DESENHA AS LINHAS DOS JOGADORES
             sortedIds.forEachIndexed { index, playerId ->
                 val playerLogs = logs.filter { it.playerId == playerId }.sortedBy { it.date }
                 if (playerLogs.isNotEmpty()) {
                     val path = Path()
                     val color = colors[index % colors.size]
-
                     playerLogs.forEach { log ->
                         val dateIndex = uniqueDates.indexOf(log.date)
                         val x = dateIndex * xStep
                         val normalizedElo = (log.elo.toFloat() - minElo) / eloRange
-                        // Y invertido (maior elo em cima) ajustado às margens
                         val y = (height - bottomMargin) - (normalizedElo * chartHeight)
-
                         if (log == playerLogs.first()) path.moveTo(x, y) else path.lineTo(x, y)
-
                         drawCircle(color, 5.dp.toPx(), Offset(x, y))
-                        // Desenha APENAS o Elo acima do ponto
                         drawContext.canvas.nativeCanvas.drawText(log.elo.toInt().toString(), x, y - 20f, textPaint)
                     }
                     drawPath(path, color, style = Stroke(width = 3.dp.toPx()))
                 }
             }
         }
-
-        // 2. LEGENDA
         Divider()
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        LazyRow(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             itemsIndexed(sortedIds) { index, id ->
                 val player = players.find { it.id == id }
                 if (player != null) {
                     val color = colors[index % colors.size]
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
                         Box(modifier = Modifier.size(12.dp).background(color, RoundedCornerShape(2.dp)))
                         Spacer(Modifier.width(4.dp))
                         Text(text = player.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
