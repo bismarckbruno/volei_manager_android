@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow // Adicionado
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -196,7 +196,6 @@ fun ChartsScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 if (relevantLogs.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Sem histórico suficiente.") }
                 } else {
-                    // ATUALIZADO: Passa groupPlayers para obter os nomes na legenda
                     EloChart(relevantLogs, selectedIds, groupPlayers, isDarkTheme)
                 }
             }
@@ -209,8 +208,6 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Play
     val uniqueDates = logs.map { it.date }.distinct().sorted()
     if (uniqueDates.isEmpty()) return
     val colors = listOf(Color.Blue, Color.Red, Color.Green, Color.Magenta, Color.Cyan, Color(0xFFFFA000))
-
-    // ORDENAÇÃO DETERMINÍSTICA: Garante que o jogador X sempre receba a mesma cor na legenda e no gráfico
     val sortedIds = remember(selectedIds) { selectedIds.sorted() }
 
     val textPaint = remember(isDarkTheme) {
@@ -228,8 +225,10 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Play
         Canvas(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp)) {
             val width = size.width
             val height = size.height
-            val verticalMargin = 60f
-            val chartHeight = height - (verticalMargin * 2)
+            // Margem para os textos de Elo e Eixo X
+            val topMargin = 40f
+            val bottomMargin = 50f
+            val chartHeight = height - topMargin - bottomMargin
 
             val xStep = if (uniqueDates.size > 1) width / (uniqueDates.size - 1) else width
 
@@ -237,9 +236,18 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Play
             val maxElo = logs.maxOfOrNull { it.elo }?.toFloat() ?: 1400f
             val eloRange = (maxElo - minElo).coerceAtLeast(10f)
 
-            drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, height - verticalMargin), Offset(width, height - verticalMargin), 2f)
-            drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, verticalMargin), Offset(0f, height - verticalMargin), 2f)
+            // LINHAS DO EIXO X (Datas)
+            val lineY = height - bottomMargin
+            drawLine(Color.Gray.copy(alpha = 0.5f), Offset(0f, lineY), Offset(width, lineY), 2f)
 
+            // DESENHA AS DATAS NO EIXO X
+            uniqueDates.forEachIndexed { index, date ->
+                val x = index * xStep
+                val shortDate = try { val d = date.split("-"); "${d[2]}/${d[1]}" } catch (e: Exception) { "" }
+                drawContext.canvas.nativeCanvas.drawText(shortDate, x, height - 10f, textPaint)
+            }
+
+            // DESENHA AS LINHAS DOS JOGADORES
             sortedIds.forEachIndexed { index, playerId ->
                 val playerLogs = logs.filter { it.playerId == playerId }.sortedBy { it.date }
                 if (playerLogs.isNotEmpty()) {
@@ -250,15 +258,14 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Play
                         val dateIndex = uniqueDates.indexOf(log.date)
                         val x = dateIndex * xStep
                         val normalizedElo = (log.elo.toFloat() - minElo) / eloRange
-                        val y = (height - verticalMargin) - (normalizedElo * chartHeight)
+                        // Y invertido (maior elo em cima) ajustado às margens
+                        val y = (height - bottomMargin) - (normalizedElo * chartHeight)
 
                         if (log == playerLogs.first()) path.moveTo(x, y) else path.lineTo(x, y)
 
                         drawCircle(color, 5.dp.toPx(), Offset(x, y))
-                        drawContext.canvas.nativeCanvas.drawText(log.elo.toInt().toString(), x, y - 25f, textPaint)
-
-                        val shortDate = try { val d = log.date.split("-"); "${d[2]}/${d[1]}" } catch (e: Exception) { "" }
-                        drawContext.canvas.nativeCanvas.drawText(shortDate, x, y + 45f, textPaint)
+                        // Desenha APENAS o Elo acima do ponto
+                        drawContext.canvas.nativeCanvas.drawText(log.elo.toInt().toString(), x, y - 20f, textPaint)
                     }
                     drawPath(path, color, style = Stroke(width = 3.dp.toPx()))
                 }
