@@ -233,7 +233,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         showRenameGroupDialog?.let { group -> RenameGroupDialog(group, { showRenameGroupDialog = null }, { newName -> viewModel.renameGroup(group, newName); selectedGroup = newName; showRenameGroupDialog = null }) }
         showDeleteGroupDialog?.let { group -> AlertDialog(onDismissRequest = { showDeleteGroupDialog = null }, title = { Text("Excluir grupo '$group'?") }, text = { Text("Tem certeza? Todos os dados desse grupo serão apagados permanentemente.") }, confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = Color.Red), onClick = { viewModel.deleteGroup(group); selectedGroup = "Geral"; showDeleteGroupDialog = null }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { showDeleteGroupDialog = null }) { Text("Cancelar") } }) }
 
-        // LISTA RANKING
+        // LISTA RANKING PARA COMPARTILHAR
         val rankingDate by viewModel.rankingDateFilter.collectAsState()
         val rankingList = remember(rankingDate, allPlayers) { viewModel.getRankingListForDate(rankingDate) }
 
@@ -267,16 +267,18 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 }
 
-// --- CONTEÚDO RESTAURADO E POLIDO DA TELA DE JOGO ---
-
+// --- CONTEÚDO RESTAURADO DA TELA DE JOGO ---
 @Composable
 fun GameScreenContent(viewModel: VoleiViewModel, selectedGroup: String, isDarkTheme: Boolean, errorColor: Color, onDeleteRequest: (Player) -> Unit) {
+    // IMPORTANTE: USANDO A LISTA FILTRADA DO VIEWMODEL
+    val filteredPlayers by viewModel.currentGroupPlayers.collectAsState()
+
     val teamA by viewModel.teamA.collectAsState(); val teamB by viewModel.teamB.collectAsState()
     val waitingList by viewModel.waitingList.collectAsState(); val presentIds by viewModel.presentPlayerIds.collectAsState()
     val hasPrev by viewModel.hasPreviousMatch.collectAsState(); val config by viewModel.currentGroupConfig.collectAsState()
     val streak by viewModel.currentStreak.collectAsState(); val owner by viewModel.streakOwner.collectAsState()
-    val winners by viewModel.lastWinners.collectAsState(); val allPlayers by viewModel.players.collectAsState()
-    val filteredPlayers = allPlayers.filter { it.groupName == selectedGroup }
+    val winners by viewModel.lastWinners.collectAsState()
+
     var isSetupMode by remember { mutableStateOf(false) }
     var showCancel by remember { mutableStateOf(false) }
     var subOut by remember { mutableStateOf<Player?>(null) }
@@ -299,6 +301,8 @@ fun GameScreenContent(viewModel: VoleiViewModel, selectedGroup: String, isDarkTh
     }
 }
 
+// --- COMPONENTES VISUAIS COMPLETOS (RESTAURADOS) ---
+
 @Composable
 fun ActiveGameView(viewModel: VoleiViewModel, teamA: List<Player>, teamB: List<Player>, waitingList: List<Player>, streakOwner: String?, currentStreak: Int, isDarkTheme: Boolean, errorColor: Color, onCancelRequest: () -> Unit, onSubRequest: (Player) -> Unit) {
     val teamAStreak = if(streakOwner == "A") currentStreak else 0
@@ -309,13 +313,14 @@ fun ActiveGameView(viewModel: VoleiViewModel, teamA: List<Player>, teamB: List<P
     val cardColorB = if (isDarkTheme) Color(0xFFB71C1C) else Color(0xFFFFEBEE)
     val btnColorB  = if (isDarkTheme) Color(0xFFEF9A9A) else Color(0xFFD32F2F)
 
+    // RESTAURADO: Botão PRETO em modo escuro para contraste
     val btnTextColor = if (isDarkTheme) Color.Black else Color.White
 
-    // --- CORREÇÃO AQUI: Restaurando o Amarelo para contraste no Vermelho Escuro ---
-    val defaultStreakColor = Color(0xFFFF6F00) // Laranja padrão
-    val yellowStreakColor = Color(0xFFFFD600)  // Amarelo vibrante
+    val defaultStreakColor = Color(0xFFFF6F00)
+    val yellowStreakColor = Color(0xFFFFD600) // Amarelo vibrante
 
     val streakColorA = defaultStreakColor
+    // RESTAURADO: Streak Amarelo no modo Escuro para Time B
     val streakColorB = if (isDarkTheme) yellowStreakColor else defaultStreakColor
 
     val configuration = LocalConfiguration.current
@@ -365,7 +370,7 @@ fun ActiveGameView(viewModel: VoleiViewModel, teamA: List<Player>, teamB: List<P
 fun ActiveTeamCard(name: String, players: List<Player>, cardColor: Color, buttonColor: Color, buttonTextColor: Color, streakColor: Color, streak: Int, onPlayerClick: (Player) -> Unit, onWin: () -> Unit) {
     val avgElo = if (players.isNotEmpty()) players.map { it.elo }.average() else 0.0
     val contentColor = if(cardColor.luminance() < 0.5f) Color.White else Color.Black
-    val dividerColor = contentColor.copy(alpha = 0.2f) // Contraste corrigido nas barras horizontais
+    val dividerColor = contentColor.copy(alpha = 0.2f) // RESTAURADO: Contraste correto
 
     Card(modifier = Modifier.fillMaxSize().padding(4.dp), colors = CardDefaults.cardColors(containerColor = cardColor), elevation = CardDefaults.cardElevation(4.dp)) {
         Column(modifier = Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -417,7 +422,7 @@ fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: In
                 Button(onClick = onStartAutoClick, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = if(selectedCount >= minNeeded) Color(0xFF2E7D32) else Color.Gray)) { Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White); Spacer(Modifier.width(8.dp)); Text("Iniciar jogo ($selectedCount selecionados)", fontSize = 16.sp, color = Color.White) }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            // BOTÃO MANUAL RESTAURADO
+            // RESTAURADO: Botão de montar times manualmente
             TextButton(onClick = onStartManualClick) { Text(text = "Ou montar times manualmente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), textDecoration = TextDecoration.Underline) }
         }
     }
@@ -427,7 +432,7 @@ fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: In
 @Composable
 fun PlayerCard(player: Player, isPresent: Boolean, onTogglePresence: () -> Unit, onDelete: () -> Unit, onRename: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
-    // CARD RESTAURADO: SEM LIXEIRA, MENU NO LONGO CLIQUE
+    // RESTAURADO: Removida a lixeira, adicionado LongClick
     Box(modifier = Modifier.fillMaxWidth()) {
         Card(
             modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth().combinedClickable(onClick = onTogglePresence, onLongClick = { showMenu = true }),
@@ -455,7 +460,7 @@ fun PlayerCard(player: Player, isPresent: Boolean, onTogglePresence: () -> Unit,
 
 @Composable
 fun WaitingPlayerCard(index: Int, player: Player) {
-    // VISUAL RESTAURADO
+    // RESTAURADO: Card com largura mínima e padding bom
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.widthIn(min = 120.dp)) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${index}º", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)

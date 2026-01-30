@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,55 +35,32 @@ import kotlin.math.roundToInt
 // --- TELA DE RANKING ---
 @Composable
 fun RankingScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
-    // CORREÇÃO: Usando as novas variáveis específicas de Ranking
     val rankingDate by viewModel.rankingDateFilter.collectAsState()
     val availableDates by viewModel.availableRankingDates.collectAsState()
-
-    // A lista agora é calculada pelo ViewModel baseada na data selecionada
     val displayedPlayers = viewModel.getRankingListForDate(rankingDate)
 
     var expandedDate by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // Título e Filtro
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = { expandedDate = true }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.DateRange, null)
+                Icon(Icons.Default.DateRange, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-
-                // Formata a data para exibir bonito no botão
                 val dateLabel = rankingDate?.let {
-                    try {
-                        val inF = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                        val outF = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                        outF.format(inF.parse(it)!!)
-                    } catch(e:Exception){ it }
+                    try { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it)!!) } catch(e:Exception){it}
                 } ?: "Ranking Atual (Geral)"
-
                 Text(dateLabel)
             }
             DropdownMenu(expanded = expandedDate, onDismissRequest = { expandedDate = false }) {
-                DropdownMenuItem(
-                    text = { Text("Atual (Geral)") },
-                    onClick = { viewModel.setRankingDateFilter(null); expandedDate = false }
-                )
+                DropdownMenuItem(text = { Text("Atual (Geral)") }, onClick = { viewModel.setRankingDateFilter(null); expandedDate = false })
                 availableDates.forEach { date ->
-                    val dateStr = try {
-                        val inF = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                        val outF = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                        outF.format(inF.parse(date)!!)
-                    } catch(e:Exception){ date }
-
-                    DropdownMenuItem(
-                        text = { Text(dateStr) },
-                        onClick = { viewModel.setRankingDateFilter(date); expandedDate = false }
-                    )
+                    val dateStr = try { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)!!) } catch(e:Exception){date}
+                    DropdownMenuItem(text = { Text(dateStr) }, onClick = { viewModel.setRankingDateFilter(date); expandedDate = false })
                 }
             }
         }
         Spacer(Modifier.height(16.dp))
 
-        // Lista de Jogadores
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             itemsIndexed(displayedPlayers) { index, player ->
                 RankingItem(index + 1, player, viewModel.getPatente(player.elo))
@@ -98,7 +76,6 @@ fun RankingScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 fun RankingItem(pos: Int, player: Player, patente: String) {
     val medalColor = when(pos) { 1 -> Color(0xFFFFD700); 2 -> Color(0xFFC0C0C0); 3 -> Color(0xFFCD7F32); else -> MaterialTheme.colorScheme.surfaceVariant }
     val textColor = if (pos <= 3) Color.Black else MaterialTheme.colorScheme.onSurface
-
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(32.dp).background(medalColor, RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
@@ -120,45 +97,41 @@ fun RankingItem(pos: Int, player: Player, patente: String) {
 // --- TELA DE HISTÓRICO ---
 @Composable
 fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
-    val history by viewModel.history.collectAsState()
-    val currentConfig by viewModel.currentGroupConfig.collectAsState()
-
-    // CORREÇÃO: Usando as novas variáveis específicas de Histórico
+    val groupHistory by viewModel.currentGroupHistory.collectAsState()
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates by viewModel.availableHistoryDates.collectAsState()
 
-    val filteredHistory = history.filter {
-        it.groupName == currentConfig.groupName &&
-                (historyDate == null || it.date.startsWith(historyDate!!))
-    }.reversed()
+    // CORREÇÃO ORDENAÇÃO: Parse da data string para Date real para garantir ordem cronológica correta
+    val sortedHistory = remember(groupHistory, historyDate) {
+        val sdf = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+        groupHistory.filter {
+            (historyDate == null || it.date.startsWith(historyDate!!))
+        }.sortedByDescending {
+            try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+        }
+    }
 
     var expandedDate by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = { expandedDate = true }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.DateRange, null)
+                Icon(Icons.Default.DateRange, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(historyDate ?: "Todas as datas")
             }
             DropdownMenu(expanded = expandedDate, onDismissRequest = { expandedDate = false }) {
-                DropdownMenuItem(
-                    text = { Text("Todas as datas") },
-                    onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false }
-                )
+                DropdownMenuItem(text = { Text("Todas as datas") }, onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false })
                 availableDates.forEach { date ->
-                    DropdownMenuItem(
-                        text = { Text(date) },
-                        onClick = { viewModel.setHistoryDateFilter(date); expandedDate = false }
-                    )
+                    DropdownMenuItem(text = { Text(date) }, onClick = { viewModel.setHistoryDateFilter(date); expandedDate = false })
                 }
             }
         }
         Spacer(Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(filteredHistory) { match -> HistoryItem(match, isDarkTheme) }
-            if (filteredHistory.isEmpty()) item { Text("Nenhuma partida encontrada.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
+            items(sortedHistory) { match -> HistoryItem(match, isDarkTheme) }
+            if (sortedHistory.isEmpty()) item { Text("Nenhuma partida encontrada.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
         }
     }
 }
@@ -167,8 +140,6 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean) {
     val winColor = if (isDarkTheme) Color(0xFF81C784) else Color(0xFF2E7D32)
     val isTeamAWin = match.winner == "Time A"
-
-    // --- CORREÇÃO AQUI: Adicionando espaço visual após as vírgulas ---
     val teamANames = match.teamA.replace(",", ", ")
     val teamBNames = match.teamB.replace(",", ", ")
 
@@ -182,13 +153,11 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Time A", fontWeight = FontWeight.Bold, color = if(isTeamAWin) winColor else Color.Unspecified)
-                    // Usando a string formatada com espaços
                     Text(teamANames, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
                 Text("VS", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Time B", fontWeight = FontWeight.Bold, color = if(!isTeamAWin) winColor else Color.Unspecified)
-                    // Usando a string formatada com espaços
                     Text(teamBNames, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
             }
@@ -196,21 +165,17 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean) {
     }
 }
 
-// --- TELA DE GRÁFICOS (CANVAS) ---
+// --- TELA DE GRÁFICOS ---
 @Composable
 fun ChartsScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
-    val allPlayers by viewModel.players.collectAsState()
-    val eloLogs by viewModel.eloLogs.collectAsState(initial = emptyList())
+    val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
+    val groupLogs by viewModel.currentGroupEloLogs.collectAsState()
     val selectedIds by viewModel.chartSelectedPlayerIds.collectAsState()
-    val currentConfig by viewModel.currentGroupConfig.collectAsState()
-
-    val groupPlayers = allPlayers.filter { it.groupName == currentConfig.groupName }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Evolução de Elo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Selecione para comparar:", style = MaterialTheme.typography.bodySmall)
 
-        // Seletor de Jogadores
         LazyColumn(modifier = Modifier.height(120.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))) {
             items(groupPlayers) { player ->
                 val isSelected = selectedIds.contains(player.id)
@@ -223,16 +188,15 @@ fun ChartsScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         }
         Spacer(Modifier.height(16.dp))
 
-        // Área do Gráfico
         Card(modifier = Modifier.fillMaxWidth().weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
             if (selectedIds.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Selecione jogadores acima.") }
             } else {
-                val relevantLogs = eloLogs.filter { selectedIds.contains(it.playerId) && it.groupName == currentConfig.groupName }.sortedBy { it.date }
+                val relevantLogs = groupLogs.filter { selectedIds.contains(it.playerId) }.sortedBy { it.date }
                 if (relevantLogs.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Sem histórico suficiente.") }
                 } else {
-                    EloChart(relevantLogs, selectedIds, groupPlayers)
+                    EloChart(relevantLogs, selectedIds, isDarkTheme)
                 }
             }
         }
@@ -240,15 +204,29 @@ fun ChartsScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 }
 
 @Composable
-fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Player>) {
+fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, isDarkTheme: Boolean) {
     val uniqueDates = logs.map { it.date }.distinct().sorted()
     if (uniqueDates.isEmpty()) return
+    val colors = listOf(Color.Blue, Color.Red, Color.Green, Color.Magenta, Color.Cyan, Color(0xFFFFA000)) // Amarelo escuro para melhor leitura
 
-    val colors = listOf(Color.Blue, Color.Red, Color.Green, Color.Magenta, Color.Cyan, Color.Yellow)
+    // Configuração do Paint para o texto nativo
+    val textPaint = remember(isDarkTheme) {
+        android.graphics.Paint().apply {
+            color = if (isDarkTheme) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+            textSize = 30f
+            textAlign = android.graphics.Paint.Align.CENTER
+            isAntiAlias = true
+        }
+    }
 
-    Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Canvas(modifier = Modifier.fillMaxSize().padding(24.dp)) { // Padding maior para caber texto
         val width = size.width
         val height = size.height
+
+        // Ajuste de margem vertical para os textos não cortarem
+        val verticalMargin = 60f
+        val chartHeight = height - (verticalMargin * 2)
+
         val xStep = if (uniqueDates.size > 1) width / (uniqueDates.size - 1) else width
 
         val minElo = logs.minOfOrNull { it.elo }?.toFloat() ?: 1000f
@@ -256,8 +234,8 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Play
         val eloRange = (maxElo - minElo).coerceAtLeast(10f)
 
         // Linhas de Grade
-        drawLine(Color.Gray, Offset(0f, height), Offset(width, height), 2f) // Eixo X
-        drawLine(Color.Gray, Offset(0f, 0f), Offset(0f, height), 2f) // Eixo Y
+        drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, height - verticalMargin), Offset(width, height - verticalMargin), 2f)
+        drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, verticalMargin), Offset(0f, height - verticalMargin), 2f)
 
         selectedIds.forEachIndexed { index, playerId ->
             val playerLogs = logs.filter { it.playerId == playerId }.sortedBy { it.date }
@@ -268,10 +246,36 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Play
                 playerLogs.forEach { log ->
                     val dateIndex = uniqueDates.indexOf(log.date)
                     val x = dateIndex * xStep
-                    val y = height - ((log.elo.toFloat() - minElo) / eloRange * height)
+                    // Inverte o Y (Elo maior em cima) e aplica margem
+                    val normalizedElo = (log.elo.toFloat() - minElo) / eloRange
+                    val y = (height - verticalMargin) - (normalizedElo * chartHeight)
 
                     if (log == playerLogs.first()) path.moveTo(x, y) else path.lineTo(x, y)
-                    drawCircle(color, 4.dp.toPx(), Offset(x, y))
+
+                    // Desenha o Ponto
+                    drawCircle(color, 5.dp.toPx(), Offset(x, y))
+
+                    // --- DESENHA OS TEXTOS ---
+                    // Elo acima do ponto
+                    drawContext.canvas.nativeCanvas.drawText(
+                        log.elo.toInt().toString(),
+                        x,
+                        y - 25f,
+                        textPaint
+                    )
+
+                    // Data abaixo do ponto (Formato curto: dd/MM)
+                    val shortDate = try {
+                        val datePart = log.date.split("-")
+                        "${datePart[2]}/${datePart[1]}" // Pega dia/mês de yyyy-MM-dd
+                    } catch (e: Exception) { "" }
+
+                    drawContext.canvas.nativeCanvas.drawText(
+                        shortDate,
+                        x,
+                        y + 45f,
+                        textPaint
+                    )
                 }
                 drawPath(path, color, style = Stroke(width = 3.dp.toPx()))
             }

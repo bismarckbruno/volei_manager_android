@@ -39,17 +39,29 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
     fun navigateTo(screen: Screen) { _currentScreen.value = screen }
 
-    // --- DADOS BRUTOS ---
-    val players = repository.allPlayers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val history = repository.history.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val eloLogs = repository.eloLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
+    // --- CONFIGURAÇÃO DO GRUPO ATUAL ---
     private val _currentGroupConfig = MutableStateFlow(GroupConfig("Geral"))
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
 
-    // --- TEMA ---
-    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
-    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+    // --- DADOS BRUTOS (Do Banco) ---
+    // RESTAURADO PARA PÚBLICO (MainActivity precisa disso para listar os grupos no menu)
+    val players = repository.allPlayers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _allHistory = repository.history.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _allEloLogs = repository.eloLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- DADOS FILTRADOS (Para as Telas) ---
+    // Usam a lista bruta + configuração atual para filtrar automaticamente
+    val currentGroupPlayers = combine(players, _currentGroupConfig) { list, config ->
+        list.filter { it.groupName == config.groupName }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val currentGroupHistory = combine(_allHistory, _currentGroupConfig) { list, config ->
+        list.filter { it.groupName == config.groupName }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val currentGroupEloLogs = combine(_allEloLogs, _currentGroupConfig) { list, config ->
+        list.filter { it.groupName == config.groupName }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- FILTROS DE DATA ---
     private val _rankingDateFilter = MutableStateFlow<String?>(null)
@@ -61,15 +73,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _chartSelectedPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
     val chartSelectedPlayerIds = _chartSelectedPlayerIds.asStateFlow()
 
-    // Datas disponíveis para RANKING (Baseado nos Logs do Grupo Atual)
-    val availableRankingDates = combine(eloLogs, currentGroupConfig) { logs, config ->
-        logs.filter { it.groupName == config.groupName }.map { it.date }.distinct().sortedDescending()
+    // Datas disponíveis
+    val availableRankingDates = currentGroupEloLogs.map { list ->
+        list.map { it.date }.distinct().sortedDescending()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Datas disponíveis para HISTÓRICO (Baseado nas Partidas do Grupo Atual)
-    val availableHistoryDates = combine(history, currentGroupConfig) { hist, config ->
-        hist.filter { it.groupName == config.groupName }.map { it.date.split(" ")[0] }.distinct().sortedDescending()
+    val availableHistoryDates = currentGroupHistory.map { list ->
+        list.map { it.date.split(" ")[0] }.distinct().sortedDescending()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- TEMA ---
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     // --- ESTADOS DO JOGO ---
     private val _teamA = MutableStateFlow<List<Player>>(emptyList())
@@ -111,17 +126,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _themeMode.value = try { ThemeMode.valueOf(p.getString("theme", "SYSTEM")!!) } catch (e: Exception) { ThemeMode.SYSTEM }
     }
 
-    // --- LÓGICA DE RANKING POR DATA ---
+    // --- RANKING ---
     fun getRankingListForDate(date: String?): List<Player> {
-        val group = _currentGroupConfig.value.groupName
         if (date == null) {
-            // Retorna lista atual do banco
-            return players.value.filter { it.groupName == group }.sortedByDescending { it.elo }
+            return currentGroupPlayers.value.sortedByDescending { it.elo }
         } else {
-            // Reconstrói baseada nos logs
-            val logsDoDia = eloLogs.value.filter { it.date == date && it.groupName == group }
+            val logsDoDia = currentGroupEloLogs.value.filter { it.date == date }
             return logsDoDia.map { log ->
-                // Recria um objeto Player "snapshot" daquele dia
                 Player(id = log.playerId, name = log.playerNameSnapshot, elo = log.elo, groupName = log.groupName)
             }.sortedByDescending { it.elo }
         }
@@ -139,11 +150,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             if(!same) resetGameState()
         }
     }
+
     private fun resetGameState() {
         _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
         _presentPlayerIds.value = emptySet(); _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
         _rankingDateFilter.value = null; _historyDateFilter.value = null; _chartSelectedPlayerIds.value = emptySet()
     }
+
     fun updateConfig(s: Int, l: Int) { _currentGroupConfig.value = _currentGroupConfig.value.copy(teamSize = s, victoryLimit = l); viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) } }
     fun renameGroup(old: String, new: String) = viewModelScope.launch { repository.renameGroup(old, new); if(_currentGroupConfig.value.groupName == old) loadGroupConfig(new) }
     fun deleteGroup(name: String) = viewModelScope.launch { repository.deleteGroup(name); if(_currentGroupConfig.value.groupName == name) loadGroupConfig("Geral") }
@@ -287,7 +300,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _hasPreviousMatch.value = false
     }
 
-    // --- IMPORTAÇÃO / EXPORTAÇÃO ---
+    // --- CSV ---
     private fun smartSplit(line: String): List<String> {
         val result = mutableListOf<String>()
         var current = StringBuilder()
@@ -308,7 +321,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             try {
                 val stream = getApplication<Application>().contentResolver.openInputStream(uri) ?: return@launch
                 val lines = BufferedReader(InputStreamReader(stream)).readLines().drop(1)
-
                 when(type) {
                     CsvType.JOGADORES -> {
                         val list = lines.mapNotNull { line ->
@@ -343,17 +355,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val fileName = when(type) {
                 CsvType.JOGADORES -> {
                     sb.append("Nome,Elo,Partidas,Vitorias,Grupo\n")
-                    players.value.forEach { sb.append("\"${it.name}\",${it.elo},${it.matchesPlayed},${it.victories},\"${it.groupName}\"\n") }
+                    currentGroupPlayers.value.forEach { sb.append("\"${it.name}\",${it.elo},${it.matchesPlayed},${it.victories},\"${it.groupName}\"\n") }
                     "jogadores.csv"
                 }
                 CsvType.HISTORICO -> {
                     sb.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo\n")
-                    history.value.forEach { sb.append("\"${it.date}\",\"${it.teamA}\",\"${it.teamB}\",\"${it.winner}\",${it.eloPoints},\"${it.groupName}\"\n") }
+                    currentGroupHistory.value.forEach { sb.append("\"${it.date}\",\"${it.teamA}\",\"${it.teamB}\",\"${it.winner}\",${it.eloPoints},\"${it.groupName}\"\n") }
                     "historico.csv"
                 }
                 CsvType.ELO_LOGS -> {
                     sb.append("ID,Nome,Data,Elo,Grupo\n")
-                    eloLogs.value.forEach { sb.append("${it.playerId},\"${it.playerNameSnapshot}\",\"${it.date}\",${it.elo},\"${it.groupName}\"\n") }
+                    currentGroupEloLogs.value.forEach { sb.append("${it.playerId},\"${it.playerNameSnapshot}\",\"${it.date}\",${it.elo},\"${it.groupName}\"\n") }
                     "evolucao_elo.csv"
                 }
             }
@@ -366,31 +378,20 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val file = File(context.cacheDir, name)
             FileOutputStream(file).use { it.write(content.toByteArray()) }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/csv"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooser = Intent.createChooser(intent, "Exportar $name")
-            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val chooser = Intent.createChooser(intent, "Exportar $name").apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             context.startActivity(chooser)
         } catch (e: Exception) { Log.e("CSV", "Erro export: ${e.message}") }
     }
 
-    // --- COMPARTILHAR RANKING ATUALIZADO ---
     fun shareRankingText(context: Context, playersList: List<Player>) {
         val group = _currentGroupConfig.value.groupName
         val date = _rankingDateFilter.value
-        val titleDate = date?.let {
-            // Formata data do filtro (yyyy-MM-dd -> dd/MM/yyyy) se existir
-            try {
-                val inF = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val outF = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                outF.format(inF.parse(it)!!)
-            } catch (e: Exception) { it }
-        } ?: "Atual"
-
+        val titleDate = date?.let { try { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it)!!) } catch(e:Exception){it} } ?: "Atual"
         val sb = StringBuilder()
         sb.append("🏆 *Ranking Vôlei: $group* ($titleDate) 🏆\n\n")
         playersList.forEachIndexed { i, p ->
