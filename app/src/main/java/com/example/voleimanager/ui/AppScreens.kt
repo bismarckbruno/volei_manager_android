@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow // Adicionado
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -101,7 +102,6 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates by viewModel.availableHistoryDates.collectAsState()
 
-    // CORREÇÃO ORDENAÇÃO: Parse da data string para Date real para garantir ordem cronológica correta
     val sortedHistory = remember(groupHistory, historyDate) {
         val sdf = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
         groupHistory.filter {
@@ -196,7 +196,8 @@ fun ChartsScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 if (relevantLogs.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Sem histórico suficiente.") }
                 } else {
-                    EloChart(relevantLogs, selectedIds, isDarkTheme)
+                    // ATUALIZADO: Passa groupPlayers para obter os nomes na legenda
+                    EloChart(relevantLogs, selectedIds, groupPlayers, isDarkTheme)
                 }
             }
         }
@@ -204,12 +205,14 @@ fun ChartsScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 }
 
 @Composable
-fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, isDarkTheme: Boolean) {
+fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, players: List<Player>, isDarkTheme: Boolean) {
     val uniqueDates = logs.map { it.date }.distinct().sorted()
     if (uniqueDates.isEmpty()) return
-    val colors = listOf(Color.Blue, Color.Red, Color.Green, Color.Magenta, Color.Cyan, Color(0xFFFFA000)) // Amarelo escuro para melhor leitura
+    val colors = listOf(Color.Blue, Color.Red, Color.Green, Color.Magenta, Color.Cyan, Color(0xFFFFA000))
 
-    // Configuração do Paint para o texto nativo
+    // ORDENAÇÃO DETERMINÍSTICA: Garante que o jogador X sempre receba a mesma cor na legenda e no gráfico
+    val sortedIds = remember(selectedIds) { selectedIds.sorted() }
+
     val textPaint = remember(isDarkTheme) {
         android.graphics.Paint().apply {
             color = if (isDarkTheme) android.graphics.Color.WHITE else android.graphics.Color.BLACK
@@ -219,65 +222,69 @@ fun EloChart(logs: List<PlayerEloLog>, selectedIds: Set<Int>, isDarkTheme: Boole
         }
     }
 
-    Canvas(modifier = Modifier.fillMaxSize().padding(24.dp)) { // Padding maior para caber texto
-        val width = size.width
-        val height = size.height
+    Column(modifier = Modifier.fillMaxSize()) {
 
-        // Ajuste de margem vertical para os textos não cortarem
-        val verticalMargin = 60f
-        val chartHeight = height - (verticalMargin * 2)
+        // 1. ÁREA DO GRÁFICO
+        Canvas(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp)) {
+            val width = size.width
+            val height = size.height
+            val verticalMargin = 60f
+            val chartHeight = height - (verticalMargin * 2)
 
-        val xStep = if (uniqueDates.size > 1) width / (uniqueDates.size - 1) else width
+            val xStep = if (uniqueDates.size > 1) width / (uniqueDates.size - 1) else width
 
-        val minElo = logs.minOfOrNull { it.elo }?.toFloat() ?: 1000f
-        val maxElo = logs.maxOfOrNull { it.elo }?.toFloat() ?: 1400f
-        val eloRange = (maxElo - minElo).coerceAtLeast(10f)
+            val minElo = logs.minOfOrNull { it.elo }?.toFloat() ?: 1000f
+            val maxElo = logs.maxOfOrNull { it.elo }?.toFloat() ?: 1400f
+            val eloRange = (maxElo - minElo).coerceAtLeast(10f)
 
-        // Linhas de Grade
-        drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, height - verticalMargin), Offset(width, height - verticalMargin), 2f)
-        drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, verticalMargin), Offset(0f, height - verticalMargin), 2f)
+            drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, height - verticalMargin), Offset(width, height - verticalMargin), 2f)
+            drawLine(Color.Gray.copy(alpha = 0.3f), Offset(0f, verticalMargin), Offset(0f, height - verticalMargin), 2f)
 
-        selectedIds.forEachIndexed { index, playerId ->
-            val playerLogs = logs.filter { it.playerId == playerId }.sortedBy { it.date }
-            if (playerLogs.isNotEmpty()) {
-                val path = Path()
-                val color = colors[index % colors.size]
+            sortedIds.forEachIndexed { index, playerId ->
+                val playerLogs = logs.filter { it.playerId == playerId }.sortedBy { it.date }
+                if (playerLogs.isNotEmpty()) {
+                    val path = Path()
+                    val color = colors[index % colors.size]
 
-                playerLogs.forEach { log ->
-                    val dateIndex = uniqueDates.indexOf(log.date)
-                    val x = dateIndex * xStep
-                    // Inverte o Y (Elo maior em cima) e aplica margem
-                    val normalizedElo = (log.elo.toFloat() - minElo) / eloRange
-                    val y = (height - verticalMargin) - (normalizedElo * chartHeight)
+                    playerLogs.forEach { log ->
+                        val dateIndex = uniqueDates.indexOf(log.date)
+                        val x = dateIndex * xStep
+                        val normalizedElo = (log.elo.toFloat() - minElo) / eloRange
+                        val y = (height - verticalMargin) - (normalizedElo * chartHeight)
 
-                    if (log == playerLogs.first()) path.moveTo(x, y) else path.lineTo(x, y)
+                        if (log == playerLogs.first()) path.moveTo(x, y) else path.lineTo(x, y)
 
-                    // Desenha o Ponto
-                    drawCircle(color, 5.dp.toPx(), Offset(x, y))
+                        drawCircle(color, 5.dp.toPx(), Offset(x, y))
+                        drawContext.canvas.nativeCanvas.drawText(log.elo.toInt().toString(), x, y - 25f, textPaint)
 
-                    // --- DESENHA OS TEXTOS ---
-                    // Elo acima do ponto
-                    drawContext.canvas.nativeCanvas.drawText(
-                        log.elo.toInt().toString(),
-                        x,
-                        y - 25f,
-                        textPaint
-                    )
-
-                    // Data abaixo do ponto (Formato curto: dd/MM)
-                    val shortDate = try {
-                        val datePart = log.date.split("-")
-                        "${datePart[2]}/${datePart[1]}" // Pega dia/mês de yyyy-MM-dd
-                    } catch (e: Exception) { "" }
-
-                    drawContext.canvas.nativeCanvas.drawText(
-                        shortDate,
-                        x,
-                        y + 45f,
-                        textPaint
-                    )
+                        val shortDate = try { val d = log.date.split("-"); "${d[2]}/${d[1]}" } catch (e: Exception) { "" }
+                        drawContext.canvas.nativeCanvas.drawText(shortDate, x, y + 45f, textPaint)
+                    }
+                    drawPath(path, color, style = Stroke(width = 3.dp.toPx()))
                 }
-                drawPath(path, color, style = Stroke(width = 3.dp.toPx()))
+            }
+        }
+
+        // 2. LEGENDA
+        Divider()
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            itemsIndexed(sortedIds) { index, id ->
+                val player = players.find { it.id == id }
+                if (player != null) {
+                    val color = colors[index % colors.size]
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Box(modifier = Modifier.size(12.dp).background(color, RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.width(4.dp))
+                        Text(text = player.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }
