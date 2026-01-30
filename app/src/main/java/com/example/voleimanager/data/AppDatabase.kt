@@ -7,9 +7,14 @@ import androidx.room.RoomDatabase
 import com.example.voleimanager.data.model.GroupConfig
 import com.example.voleimanager.data.model.MatchHistory
 import com.example.voleimanager.data.model.Player
+import com.example.voleimanager.data.model.PlayerEloLog
 
-// Adicionamos GroupConfig na lista e mudamos a version para 3
-@Database(entities = [Player::class, MatchHistory::class, GroupConfig::class], version = 3, exportSchema = false)
+// ATUALIZAÇÃO: Adicionamos PlayerEloLog e subimos a versão para 4
+@Database(
+    entities = [Player::class, MatchHistory::class, GroupConfig::class, PlayerEloLog::class],
+    version = 4,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun voleiDao(): VoleiDao
@@ -25,7 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .fallbackToDestructiveMigration() // Vai limpar o banco antigo para criar o novo
+                    .fallbackToDestructiveMigration() // Recria o banco se houver conflito de versão
                     .build()
                 INSTANCE = instance
                 instance

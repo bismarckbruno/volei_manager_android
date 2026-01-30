@@ -1,25 +1,30 @@
 package com.example.voleimanager.data
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
 import com.example.voleimanager.data.model.GroupConfig
 import com.example.voleimanager.data.model.MatchHistory
 import com.example.voleimanager.data.model.Player
+import com.example.voleimanager.data.model.PlayerEloLog
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface VoleiDao {
-    // --- JOGADORES ---
+
+    // --- PLAYERS ---
     @Query("SELECT * FROM players ORDER BY elo DESC")
     fun getAllPlayers(): Flow<List<Player>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlayer(player: Player)
 
-    // Usado na Importação (Protege dados existentes)
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPlayers(players: List<Player>)
 
-    // NOVO: Usado no Fim do Jogo (Força a atualização dos Elos)
     @Update
     suspend fun updatePlayers(players: List<Player>)
 
@@ -29,7 +34,7 @@ interface VoleiDao {
     @Delete
     suspend fun deletePlayer(player: Player)
 
-    // --- HISTÓRICO ---
+    // --- HISTORY ---
     @Query("SELECT * FROM match_history ORDER BY id DESC")
     fun getHistory(): Flow<List<MatchHistory>>
 
@@ -39,7 +44,16 @@ interface VoleiDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertHistoryList(history: List<MatchHistory>)
 
-    // --- CONFIGURAÇÕES DE GRUPO ---
+    // --- ELO LOGS (NOVO: PARA OS GRÁFICOS) ---
+    // A estratégia REPLACE garante que se já existir um log para (jogador + data),
+    // ele atualiza o Elo em vez de criar duplicata.
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEloLog(log: PlayerEloLog)
+
+    @Query("SELECT * FROM elo_logs ORDER BY date ASC")
+    fun getAllEloLogs(): Flow<List<PlayerEloLog>>
+
+    // --- CONFIGS ---
     @Query("SELECT * FROM group_configs WHERE groupName = :groupName LIMIT 1")
     suspend fun getGroupConfig(groupName: String): GroupConfig?
 
@@ -56,6 +70,10 @@ interface VoleiDao {
     @Query("UPDATE group_configs SET groupName = :newName WHERE groupName = :oldName")
     suspend fun updateConfigGroupNames(oldName: String, newName: String)
 
+    // NOVO: Atualiza também os logs
+    @Query("UPDATE elo_logs SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updateEloLogGroupNames(oldName: String, newName: String)
+
     @Query("DELETE FROM players WHERE groupName = :groupName")
     suspend fun deletePlayersByGroup(groupName: String)
 
@@ -64,4 +82,8 @@ interface VoleiDao {
 
     @Query("DELETE FROM group_configs WHERE groupName = :groupName")
     suspend fun deleteConfigByGroup(groupName: String)
+
+    // NOVO: Deleta logs do grupo
+    @Query("DELETE FROM elo_logs WHERE groupName = :groupName")
+    suspend fun deleteEloLogsByGroup(groupName: String)
 }
