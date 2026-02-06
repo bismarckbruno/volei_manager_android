@@ -38,15 +38,13 @@ interface VoleiDao {
     @Query("SELECT * FROM match_history ORDER BY id DESC")
     fun getHistory(): Flow<List<MatchHistory>>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMatch(match: MatchHistory)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertHistoryList(history: List<MatchHistory>)
 
-    // --- ELO LOGS (NOVO: PARA OS GRÁFICOS) ---
-    // A estratégia REPLACE garante que se já existir um log para (jogador + data),
-    // ele atualiza o Elo em vez de criar duplicata.
+    // --- ELO LOGS ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEloLog(log: PlayerEloLog)
 
@@ -70,7 +68,6 @@ interface VoleiDao {
     @Query("UPDATE group_configs SET groupName = :newName WHERE groupName = :oldName")
     suspend fun updateConfigGroupNames(oldName: String, newName: String)
 
-    // NOVO: Atualiza também os logs
     @Query("UPDATE elo_logs SET groupName = :newName WHERE groupName = :oldName")
     suspend fun updateEloLogGroupNames(oldName: String, newName: String)
 
@@ -83,7 +80,6 @@ interface VoleiDao {
     @Query("DELETE FROM group_configs WHERE groupName = :groupName")
     suspend fun deleteConfigByGroup(groupName: String)
 
-    // NOVO: Deleta logs do grupo
     @Query("DELETE FROM elo_logs WHERE groupName = :groupName")
     suspend fun deleteEloLogsByGroup(groupName: String)
 }

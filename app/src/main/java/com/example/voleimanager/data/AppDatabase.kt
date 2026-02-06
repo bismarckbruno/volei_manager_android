@@ -9,10 +9,10 @@ import com.example.voleimanager.data.model.MatchHistory
 import com.example.voleimanager.data.model.Player
 import com.example.voleimanager.data.model.PlayerEloLog
 
-// ATUALIZAÇÃO: Adicionamos PlayerEloLog e subimos a versão para 4
+// ATUALIZAÇÃO: Versão 6 - PlayerEloLog agora tem ID autogerado (permite múltiplos logs por dia)
 @Database(
     entities = [Player::class, MatchHistory::class, GroupConfig::class, PlayerEloLog::class],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,7 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .fallbackToDestructiveMigration() // Recria o banco se houver conflito de versão
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

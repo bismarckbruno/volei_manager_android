@@ -7,5 +7,6 @@ import androidx.room.PrimaryKey
 data class GroupConfig(
     @PrimaryKey val groupName: String,
     val teamSize: Int = 6, // Padrão 6
-    val victoryLimit: Int = 3 // Padrão 3
+    val victoryLimit: Int = 3, // Padrão 3
+    val genderPriorityEnabled: Boolean = true
 )

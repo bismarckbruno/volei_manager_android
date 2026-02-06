@@ -11,5 +11,6 @@ data class Player(
     val matchesPlayed: Int = 0,
     val victories: Int = 0,
     val isSetter: Boolean = false,
-    val groupName: String
+    val groupName: String,
+    val sex: String = "M" // "M" or "F"
 )
