@@ -15,7 +15,7 @@ class VoleiRepository(private val voleiDao: VoleiDao) {
     val eloLogs: Flow<List<PlayerEloLog>> = voleiDao.getAllEloLogs()
 
     // --- Players ---
-    suspend fun insertPlayer(player: Player) = voleiDao.insertPlayer(player)
+    suspend fun insertPlayer(player: Player): Long = voleiDao.insertPlayer(player)
     suspend fun insertPlayers(players: List<Player>) = voleiDao.insertPlayers(players)
     suspend fun updatePlayers(players: List<Player>) = voleiDao.updatePlayers(players)
     suspend fun updatePlayer(player: Player) = voleiDao.updatePlayer(player)

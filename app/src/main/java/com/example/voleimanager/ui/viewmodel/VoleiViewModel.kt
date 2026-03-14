@@ -16,7 +16,6 @@ import com.example.voleimanager.data.model.MatchHistory
 import com.example.voleimanager.data.model.Player
 import com.example.voleimanager.data.model.PlayerEloLog
 import com.example.voleimanager.util.EloCalculator
-import com.example.voleimanager.util.TeamBalancer
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -29,10 +28,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.floor
-import kotlin.math.roundToInt
 
-enum class Screen { GAME, RANKING, HISTORY, CHARTS }
+enum class Screen { GAME, HISTORY }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
 
@@ -46,21 +43,17 @@ data class BackupData(
 
 class VoleiViewModel(application: Application, private val repository: VoleiRepository) : AndroidViewModel(application) {
 
-    // --- NAVEGAÇÃO ---
     private val _currentScreen = MutableStateFlow(Screen.GAME)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
     fun navigateTo(screen: Screen) { _currentScreen.value = screen }
 
-    // --- CONFIGURAÇÃO DO GRUPO ATUAL ---
     private val _currentGroupConfig = MutableStateFlow(GroupConfig("Geral"))
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
 
-    // --- DADOS BRUTOS ---
     val players = repository.allPlayers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     private val _allHistory = repository.history.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     private val _allEloLogs = repository.eloLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- DADOS FILTRADOS ---
     val currentGroupPlayers = combine(players, _currentGroupConfig) { list, config ->
         list.filter { it.groupName == config.groupName }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -73,16 +66,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         list.filter { it.groupName == config.groupName }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- FILTROS DE DATA (HISTÓRICO E RANKING) ---
-    private val _rankingDateFilter = MutableStateFlow<String?>(null)
-    val rankingDateFilter = _rankingDateFilter.asStateFlow()
-
     private val _historyDateFilter = MutableStateFlow<String?>(null)
     val historyDateFilter = _historyDateFilter.asStateFlow()
-
-    val availableRankingDates = currentGroupEloLogs.map { list ->
-        list.map { it.date }.distinct().sortedDescending()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val availableHistoryDates = currentGroupHistory.map { list ->
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -91,7 +76,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }.reversed()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     
-    // --- MAPA DE PARTIDAS (DATA MAIS RECENTE) ---
     val gamesPlayedTodayMap = combine(currentGroupEloLogs, availableHistoryDates) { logs, dates ->
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val hasToday = logs.any { it.date == today }
@@ -99,34 +83,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (targetDate != null) logs.filter { it.date == targetDate }.groupingBy { it.playerId }.eachCount() else emptyMap()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    // --- LISTA ORDENADA PARA TELA INICIAL ---
     val sortedPlayersForPresence = combine(currentGroupPlayers, gamesPlayedTodayMap) { pList, gamesMap ->
         pList.sortedWith(
-            compareByDescending<Player> { gamesMap[it.id] ?: 0 }
-                .thenByDescending { it.elo }
+            compareByDescending<Player> { gamesMap[it.id] ?: 0 }.thenByDescending { it.elo }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- FILTROS DO GRÁFICO ---
-    private val _chartSelectedPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
-    val chartSelectedPlayerIds = _chartSelectedPlayerIds.asStateFlow()
-    
-    private val _chartDateRange = MutableStateFlow<Pair<Long?, Long?>>(null to null)
-    val chartDateRange = _chartDateRange.asStateFlow()
-
-    fun setChartDateRange(start: Long?, end: Long?) { _chartDateRange.value = start to end }
-
-    fun toggleChartPlayer(id: Int) {
-        val s = _chartSelectedPlayerIds.value.toMutableSet()
-        if(s.contains(id)) s.remove(id) else s.add(id)
-        _chartSelectedPlayerIds.value = s
-    }
-
-    // --- TEMA ---
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
-    // --- ESTADOS DO JOGO ---
+    private val _showElo = MutableStateFlow(false)
+    val showElo: StateFlow<Boolean> = _showElo.asStateFlow()
+
     private val _teamA = MutableStateFlow<List<Player>>(emptyList()); val teamA = _teamA.asStateFlow()
     private val _teamB = MutableStateFlow<List<Player>>(emptyList()); val teamB = _teamB.asStateFlow()
     private val _waitingList = MutableStateFlow<List<Player>>(emptyList()); val waitingList = _waitingList.asStateFlow()
@@ -139,22 +107,28 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private var lastLosers: List<Player> = emptyList()
 
     init { 
-        loadThemePreference() 
+        loadPreferences() 
         viewModelScope.launch {
             availableHistoryDates.collect { dates -> if (_historyDateFilter.value == null && dates.isNotEmpty()) _historyDateFilter.value = dates.first() }
         }
     }
 
-    // --- SETTERS E CONFIGS ---
-    fun setRankingDateFilter(d: String?) { _rankingDateFilter.value = d }
     fun setHistoryDateFilter(d: String?) { _historyDateFilter.value = d }
-    fun setThemeMode(m: ThemeMode) { _themeMode.value = m; getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit().putString("theme", m.name).apply() }
-    private fun loadThemePreference() { _themeMode.value = try { ThemeMode.valueOf(getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).getString("theme", "SYSTEM")!!) } catch (e: Exception) { ThemeMode.SYSTEM } }
+    
+    fun setThemeMode(m: ThemeMode) { 
+        _themeMode.value = m; 
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit().putString("theme", m.name).apply() 
+    }
 
-    fun getRankingListForDate(date: String?): List<Player> {
-        if (date == null) return currentGroupPlayers.value.sortedByDescending { it.elo }
-        val logs = currentGroupEloLogs.value.filter { it.date == date }
-        return logs.map { Player(id = it.playerId, name = it.playerNameSnapshot, elo = it.elo, groupName = it.groupName) }.sortedByDescending { it.elo }
+    fun setShowElo(show: Boolean) {
+        _showElo.value = show
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit().putBoolean("show_elo", show).apply()
+    }
+
+    private fun loadPreferences() { 
+        val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        _themeMode.value = try { ThemeMode.valueOf(prefs.getString("theme", "SYSTEM")!!) } catch (e: Exception) { ThemeMode.SYSTEM }
+        _showElo.value = prefs.getBoolean("show_elo", false)
     }
 
     fun isGameInProgress(): Boolean = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty() || _hasPreviousMatch.value
@@ -170,25 +144,42 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun resetGameState() {
         _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
         _presentPlayerIds.value = emptySet(); _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
-        _rankingDateFilter.value = null; _historyDateFilter.value = null; _chartSelectedPlayerIds.value = emptySet()
+        _historyDateFilter.value = null
     }
 
-    fun updateConfig(s: Int, l: Int, genderP: Boolean) {
-        _currentGroupConfig.value = _currentGroupConfig.value.copy(teamSize = s, victoryLimit = l, genderPriorityEnabled = genderP)
+    fun updateConfig(s: Int, l: Int, priorityP: Boolean) {
+        if (_currentGroupConfig.value.teamSize != s) {
+            _currentStreak.value = 0
+            _streakOwner.value = null
+        }
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(teamSize = s, victoryLimit = l, priorityEnabled = priorityP)
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
     }
     
     fun renameGroup(old: String, new: String) = viewModelScope.launch { repository.renameGroup(old, new); if(_currentGroupConfig.value.groupName == old) loadGroupConfig(new) }
     fun deleteGroup(name: String) = viewModelScope.launch { repository.deleteGroup(name); if(_currentGroupConfig.value.groupName == name) loadGroupConfig("Geral") }
 
-    // --- CRUD JOGADORES ---
-    fun addPlayer(n: String, e: Double, g: String, sex: String) = viewModelScope.launch { repository.insertPlayer(Player(name = n, elo = e, groupName = g, sex = sex)) }
+    fun addPlayer(n: String, e: Double, g: String, isPriority: Boolean) = viewModelScope.launch { 
+        val newId = repository.insertPlayer(Player(name = n, elo = e, groupName = g, isPriority = isPriority))
+        val newPlayer = Player(id = newId.toInt(), name = n, elo = e, groupName = g, isPriority = isPriority)
+        
+        _presentPlayerIds.update { it + newPlayer.id }
+        
+        if (isGameInProgress()) {
+            _waitingList.update { listOf(newPlayer) + it }
+        }
+    }
+
     fun deletePlayer(p: Player) = viewModelScope.launch { repository.deletePlayer(p); if(_presentPlayerIds.value.contains(p.id)) togglePlayerPresence(p) }
-    fun renamePlayer(p: Player, n: String) = viewModelScope.launch {
-        val up = p.copy(name = n); repository.updatePlayer(up)
+
+    fun editPlayer(p: Player, n: String, isPriority: Boolean) = viewModelScope.launch {
+        val up = p.copy(name = n, isPriority = isPriority)
+        repository.updatePlayer(up)
         _teamA.value = _teamA.value.map { if(it.id == p.id) up else it }
         _teamB.value = _teamB.value.map { if(it.id == p.id) up else it }
         _waitingList.value = _waitingList.value.map { if(it.id == p.id) up else it }
+        _lastWinners.value = _lastWinners.value.map { if(it.id == p.id) up else it }
+        lastLosers = lastLosers.map { if(it.id == p.id) up else it }
     }
 
     fun togglePlayerPresence(p: Player) {
@@ -220,22 +211,37 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
-    // --- LÓGICA DO JOGO ---
+    private fun getUsageCountMap(date: String): Map<Int, Int> {
+        return currentGroupEloLogs.value
+            .filter { it.date == date }
+            .groupingBy { it.playerId }
+            .eachCount()
+    }
+
+    private fun getLastRegisteredDate(): String? {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val hasToday = currentGroupEloLogs.value.any { it.date == today }
+        return if (hasToday) today else currentGroupEloLogs.value.map { it.date }.maxOrNull()
+    }
+
     fun startNewAutomaticGame(all: List<Player>, size: Int) {
         val available = all.filter { _presentPlayerIds.value.contains(it.id) }
         if(available.size < size * 2) return
 
-        val pool = available.toMutableList()
-        val selectedPlayers = mutableListOf<Player>()
+        val config = _currentGroupConfig.value
+        val lastDate = getLastRegisteredDate()
+        val usageMap = if (lastDate != null) getUsageCountMap(lastDate) else emptyMap()
 
-        if (_currentGroupConfig.value.genderPriorityEnabled) {
-            val women = pool.filter { it.sex == "F" }
-            val womenToSelect = women.take(2)
-            selectedPlayers.addAll(womenToSelect)
-            pool.removeAll(womenToSelect)
+        val selectedPlayers = mutableListOf<Player>()
+        val pool = available.shuffled().sortedBy { usageMap[it.id] ?: 0 }.toMutableList()
+
+        if (config.priorityEnabled) {
+            val priorities = pool.filter { it.isPriority }
+            val prioritiesToSelect = priorities.take(2)
+            selectedPlayers.addAll(prioritiesToSelect)
+            pool.removeAll(prioritiesToSelect)
         }
         
-        pool.shuffle()
         val remainingSlots = (size * 2) - selectedPlayers.size
         if (remainingSlots > 0) {
             val others = pool.take(remainingSlots)
@@ -243,18 +249,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             pool.removeAll(others)
         }
 
-        val (finalA, finalB) = balanceTeamsWithGender(selectedPlayers, size)
+        val (finalA, finalB) = balanceTeamsWithPriority(selectedPlayers, size)
         _teamA.value = finalA; _teamB.value = finalB; _waitingList.value = pool
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
     }
 
-    private fun balanceTeamsWithGender(players: List<Player>, teamSize: Int): Pair<List<Player>, List<Player>> {
-        val women = players.filter { it.sex == "F" }.sortedByDescending { it.elo }
-        val men = players.filter { it.sex != "F" }.sortedByDescending { it.elo }
+    private fun balanceTeamsWithPriority(players: List<Player>, teamSize: Int): Pair<List<Player>, List<Player>> {
+        val priorities = players.filter { it.isPriority }.sortedByDescending { it.elo }
+        val nonPriorities = players.filter { !it.isPriority }.sortedByDescending { it.elo }
         val tA = mutableListOf<Player>(); val tB = mutableListOf<Player>()
 
-        women.forEachIndexed { i, p -> if (tA.size < teamSize && tB.size < teamSize) { if (i % 2 == 0) tA.add(p) else tB.add(p) } else if (tA.size < teamSize) tA.add(p) else tB.add(p) }
-        men.forEach { p -> if (tA.size < teamSize && tB.size < teamSize) { if (tA.sumOf{it.elo} <= tB.sumOf{it.elo}) tA.add(p) else tB.add(p) } else if (tA.size < teamSize) tA.add(p) else tB.add(p) }
+        priorities.forEachIndexed { i, p -> if (tA.size < teamSize && tB.size < teamSize) { if (i % 2 == 0) tA.add(p) else tB.add(p) } else if (tA.size < teamSize) tA.add(p) else tB.add(p) }
+        nonPriorities.forEach { p -> if (tA.size < teamSize && tB.size < teamSize) { if (tA.sumOf{it.elo} <= tB.sumOf{it.elo}) tA.add(p) else tB.add(p) } else if (tA.size < teamSize) tA.add(p) else tB.add(p) }
         return tA to tB
     }
 
@@ -275,14 +281,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val idxOutA = nA.indexOfFirst { it.id == out.id }; val idxOutB = nB.indexOfFirst { it.id == out.id }
         val idxInA = nA.indexOfFirst { it.id == `in`.id }; val idxInB = nB.indexOfFirst { it.id == `in`.id }; val idxInWait = wait.indexOfFirst { it.id == `in`.id }
 
+        var resetStreak = false
+
         if (idxOutA != -1) {
             nA[idxOutA] = `in`
+            if (_streakOwner.value == "A") resetStreak = true
             if (idxInWait != -1) wait[idxInWait] = out else if (idxInB != -1) nB[idxInB] = out
         } else if (idxOutB != -1) {
             nB[idxOutB] = `in`
+            if (_streakOwner.value == "B") resetStreak = true
             if (idxInWait != -1) wait[idxInWait] = out else if (idxInA != -1) nA[idxInA] = out
         }
-        _teamA.value = nA; _teamB.value = nB; _waitingList.value = wait; _currentStreak.value = 0
+
+        if (resetStreak) {
+            _currentStreak.value = 0
+            _streakOwner.value = null
+        }
+
+        _teamA.value = nA; _teamB.value = nB; _waitingList.value = wait
     }
 
     fun finishGame(winner: String) {
@@ -322,51 +338,75 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val conf = _currentGroupConfig.value
         val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
         val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
-        val waitlist = _waitingList.value.filter { p -> activeWinners.none { it.id == p.id } }
-        var fullPool = waitlist + losers
+        val waitlist = _waitingList.value.filter { p -> activeWinners.none { it.id == p.id } && losers.none { it.id == p.id } }
+        
+        val lastDate = getLastRegisteredDate()
+        val usageMap = if (lastDate != null) getUsageCountMap(lastDate) else emptyMap()
+        
+        val sortedLosers = losers.shuffled().sortedBy { usageMap[it.id] ?: 0 }
 
         if(_currentStreak.value >= conf.victoryLimit) {
             _currentStreak.value = 0; _streakOwner.value = null
-            val sortedWinners = activeWinners.sortedByDescending { it.elo }
+            
+            val sortedWinners = activeWinners.shuffled().sortedBy { usageMap[it.id] ?: 0 }
             val winnersToKeep = sortedWinners.take((conf.teamSize * 2).coerceAtMost(sortedWinners.size))
             val winnersToDrop = sortedWinners.drop(winnersToKeep.size)
-            fullPool = winnersToDrop + fullPool
+            
+            val fullPool = winnersToDrop + waitlist + sortedLosers
             
             val cA = mutableListOf<Player>(); val cB = mutableListOf<Player>()
-            winnersToKeep.forEachIndexed { i, p -> if (i % 2 == 0) cA.add(p) else cB.add(p) }
+            
+            val prioritiesWinners = winnersToKeep.filter { it.isPriority }.sortedByDescending { it.elo }
+            val nonPrioritiesWinners = winnersToKeep.filter { !it.isPriority }.sortedByDescending { it.elo }
+            
+            prioritiesWinners.forEachIndexed { i, p -> if (i % 2 == 0) cA.add(p) else cB.add(p) }
+            nonPrioritiesWinners.forEachIndexed { i, p -> if (cA.size <= cB.size) cA.add(p) else cB.add(p) }
+
             completeTeams(cA, cB, fullPool, conf.teamSize)
+            
         } else {
-            var teamWin = activeWinners; var remainingPool = fullPool
-            if(teamWin.size > conf.teamSize) { teamWin = teamWin.take(conf.teamSize); remainingPool = activeWinners.drop(conf.teamSize) + remainingPool }
-            else if(teamWin.size < conf.teamSize) { val needed = conf.teamSize - teamWin.size; if(remainingPool.size >= needed) { teamWin = teamWin + remainingPool.take(needed); remainingPool = remainingPool.drop(needed) } }
+            var teamWin = activeWinners.toMutableList()
+            var remainingPool = (waitlist + sortedLosers).toMutableList()
+            
+            // Lógica para quando o tamanho do time diminui (Ex: 4 para 3)
+            if (teamWin.size > conf.teamSize) {
+                teamWin.shuffle()
+                val droppedWinners = teamWin.drop(conf.teamSize)
+                teamWin = teamWin.take(conf.teamSize).toMutableList()
+                
+                // Excedentes vão para o topo da fila de espera
+                remainingPool.addAll(0, droppedWinners)
+            }
+            // Lógica para quando o tamanho do time aumenta (Ex: 2 para 6) ou apenas tem buracos
+            else if (teamWin.size < conf.teamSize) { 
+                val needed = conf.teamSize - teamWin.size
+                if(remainingPool.size >= needed) { 
+                    val picked = remainingPool.take(needed)
+                    teamWin.addAll(picked)
+                    remainingPool.removeAll(picked)
+                } else {
+                    teamWin.addAll(remainingPool)
+                    remainingPool.clear()
+                }
+            }
 
             val teamChal = mutableListOf<Player>()
-            val currentWait = waitlist.toMutableList(); val currentLosers = losers.toMutableList()
-            val usedIds = teamWin.map { it.id }.toSet()
-            currentWait.removeAll { usedIds.contains(it.id) }; currentLosers.removeAll { usedIds.contains(it.id) }
-
-            if (conf.genderPriorityEnabled) {
-                val woman = currentWait.firstOrNull { it.sex == "F" } ?: currentLosers.filter { it.sex == "F" }.maxByOrNull { it.elo }
-                if (woman != null) { teamChal.add(woman); if (currentWait.remove(woman)) {} else currentLosers.remove(woman) }
+            
+            if (conf.priorityEnabled) {
+                val priorityPlayer = remainingPool.firstOrNull { it.isPriority }
+                if (priorityPlayer != null) { teamChal.add(priorityPlayer); remainingPool.remove(priorityPlayer) }
             }
             
             val slotsNeeded = conf.teamSize - teamChal.size
             if (slotsNeeded > 0) {
-                val fromWait = currentWait.take(slotsNeeded)
-                teamChal.addAll(fromWait); currentWait.removeAll(fromWait)
-                val neededLosers = slotsNeeded - fromWait.size
-                if (neededLosers > 0 && currentLosers.isNotEmpty()) {
-                     val sortedLosers = currentLosers.sortedBy { it.matchesPlayed } 
-                     val picked = sortedLosers.take(neededLosers)
-                     teamChal.addAll(picked); currentLosers.removeAll(picked)
-                }
+                val picked = remainingPool.take(slotsNeeded)
+                teamChal.addAll(picked)
+                remainingPool.removeAll(picked)
             }
 
-            if (teamChal.size == conf.teamSize) {
-                _waitingList.value = currentWait + currentLosers.shuffled()
-                if(_streakOwner.value == "B") { _teamB.value = teamWin; _teamA.value = teamChal }
-                else { _teamA.value = teamWin; _teamB.value = teamChal; _streakOwner.value = "A" }
-            }
+            _waitingList.value = remainingPool
+            if(_streakOwner.value == "B") { _teamB.value = teamWin; _teamA.value = teamChal }
+            else { _teamA.value = teamWin; _teamB.value = teamChal; _streakOwner.value = "A" }
         }
         _hasPreviousMatch.value = false
     }
@@ -374,9 +414,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun completeTeams(cA: MutableList<Player>, cB: MutableList<Player>, pool: List<Player>, size: Int) {
         val conf = _currentGroupConfig.value
         val av = pool.toMutableList()
-        if (conf.genderPriorityEnabled) {
-             if (cA.size < size && cA.none { it.sex == "F" }) { val w = av.firstOrNull { it.sex == "F" }; if (w != null) { cA.add(w); av.remove(w) } }
-             if (cB.size < size && cB.none { it.sex == "F" }) { val w = av.firstOrNull { it.sex == "F" }; if (w != null) { cB.add(w); av.remove(w) } }
+        if (conf.priorityEnabled) {
+             if (cA.size < size && cA.none { it.isPriority }) { val w = av.firstOrNull { it.isPriority }; if (w != null) { cA.add(w); av.remove(w) } }
+             if (cB.size < size && cB.none { it.isPriority }) { val w = av.firstOrNull { it.isPriority }; if (w != null) { cB.add(w); av.remove(w) } }
         }
         while ((cA.size < size || cB.size < size) && av.isNotEmpty()) {
             val p = av.removeAt(0)
@@ -386,7 +426,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _teamA.value = cA; _teamB.value = cB; _waitingList.value = av
     }
 
-    // --- CSV & BACKUP ---
     private fun formatElo(elo: Double): String = String.format(Locale.US, "%.2f", elo)
 
     fun importData(uri: Uri, type: CsvType, context: Context) {
@@ -401,12 +440,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     backup.logs.forEach { repository.insertEloLog(it) }
                 } else {
                     val lines = BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).readLines().drop(1)
-                    // CORREÇÃO: Cast seguro com mapNotNull e when exhaustivo
                     when (type) {
                         CsvType.JOGADORES -> {
                              val list = lines.mapNotNull { line ->
                                  val cols = smartSplit(line)
-                                 if(cols.size >= 6) Player(id=cols[0].toIntOrNull()?:0, name=cols[1], elo=cols[2].toDoubleOrNull()?:1200.0, matchesPlayed=cols[3].toIntOrNull()?:0, victories=cols[4].toIntOrNull()?:0, groupName=cols[5], sex=cols.getOrElse(6){"M"}) else null
+                                 if(cols.size >= 6) Player(id=cols[0].toIntOrNull()?:0, name=cols[1], elo=cols[2].toDoubleOrNull()?:1200.0, matchesPlayed=cols[3].toIntOrNull()?:0, victories=cols[4].toIntOrNull()?:0, groupName=cols[5], isPriority=cols.getOrElse(6){"false"}.toBooleanStrictOrNull() ?: false) else null
                              }
                              repository.insertPlayers(list)
                         }
@@ -448,8 +486,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } else {
                 when(type) {
                     CsvType.JOGADORES -> {
-                        content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Sexo\n")
-                        currentGroupPlayers.value.forEach { content.append("${it.id},\"${it.name}\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${it.groupName}\",\"${it.sex}\"\n") }
+                        content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade\n")
+                        currentGroupPlayers.value.forEach { content.append("${it.id},\"${it.name}\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${it.groupName}\",\"${it.isPriority}\"\n") }
                     }
                     CsvType.HISTORICO -> {
                         content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo\n")
@@ -493,94 +531,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         result.add(current.toString().trim())
         return result.map { it.replace("\"", "").trim() }
-    }
-    
-    fun generateSampleData() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentGroup = _currentGroupConfig.value.groupName
-            val names = listOf("Bruno", "Carlos", "Daniel", "Eduardo", "Fernanda", "Gabriela", "Hugo", "Igor", "Julia", "Karina", "Lucas", "Mariana", "Pedro", "Rafael", "Sofia", "Tiago")
-            val newPlayers = names.map { name -> Player(name = name, elo = 1200.0, groupName = currentGroup, sex = if(name.endsWith("a")) "F" else "M") }
-            repository.insertPlayers(newPlayers)
-            kotlinx.coroutines.delay(500)
-            val dbPlayers = players.value.filter { it.groupName == currentGroup }.toMutableList()
-            if(dbPlayers.isEmpty()) return@launch
-
-            val r = java.util.Random()
-            val calendar = java.util.Calendar.getInstance()
-            calendar.add(java.util.Calendar.DAY_OF_YEAR, -30)
-            
-            repeat(25) {
-                if (r.nextBoolean()) calendar.add(java.util.Calendar.HOUR_OF_DAY, 2)
-                if (r.nextBoolean()) calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
-                if (calendar.time.after(Date())) return@repeat
-
-                val matchPlayers = dbPlayers.shuffled().take(12)
-                if (matchPlayers.size < 4) return@repeat
-                val mid = matchPlayers.size / 2
-                val teamA = matchPlayers.subList(0, mid); val teamB = matchPlayers.subList(mid, matchPlayers.size)
-                
-                val avgA = teamA.map { it.elo }.average(); val avgB = teamB.map { it.elo }.average()
-                val probA = 1.0 / (1.0 + Math.pow(10.0, (avgB - avgA) / 400.0))
-                val winnerA = r.nextDouble() < probA
-                val delta = if (winnerA) EloCalculator.calculateEloChange(avgA, avgB) else EloCalculator.calculateEloChange(avgB, avgA)
-                
-                val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
-                
-                teamA.forEachIndexed { i, p ->
-                    val newElo = if (winnerA) p.elo + delta else p.elo - delta
-                    val victory = if (winnerA) 1 else 0
-                    val updated = p.copy(elo = newElo, matchesPlayed = p.matchesPlayed + 1, victories = p.victories + victory)
-                    val idx = dbPlayers.indexOfFirst { it.id == p.id }
-                    if (idx != -1) dbPlayers[idx] = updated
-                    repository.insertEloLog(PlayerEloLog(playerId = updated.id, playerNameSnapshot = updated.name, date = dateStr, elo = newElo, groupName = currentGroup))
-                }
-                
-                teamB.forEachIndexed { i, p ->
-                    val newElo = if (!winnerA) p.elo + delta else p.elo - delta
-                    val victory = if (!winnerA) 1 else 0
-                    val updated = p.copy(elo = newElo, matchesPlayed = p.matchesPlayed + 1, victories = p.victories + victory)
-                    val idx = dbPlayers.indexOfFirst { it.id == p.id }
-                    if (idx != -1) dbPlayers[idx] = updated
-                    repository.insertEloLog(PlayerEloLog(playerId = updated.id, playerNameSnapshot = updated.name, date = dateStr, elo = newElo, groupName = currentGroup))
-                }
-                
-                val displayDate = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(calendar.time)
-                repository.insertMatch(MatchHistory(date = displayDate, teamA = teamA.joinToString(", "){it.name}, teamB = teamB.joinToString(", "){it.name}, winner = if (winnerA) "Time A" else "Time B", eloPoints = delta, groupName = currentGroup))
-            }
-            repository.updatePlayers(dbPlayers)
-        }
-    }
-    
-    // RENOMEADO DE 'shareRankingText' PARA 'shareRanking'
-    fun shareRanking(context: Context, playersList: List<Player>) {
-        val group = _currentGroupConfig.value.groupName
-        val date = _rankingDateFilter.value
-        val titleDate = date?.let { try { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it)!!) } catch(e:Exception){it} } ?: "Atual"
-
-        val sb = StringBuilder()
-        sb.append("🏆 *Ranking Vôlei: $group* ($titleDate) 🏆\n\n")
-
-        playersList.forEachIndexed { i, p ->
-            val medal = when(i) { 0->"🥇"; 1->"🥈"; 2->"🥉"; else->"" }
-            sb.append("${i+1}. ${p.name} - *${p.elo.toInt()}* $medal\n")
-        }
-        sb.append("\n📅 Gerado em: ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())}")
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, sb.toString())
-        }
-        val chooser = Intent.createChooser(intent, "Compartilhar Ranking").apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-        context.startActivity(chooser)
-    }
-
-    // CORREÇÃO: Patentes atualizadas
-    fun getPatente(elo: Double): String = when {
-        elo < 1000 -> "🐣 Iniciante"
-        elo < 1100 -> "🏐 Aprendiz"
-        elo < 1200 -> "🥉 Intermediário"
-        elo < 1300 -> "🥈 Avançado"
-        else -> "💎 Lenda"
     }
 }
 

@@ -24,6 +24,7 @@ import com.example.voleimanager.data.model.Player
 @Composable
 fun ManualSetupScreen(
     players: List<Player>, // Jogadores do grupo selecionado
+    showElo: Boolean, // Passado do ViewModel para respeitar a configuração
     onConfirm: (List<Player>, List<Player>, List<Player>) -> Unit, // Retorna (TimeA, TimeB, Resto)
     onCancel: () -> Unit
 ) {
@@ -89,6 +90,7 @@ fun ManualSetupScreen(
                     PlayerSelectionRow(
                         player = player,
                         currentSelection = selectionState[player.id],
+                        showElo = showElo,
                         onSelect = { selection ->
                             if (selectionState[player.id] == selection) {
                                 selectionState.remove(player.id) // Desmarcar (vai pro banco)
@@ -115,6 +117,7 @@ fun TeamCounter(label: String, count: Int, color: Color) {
 fun PlayerSelectionRow(
     player: Player,
     currentSelection: String?, // "A", "B" ou null
+    showElo: Boolean,
     onSelect: (String) -> Unit
 ) {
     Row(
@@ -126,7 +129,9 @@ fun PlayerSelectionRow(
         // Nome e Elo
         Column(modifier = Modifier.weight(1f)) {
             Text(player.name, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            Text("${player.elo.toInt()} Elo", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            if (showElo) {
+                Text("${player.elo.toInt()} Elo", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
         }
 
         // Botões de Seleção (Toggle)

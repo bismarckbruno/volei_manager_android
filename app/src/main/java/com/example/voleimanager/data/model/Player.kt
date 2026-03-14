@@ -10,7 +10,6 @@ data class Player(
     val elo: Double = 1200.0,
     val matchesPlayed: Int = 0,
     val victories: Int = 0,
-    val isSetter: Boolean = false,
-    val groupName: String,
-    val sex: String = "M" // "M" or "F"
+    val isPriority: Boolean = false,
+    val groupName: String
 )

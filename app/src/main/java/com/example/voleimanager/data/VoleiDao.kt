@@ -20,7 +20,7 @@ interface VoleiDao {
     fun getAllPlayers(): Flow<List<Player>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPlayer(player: Player)
+    suspend fun insertPlayer(player: Player): Long
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPlayers(players: List<Player>)

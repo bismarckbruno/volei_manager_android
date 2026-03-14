@@ -9,10 +9,9 @@ import com.example.voleimanager.data.model.MatchHistory
 import com.example.voleimanager.data.model.Player
 import com.example.voleimanager.data.model.PlayerEloLog
 
-// ATUALIZAÇÃO: Versão 6 - PlayerEloLog agora tem ID autogerado (permite múltiplos logs por dia)
 @Database(
     entities = [Player::class, MatchHistory::class, GroupConfig::class, PlayerEloLog::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

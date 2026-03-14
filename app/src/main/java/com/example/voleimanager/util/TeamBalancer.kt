@@ -30,7 +30,7 @@ object TeamBalancer {
         }
 
         // Separa levantadores e outros, ordenando por Elo (Do maior para o menor)
-        val (setters, others) = playersToDistribute.partition { it.isSetter }
+        val (setters, others) = playersToDistribute.partition { it.isPriority }
         val sortedSetters = setters.sortedByDescending { it.elo }
         val sortedOthers = others.sortedByDescending { it.elo }
 
