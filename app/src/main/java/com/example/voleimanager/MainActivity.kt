@@ -115,7 +115,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var pendingImportType by remember { mutableStateOf(CsvType.JOGADORES) }
 
     val launcherImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { viewModel.importData(it, pendingImportType, context); Toast.makeText(context, "Importando...", Toast.LENGTH_SHORT).show() }
+        uri?.let { viewModel.importData(it, pendingImportType, context) }
     }
 
     LaunchedEffect(uniqueGroups) { if (selectedGroup == null && uniqueGroups.isNotEmpty()) selectedGroup = uniqueGroups.first() }
@@ -164,9 +164,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 Divider(Modifier.padding(vertical = 8.dp))
                 Text("Importar CSV (Avançado)", style = MaterialTheme.typography.labelSmall)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = { pendingImportType = CsvType.JOGADORES; launcherImport.launch(arrayOf("text/*")); showImportDialog = false }) { Text("Jogadores") }
-                    TextButton(onClick = { pendingImportType = CsvType.HISTORICO; launcherImport.launch(arrayOf("text/*")); showImportDialog = false }) { Text("Histórico") }
-                    TextButton(onClick = { pendingImportType = CsvType.ELO_LOGS; launcherImport.launch(arrayOf("text/*")); showImportDialog = false }) { Text("Logs") }
+                    TextButton(onClick = { pendingImportType = CsvType.JOGADORES; launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv")); showImportDialog = false }) { Text("Jogadores") }
+                    TextButton(onClick = { pendingImportType = CsvType.HISTORICO; launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv")); showImportDialog = false }) { Text("Histórico") }
+                    TextButton(onClick = { pendingImportType = CsvType.ELO_LOGS; launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv")); showImportDialog = false }) { Text("Logs") }
                 }
             }},
             confirmButton = { TextButton(onClick = { showImportDialog = false }) { Text("Cancelar") } }

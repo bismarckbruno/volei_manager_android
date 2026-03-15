@@ -435,30 +435,72 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 if (type == CsvType.BACKUP_COMPLETO) {
                     val json = BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).use { it.readText() }
                     val backup = Gson().fromJson(json, BackupData::class.java)
-                    repository.insertPlayers(backup.players)
-                    repository.insertHistoryList(backup.history)
-                    backup.logs.forEach { repository.insertEloLog(it) }
+                    
+                    if (backup != null && backup.players != null && backup.history != null && backup.logs != null) {
+                        repository.insertPlayers(backup.players)
+                        repository.insertHistoryList(backup.history)
+                        backup.logs.forEach { repository.insertEloLog(it) }
+                    } else {
+                        Log.e("Import", "Formato de backup inválido")
+                    }
                 } else {
-                    val lines = BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).readLines().drop(1)
+                    val lines = BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).readLines()
+                    if (lines.isEmpty()) return@launch
+                    val dataLines = lines.drop(1)
+                    
                     when (type) {
                         CsvType.JOGADORES -> {
-                             val list = lines.mapNotNull { line ->
-                                 val cols = smartSplit(line)
-                                 if(cols.size >= 6) Player(id=cols[0].toIntOrNull()?:0, name=cols[1], elo=cols[2].toDoubleOrNull()?:1200.0, matchesPlayed=cols[3].toIntOrNull()?:0, victories=cols[4].toIntOrNull()?:0, groupName=cols[5], isPriority=cols.getOrElse(6){"false"}.toBooleanStrictOrNull() ?: false) else null
+                             val list = dataLines.mapNotNull { line ->
+                                 try {
+                                     val cols = smartSplit(line)
+                                     if(cols.size >= 6) {
+                                        Player(
+                                            id=cols[0].toIntOrNull() ?: 0, 
+                                            name=cols[1].takeIf { it.isNotBlank() } ?: "Desconhecido", 
+                                            elo=cols[2].toDoubleOrNull() ?: 1200.0, 
+                                            matchesPlayed=cols[3].toIntOrNull() ?: 0, 
+                                            victories=cols[4].toIntOrNull() ?: 0, 
+                                            groupName=cols[5].takeIf { it.isNotBlank() } ?: "Geral", 
+                                            isPriority=cols.getOrElse(6) { "false" }.toBooleanStrictOrNull() ?: false
+                                        )
+                                     } else null
+                                 } catch (e: Exception) { null }
                              }
-                             repository.insertPlayers(list)
+                             if(list.isNotEmpty()) repository.insertPlayers(list)
                         }
                         CsvType.HISTORICO -> {
-                             val list = lines.mapNotNull { line ->
-                                 val cols = smartSplit(line)
-                                 if(cols.size >= 6) MatchHistory(date=cols[0], teamA=cols[1], teamB=cols[2], winner=cols[3], eloPoints=cols[4].toDoubleOrNull()?:0.0, groupName=cols[5]) else null
+                             val list = dataLines.mapNotNull { line ->
+                                 try {
+                                     val cols = smartSplit(line)
+                                     if(cols.size >= 6) {
+                                        MatchHistory(
+                                            date=cols[0].takeIf { it.isNotBlank() } ?: SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date()), 
+                                            teamA=cols[1], 
+                                            teamB=cols[2], 
+                                            winner=cols[3], 
+                                            eloPoints=cols[4].toDoubleOrNull() ?: 0.0, 
+                                            groupName=cols[5].takeIf { it.isNotBlank() } ?: "Geral"
+                                        )
+                                     } else null
+                                 } catch (e: Exception) { null }
                              }
-                             repository.insertHistoryList(list)
+                             if(list.isNotEmpty()) repository.insertHistoryList(list)
                         }
                         CsvType.ELO_LOGS -> {
-                             val list = lines.mapNotNull { line ->
-                                 val cols = smartSplit(line)
-                                 if(cols.size >= 6) PlayerEloLog(id=cols[0].toIntOrNull()?:0, playerId=cols[1].toIntOrNull()?:0, playerNameSnapshot=cols[2], date=cols[3], elo=cols[4].toDoubleOrNull()?:1200.0, groupName=cols[5]) else null
+                             val list = dataLines.mapNotNull { line ->
+                                 try {
+                                     val cols = smartSplit(line)
+                                     if(cols.size >= 6) {
+                                        PlayerEloLog(
+                                            id=cols[0].toIntOrNull() ?: 0, 
+                                            playerId=cols[1].toIntOrNull() ?: 0, 
+                                            playerNameSnapshot=cols[2], 
+                                            date=cols[3].takeIf { it.isNotBlank() } ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()), 
+                                            elo=cols[4].toDoubleOrNull() ?: 1200.0, 
+                                            groupName=cols[5].takeIf { it.isNotBlank() } ?: "Geral"
+                                        )
+                                     } else null
+                                 } catch (e: Exception) { null }
                              }
                              list.forEach { repository.insertEloLog(it) }
                         }
@@ -471,7 +513,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun exportData(context: Context, type: CsvType, fileName: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            val finalName = if (fileName.endsWith(if(type==CsvType.BACKUP_COMPLETO) ".json" else ".csv")) fileName else "$fileName.${if(type==CsvType.BACKUP_COMPLETO) "json" else "csv"}"
+            val safeFileName = fileName.replace(Regex("[^a-zA-Z0-9_\\-\\.]"), "")
+            val finalName = if (safeFileName.endsWith(if(type==CsvType.BACKUP_COMPLETO) ".json" else ".csv")) safeFileName else "$safeFileName.${if(type==CsvType.BACKUP_COMPLETO) "json" else "csv"}"
             val content = StringBuilder()
 
             if (type == CsvType.BACKUP_COMPLETO) {
@@ -487,15 +530,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 when(type) {
                     CsvType.JOGADORES -> {
                         content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade\n")
-                        currentGroupPlayers.value.forEach { content.append("${it.id},\"${it.name}\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${it.groupName}\",\"${it.isPriority}\"\n") }
+                        currentGroupPlayers.value.forEach { content.append("${it.id},\"${it.name.replace("\"", "\"\"")}\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${it.groupName.replace("\"", "\"\"")}\",\"${it.isPriority}\"\n") }
                     }
                     CsvType.HISTORICO -> {
                         content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo\n")
-                        currentGroupHistory.value.forEach { content.append("\"${it.date}\",\"${it.teamA}\",\"${it.teamB}\",\"${it.winner}\",${formatElo(it.eloPoints)},\"${it.groupName}\"\n") }
+                        currentGroupHistory.value.forEach { content.append("\"${it.date}\",\"${it.teamA.replace("\"", "\"\"")}\",\"${it.teamB.replace("\"", "\"\"")}\",\"${it.winner}\",${formatElo(it.eloPoints)},\"${it.groupName.replace("\"", "\"\"")}\"\n") }
                     }
                     CsvType.ELO_LOGS -> {
                         content.append("ID,PlayerID,Nome,Data,Elo,Grupo\n")
-                        currentGroupEloLogs.value.forEach { content.append("${it.id},${it.playerId},\"${it.playerNameSnapshot}\",\"${it.date}\",${formatElo(it.elo)},\"${it.groupName}\"\n") }
+                        currentGroupEloLogs.value.forEach { content.append("${it.id},${it.playerId},\"${it.playerNameSnapshot.replace("\"", "\"\"")}\",\"${it.date}\",${formatElo(it.elo)},\"${it.groupName.replace("\"", "\"\"")}\"\n") }
                     }
                     else -> {}
                 }
