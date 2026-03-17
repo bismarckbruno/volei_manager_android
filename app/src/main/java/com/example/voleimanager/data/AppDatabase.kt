@@ -11,7 +11,7 @@ import com.example.voleimanager.data.model.PlayerEloLog
 
 @Database(
     entities = [Player::class, MatchHistory::class, GroupConfig::class, PlayerEloLog::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

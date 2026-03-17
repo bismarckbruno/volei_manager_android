@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.voleimanager.data.model.Player
@@ -25,7 +26,7 @@ import com.example.voleimanager.data.model.Player
 fun ManualSetupScreen(
     players: List<Player>, // Jogadores do grupo selecionado
     showElo: Boolean, // Passado do ViewModel para respeitar a configuração
-    onConfirm: (List<Player>, List<Player>, List<Player>) -> Unit, // Retorna (TimeA, TimeB, Resto)
+    onConfirm: (List<Player>, List<Player>, List<Player>, Int) -> Unit, // Retorna (TimeA, TimeB, Resto, TeamSize)
     onCancel: () -> Unit
 ) {
     // Estado para guardar onde cada jogador está alocado
@@ -37,20 +38,21 @@ fun ManualSetupScreen(
     val teamB = players.filter { selectionState[it.id] == "B" }
     val bench = players.filter { selectionState[it.id] == null }
 
+    val canStart = teamA.size == teamB.size && teamA.size in 2..6
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Montar Times") },
+                title = { Text("Montar times") },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
                         Icon(Icons.Default.Close, "Cancelar")
                     }
                 },
                 actions = {
-                    // Botão de Confirmar (Só ativa se tiver gente nos times)
-                    val canStart = teamA.isNotEmpty() && teamB.isNotEmpty()
+                    // Só permite iniciar se a qtde nos 2 times for igual e tiver entre 2 e 6 pessoas.
                     Button(
-                        onClick = { onConfirm(teamA, teamB, bench) },
+                        onClick = { onConfirm(teamA, teamB, bench, teamA.size) },
                         enabled = canStart,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -75,11 +77,25 @@ fun ManualSetupScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 TeamCounter("Time A", teamA.size, Color(0xFF1976D2)) // Azul
-                TeamCounter("Banco", bench.size, Color.Gray)
+                Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TeamCounter("Time B", teamB.size, Color(0xFFD32F2F)) // Vermelho
+            }
+
+            if (!canStart) {
+                Text(
+                    text = "Para iniciar o jogo, selecione um número igual de pessoas em cada time (mín. 2 e máx. 6).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 12.dp)
+                )
             }
 
             Divider()

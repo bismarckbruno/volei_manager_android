@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +13,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -58,6 +61,9 @@ import com.example.voleimanager.ui.viewmodel.CsvType
 import com.example.voleimanager.ui.viewmodel.VoleiViewModel
 import com.example.voleimanager.ui.viewmodel.VoleiViewModelFactory
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -93,8 +99,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val currentScreen by viewModel.currentScreen.collectAsState()
     val allPlayers by viewModel.players.collectAsState()
     val showElo by viewModel.showElo.collectAsState()
+    val showToll by viewModel.showToll.collectAsState()
     val uniqueGroups = remember(allPlayers) { allPlayers.map { it.groupName }.distinct().sorted() }
     var selectedGroup by rememberSaveable { mutableStateOf<String?>(null) }
+    
+    // Estado de Setup Manual movido para cá para unificar o BackHandler
+    var isSetupMode by rememberSaveable { mutableStateOf(false) }
 
     // Dialogs
     var showConfigDialog by remember { mutableStateOf(false) }
@@ -115,11 +125,22 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var pendingImportType by remember { mutableStateOf(CsvType.JOGADORES) }
 
     val launcherImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { viewModel.importData(it, pendingImportType, context) }
+        uri?.let { viewModel.importData(it, pendingImportType, context); Toast.makeText(context, "Importando...", Toast.LENGTH_SHORT).show() }
     }
 
     LaunchedEffect(uniqueGroups) { if (selectedGroup == null && uniqueGroups.isNotEmpty()) selectedGroup = uniqueGroups.first() }
     LaunchedEffect(selectedGroup) { selectedGroup?.let { viewModel.loadGroupConfig(it) } }
+
+    // Gerenciador Unificado do Botão Voltar do Android
+    BackHandler(enabled = drawerState.isOpen || isSetupMode || currentScreen != Screen.GAME) {
+        if (drawerState.isOpen) {
+            scope.launch { drawerState.close() }
+        } else if (isSetupMode) {
+            isSetupMode = false
+        } else if (currentScreen != Screen.GAME) {
+            viewModel.navigateTo(Screen.GAME)
+        }
+    }
 
     if (pendingGroupSwitch != null) {
         AlertDialog(
@@ -197,7 +218,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                             Text(group, modifier = Modifier.weight(1f))
                                             IconButton(onClick = { showRenameGroupDialog = group; groupExpanded = false }) { Icon(Icons.Default.Edit, null, modifier = Modifier.size(20.dp)) }
-                                            IconButton(onClick = { showDeleteGroupDialog = group; groupExpanded = false }) { Icon(Icons.Default.Delete, null, tint = Color.Red, modifier = Modifier.size(20.dp)) }
+                                            IconButton(onClick = { showDeleteGroupDialog = group; groupExpanded = false }) { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) }
                                         }
                                     },
                                     onClick = {
@@ -228,6 +249,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         badge = { Switch(checked = showElo, onCheckedChange = null) },
                         onClick = { viewModel.setShowElo(!showElo) }
                     )
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Info, null) }, 
+                        label = { Text("Mostrar Pedágio") }, 
+                        selected = false, 
+                        badge = { Switch(checked = showToll, onCheckedChange = null) },
+                        onClick = { viewModel.setShowToll(!showToll) }
+                    )
                     Divider(Modifier.padding(vertical = 8.dp))
                     Text("Dados", style = MaterialTheme.typography.labelMedium)
                     NavigationDrawerItem(icon = { Icon(Icons.Default.Share, null) }, label = { Text("Backup / Exportar") }, selected = false, onClick = { showExportDialog = true; scope.launch { drawerState.close() } })
@@ -255,10 +283,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (showCreateGroupDialog) CreateGroupDialog({ showCreateGroupDialog = false }, { newName -> selectedGroup = newName; viewModel.loadGroupConfig(newName); showCreateGroupDialog = false })
         if (showAddPlayerDialog) AddPlayerDialog({ showAddPlayerDialog = false }, { name, elo, isPriority -> viewModel.addPlayer(name, elo, selectedGroup ?: "Geral", isPriority); showAddPlayerDialog = false })
         if (showThemeDialog) { val mode by viewModel.themeMode.collectAsState(); AlertDialog(onDismissRequest = { showThemeDialog = false }, title = { Text("Tema") }, text = { Column { ThemeOption("Sistema", mode == ThemeMode.SYSTEM) { viewModel.setThemeMode(ThemeMode.SYSTEM) }; ThemeOption("Claro", mode == ThemeMode.LIGHT) { viewModel.setThemeMode(ThemeMode.LIGHT) }; ThemeOption("Escuro", mode == ThemeMode.DARK) { viewModel.setThemeMode(ThemeMode.DARK) } } }, confirmButton = { TextButton(onClick = { showThemeDialog = false }) { Text("Fechar") } }) }
-        playerToDelete?.let { player -> AlertDialog(onDismissRequest = { playerToDelete = null }, title = { Text("Excluir ${player.name}?") }, text = { Text("O jogador será removido da lista ativa, mas seu histórico de partidas e registros de Elo SERÃO MANTIDOS.") }, confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = Color.Red), onClick = { viewModel.deletePlayer(player); playerToDelete = null }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { playerToDelete = null }) { Text("Cancelar") } }) }
+        playerToDelete?.let { player -> AlertDialog(onDismissRequest = { playerToDelete = null }, title = { Text("Excluir ${player.name}?") }, text = { Text("O jogador será removido da lista ativa, mas seu histórico de partidas e registros de Elo SERÃO MANTIDOS.") }, confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), onClick = { viewModel.deletePlayer(player); playerToDelete = null }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { playerToDelete = null }) { Text("Cancelar") } }) }
 
         showRenameGroupDialog?.let { group -> RenameGroupDialog(group, { showRenameGroupDialog = null }, { newName -> viewModel.renameGroup(group, newName); selectedGroup = newName; showRenameGroupDialog = null }) }
-        showDeleteGroupDialog?.let { group -> AlertDialog(onDismissRequest = { showDeleteGroupDialog = null }, title = { Text("Excluir grupo '$group'?") }, text = { Text("Tem certeza? Todos os dados desse grupo serão apagados permanentemente.") }, confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = Color.Red), onClick = { viewModel.deleteGroup(group); selectedGroup = "Geral"; showDeleteGroupDialog = null }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { showDeleteGroupDialog = null }) { Text("Cancelar") } }) }
+        showDeleteGroupDialog?.let { group -> AlertDialog(onDismissRequest = { showDeleteGroupDialog = null }, title = { Text("Excluir grupo '$group'?") }, text = { Text("Tem certeza? Todos os dados desse grupo serão apagados permanentemente.") }, confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), onClick = { viewModel.deleteGroup(group); selectedGroup = "Geral"; showDeleteGroupDialog = null }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { showDeleteGroupDialog = null }) { Text("Cancelar") } }) }
 
         Scaffold(
             topBar = {
@@ -278,7 +306,16 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     label = "ScreenAnim"
                 ) { screen ->
                     when (screen) {
-                        Screen.GAME -> GameScreenContent(viewModel, selectedGroup ?: "Geral", isDarkTheme, showElo, Color.Red) { playerToDelete = it }
+                        Screen.GAME -> GameScreenContent(
+                            viewModel = viewModel,
+                            selectedGroup = selectedGroup ?: "Geral",
+                            isDarkTheme = isDarkTheme,
+                            showElo = showElo,
+                            showToll = showToll,
+                            errorColor = MaterialTheme.colorScheme.error,
+                            isSetupMode = isSetupMode,
+                            onSetupModeChange = { isSetupMode = it }
+                        ) { playerToDelete = it }
                         Screen.HISTORY -> HistoryScreen(viewModel, isDarkTheme, showElo)
                     }
                 }
@@ -288,7 +325,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 }
 
 @Composable
-fun GameScreenContent(viewModel: VoleiViewModel, selectedGroup: String, isDarkTheme: Boolean, showElo: Boolean, errorColor: Color, onDeleteRequest: (Player) -> Unit) {
+fun GameScreenContent(
+    viewModel: VoleiViewModel, 
+    selectedGroup: String, 
+    isDarkTheme: Boolean, 
+    showElo: Boolean, 
+    showToll: Boolean, 
+    errorColor: Color, 
+    isSetupMode: Boolean, 
+    onSetupModeChange: (Boolean) -> Unit, 
+    onDeleteRequest: (Player) -> Unit
+) {
     val sortedPlayers by viewModel.sortedPlayersForPresence.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
     val teamA by viewModel.teamA.collectAsState(); val teamB by viewModel.teamB.collectAsState()
@@ -297,24 +344,68 @@ fun GameScreenContent(viewModel: VoleiViewModel, selectedGroup: String, isDarkTh
     val streak by viewModel.currentStreak.collectAsState(); val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
 
-    var isSetupMode by remember { mutableStateOf(false) }
     var showCancel by remember { mutableStateOf(false) }
     var subOut by remember { mutableStateOf<Player?>(null) }
     var editP by remember { mutableStateOf<Player?>(null) }
+    var confirmWinTeam by remember { mutableStateOf<String?>(null) }
 
     if (showCancel) AlertDialog(onDismissRequest = { showCancel = false }, title = { Text("Cancelar?") }, text = { Text("O progresso atual será perdido.") }, confirmButton = { Button(colors = ButtonDefaults.buttonColors(containerColor = errorColor), onClick = { viewModel.cancelGame(); showCancel = false }) { Text("Sim") } }, dismissButton = { TextButton(onClick = { showCancel = false }) { Text("Não") } })
     subOut?.let { p -> SubstitutionDialog(p, waitingList, teamA, teamB, { subOut = null }, { viewModel.substitutePlayer(p, it); subOut = null }) }
     editP?.let { p -> EditPlayerDialog(p, { editP = null }, { name, prio -> viewModel.editPlayer(p, name, prio); editP = null }) }
+    
+    confirmWinTeam?.let { team ->
+        AlertDialog(
+            onDismissRequest = { confirmWinTeam = null },
+            title = { Text("Confirmar Vitória") },
+            text = { Text("Deseja realmente confirmar a vitória do Time $team?") },
+            confirmButton = { 
+                Button(
+                    onClick = { 
+                        viewModel.finishGame(team)
+                        confirmWinTeam = null 
+                    }
+                ) { Text("Confirmar") } 
+            },
+            dismissButton = { 
+                TextButton(onClick = { confirmWinTeam = null }) { Text("Cancelar") } 
+            }
+        )
+    }
 
     val presentPlayers = remember(sortedPlayers, presentIds) { sortedPlayers.filter { presentIds.contains(it.id) } }
 
-    if (isSetupMode) { ManualSetupScreen(presentPlayers, showElo, { tA, tB, b -> viewModel.startManualGame(tA, tB, b); isSetupMode = false }, { isSetupMode = false }) } else {
-        AnimatedContent(targetState = teamA.isNotEmpty() || teamB.isNotEmpty(), label = "GameActiveAnim") { active ->
-            if (active) { ActiveGameView(viewModel, teamA, teamB, waitingList, owner, streak, isDarkTheme, showElo, errorColor, { showCancel = true }, { subOut = it }) } else {
-                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    item { EmptyStateCard(presentIds.size, selectedGroup, config.teamSize, { isSetupMode = true }, { if(presentIds.size >= config.teamSize*2) viewModel.startNewAutomaticGame(sortedPlayers, config.teamSize) }, hasPrev, { viewModel.startNextRound() }, winners, owner, streak, config.victoryLimit, errorColor, isDarkTheme) }
-                    item { Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) { Text("Lista de presença", fontWeight = FontWeight.Bold); val all = sortedPlayers.all { presentIds.contains(it.id) }; TextButton(onClick = { viewModel.setAllPlayersPresence(sortedPlayers, !all) }) { Text(if(all) "Desmarcar todos" else "Marcar todos") } } }
-                    items(sortedPlayers) { p -> PlayerCard(p, presentIds.contains(p.id), gamesPlayedMap[p.id], showElo, { viewModel.togglePlayerPresence(p) }, { onDeleteRequest(p) }, { editP = p }) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = isSetupMode,
+            transitionSpec = { 
+                if (targetState) {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)) togetherWith slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
+                } else {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)) togetherWith slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
+                }
+            },
+            label = "SetupModeAnim"
+        ) { inSetup ->
+            if (inSetup) { 
+                ManualSetupScreen(
+                    presentPlayers, 
+                    showElo, 
+                    { tA, tB, b, teamSize -> 
+                        viewModel.updateConfig(teamSize, config.victoryLimit, config.priorityEnabled)
+                        viewModel.startManualGame(tA, tB, b)
+                        onSetupModeChange(false)
+                    }, 
+                    { onSetupModeChange(false) }
+                ) 
+            } else {
+                AnimatedContent(targetState = teamA.isNotEmpty() || teamB.isNotEmpty(), label = "GameActiveAnim") { active ->
+                    if (active) { ActiveGameView(viewModel, teamA, teamB, waitingList, owner, streak, isDarkTheme, showElo, errorColor, { showCancel = true }, { subOut = it }, { confirmWinTeam = it }) } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            item { EmptyStateCard(presentIds.size, selectedGroup, config.teamSize, { onSetupModeChange(true) }, { if(presentIds.size >= config.teamSize*2) viewModel.startNewAutomaticGame(sortedPlayers, config.teamSize) }, hasPrev, { viewModel.startNextRound() }, winners, owner, streak, config.victoryLimit, errorColor, isDarkTheme) }
+                            item { Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) { Text("Lista de presença", fontWeight = FontWeight.Bold); val all = sortedPlayers.all { presentIds.contains(it.id) }; TextButton(onClick = { viewModel.setAllPlayersPresence(sortedPlayers, !all) }) { Text(if(all) "Desmarcar todos" else "Marcar todos") } } }
+                            items(sortedPlayers) { p -> PlayerCard(p, presentIds.contains(p.id), gamesPlayedMap[p.id], showElo, showToll, { viewModel.togglePlayerPresence(p) }, { onDeleteRequest(p) }, { editP = p }) }
+                        }
+                    }
                 }
             }
         }
@@ -322,7 +413,7 @@ fun GameScreenContent(viewModel: VoleiViewModel, selectedGroup: String, isDarkTh
 }
 
 @Composable
-fun ActiveGameView(viewModel: VoleiViewModel, teamA: List<Player>, teamB: List<Player>, waitingList: List<Player>, streakOwner: String?, currentStreak: Int, isDarkTheme: Boolean, showElo: Boolean, errorColor: Color, onCancelRequest: () -> Unit, onSubRequest: (Player) -> Unit) {
+fun ActiveGameView(viewModel: VoleiViewModel, teamA: List<Player>, teamB: List<Player>, waitingList: List<Player>, streakOwner: String?, currentStreak: Int, isDarkTheme: Boolean, showElo: Boolean, errorColor: Color, onCancelRequest: () -> Unit, onSubRequest: (Player) -> Unit, onWinRequest: (String) -> Unit) {
     val teamAStreak = if(streakOwner == "A") currentStreak else 0
     val teamBStreak = if(streakOwner == "B") currentStreak else 0
     val cardColorA = if (isDarkTheme) Color(0xFF0D47A1) else Color(0xFFE3F2FD)
@@ -343,9 +434,9 @@ fun ActiveGameView(viewModel: VoleiViewModel, teamA: List<Player>, teamB: List<P
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 Column(modifier = Modifier.weight(0.75f).fillMaxHeight()) {
                     Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, streakColorA, teamAStreak, showElo, onSubRequest) { viewModel.finishGame("A") } }
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, streakColorA, teamAStreak, showElo, onSubRequest) { onWinRequest("A") } }
                         Box(modifier = Modifier.width(50.dp).align(Alignment.CenterVertically), contentAlignment = Alignment.Center) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, streakColorB, teamBStreak, showElo, onSubRequest) { viewModel.finishGame("B") } }
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, streakColorB, teamBStreak, showElo, onSubRequest) { onWinRequest("B") } }
                     }
                     TextButton(onClick = onCancelRequest, modifier = Modifier.align(Alignment.CenterHorizontally).height(24.dp), contentPadding = PaddingValues(0.dp)) { Text("Cancelar partida", color = errorColor, fontSize = 12.sp) }
                 }
@@ -353,23 +444,24 @@ fun ActiveGameView(viewModel: VoleiViewModel, teamA: List<Player>, teamB: List<P
                 Column(modifier = Modifier.weight(0.25f).fillMaxHeight()) {
                     Text("Na espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p, showElo) } }
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p, showElo) { viewModel.removePlayerFromWaitingList(p) } } }
                 }
             }
         } else {
             Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) { ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, streakColorA, teamAStreak, showElo, onSubRequest) { viewModel.finishGame("A") } }
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) { ActiveTeamCard("Time A", teamA, cardColorA, btnColorA, btnTextColor, streakColorA, teamAStreak, showElo, onSubRequest) { onWinRequest("A") } }
                 Box(modifier = Modifier.height(40.dp).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) { ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, streakColorB, teamBStreak, showElo, onSubRequest) { viewModel.finishGame("B") } }
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) { ActiveTeamCard("Time B", teamB, cardColorB, btnColorB, btnTextColor, streakColorB, teamBStreak, showElo, onSubRequest) { onWinRequest("B") } }
             }
             TextButton(onClick = onCancelRequest, modifier = Modifier.fillMaxWidth().height(36.dp)) { Text("Cancelar partida", color = errorColor) }
             Spacer(Modifier.height(4.dp))
             Text("Na espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall)
-            LazyRow(modifier = Modifier.fillMaxWidth().height(60.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p, showElo) } }
+            LazyRow(modifier = Modifier.fillMaxWidth().height(60.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { itemsIndexed(waitingList) { i, p -> WaitingPlayerCard(i + 1, p, showElo) { viewModel.removePlayerFromWaitingList(p) } } }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ActiveTeamCard(name: String, players: List<Player>, cardColor: Color, buttonColor: Color, buttonTextColor: Color, streakColor: Color, streak: Int, showElo: Boolean, onPlayerClick: (Player) -> Unit, onWin: () -> Unit) {
     val avgElo = if (players.isNotEmpty()) players.map { it.elo }.average() else 0.0
@@ -388,19 +480,28 @@ fun ActiveTeamCard(name: String, players: List<Player>, cardColor: Color, button
             Divider(Modifier.padding(vertical = 4.dp), color = dividerColor)
             Column(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.SpaceEvenly, horizontalAlignment = Alignment.CenterHorizontally) {
                 players.forEach { p -> 
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth().clickable { onPlayerClick(p) }, contentAlignment = Alignment.Center) { 
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                            Text(
-                                text = if(showElo) "${p.name} (${p.elo.roundToInt()})" else p.name, 
-                                style = MaterialTheme.typography.bodyMedium, 
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, color = contentColor
-                            ) 
-                            if (p.isPriority) {
-                                Spacer(Modifier.width(2.dp))
-                                Icon(Icons.Default.Star, contentDescription = "Prioridade", modifier = Modifier.size(12.dp), tint = contentColor.copy(alpha = 0.7f))
-                            }
+                    // Mudança principal aqui, sem box interna consumindo o clique inteiro:
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically, 
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = { }, 
+                                onLongClick = { onPlayerClick(p) }
+                            )
+                    ) {
+                        Text(
+                            text = if(showElo) "${p.name} (${p.elo.roundToInt()})" else p.name, 
+                            style = MaterialTheme.typography.bodyMedium, 
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, color = contentColor
+                        ) 
+                        if (p.isPriority) {
+                            Spacer(Modifier.width(2.dp))
+                            Icon(Icons.Default.Star, contentDescription = "Prioridade", modifier = Modifier.size(12.dp), tint = contentColor.copy(alpha = 0.7f))
                         }
-                    } 
+                    }
                 }
             }
             Spacer(Modifier.height(4.dp))
@@ -431,14 +532,14 @@ fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: In
                 }
             } else {
                 Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(text = if(selectedCount == 0) "Nenhum jogador selecionado" else "$selectedCount jogadores presentes", color = if(selectedCount < minNeeded) errorColor else Color.Unspecified)
-                if (selectedCount < minNeeded) { Text("Mínimo: $minNeeded", style = MaterialTheme.typography.bodySmall, color = errorColor) }
+                Text(text = if(selectedCount == 0) "Nenhum jogador selecionado" else "$selectedCount jogadores presentes", color = if(selectedCount < minNeeded) errorColor.copy(alpha = 0.8f) else Color.Unspecified)
+                if (selectedCount < minNeeded) { Text("Mínimo: $minNeeded", style = MaterialTheme.typography.bodySmall, color = errorColor.copy(alpha = 0.8f)) }
             }
             Spacer(modifier = Modifier.height(16.dp))
             if (hasPreviousMatch) {
-                Button(onClick = onNextRoundClick, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("🔄 Próxima rodada (Automático)", fontSize = 16.sp, color = Color.White) }
+                Button(onClick = onNextRoundClick, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("🔄 Próxima rodada", fontSize = 16.sp, color = Color.White) }
             } else {
-                Button(onClick = onStartAutoClick, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = if(selectedCount >= minNeeded) Color(0xFF2E7D32) else Color.Gray)) { Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White); Spacer(Modifier.width(8.dp)); Text("Iniciar jogo ($selectedCount selecionados)", fontSize = 16.sp, color = Color.White) }
+                Button(onClick = onStartAutoClick, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = if(selectedCount >= minNeeded) Color(0xFF2E7D32) else Color.Gray)) { Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White); Spacer(Modifier.width(8.dp)); Text("Iniciar jogo", fontSize = 16.sp, color = Color.White) }
             }
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(onClick = onStartManualClick) { Text(text = "Ou montar times manualmente", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), textDecoration = TextDecoration.Underline) }
@@ -448,8 +549,10 @@ fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: In
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PlayerCard(player: Player, isPresent: Boolean, gamesPlayed: Int?, showElo: Boolean, onTogglePresence: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit) {
+fun PlayerCard(player: Player, isPresent: Boolean, gamesPlayed: Int?, showElo: Boolean, showToll: Boolean, onTogglePresence: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+    
     Box(modifier = Modifier.fillMaxWidth()) {
         Card(
             modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth().combinedClickable(onClick = onTogglePresence, onLongClick = { showMenu = true }),
@@ -472,21 +575,39 @@ fun PlayerCard(player: Player, isPresent: Boolean, gamesPlayed: Int?, showElo: B
                     }
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    val info = if (gamesPlayed != null) { if (gamesPlayed == 1) "1 jogo" else "$gamesPlayed jogos" } else { "Sem jogos recentes" }
+                    val actualGames = gamesPlayed ?: 0
+                    val hasToll = player.tollDate == today && player.dailyToll > 0
+                    
+                    val info = if (actualGames == 0 && !hasToll) {
+                        "Sem jogos recentes"
+                    } else {
+                        val gamesStr = if (actualGames == 1) "1 jogo" else "$actualGames jogos"
+                        if (showToll && hasToll) {
+                            "$gamesStr (+${player.dailyToll})"
+                        } else {
+                            gamesStr
+                        }
+                    }
                     Text(text = info, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }, offset = DpOffset(x = 16.dp, y = 0.dp)) {
             DropdownMenuItem(text = { Text("Editar") }, onClick = { showMenu = false; onEdit() }, leadingIcon = { Icon(Icons.Default.Edit, null) })
-            DropdownMenuItem(text = { Text("Excluir", color = Color.Red) }, onClick = { showMenu = false; onDelete() }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) })
+            DropdownMenuItem(text = { Text("Excluir", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete() }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) })
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.widthIn(min = 120.dp)) {
+fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), 
+        modifier = Modifier.widthIn(min = 120.dp).combinedClickable(onClick = { }, onLongClick = { showMenu = true })
+    ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${index}º", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
             Spacer(Modifier.width(8.dp))
@@ -502,6 +623,16 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean) {
                     Text("Elo: ${"%.0f".format(player.elo)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                 }
             }
+        }
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenuItem(
+                text = { Text("Remover da Fila", color = MaterialTheme.colorScheme.error) }, 
+                onClick = { 
+                    showMenu = false
+                    onRemove() 
+                }, 
+                leadingIcon = { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error) }
+            )
         }
     }
 }

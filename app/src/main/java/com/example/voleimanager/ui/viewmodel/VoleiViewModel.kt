@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 enum class Screen { GAME, HISTORY }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -85,7 +86,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     val sortedPlayersForPresence = combine(currentGroupPlayers, gamesPlayedTodayMap) { pList, gamesMap ->
         pList.sortedWith(
-            compareByDescending<Player> { gamesMap[it.id] ?: 0 }.thenByDescending { it.elo }
+            compareByDescending<Player> { 
+                gamesMap[it.id] ?: 0
+            }.thenByDescending { it.elo }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -94,6 +97,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private val _showElo = MutableStateFlow(false)
     val showElo: StateFlow<Boolean> = _showElo.asStateFlow()
+
+    private val _showToll = MutableStateFlow(false)
+    val showToll: StateFlow<Boolean> = _showToll.asStateFlow()
 
     private val _teamA = MutableStateFlow<List<Player>>(emptyList()); val teamA = _teamA.asStateFlow()
     private val _teamB = MutableStateFlow<List<Player>>(emptyList()); val teamB = _teamB.asStateFlow()
@@ -125,10 +131,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit().putBoolean("show_elo", show).apply()
     }
 
+    fun setShowToll(show: Boolean) {
+        _showToll.value = show
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit().putBoolean("show_toll", show).apply()
+    }
+
     private fun loadPreferences() { 
         val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
         _themeMode.value = try { ThemeMode.valueOf(prefs.getString("theme", "SYSTEM")!!) } catch (e: Exception) { ThemeMode.SYSTEM }
         _showElo.value = prefs.getBoolean("show_elo", false)
+        _showToll.value = prefs.getBoolean("show_toll", false)
     }
 
     fun isGameInProgress(): Boolean = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty() || _hasPreviousMatch.value
@@ -159,9 +171,28 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun renameGroup(old: String, new: String) = viewModelScope.launch { repository.renameGroup(old, new); if(_currentGroupConfig.value.groupName == old) loadGroupConfig(new) }
     fun deleteGroup(name: String) = viewModelScope.launch { repository.deleteGroup(name); if(_currentGroupConfig.value.groupName == name) loadGroupConfig("Geral") }
 
+    private fun calculateTollForNewPlayer(): Int {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val usageMap = getUsageCountMap(today)
+        val alreadyPresentIds = _presentPlayerIds.value
+        if (alreadyPresentIds.isEmpty()) return 0
+        
+        val sum = alreadyPresentIds.sumOf { id -> 
+            val pTemp = currentGroupPlayers.value.find { it.id == id }
+            val actual = usageMap[id] ?: 0
+            val toll = if (pTemp?.tollDate == today) pTemp.dailyToll else 0
+            actual + toll 
+        }
+        return (sum.toDouble() / alreadyPresentIds.size).roundToInt()
+    }
+
     fun addPlayer(n: String, e: Double, g: String, isPriority: Boolean) = viewModelScope.launch { 
-        val newId = repository.insertPlayer(Player(name = n, elo = e, groupName = g, isPriority = isPriority))
-        val newPlayer = Player(id = newId.toInt(), name = n, elo = e, groupName = g, isPriority = isPriority)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val toll = calculateTollForNewPlayer()
+        
+        val pToInsert = Player(name = n, elo = e, groupName = g, isPriority = isPriority, dailyToll = toll, tollDate = today)
+        val newId = repository.insertPlayer(pToInsert)
+        val newPlayer = pToInsert.copy(id = newId.toInt())
         
         _presentPlayerIds.update { it + newPlayer.id }
         
@@ -187,24 +218,62 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if(ids.contains(p.id)) {
             ids.remove(p.id)
             _waitingList.value = _waitingList.value.filter { it.id != p.id }
+            _presentPlayerIds.value = ids
         } else {
+            var updatedP = p
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            
+            // Calcula o pedágio ANTES de se adicionar na lista de presentes
+            if (p.tollDate != today) {
+                val toll = calculateTollForNewPlayer()
+                updatedP = p.copy(dailyToll = toll, tollDate = today)
+                viewModelScope.launch(Dispatchers.IO) { repository.updatePlayer(updatedP) }
+            }
+
             ids.add(p.id)
+            _presentPlayerIds.value = ids
+            
             val isWinnerWaiting = _hasPreviousMatch.value && _lastWinners.value.any { it.id == p.id }
             if(!_teamA.value.any{it.id==p.id} && !_teamB.value.any{it.id==p.id} && !_waitingList.value.any{it.id==p.id} && !isWinnerWaiting) {
-                _waitingList.value = _waitingList.value + p
+                _waitingList.value = _waitingList.value + updatedP
             }
         }
-        _presentPlayerIds.value = ids
+    }
+
+    fun removePlayerFromWaitingList(p: Player) {
+        val ids = _presentPlayerIds.value.toMutableSet()
+        if (ids.contains(p.id)) {
+            ids.remove(p.id)
+            _presentPlayerIds.value = ids
+            _waitingList.value = _waitingList.value.filter { it.id != p.id }
+        }
     }
 
     fun setAllPlayersPresence(list: List<Player>, present: Boolean) {
         if(present) {
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val toll = calculateTollForNewPlayer()
+            
+            val toUpdate = mutableListOf<Player>()
             val currentWait = _waitingList.value.toMutableList()
+            val newIds = mutableSetOf<Int>()
+            
             list.forEach { p ->
-                val playing = _teamA.value.any { it.id == p.id } || _teamB.value.any { it.id == p.id }
-                if(!playing && !currentWait.any { it.id == p.id }) currentWait.add(p)
+                newIds.add(p.id)
+                var updatedP = p
+                if (p.tollDate != today) {
+                    updatedP = p.copy(dailyToll = toll, tollDate = today)
+                    toUpdate.add(updatedP)
+                }
+                
+                val playing = _teamA.value.any { it.id == updatedP.id } || _teamB.value.any { it.id == updatedP.id }
+                if(!playing && !currentWait.any { it.id == updatedP.id }) currentWait.add(updatedP)
             }
-            _presentPlayerIds.value = list.map { it.id }.toSet()
+            
+            if (toUpdate.isNotEmpty()) {
+                viewModelScope.launch(Dispatchers.IO) { repository.updatePlayers(toUpdate) }
+            }
+            _presentPlayerIds.value = newIds
             _waitingList.value = currentWait
         } else {
             _presentPlayerIds.value = emptySet(); _waitingList.value = emptyList()
@@ -229,11 +298,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if(available.size < size * 2) return
 
         val config = _currentGroupConfig.value
-        val lastDate = getLastRegisteredDate()
-        val usageMap = if (lastDate != null) getUsageCountMap(lastDate) else emptyMap()
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val usageMap = getUsageCountMap(today)
+        
+        fun getEffectiveGames(p: Player): Int {
+            val actual = usageMap[p.id] ?: 0
+            val toll = if (p.tollDate == today) p.dailyToll else 0
+            return actual + toll
+        }
 
         val selectedPlayers = mutableListOf<Player>()
-        val pool = available.shuffled().sortedBy { usageMap[it.id] ?: 0 }.toMutableList()
+        val pool = available.shuffled().sortedBy { getEffectiveGames(it) }.toMutableList()
 
         if (config.priorityEnabled) {
             val priorities = pool.filter { it.isPriority }
@@ -340,15 +415,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
         val waitlist = _waitingList.value.filter { p -> activeWinners.none { it.id == p.id } && losers.none { it.id == p.id } }
         
-        val lastDate = getLastRegisteredDate()
-        val usageMap = if (lastDate != null) getUsageCountMap(lastDate) else emptyMap()
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val usageMap = getUsageCountMap(today)
         
-        val sortedLosers = losers.shuffled().sortedBy { usageMap[it.id] ?: 0 }
+        fun getEffectiveGames(p: Player): Int {
+            val actual = usageMap[p.id] ?: 0
+            val toll = if (p.tollDate == today) p.dailyToll else 0
+            return actual + toll
+        }
+        
+        val sortedLosers = losers.shuffled().sortedBy { getEffectiveGames(it) }
 
         if(_currentStreak.value >= conf.victoryLimit) {
             _currentStreak.value = 0; _streakOwner.value = null
             
-            val sortedWinners = activeWinners.shuffled().sortedBy { usageMap[it.id] ?: 0 }
+            val sortedWinners = activeWinners.shuffled().sortedBy { getEffectiveGames(it) }
             val winnersToKeep = sortedWinners.take((conf.teamSize * 2).coerceAtMost(sortedWinners.size))
             val winnersToDrop = sortedWinners.drop(winnersToKeep.size)
             
@@ -437,9 +518,34 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     val backup = Gson().fromJson(json, BackupData::class.java)
                     
                     if (backup != null && backup.players != null && backup.history != null && backup.logs != null) {
-                        repository.insertPlayers(backup.players)
-                        repository.insertHistoryList(backup.history)
-                        backup.logs.forEach { repository.insertEloLog(it) }
+                        
+                        // SANITIZAÇÃO DE JSON - PREVENÇÃO CONTRA BLOAT E OUT-OF-MEMORY
+                        val safePlayers = backup.players.map { p -> 
+                            p.copy(name = p.name.take(50), groupName = p.groupName.take(50)) 
+                        }
+                        
+                        val safeHistory = backup.history.map { h -> 
+                            h.copy(
+                                date = h.date.take(20), 
+                                teamA = h.teamA.take(255), 
+                                teamB = h.teamB.take(255), 
+                                winner = h.winner.take(50), 
+                                groupName = h.groupName.take(50)
+                            ) 
+                        }
+                        
+                        val safeLogs = backup.logs.map { l -> 
+                            l.copy(
+                                playerNameSnapshot = l.playerNameSnapshot.take(50), 
+                                date = l.date.take(20), 
+                                groupName = l.groupName.take(50)
+                            ) 
+                        }
+                        
+                        repository.insertPlayers(safePlayers)
+                        repository.insertHistoryList(safeHistory)
+                        safeLogs.forEach { repository.insertEloLog(it) }
+                        
                     } else {
                         Log.e("Import", "Formato de backup inválido")
                     }
@@ -456,12 +562,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                      if(cols.size >= 6) {
                                         Player(
                                             id=cols[0].toIntOrNull() ?: 0, 
-                                            name=cols[1].takeIf { it.isNotBlank() } ?: "Desconhecido", 
+                                            name=cols[1].takeIf { it.isNotBlank() }?.take(50) ?: "Desconhecido", 
                                             elo=cols[2].toDoubleOrNull() ?: 1200.0, 
                                             matchesPlayed=cols[3].toIntOrNull() ?: 0, 
                                             victories=cols[4].toIntOrNull() ?: 0, 
-                                            groupName=cols[5].takeIf { it.isNotBlank() } ?: "Geral", 
-                                            isPriority=cols.getOrElse(6) { "false" }.toBooleanStrictOrNull() ?: false
+                                            groupName=cols[5].takeIf { it.isNotBlank() }?.take(50) ?: "Geral", 
+                                            isPriority=cols.getOrElse(6) { "false" }.toBooleanStrictOrNull() ?: false,
+                                            dailyToll=cols.getOrElse(7) { "0" }.toIntOrNull() ?: 0,
+                                            tollDate=cols.getOrElse(8) { "" }.take(20)
                                         )
                                      } else null
                                  } catch (e: Exception) { null }
@@ -474,12 +582,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                      val cols = smartSplit(line)
                                      if(cols.size >= 6) {
                                         MatchHistory(
-                                            date=cols[0].takeIf { it.isNotBlank() } ?: SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date()), 
-                                            teamA=cols[1], 
-                                            teamB=cols[2], 
-                                            winner=cols[3], 
+                                            date=cols[0].takeIf { it.isNotBlank() }?.take(20) ?: SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date()), 
+                                            teamA=cols[1].take(255), 
+                                            teamB=cols[2].take(255), 
+                                            winner=cols[3].take(50), 
                                             eloPoints=cols[4].toDoubleOrNull() ?: 0.0, 
-                                            groupName=cols[5].takeIf { it.isNotBlank() } ?: "Geral"
+                                            groupName=cols[5].takeIf { it.isNotBlank() }?.take(50) ?: "Geral"
                                         )
                                      } else null
                                  } catch (e: Exception) { null }
@@ -494,10 +602,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                         PlayerEloLog(
                                             id=cols[0].toIntOrNull() ?: 0, 
                                             playerId=cols[1].toIntOrNull() ?: 0, 
-                                            playerNameSnapshot=cols[2], 
-                                            date=cols[3].takeIf { it.isNotBlank() } ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()), 
+                                            playerNameSnapshot=cols[2].take(50), 
+                                            date=cols[3].takeIf { it.isNotBlank() }?.take(20) ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()), 
                                             elo=cols[4].toDoubleOrNull() ?: 1200.0, 
-                                            groupName=cols[5].takeIf { it.isNotBlank() } ?: "Geral"
+                                            groupName=cols[5].takeIf { it.isNotBlank() }?.take(50) ?: "Geral"
                                         )
                                      } else null
                                  } catch (e: Exception) { null }
@@ -529,8 +637,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } else {
                 when(type) {
                     CsvType.JOGADORES -> {
-                        content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade\n")
-                        currentGroupPlayers.value.forEach { content.append("${it.id},\"${it.name.replace("\"", "\"\"")}\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${it.groupName.replace("\"", "\"\"")}\",\"${it.isPriority}\"\n") }
+                        content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade,PedagioDiario,DataPedagio\n")
+                        currentGroupPlayers.value.forEach { content.append("${it.id},\"${it.name.replace("\"", "\"\"")}\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${it.groupName.replace("\"", "\"\"")}\",\"${it.isPriority}\",${it.dailyToll},\"${it.tollDate}\"\n") }
                     }
                     CsvType.HISTORICO -> {
                         content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo\n")
