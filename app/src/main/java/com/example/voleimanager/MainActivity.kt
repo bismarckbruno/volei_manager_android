@@ -13,8 +13,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -338,6 +336,7 @@ fun GameScreenContent(
 ) {
     val sortedPlayers by viewModel.sortedPlayersForPresence.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
+    val targetDate by viewModel.targetDate.collectAsState()
     val teamA by viewModel.teamA.collectAsState(); val teamB by viewModel.teamB.collectAsState()
     val waitingList by viewModel.waitingList.collectAsState(); val presentIds by viewModel.presentPlayerIds.collectAsState()
     val hasPrev by viewModel.hasPreviousMatch.collectAsState(); val config by viewModel.currentGroupConfig.collectAsState()
@@ -377,13 +376,7 @@ fun GameScreenContent(
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = isSetupMode,
-            transitionSpec = { 
-                if (targetState) {
-                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)) togetherWith slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
-                } else {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)) togetherWith slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
-                }
-            },
+            transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) },
             label = "SetupModeAnim"
         ) { inSetup ->
             if (inSetup) { 
@@ -403,7 +396,7 @@ fun GameScreenContent(
                         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             item { EmptyStateCard(presentIds.size, selectedGroup, config.teamSize, { onSetupModeChange(true) }, { if(presentIds.size >= config.teamSize*2) viewModel.startNewAutomaticGame(sortedPlayers, config.teamSize) }, hasPrev, { viewModel.startNextRound() }, winners, owner, streak, config.victoryLimit, errorColor, isDarkTheme) }
                             item { Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) { Text("Lista de presença", fontWeight = FontWeight.Bold); val all = sortedPlayers.all { presentIds.contains(it.id) }; TextButton(onClick = { viewModel.setAllPlayersPresence(sortedPlayers, !all) }) { Text(if(all) "Desmarcar todos" else "Marcar todos") } } }
-                            items(sortedPlayers) { p -> PlayerCard(p, presentIds.contains(p.id), gamesPlayedMap[p.id], showElo, showToll, { viewModel.togglePlayerPresence(p) }, { onDeleteRequest(p) }, { editP = p }) }
+                            items(sortedPlayers) { p -> PlayerCard(p, presentIds.contains(p.id), gamesPlayedMap[p.id], targetDate, showElo, showToll, { viewModel.togglePlayerPresence(p) }, { onDeleteRequest(p) }, { editP = p }) }
                         }
                     }
                 }
@@ -549,9 +542,8 @@ fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: In
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PlayerCard(player: Player, isPresent: Boolean, gamesPlayed: Int?, showElo: Boolean, showToll: Boolean, onTogglePresence: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit) {
+fun PlayerCard(player: Player, isPresent: Boolean, gamesPlayed: Int?, targetDate: String, showElo: Boolean, showToll: Boolean, onTogglePresence: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
-    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
     
     Box(modifier = Modifier.fillMaxWidth()) {
         Card(
@@ -576,7 +568,7 @@ fun PlayerCard(player: Player, isPresent: Boolean, gamesPlayed: Int?, showElo: B
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     val actualGames = gamesPlayed ?: 0
-                    val hasToll = player.tollDate == today && player.dailyToll > 0
+                    val hasToll = player.tollDate == targetDate && player.dailyToll > 0
                     
                     val info = if (actualGames == 0 && !hasToll) {
                         "Sem jogos recentes"
