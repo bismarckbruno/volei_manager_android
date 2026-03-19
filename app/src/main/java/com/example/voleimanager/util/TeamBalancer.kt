@@ -11,7 +11,7 @@ object TeamBalancer {
 
     /**
      * Distribui os jogadores tentando equilibrar a soma total dos Elos.
-     * Prioriza alocar Levantadores primeiro, depois os demais.
+     * Alocar prioridades e depois os demais.
      */
     fun createBalancedTeams(
         availablePlayers: List<Player>, // Todos os presentes

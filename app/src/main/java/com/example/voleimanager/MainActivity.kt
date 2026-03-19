@@ -29,6 +29,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -79,8 +81,49 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
-            val lightColors = lightColorScheme(primary = Color(0xFF212121), onPrimary = Color.White, primaryContainer = Color(0xFFE0E0E0), onPrimaryContainer = Color(0xFF212121), secondary = Color(0xFF616161), background = Color(0xFFFAFAFA), surface = Color(0xFFFFFFFF))
-            val darkColors = darkColorScheme(primary = Color(0xFFEEEEEE), onPrimary = Color.Black, primaryContainer = Color(0xFF424242), onPrimaryContainer = Color.White, secondary = Color(0xFFB0B0B0), background = Color(0xFF121212), surface = Color(0xFF1E1E1E))
+            
+            // Grayscale theme implementation instead of default purple
+            val lightColors = lightColorScheme(
+                primary = Color(0xFF424242),
+                onPrimary = Color.White,
+                primaryContainer = Color(0xFFE0E0E0),
+                onPrimaryContainer = Color(0xFF212121),
+                secondary = Color(0xFF616161),
+                onSecondary = Color.White,
+                secondaryContainer = Color(0xFFEEEEEE),
+                onSecondaryContainer = Color(0xFF424242),
+                tertiary = Color(0xFF757575),
+                onTertiary = Color.White,
+                tertiaryContainer = Color(0xFFF5F5F5),
+                onTertiaryContainer = Color(0xFF212121),
+                background = Color(0xFFFAFAFA),
+                onBackground = Color(0xFF212121),
+                surface = Color(0xFFFFFFFF),
+                onSurface = Color(0xFF212121),
+                surfaceVariant = Color(0xFFF5F5F5),
+                onSurfaceVariant = Color(0xFF424242)
+            )
+            
+            val darkColors = darkColorScheme(
+                primary = Color(0xFFE0E0E0),
+                onPrimary = Color.Black,
+                primaryContainer = Color(0xFF424242),
+                onPrimaryContainer = Color(0xFFEEEEEE),
+                secondary = Color(0xFFB0B0B0),
+                onSecondary = Color.Black,
+                secondaryContainer = Color(0xFF616161),
+                onSecondaryContainer = Color(0xFFF5F5F5),
+                tertiary = Color(0xFF9E9E9E),
+                onTertiary = Color.Black,
+                tertiaryContainer = Color(0xFF757575),
+                onTertiaryContainer = Color(0xFFFAFAFA),
+                background = Color(0xFF121212),
+                onBackground = Color(0xFFEEEEEE),
+                surface = Color(0xFF1E1E1E),
+                onSurface = Color(0xFFEEEEEE),
+                surfaceVariant = Color(0xFF2C2C2C),
+                onSurfaceVariant = Color(0xFFBDBDBD)
+            )
 
             MaterialTheme(colorScheme = if(darkTheme) darkColors else lightColors) { VoleiManagerApp(viewModel, darkTheme) }
         }
@@ -157,7 +200,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text("Exportar Dados") },
+            title = { Text("Exportar dados") },
             text = { Column {
                 OutlinedTextField(value = exportFileName, onValueChange = { exportFileName = it }, label = { Text("Nome do arquivo") })
                 Spacer(Modifier.height(16.dp))
@@ -177,7 +220,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
-            title = { Text("Importar Dados") },
+            title = { Text("Importar dados") },
             text = { Column {
                 Button(modifier = Modifier.fillMaxWidth(), onClick = { pendingImportType = CsvType.BACKUP_COMPLETO; launcherImport.launch(arrayOf("application/json", "text/plain")); showImportDialog = false }) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("Restaurar Backup (.json)") }
                 Divider(Modifier.padding(vertical = 8.dp))
@@ -200,7 +243,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     Text("Vôlei Manager", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Divider(Modifier.padding(vertical = 16.dp))
 
-                    Text("Grupo Atual:", style = MaterialTheme.typography.labelMedium)
+                    Text("Grupo atual:", style = MaterialTheme.typography.labelMedium)
                     var groupExpanded by remember { mutableStateOf(false) }
                     ExposedDropdownMenuBox(expanded = groupExpanded, onExpandedChange = { groupExpanded = !groupExpanded }) {
                         OutlinedTextField(
@@ -228,36 +271,36 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     }
                                 )
                             }
-                            DropdownMenuItem(text = { Text("+ Criar Novo Grupo", fontWeight = FontWeight.Bold) }, onClick = { showCreateGroupDialog = true; groupExpanded = false })
+                            DropdownMenuItem(text = { Text("+ Criar novo grupo", fontWeight = FontWeight.Bold) }, onClick = { showCreateGroupDialog = true; groupExpanded = false })
                         }
                     }
                     Spacer(Modifier.height(24.dp))
 
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.PlayArrow, null) }, label = { Text("Jogo / Partida") }, selected = currentScreen == Screen.GAME, onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } })
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.DateRange, null) }, label = { Text("Histórico") }, selected = currentScreen == Screen.HISTORY, onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } })
+                    NavigationDrawerItem(icon = { Icon(Icons.Outlined.PlayCircle, null) }, label = { Text("Jogo") }, selected = currentScreen == Screen.GAME, onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } })
+                    NavigationDrawerItem(icon = { Icon(Icons.Outlined.DateRange, null) }, label = { Text("Histórico") }, selected = currentScreen == Screen.HISTORY, onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } })
 
                     Divider(Modifier.padding(vertical = 16.dp))
                     Text("Configurações", style = MaterialTheme.typography.labelMedium)
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Regras do Grupo") }, selected = false, onClick = { showConfigDialog = true; scope.launch { drawerState.close() } })
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Person, null) }, label = { Text("Tema") }, selected = false, onClick = { showThemeDialog = true; scope.launch { drawerState.close() } })
+                    NavigationDrawerItem(icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text("Regras do grupo") }, selected = false, onClick = { showConfigDialog = true; scope.launch { drawerState.close() } })
+                    NavigationDrawerItem(icon = { Icon(Icons.Outlined.Palette, null) }, label = { Text("Tema") }, selected = false, onClick = { showThemeDialog = true; scope.launch { drawerState.close() } })
                     NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Star, null) }, 
+                        icon = { Icon(Icons.Outlined.TrendingUp, null) }, 
                         label = { Text("Mostrar Elo") }, 
                         selected = false, 
                         badge = { Switch(checked = showElo, onCheckedChange = null) },
                         onClick = { viewModel.setShowElo(!showElo) }
                     )
                     NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Info, null) }, 
-                        label = { Text("Mostrar Pedágio") }, 
+                        icon = { Icon(Icons.Outlined.AlarmAdd, null) },
+                        label = { Text("Mostrar atraso") },
                         selected = false, 
                         badge = { Switch(checked = showToll, onCheckedChange = null) },
                         onClick = { viewModel.setShowToll(!showToll) }
                     )
                     Divider(Modifier.padding(vertical = 8.dp))
                     Text("Dados", style = MaterialTheme.typography.labelMedium)
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Share, null) }, label = { Text("Backup / Exportar") }, selected = false, onClick = { showExportDialog = true; scope.launch { drawerState.close() } })
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Add, null) }, label = { Text("Restaurar / Importar") }, selected = false, onClick = { showImportDialog = true; scope.launch { drawerState.close() } })
+                    NavigationDrawerItem(icon = { Icon(Icons.Outlined.FileUpload, null) }, label = { Text("Exportar") }, selected = false, onClick = { showExportDialog = true; scope.launch { drawerState.close() } })
+                    NavigationDrawerItem(icon = { Icon(Icons.Outlined.FileDownload, null) }, label = { Text("Importar") }, selected = false, onClick = { showImportDialog = true; scope.launch { drawerState.close() } })
                     
                     Spacer(Modifier.height(32.dp))
                 }
@@ -289,7 +332,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Column { Text("Vôlei Manager 🏐"); selectedGroup?.let { Text(it, style = MaterialTheme.typography.labelSmall) } } },
+                    title = { Column { Text("Vôlei Manager"); selectedGroup?.let { Text(it, style = MaterialTheme.typography.labelSmall) } } },
                     navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, null) } },
                     actions = {
                         if (currentScreen == Screen.GAME) IconButton(onClick = { showAddPlayerDialog = true }) { Icon(Icons.Default.Add, "Novo Jogador") }
@@ -355,7 +398,7 @@ fun GameScreenContent(
     confirmWinTeam?.let { team ->
         AlertDialog(
             onDismissRequest = { confirmWinTeam = null },
-            title = { Text("Confirmar Vitória") },
+            title = { Text("Confirmar vitória") },
             text = { Text("Deseja realmente confirmar a vitória do Time $team?") },
             confirmButton = { 
                 Button(
@@ -521,7 +564,7 @@ fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: In
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "($playerNames)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Aguardando próxima rodada.", style = MaterialTheme.typography.bodySmall)
+                    Text("Aguardando próximo jogo.", style = MaterialTheme.typography.bodySmall)
                 }
             } else {
                 Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -530,7 +573,7 @@ fun EmptyStateCard(selectedCount: Int, currentGroup: String, currentTeamSize: In
             }
             Spacer(modifier = Modifier.height(16.dp))
             if (hasPreviousMatch) {
-                Button(onClick = onNextRoundClick, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("🔄 Próxima rodada", fontSize = 16.sp, color = Color.White) }
+                Button(onClick = onNextRoundClick, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Iniciar próximo jogo", fontSize = 16.sp, color = Color.White) }
             } else {
                 Button(onClick = onStartAutoClick, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = if(selectedCount >= minNeeded) Color(0xFF2E7D32) else Color.Gray)) { Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White); Spacer(Modifier.width(8.dp)); Text("Iniciar jogo", fontSize = 16.sp, color = Color.White) }
             }
@@ -618,7 +661,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: ()
         }
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
             DropdownMenuItem(
-                text = { Text("Remover da Fila", color = MaterialTheme.colorScheme.error) }, 
+                text = { Text("Remover da Fila", color = MaterialTheme.colorScheme.error) },
                 onClick = { 
                     showMenu = false
                     onRemove() 
@@ -653,7 +696,7 @@ fun SubstitutionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Substituir/Trocar ${playerOut.name}") },
+        title = { Text("Substituir ${playerOut.name}") },
         text = {
             if (allOptions.isEmpty()) {
                 Text("Não há jogadores disponíveis para troca.")
@@ -713,7 +756,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { isPriority = !isPriority }) {
                     Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
-                    Text("Definir como Prioridade")
+                    Text("Definir como prioridade")
                 }
             }
         },

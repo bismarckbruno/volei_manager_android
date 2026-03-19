@@ -184,11 +184,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun sortTeamPlayers(team: List<Player>): List<Player> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
-        return team.sortedWith(compareBy<Player> { p -> 
+        // Embaralha primeiro para que os empates na quantidade de jogos sejam quebrados de forma aleatória,
+        // garantindo que não seja mais ordenado por elo em caso de empate de quantidade de jogos.
+        return team.shuffled().sortedBy { p -> 
             val actual = usageMap[p.id] ?: 0
             val toll = if (p.tollDate == today) p.dailyToll else 0
             actual + toll
-        }.thenByDescending { it.elo })
+        }
     }
 
     private fun calculateTollForNewPlayer(): Int {

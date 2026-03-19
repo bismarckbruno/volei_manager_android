@@ -8,5 +8,5 @@ data class GroupConfig(
     @PrimaryKey val groupName: String,
     val teamSize: Int = 6, // Padrão 6
     val victoryLimit: Int = 3, // Padrão 3
-    val priorityEnabled: Boolean = false
+    val priorityEnabled: Boolean = true
 )
