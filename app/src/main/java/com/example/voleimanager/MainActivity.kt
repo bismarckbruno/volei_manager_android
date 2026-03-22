@@ -15,7 +15,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -28,9 +27,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,15 +54,13 @@ import com.example.voleimanager.data.VoleiRepository
 import com.example.voleimanager.data.model.Player
 import com.example.voleimanager.ui.*
 import com.example.voleimanager.ui.ManualSetupScreen
+import com.example.voleimanager.ui.theme.AppTheme
 import com.example.voleimanager.ui.viewmodel.Screen
 import com.example.voleimanager.ui.viewmodel.ThemeMode
 import com.example.voleimanager.ui.viewmodel.CsvType
 import com.example.voleimanager.ui.viewmodel.VoleiViewModel
 import com.example.voleimanager.ui.viewmodel.VoleiViewModelFactory
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -81,52 +78,10 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
-
-            // Grayscale theme implementation instead of default purple
-            val lightColors = lightColorScheme(
-                primary = Color(0xFF424242),
-                onPrimary = Color.White,
-                primaryContainer = Color(0xFFE0E0E0),
-                onPrimaryContainer = Color(0xFF212121),
-                secondary = Color(0xFF616161),
-                onSecondary = Color.White,
-                secondaryContainer = Color(0xFFEEEEEE),
-                onSecondaryContainer = Color(0xFF424242),
-                tertiary = Color(0xFF757575),
-                onTertiary = Color.White,
-                tertiaryContainer = Color(0xFFF5F5F5),
-                onTertiaryContainer = Color(0xFF212121),
-                background = Color(0xFFFAFAFA),
-                onBackground = Color(0xFF212121),
-                surface = Color(0xFFFFFFFF),
-                onSurface = Color(0xFF212121),
-                surfaceVariant = Color(0xFFF5F5F5),
-                onSurfaceVariant = Color(0xFF424242)
-            )
-
-            val darkColors = darkColorScheme(
-                primary = Color(0xFFE0E0E0),
-                onPrimary = Color.Black,
-                primaryContainer = Color(0xFF424242),
-                onPrimaryContainer = Color(0xFFEEEEEE),
-                secondary = Color(0xFFB0B0B0),
-                onSecondary = Color.Black,
-                secondaryContainer = Color(0xFF616161),
-                onSecondaryContainer = Color(0xFFF5F5F5),
-                tertiary = Color(0xFF9E9E9E),
-                onTertiary = Color.Black,
-                tertiaryContainer = Color(0xFF757575),
-                onTertiaryContainer = Color(0xFFFAFAFA),
-                background = Color(0xFF121212),
-                onBackground = Color(0xFFEEEEEE),
-                surface = Color(0xFF1E1E1E),
-                onSurface = Color(0xFFEEEEEE),
-                surfaceVariant = Color(0xFF2C2C2C),
-                onSurfaceVariant = Color(0xFFBDBDBD)
-            )
-
-            MaterialTheme(colorScheme = if (darkTheme) darkColors else lightColors) {
-                VoleiManagerApp(
+            AppTheme(
+                darkTheme = darkTheme
+            ) {
+                 VoleiManagerApp(
                     viewModel,
                     darkTheme
                 )
@@ -236,14 +191,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 context,
                                 CsvType.BACKUP_COMPLETO,
                                 exportFileName
-                            ); showExportDialog = false
+                            )
+                            showExportDialog = false
                         }) {
                         Icon(
                             Icons.Default.Share,
                             null
                         ); Spacer(Modifier.width(8.dp)); Text("Backup Completo (.json)")
                     }
-                    Divider(Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text("Exportar CSV (Avançado)", style = MaterialTheme.typography.labelSmall)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = {
@@ -251,21 +207,24 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 context,
                                 CsvType.JOGADORES,
                                 exportFileName
-                            ); showExportDialog = false
+                            )
+                            showExportDialog = false
                         }) { Text("Jogadores") }
                         TextButton(onClick = {
                             viewModel.exportData(
                                 context,
                                 CsvType.HISTORICO,
                                 exportFileName
-                            ); showExportDialog = false
+                            )
+                            showExportDialog = false
                         }) { Text("Histórico") }
                         TextButton(onClick = {
                             viewModel.exportData(
                                 context,
                                 CsvType.ELO_LOGS,
                                 exportFileName
-                            ); showExportDialog = false
+                            )
+                            showExportDialog = false
                         }) { Text("Logs") }
                     }
                 }
@@ -289,14 +248,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         onClick = {
                             pendingImportType = CsvType.BACKUP_COMPLETO; launcherImport.launch(
                             arrayOf("application/json", "text/plain")
-                        ); showImportDialog = false
+                        )
+                            showImportDialog = false
                         }) {
                         Icon(
                             Icons.Default.Add,
                             null
                         ); Spacer(Modifier.width(8.dp)); Text("Restaurar Backup (.json)")
                     }
-                    Divider(Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text("Importar CSV (Avançado)", style = MaterialTheme.typography.labelSmall)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = {
@@ -306,7 +266,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 "text/csv",
                                 "application/csv"
                             )
-                        ); showImportDialog = false
+                        )
+                            showImportDialog = false
                         }) { Text("Jogadores") }
                         TextButton(onClick = {
                             pendingImportType = CsvType.HISTORICO; launcherImport.launch(
@@ -315,7 +276,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 "text/csv",
                                 "application/csv"
                             )
-                        ); showImportDialog = false
+                        )
+                            showImportDialog = false
                         }) { Text("Histórico") }
                         TextButton(onClick = {
                             pendingImportType = CsvType.ELO_LOGS; launcherImport.launch(
@@ -324,7 +286,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 "text/csv",
                                 "application/csv"
                             )
-                        ); showImportDialog = false
+                        )
+                            showImportDialog = false
                         }) { Text("Logs") }
                     }
                 }
@@ -350,7 +313,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Divider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                    HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
 
                     Text("Grupo atual:", style = MaterialTheme.typography.labelMedium)
                     Spacer(Modifier.height(8.dp))
@@ -378,7 +341,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         ) {
                                             Text(group, modifier = Modifier.weight(1f))
                                             IconButton(onClick = {
-                                                showRenameGroupDialog = group; groupExpanded = false
+                                                showRenameGroupDialog = group
+                                                groupExpanded = false
                                             }) {
                                                 Icon(
                                                     Icons.Default.Edit,
@@ -387,7 +351,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 )
                                             }
                                             IconButton(onClick = {
-                                                showDeleteGroupDialog = group; groupExpanded = false
+                                                showDeleteGroupDialog = group
+                                                groupExpanded = false
                                             }) {
                                                 Icon(
                                                     Icons.Default.Delete,
@@ -417,7 +382,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     "+ Criar novo grupo",
                                     fontWeight = FontWeight.Bold
                                 )
-                            }, onClick = { showCreateGroupDialog = true; groupExpanded = false })
+                            }, onClick = { showCreateGroupDialog = true
+                                groupExpanded = false })
                         }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -433,20 +399,22 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         selected = currentScreen == Screen.HISTORY,
                         onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } })
 
-                    Divider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                    HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
                     Text("Configurações", style = MaterialTheme.typography.labelMedium)
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Outlined.Settings, null) },
                         label = { Text("Regras do grupo") },
                         selected = false,
-                        onClick = { showConfigDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showConfigDialog = true
+                            scope.launch { drawerState.close() } })
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Outlined.Palette, null) },
                         label = { Text("Tema") },
                         selected = false,
-                        onClick = { showThemeDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showThemeDialog = true
+                            scope.launch { drawerState.close() } })
                     NavigationDrawerItem(
-                        icon = { Icon(Icons.Outlined.TrendingUp, null) },
+                        icon = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) },
                         label = { Text("Mostrar Elo") },
                         selected = false,
                         badge = { Switch(checked = showElo, onCheckedChange = null) },
@@ -459,18 +427,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         badge = { Switch(checked = showToll, onCheckedChange = null) },
                         onClick = { viewModel.setShowToll(!showToll) }
                     )
-                    Divider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                    HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
                     Text("Dados", style = MaterialTheme.typography.labelMedium)
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Outlined.FileUpload, null) },
                         label = { Text("Exportar") },
                         selected = false,
-                        onClick = { showExportDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showExportDialog = true
+                            scope.launch { drawerState.close() } })
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Outlined.FileDownload, null) },
                         label = { Text("Importar") },
                         selected = false,
-                        onClick = { showImportDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showImportDialog = true
+                            scope.launch { drawerState.close() } })
 
                     Spacer(Modifier.height(32.dp))
                 }
@@ -505,7 +475,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     elo,
                     selectedGroup ?: "Geral",
                     isPriority
-                ); showAddPlayerDialog = false
+                )
+                showAddPlayerDialog = false
             })
         if (showThemeDialog) {
             val mode by viewModel.themeMode.collectAsState(); AlertDialog(
@@ -541,7 +512,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 confirmButton = {
                     Button(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                        onClick = { viewModel.deletePlayer(player); playerToDelete = null }) {
+                        onClick = { viewModel.deletePlayer(player)
+                            playerToDelete = null }) {
                         Text(
                             "Excluir"
                         )
@@ -559,8 +531,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 group,
                 { showRenameGroupDialog = null },
                 { newName ->
-                    viewModel.renameGroup(group, newName); selectedGroup =
-                    newName; showRenameGroupDialog = null
+                    viewModel.renameGroup(group, newName)
+                    selectedGroup = newName
+                    showRenameGroupDialog = null
                 })
         }
         showDeleteGroupDialog?.let { group ->
@@ -575,7 +548,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                         onClick = {
                             viewModel.deleteGroup(group); selectedGroup =
-                            "Geral"; showDeleteGroupDialog = null
+                            "Geral"
+                            showDeleteGroupDialog = null
                         }) { Text("Excluir") }
                 },
                 dismissButton = {
@@ -665,13 +639,13 @@ fun GameScreenContent(
     val sortedPlayers by viewModel.sortedPlayersForPresence.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
     val targetDate by viewModel.targetDate.collectAsState()
-    val teamA by viewModel.teamA.collectAsState();
+    val teamA by viewModel.teamA.collectAsState()
     val teamB by viewModel.teamB.collectAsState()
-    val waitingList by viewModel.waitingList.collectAsState();
+    val waitingList by viewModel.waitingList.collectAsState()
     val presentIds by viewModel.presentPlayerIds.collectAsState()
-    val hasPrev by viewModel.hasPreviousMatch.collectAsState();
+    val hasPrev by viewModel.hasPreviousMatch.collectAsState()
     val config by viewModel.currentGroupConfig.collectAsState()
-    val streak by viewModel.currentStreak.collectAsState();
+    val streak by viewModel.currentStreak.collectAsState()
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
 
@@ -687,7 +661,8 @@ fun GameScreenContent(
         confirmButton = {
             Button(
                 colors = ButtonDefaults.buttonColors(containerColor = errorColor),
-                onClick = { viewModel.cancelGame(); showCancel = false }) { Text("Sim") }
+                onClick = { viewModel.cancelGame()
+                    showCancel = false }) { Text("Sim") }
         },
         dismissButton = { TextButton(onClick = { showCancel = false }) { Text("Não") } })
     subOut?.let { p ->
@@ -697,13 +672,15 @@ fun GameScreenContent(
             teamA,
             teamB,
             { subOut = null },
-            { viewModel.substitutePlayer(p, it); subOut = null })
+            { viewModel.substitutePlayer(p, it)
+                subOut = null })
     }
     editP?.let { p ->
         EditPlayerDialog(
             p,
             { editP = null },
-            { name, prio -> viewModel.editPlayer(p, name, prio); editP = null })
+            { name, prio -> viewModel.editPlayer(p, name, prio)
+                editP = null })
     }
 
     confirmWinTeam?.let { team ->
@@ -808,7 +785,7 @@ fun GameScreenContent(
                                     Arrangement.SpaceBetween,
                                     Alignment.CenterVertically
                                 ) {
-                                    Text("Lista de presença", fontWeight = FontWeight.Bold);
+                                    Text("Lista de presença", fontWeight = FontWeight.Bold)
                                     val all =
                                         sortedPlayers.all { presentIds.contains(it.id) }; TextButton(
                                     onClick = {
@@ -856,11 +833,12 @@ fun ActiveGameView(
 ) {
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
     val teamBStreak = if (streakOwner == "B") currentStreak else 0
-    val cardColorA = if (isDarkTheme) Color(0xFF0D47A1) else Color(0xFFE3F2FD)
-    val btnColorA = if (isDarkTheme) Color(0xFF90CAF9) else Color(0xFF1976D2)
-    val cardColorB = if (isDarkTheme) Color(0xFFB71C1C) else Color(0xFFFFEBEE)
-    val btnColorB = if (isDarkTheme) Color(0xFFEF9A9A) else Color(0xFFD32F2F)
-    val btnTextColor = if (isDarkTheme) Color.Black else Color.White
+    val cardColorA = MaterialTheme.colorScheme.primaryContainer
+    val btnColorA = MaterialTheme.colorScheme.primary
+    val btnTextColorA = MaterialTheme.colorScheme.onPrimary
+    val cardColorB = MaterialTheme.colorScheme.tertiaryContainer
+    val btnColorB = MaterialTheme.colorScheme.tertiary
+    val btnTextColorB = MaterialTheme.colorScheme.onTertiary
     val defaultStreakColor = Color(0xFFFF6F00)
     val yellowStreakColor = Color(0xFFFFD600)
     val streakColorA = defaultStreakColor
@@ -895,7 +873,7 @@ fun ActiveGameView(
                                 teamA,
                                 cardColorA,
                                 btnColorA,
-                                btnTextColor,
+                                btnTextColorA,
                                 streakColorA,
                                 teamAStreak,
                                 showElo,
@@ -918,7 +896,7 @@ fun ActiveGameView(
                                 teamB,
                                 cardColorB,
                                 btnColorB,
-                                btnTextColor,
+                                btnTextColorB,
                                 streakColorB,
                                 teamBStreak,
                                 showElo,
@@ -934,7 +912,7 @@ fun ActiveGameView(
                         contentPadding = PaddingValues(0.dp)
                     ) { Text("Cancelar partida", color = errorColor, fontSize = 12.sp) }
                 }
-                Spacer(Modifier.width(16.dp)); Divider(
+                Spacer(Modifier.width(16.dp)); HorizontalDivider(
                 Modifier
                     .fillMaxHeight()
                     .width(1.dp)
@@ -974,7 +952,7 @@ fun ActiveGameView(
                         teamA,
                         cardColorA,
                         btnColorA,
-                        btnTextColor,
+                        btnTextColorA,
                         streakColorA,
                         teamAStreak,
                         showElo,
@@ -995,7 +973,7 @@ fun ActiveGameView(
                         teamB,
                         cardColorB,
                         btnColorB,
-                        btnTextColor,
+                        btnTextColorB,
                         streakColorB,
                         teamBStreak,
                         showElo,
@@ -1086,7 +1064,7 @@ fun ActiveTeamCard(
                     )
                 }
             }
-            Divider(Modifier.padding(vertical = 4.dp), color = dividerColor)
+            HorizontalDivider(Modifier.padding(vertical = 4.dp), color = dividerColor)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -1165,10 +1143,7 @@ fun EmptyStateCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        border = if (!isDarkTheme) BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        ) else null
+        border = null
     ) {
         Column(
             modifier = Modifier
@@ -1176,13 +1151,18 @@ fun EmptyStateCard(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(48.dp))
+            Icon(
+                Icons.Default.Star,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(8.dp))
             if (hasPreviousMatch) {
                 val limitReached = currentStreak >= victoryLimit
                 if (limitReached) {
-                    val kingTextColor =
-                        if (isDarkTheme) Color(0xFFFFD600) else Color(0xFFE65100); Text(
+                    val kingTextColor = MaterialTheme.colorScheme.tertiary
+                    Text(
                         text = "👑 Rei da quadra atingiu o limite!",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
@@ -1231,30 +1211,29 @@ fun EmptyStateCard(
             if (hasPreviousMatch) {
                 Button(
                     onClick = onNextRoundClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)
-                ) { Text("Iniciar próximo jogo", fontSize = 16.sp, color = Color.White) }
+                ) { Text("Iniciar próximo jogo", fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimary) }
             } else {
                 Button(
                     onClick = onStartAutoClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
+                    enabled = selectedCount >= minNeeded,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedCount >= minNeeded) Color(0xFF2E7D32) else Color.Gray
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Icon(
                         Icons.Default.PlayArrow,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.White
+                        modifier = Modifier.size(20.dp)
                     ); Spacer(Modifier.width(8.dp)); Text(
                     "Iniciar jogo",
-                    fontSize = 16.sp,
-                    color = Color.White
+                    fontSize = 16.sp
                 )
                 }
             }
@@ -1487,7 +1466,7 @@ fun SubstitutionDialog(
 ) {
     val allOptions = remember(waitingList, teamA, teamB, playerOut) {
         val list = mutableListOf<Pair<Player, String>>()
-        val isTeamA = teamA.any { it.id == playerOut.id };
+        val isTeamA = teamA.any { it.id == playerOut.id }
         val isTeamB = teamB.any { it.id == playerOut.id }
         waitingList.forEach { list.add(it to "(na espera)") }
         if (isTeamA) teamB.forEach { list.add(it to "(Time B)") }
@@ -1619,8 +1598,8 @@ fun GroupConfigDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int, Int, Boolean) -> Unit
 ) {
-    var teamSize by remember { mutableStateOf(initialTeamSize.toFloat()) }
-    var victoryLimit by remember { mutableStateOf(initialVictoryLimit.toFloat()) }
+    var teamSize by remember { mutableFloatStateOf(initialTeamSize.toFloat()) }
+    var victoryLimit by remember { mutableFloatStateOf(initialVictoryLimit.toFloat()) }
     var priorityEnabled by remember { mutableStateOf(initialPriorityEnabled) }
 
     AlertDialog(

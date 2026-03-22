@@ -55,8 +55,7 @@ fun ManualSetupScreen(
                         onClick = { onConfirm(teamA, teamB, bench, teamA.size) },
                         enabled = canStart,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = Color.Gray
+                            containerColor = MaterialTheme.colorScheme.primary
                         ),
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
@@ -80,9 +79,9 @@ fun ManualSetupScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TeamCounter("Time A", teamA.size, Color(0xFF1976D2)) // Azul
+                TeamCounter("Time A", teamA.size, MaterialTheme.colorScheme.primary)
                 Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TeamCounter("Time B", teamB.size, Color(0xFFD32F2F)) // Vermelho
+                TeamCounter("Time B", teamB.size, MaterialTheme.colorScheme.tertiary)
             }
 
             if (!canStart) {
@@ -98,7 +97,7 @@ fun ManualSetupScreen(
                 )
             }
 
-            Divider()
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
             // --- LISTA DE SELEÇÃO ---
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -125,7 +124,7 @@ fun ManualSetupScreen(
 fun TeamCounter(label: String, count: Int, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = label, fontWeight = FontWeight.Bold, color = color)
-        Text(text = count.toString(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(text = count.toString(), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color)
     }
 }
 
@@ -144,23 +143,24 @@ fun PlayerSelectionRow(
     ) {
         // Nome e Elo
         Column(modifier = Modifier.weight(1f)) {
-            Text(player.name, fontWeight = FontWeight.Medium, fontSize = 16.sp)
+            Text(player.name, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             if (showElo) {
-                Text("${player.elo.toInt()} Elo", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text("${player.elo.toInt()} Elo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         // Botões de Seleção (Toggle)
         Row(
             modifier = Modifier
-                .background(Color(0xFFEEEEEE), RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
                 .padding(2.dp)
         ) {
             // Botão A
             SelectionButton(
                 text = "A",
                 isSelected = currentSelection == "A",
-                activeColor = Color(0xFF1976D2), // Azul
+                activeColor = MaterialTheme.colorScheme.primary,
+                onActiveColor = MaterialTheme.colorScheme.onPrimary,
                 onClick = { onSelect("A") }
             )
 
@@ -170,7 +170,8 @@ fun PlayerSelectionRow(
             SelectionButton(
                 text = "B",
                 isSelected = currentSelection == "B",
-                activeColor = Color(0xFFD32F2F), // Vermelho
+                activeColor = MaterialTheme.colorScheme.tertiary,
+                onActiveColor = MaterialTheme.colorScheme.onTertiary,
                 onClick = { onSelect("B") }
             )
         }
@@ -182,6 +183,7 @@ fun SelectionButton(
     text: String,
     isSelected: Boolean,
     activeColor: Color,
+    onActiveColor: Color,
     onClick: () -> Unit
 ) {
     Box(
@@ -197,7 +199,7 @@ fun SelectionButton(
         Text(
             text = text,
             fontWeight = FontWeight.Bold,
-            color = if (isSelected) Color.White else Color.Gray
+            color = if (isSelected) onActiveColor else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
