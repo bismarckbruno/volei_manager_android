@@ -307,7 +307,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val available = all.filter { _presentPlayerIds.value.contains(it.id) }
         if(available.size < size * 2) return
 
-        // Aplica o pedágio para todos os presentes antes de começar o jogo!
+        // Aplica o pedágio (atraso)
         val availableWithTollApplied = available.map { applyTollIfNecessary(it) }
 
         val config = _currentGroupConfig.value

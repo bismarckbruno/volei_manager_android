@@ -55,7 +55,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo) }
@@ -75,7 +75,7 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
     val teamANames = match.teamA.replace(",", ", ")
     val teamBNames = match.teamB.replace(",", ", ")
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                 Text(match.date, style = MaterialTheme.typography.labelMedium)
@@ -83,7 +83,7 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                     Text("±${String.format(Locale.US, "%.2f", match.eloPoints)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                 }
             }
-            Divider(Modifier.padding(vertical = 8.dp))
+            Divider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Time A", fontWeight = FontWeight.Bold, color = if(isTeamAWin) winColor else Color.Unspecified)
