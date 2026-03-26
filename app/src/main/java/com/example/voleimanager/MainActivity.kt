@@ -55,6 +55,7 @@ import com.example.voleimanager.data.model.Player
 import com.example.voleimanager.ui.*
 import com.example.voleimanager.ui.ManualSetupScreen
 import com.example.voleimanager.ui.theme.AppTheme
+import com.example.voleimanager.ui.theme.LocalExtendedColors
 import com.example.voleimanager.ui.viewmodel.Screen
 import com.example.voleimanager.ui.viewmodel.ThemeMode
 import com.example.voleimanager.ui.viewmodel.CsvType
@@ -168,7 +169,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             dismissButton = {
                 TextButton(onClick = {
                     pendingGroupSwitch = null
-                }) { Text("Cancelar") }
+                }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         )
     }
@@ -232,7 +233,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             confirmButton = {
                 TextButton(onClick = {
                     showExportDialog = false
-                }) { Text("Cancelar") }
+                }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         )
     }
@@ -295,7 +296,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             confirmButton = {
                 TextButton(onClick = {
                     showImportDialog = false
-                }) { Text("Cancelar") }
+                }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         )
     }
@@ -522,7 +523,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 dismissButton = {
                     TextButton(onClick = {
                         playerToDelete = null
-                    }) { Text("Cancelar") }
+                    }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 })
         }
 
@@ -555,7 +556,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 dismissButton = {
                     TextButton(onClick = {
                         showDeleteGroupDialog = null
-                    }) { Text("Cancelar") }
+                    }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 })
         }
 
@@ -608,7 +609,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             isDarkTheme = isDarkTheme,
                             showElo = showElo,
                             showToll = showToll,
-                            errorColor = MaterialTheme.colorScheme.error,
                             isSetupMode = isSetupMode,
                             onSetupModeChange = { isSetupMode = it },
                             onDeleteRequest = { playerToDelete = it },
@@ -630,7 +630,6 @@ fun GameScreenContent(
     isDarkTheme: Boolean,
     showElo: Boolean,
     showToll: Boolean,
-    errorColor: Color,
     isSetupMode: Boolean,
     onSetupModeChange: (Boolean) -> Unit,
     onDeleteRequest: (Player) -> Unit,
@@ -648,23 +647,77 @@ fun GameScreenContent(
     val streak by viewModel.currentStreak.collectAsState()
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
-
+    // Filtra automaticamente quem não está presente
+    val absentPlayers = remember(sortedPlayers, presentIds) {
+        sortedPlayers.filter { !presentIds.contains(it.id) }
+    }
+    
+    var showAbsentDialog by remember { mutableStateOf(false) }
+    var playerToAddFromAbsent by remember { mutableStateOf<Player?>(null) }
     var showCancel by remember { mutableStateOf(false) }
     var subOut by remember { mutableStateOf<Player?>(null) }
     var editP by remember { mutableStateOf<Player?>(null) }
     var confirmWinTeam by remember { mutableStateOf<String?>(null) }
 
+    if (showAbsentDialog) {
+        AlertDialog(
+            onDismissRequest = { showAbsentDialog = false },
+            title = { Text("Jogadores Ausentes") },
+            text = {
+                if (absentPlayers.isEmpty()) {
+                    Text("Todos os jogadores cadastrados já estão presentes na quadra.")
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(absentPlayers) { p ->
+                            ListItem(
+                                headlineContent = { Text(p.name, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                leadingContent = { Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                modifier = Modifier.clickable {
+                                    playerToAddFromAbsent = p
+                                    showAbsentDialog = false
+                                }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAbsentDialog = false }) { Text("Fechar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+        )
+    }
+
+    playerToAddFromAbsent?.let { p ->
+        AlertDialog(
+            onDismissRequest = { playerToAddFromAbsent = null },
+            title = { Text("Selecionar ${p.name}?") },
+            text = { Text("A pessoa selecionada irá para o final da fila de espera.") },
+            confirmButton = {
+                Button(onClick = {
+                    // Marcar como presente joga a pessoa pra fila no ViewModel
+                    viewModel.togglePlayerPresence(p)
+                    playerToAddFromAbsent = null
+                }) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { playerToAddFromAbsent = null }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+        )
+    }
+    
     if (showCancel) AlertDialog(
         onDismissRequest = { showCancel = false },
         title = { Text("Cancelar partida?") },
         text = { Text("O progresso atual será perdido.") },
         confirmButton = {
             Button(
-                colors = ButtonDefaults.buttonColors(containerColor = errorColor),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 onClick = { viewModel.cancelGame()
                     showCancel = false }) { Text("Sim") }
         },
-        dismissButton = { TextButton(onClick = { showCancel = false }) { Text("Não") } })
+        dismissButton = { TextButton(onClick = { showCancel = false }) { Text("Não", color = MaterialTheme.colorScheme.onSurfaceVariant) } })
     subOut?.let { p ->
         SubstitutionDialog(
             p,
@@ -686,7 +739,7 @@ fun GameScreenContent(
     confirmWinTeam?.let { team ->
         AlertDialog(
             onDismissRequest = { confirmWinTeam = null },
-            title = { Text("Confirmar vitória do $team?") },
+            title = { Text("Confirmar vitória do time $team?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -696,7 +749,7 @@ fun GameScreenContent(
                 ) { Text("Confirmar") }
             },
             dismissButton = {
-                TextButton(onClick = { confirmWinTeam = null }) { Text("Cancelar") }
+                TextButton(onClick = { confirmWinTeam = null }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         )
     }
@@ -746,10 +799,10 @@ fun GameScreenContent(
                             streak,
                             isDarkTheme,
                             showElo,
-                            errorColor,
                             { showCancel = true },
                             { subOut = it },
-                            { confirmWinTeam = it })
+                            { confirmWinTeam = it },
+                            onOpenAbsentList = { showAbsentDialog = true })
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -774,7 +827,6 @@ fun GameScreenContent(
                                     owner,
                                     streak,
                                     config.victoryLimit,
-                                    errorColor,
                                     isDarkTheme,
                                     onShowSnackbar = onShowSnackbar
                                 )
@@ -826,19 +878,22 @@ fun ActiveGameView(
     currentStreak: Int,
     isDarkTheme: Boolean,
     showElo: Boolean,
-    errorColor: Color,
     onCancelRequest: () -> Unit,
     onSubRequest: (Player) -> Unit,
-    onWinRequest: (String) -> Unit
+    onWinRequest: (String) -> Unit,
+    onOpenAbsentList: () -> Unit
 ) {
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
     val teamBStreak = if (streakOwner == "B") currentStreak else 0
+    
     val cardColorA = MaterialTheme.colorScheme.primaryContainer
     val btnColorA = MaterialTheme.colorScheme.primary
     val btnTextColorA = MaterialTheme.colorScheme.onPrimary
-    val cardColorB = MaterialTheme.colorScheme.tertiaryContainer
-    val btnColorB = MaterialTheme.colorScheme.tertiary
-    val btnTextColorB = MaterialTheme.colorScheme.onTertiary
+    
+    val cardColorB = LocalExtendedColors.current.anotherPrime.colorContainer
+    val btnColorB = LocalExtendedColors.current.anotherPrime.color
+    val btnTextColorB = LocalExtendedColors.current.anotherPrime.onColor
+    
     val defaultStreakColor = Color(0xFFFF6F00)
     val yellowStreakColor = Color(0xFFFFD600)
     val streakColorA = defaultStreakColor
@@ -909,8 +964,8 @@ fun ActiveGameView(
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .height(24.dp),
-                        contentPadding = PaddingValues(0.dp)
-                    ) { Text("Cancelar partida", color = errorColor, fontSize = 12.sp) }
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) { Text("Cancelar partida", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, textDecoration = TextDecoration.Underline) }
                 }
                 Spacer(Modifier.width(16.dp)); HorizontalDivider(
                 Modifier
@@ -937,6 +992,9 @@ fun ActiveGameView(
                                 showElo
                             ) { viewModel.removePlayerFromWaitingList(p) }
                         }
+                        item {
+                            AbsentPlayerGhostCard (onClick = onOpenAbsentList)
+                        }    
                     }
                 }
             }
@@ -986,9 +1044,10 @@ fun ActiveGameView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(36.dp)
-            ) { Text("Cancelar partida", color = errorColor) }
-            Spacer(Modifier.height(4.dp))
+            ) { Text("Cancelar partida", color = MaterialTheme.colorScheme.onSurfaceVariant, textDecoration = TextDecoration.Underline) }
+            Spacer(Modifier.height(2.dp))
             Text("Na espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(2.dp))
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1001,6 +1060,9 @@ fun ActiveGameView(
                         p,
                         showElo
                     ) { viewModel.removePlayerFromWaitingList(p) }
+                }
+                item {
+                    AbsentPlayerGhostCard (onClick = onOpenAbsentList)
                 }
             }
         }
@@ -1052,7 +1114,7 @@ fun ActiveTeamCard(
                     Text(
                         "(Méd: ${avgElo.roundToInt()})",
                         style = MaterialTheme.typography.bodySmall,
-                        color = contentColor.copy(alpha = 0.8f)
+                        color = contentColor
                     )
                 }
                 if (streak > 0) {
@@ -1135,7 +1197,6 @@ fun EmptyStateCard(
     streakOwner: String? = null,
     currentStreak: Int = 0,
     victoryLimit: Int = 3,
-    errorColor: Color = Color.Red,
     isDarkTheme: Boolean = false,
     onShowSnackbar: (String) -> Unit
 ) {
@@ -1190,22 +1251,13 @@ fun EmptyStateCard(
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Aguardando próximo jogo.", style = MaterialTheme.typography.bodySmall)
                 }
             } else {
                 Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    text = if (selectedCount == 0) "Nenhum jogador selecionado" else if (selectedCount == 1) "1 jogador presente" else "$selectedCount jogadores presentes",
-                    color = if (selectedCount < minNeeded) errorColor else Color.Unspecified
+                    text = if (selectedCount == 0) "Mínimo: $minNeeded jogadores" else "Mínimo: $minNeeded jogadores ($selectedCount)",
+                    color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified
                 )
-                if (selectedCount < minNeeded) {
-                    Text(
-                        "Mínimo configurado: $minNeeded",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = errorColor
-                    )
-                }
             }
             Spacer(modifier = Modifier.height(16.dp))
             if (hasPreviousMatch) {
@@ -1243,7 +1295,7 @@ fun EmptyStateCard(
                     Text(
                         text = "Ou montar times manualmente",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textDecoration = TextDecoration.Underline
                     )
                 }
@@ -1254,7 +1306,7 @@ fun EmptyStateCard(
                     Text(
                         text = "Ou montar times manualmente",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1364,7 +1416,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: ()
             .widthIn(min = 120.dp)
             .combinedClickable(onClick = { }, onLongClick = { showMenu = true })
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.fillMaxSize().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "${index}º",
                 fontWeight = FontWeight.Bold,
@@ -1386,7 +1438,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: ()
                             Icons.Default.Star,
                             contentDescription = "Prioridade",
                             modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -1452,7 +1504,7 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
                 Text("Salvar")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } })
 }
 
 @Composable
@@ -1502,7 +1554,7 @@ fun SubstitutionDialog(
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1538,7 +1590,7 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
                 )
             }) { Text("Salvar") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1585,7 +1637,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                 )
             }) { Text("Adicionar") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1641,7 +1693,7 @@ fun GroupConfigDialog(
                 )
             }) { Text("Salvar") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1664,5 +1716,37 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
                 enabled = text.isNotBlank()
             ) { Text("Criar") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } })
+}
+
+@Composable
+fun AbsentPlayerGhostCard(onClick: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)),
+        modifier = Modifier
+            .widthIn(min = 120.dp)
+            .height(60.dp)
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                "Ausentes",
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+    }
 }

@@ -20,6 +20,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.voleimanager.data.model.Player
+import com.example.voleimanager.ui.theme.LocalExtendedColors
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +35,8 @@ fun ManualSetupScreen(
 ) {
     // Estado para guardar onde cada jogador está alocado
     // Map: ID do Jogador -> "A", "B" ou null (Banco)
-    val selectionState = remember { mutableStateMapOf<Int, String>() }
+    // Usamos rememberSaveable para sobreviver à rotação
+    var selectionState by rememberSaveable { mutableStateOf(emptyMap<Int, String>()) }
 
     // Calcula os times em tempo real baseados na seleção
     val teamA = players.filter { selectionState[it.id] == "A" }
@@ -40,48 +45,63 @@ fun ManualSetupScreen(
 
     val canStart = teamA.size == teamB.size && teamA.size in 2..6
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Montar times") },
-                navigationIcon = {
-                    IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Close, "Cancelar")
-                    }
-                },
-                actions = {
-                    // Só permite iniciar se a qtde nos 2 times for igual e tiver entre 2 e 6 pessoas.
-                    Button(
-                        onClick = { onConfirm(teamA, teamB, bench, teamA.size) },
-                        enabled = canStart,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        Text("Iniciar")
-                        if (canStart) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
-                        }
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Scaffold { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
 
-            // --- CABEÇALHO COM CONTAGEM ---
+            // --- 1. CABEÇALHO PERSONALIZADO ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 16.dp)
+                    .padding(vertical = 8.dp)
+            ) {
+                // Botão Cancelar ancorado na ESQUERDA
+                IconButton(
+                    onClick = onCancel,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Cancelar")
+                }
+
+                // Título ancorado EXATAMENTE NO CENTRO da tela
+                Text(
+                    text = "Montar times",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+
+                // Botão Iniciar ancorado na DIREITA
+                Button(
+                    onClick = { onConfirm(teamA, teamB, bench, teamA.size) },
+                    enabled = canStart,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Text("Iniciar")
+                    if (canStart) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            // --- 2. PLACAR COM CONTAGEM ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TeamCounter("Time A", teamA.size, MaterialTheme.colorScheme.primary)
                 Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TeamCounter("Time B", teamB.size, MaterialTheme.colorScheme.tertiary)
+                // Usando a cor estendida importada do Theme.kt gerado pelo Figma
+                TeamCounter("Time B", teamB.size, LocalExtendedColors.current.anotherPrime.color)
             }
 
             if (!canStart) {
@@ -97,9 +117,9 @@ fun ManualSetupScreen(
                 )
             }
 
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // --- LISTA DE SELEÇÃO ---
+            // --- 3. LISTA DE SELEÇÃO ---
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(players) { player ->
                     PlayerSelectionRow(
@@ -107,11 +127,14 @@ fun ManualSetupScreen(
                         currentSelection = selectionState[player.id],
                         showElo = showElo,
                         onSelect = { selection ->
-                            if (selectionState[player.id] == selection) {
-                                selectionState.remove(player.id) // Desmarcar (vai pro banco)
+                            val newState = selectionState.toMutableMap()
+
+                            if (newState[player.id] == selection) {
+                                newState.remove(player.id) // Desmarcar (vai pro banco)
                             } else {
-                                selectionState[player.id] = selection // Marca A ou B
+                                newState[player.id] = selection // Marca A ou B
                             }
+                            selectionState = newState
                         }
                     )
                 }
@@ -170,8 +193,8 @@ fun PlayerSelectionRow(
             SelectionButton(
                 text = "B",
                 isSelected = currentSelection == "B",
-                activeColor = MaterialTheme.colorScheme.tertiary,
-                onActiveColor = MaterialTheme.colorScheme.onTertiary,
+                activeColor = LocalExtendedColors.current.anotherPrime.color,
+                onActiveColor = LocalExtendedColors.current.anotherPrime.onColor,
                 onClick = { onSelect("B") }
             )
         }

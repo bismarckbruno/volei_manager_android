@@ -10,10 +10,17 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+
+@Immutable
+data class ExtendedColorScheme(
+    val anotherPrime: ColorFamily,
+)
 
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
@@ -243,6 +250,60 @@ private val highContrastDarkColorScheme = darkColorScheme(
     surfaceContainerHighest = surfaceContainerHighestDarkHighContrast,
 )
 
+val extendedLight = ExtendedColorScheme(
+    anotherPrime = ColorFamily(
+        anotherPrimeLight,
+        onAnotherPrimeLight,
+        anotherPrimeContainerLight,
+        onAnotherPrimeContainerLight,
+    ),
+)
+
+val extendedDark = ExtendedColorScheme(
+    anotherPrime = ColorFamily(
+        anotherPrimeDark,
+        onAnotherPrimeDark,
+        anotherPrimeContainerDark,
+        onAnotherPrimeContainerDark,
+    ),
+)
+
+val extendedLightMediumContrast = ExtendedColorScheme(
+    anotherPrime = ColorFamily(
+        anotherPrimeLightMediumContrast,
+        onAnotherPrimeLightMediumContrast,
+        anotherPrimeContainerLightMediumContrast,
+        onAnotherPrimeContainerLightMediumContrast,
+    ),
+)
+
+val extendedLightHighContrast = ExtendedColorScheme(
+    anotherPrime = ColorFamily(
+        anotherPrimeLightHighContrast,
+        onAnotherPrimeLightHighContrast,
+        anotherPrimeContainerLightHighContrast,
+        onAnotherPrimeContainerLightHighContrast,
+    ),
+)
+
+val extendedDarkMediumContrast = ExtendedColorScheme(
+    anotherPrime = ColorFamily(
+        anotherPrimeDarkMediumContrast,
+        onAnotherPrimeDarkMediumContrast,
+        anotherPrimeContainerDarkMediumContrast,
+        onAnotherPrimeContainerDarkMediumContrast,
+    ),
+)
+
+val extendedDarkHighContrast = ExtendedColorScheme(
+    anotherPrime = ColorFamily(
+        anotherPrimeDarkHighContrast,
+        onAnotherPrimeDarkHighContrast,
+        anotherPrimeContainerDarkHighContrast,
+        onAnotherPrimeContainerDarkHighContrast,
+    ),
+)
+
 @Immutable
 data class ColorFamily(
     val color: Color,
@@ -254,6 +315,8 @@ data class ColorFamily(
 val unspecified_scheme = ColorFamily(
     Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified
 )
+
+val LocalExtendedColors = staticCompositionLocalOf { extendedLight }
 
 @Composable
 fun AppTheme(
@@ -272,9 +335,13 @@ fun AppTheme(
         else -> lightScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    val extendedColors = if (darkTheme) extendedDark else extendedLight
+
+    CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

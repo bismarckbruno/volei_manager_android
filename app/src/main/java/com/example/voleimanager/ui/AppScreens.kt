@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.voleimanager.data.model.MatchHistory
+import com.example.voleimanager.ui.theme.LocalExtendedColors
 import com.example.voleimanager.ui.viewmodel.VoleiViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -42,11 +44,11 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = { expandedDate = true }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.DateRange, contentDescription = null)
+                Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(8.dp))
-                Text(historyDate ?: "Todas as datas")
+                Text(historyDate ?: "Todas as datas", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
-                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             DropdownMenu(expanded = expandedDate, onDismissRequest = { expandedDate = false }) {
                 DropdownMenuItem(text = { Text("Todas as datas") }, onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false })
@@ -61,7 +63,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
             items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo) }
             if (sortedHistory.isEmpty()) item { 
                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text("Nenhuma partida encontrada.", color = MaterialTheme.colorScheme.secondary) 
+                    Text("Nenhuma partida encontrada.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -70,12 +72,29 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
 
 @Composable
 fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
-    val winColor = MaterialTheme.colorScheme.primary
     val isTeamAWin = match.winner == "Time A"
     val teamANames = match.teamA.replace(",", ", ")
     val teamBNames = match.teamB.replace(",", ", ")
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+    val cardBgColor = if (isTeamAWin) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        LocalExtendedColors.current.anotherPrime.colorContainer
+    }
+
+    val contentColor = if (isTeamAWin) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        LocalExtendedColors.current.anotherPrime.onColorContainer
+    }
+
+    val starColor = if (isTeamAWin) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        LocalExtendedColors.current.anotherPrime.color
+    }
+
+    Card(colors = CardDefaults.cardColors(containerColor = cardBgColor, contentColor = contentColor)) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                 Text(match.date, style = MaterialTheme.typography.labelMedium)
@@ -83,15 +102,27 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                     Text("±${String.format(Locale.US, "%.2f", match.eloPoints)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                 }
             }
-            Divider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+            HorizontalDivider(Modifier.padding(vertical = 8.dp), color = contentColor.copy(alpha = 0.3f))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Time A", fontWeight = FontWeight.Bold, color = if(isTeamAWin) winColor else Color.Unspecified)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Time A", fontWeight = FontWeight.Bold)
+                        if (isTeamAWin) {
+                            Spacer(Modifier.width(4.dp))
+                            Icon(Icons.Default.Star, contentDescription = "Vencedor", modifier = Modifier.size(16.dp), tint = starColor)
+                        }
+                    }
                     Text(teamANames, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
                 Text("VS", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp), style = MaterialTheme.typography.titleSmall)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Time B", fontWeight = FontWeight.Bold, color = if(!isTeamAWin) winColor else Color.Unspecified)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Time B", fontWeight = FontWeight.Bold)
+                        if (!isTeamAWin) {
+                            Spacer(Modifier.width(4.dp))
+                            Icon(Icons.Default.Star, contentDescription = "Vencedor", modifier = Modifier.size(16.dp), tint = starColor)
+                        }
+                    }
                     Text(teamBNames, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
             }
