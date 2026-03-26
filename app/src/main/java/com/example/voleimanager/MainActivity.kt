@@ -20,9 +20,11 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +38,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
@@ -502,7 +508,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 confirmButton = {
                     TextButton(onClick = {
                         showThemeDialog = false
-                    }) { Text("Fechar") }
+                    }) { Text("Fechar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 })
         }
         playerToDelete?.let { player ->
@@ -662,12 +668,13 @@ fun GameScreenContent(
     if (showAbsentDialog) {
         AlertDialog(
             onDismissRequest = { showAbsentDialog = false },
-            title = { Text("Jogadores Ausentes") },
+            title = { Text("Selecionar jogadores") },
             text = {
                 if (absentPlayers.isEmpty()) {
                     Text("Todos os jogadores cadastrados já estão presentes na quadra.")
                 } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                    val listState = rememberLazyListState()
+                    LazyColumn(state = listState, modifier = Modifier.heightIn(max = 300.dp).simpleScrollbar(listState)) {
                         items(absentPlayers) { p ->
                             ListItem(
                                 headlineContent = { Text(p.name, color = MaterialTheme.colorScheme.onSurfaceVariant) },
@@ -688,10 +695,17 @@ fun GameScreenContent(
     }
 
     playerToAddFromAbsent?.let { p ->
+        val playedToday = (gamesPlayedMap[p.id] ?: 0) > 0
         AlertDialog(
             onDismissRequest = { playerToAddFromAbsent = null },
             title = { Text("Selecionar ${p.name}?") },
-            text = { Text("A pessoa selecionada irá para o final da fila de espera.") },
+            text = { 
+                if (playedToday) {
+                    Text("A pessoa selecionada irá para o final da fila de espera.")
+                } else {
+                    Text("A pessoa selecionada irá para o começo da fila de espera por ainda não ter jogado hoje.")
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     // Marcar como presente joga a pessoa pra fila no ViewModel
@@ -739,7 +753,7 @@ fun GameScreenContent(
     confirmWinTeam?.let { team ->
         AlertDialog(
             onDismissRequest = { confirmWinTeam = null },
-            title = { Text("Confirmar vitória do time $team?") },
+            title = { Text("Vitória do time $team?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -831,34 +845,49 @@ fun GameScreenContent(
                                     onShowSnackbar = onShowSnackbar
                                 )
                             }
-                            item {
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    Arrangement.SpaceBetween,
-                                    Alignment.CenterVertically
-                                ) {
-                                    Text("Lista de presença", fontWeight = FontWeight.Bold)
-                                    val all =
-                                        sortedPlayers.all { presentIds.contains(it.id) }; TextButton(
-                                    onClick = {
-                                        viewModel.setAllPlayersPresence(
-                                            sortedPlayers,
-                                            !all
-                                        )
-                                    }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                            
+                            if (sortedPlayers.isEmpty()) {
+                                item {
+                                    Text(
+                                        text = "Para começar, adicione jogadores no botão \"+\" no canto superior direito da tela.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp)
+                                    )
                                 }
-                            }
-                            items(sortedPlayers) { p ->
-                                PlayerCard(
-                                    p,
-                                    presentIds.contains(p.id),
-                                    gamesPlayedMap[p.id],
-                                    targetDate,
-                                    showElo,
-                                    showToll,
-                                    { viewModel.togglePlayerPresence(p) },
-                                    { onDeleteRequest(p) },
-                                    { editP = p })
+                            } else {
+                                item {
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        Arrangement.SpaceBetween,
+                                        Alignment.CenterVertically
+                                    ) {
+                                        Text("Lista de presença", fontWeight = FontWeight.Bold)
+                                        val all =
+                                            sortedPlayers.all { presentIds.contains(it.id) }; TextButton(
+                                        onClick = {
+                                            viewModel.setAllPlayersPresence(
+                                                sortedPlayers,
+                                                !all
+                                            )
+                                        }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                                    }
+                                }
+                                items(sortedPlayers) { p ->
+                                    PlayerCard(
+                                        p,
+                                        presentIds.contains(p.id),
+                                        gamesPlayedMap[p.id],
+                                        targetDate,
+                                        showElo,
+                                        showToll,
+                                        { viewModel.togglePlayerPresence(p) },
+                                        { onDeleteRequest(p) },
+                                        { editP = p })
+                                }
                             }
                         }
                     }
@@ -896,7 +925,7 @@ fun ActiveGameView(
     
     val defaultStreakColor = Color(0xFFFF6F00)
     val yellowStreakColor = Color(0xFFFFD600)
-    val streakColorA = defaultStreakColor
+    val streakColorA = if (isDarkTheme) yellowStreakColor else defaultStreakColor
     val streakColorB = if (isDarkTheme) yellowStreakColor else defaultStreakColor
 
     val configuration = LocalConfiguration.current
@@ -1112,8 +1141,8 @@ fun ActiveTeamCard(
                 if (showElo) {
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        "(Méd: ${avgElo.roundToInt()})",
-                        style = MaterialTheme.typography.bodySmall,
+                        "(Média: ${avgElo.roundToInt()})",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = contentColor
                     )
                 }
@@ -1536,7 +1565,8 @@ fun SubstitutionDialog(
             if (allOptions.isEmpty()) {
                 Text("Não há jogadores disponíveis para troca.")
             } else {
-                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                val listState = rememberLazyListState()
+                LazyColumn(state = listState, modifier = Modifier.heightIn(max = 300.dp).simpleScrollbar(listState)) {
                     items(allOptions) { (playerIn, label) ->
                         ListItem(
                             headlineContent = { Text(playerIn.name) },
@@ -1749,4 +1779,29 @@ fun AbsentPlayerGhostCard(onClick: () -> Unit) {
             )
         }
     }
+}
+
+fun Modifier.simpleScrollbar(state: LazyListState): Modifier = this.drawWithContent {
+    drawContent()
+    val visibleItems = state.layoutInfo.visibleItemsInfo
+    if (visibleItems.isEmpty()) return@drawWithContent
+    val totalItems = state.layoutInfo.totalItemsCount
+    if (totalItems <= visibleItems.size) return@drawWithContent
+
+    val firstItem = visibleItems.first()
+    val firstOffset = firstItem.offset.coerceAtMost(0).toFloat() / firstItem.size.coerceAtLeast(1).toFloat()
+    val exactIndex = firstItem.index.toFloat() - firstOffset
+
+    val fractionVisible = visibleItems.size.toFloat() / totalItems.toFloat()
+    val fractionScrolled = exactIndex / totalItems.toFloat()
+
+    val scrollbarHeight = size.height * fractionVisible
+    val scrollbarY = size.height * fractionScrolled
+
+    drawRoundRect(
+        color = Color.Gray.copy(alpha = 0.5f),
+        topLeft = Offset(size.width - 8.dp.toPx(), scrollbarY),
+        size = Size(4.dp.toPx(), scrollbarHeight),
+        cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+    )
 }

@@ -57,7 +57,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
                 }
             }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo) }

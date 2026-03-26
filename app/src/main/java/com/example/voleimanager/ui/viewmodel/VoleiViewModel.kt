@@ -230,7 +230,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         
         if (isGameInProgress()) {
             val updatedP = applyTollIfNecessary(newPlayer)
-            _waitingList.update { listOf(updatedP) + it }
+            val gamesPlayed = gamesPlayedTodayMap.value[updatedP.id] ?: 0
+            if (gamesPlayed > 0) {
+                _waitingList.update { it + updatedP }
+            } else {
+                _waitingList.update { listOf(updatedP) + it }
+            }
         }
     }
 
@@ -261,7 +266,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 // Se a partida está em andamento (ou seja, ele vai direto pra fila de espera ao marcar presença)
                 if (isGameInProgress()) {
                     val updatedP = applyTollIfNecessary(p)
-                    _waitingList.value = _waitingList.value + updatedP
+                    val gamesPlayed = gamesPlayedTodayMap.value[p.id] ?: 0
+                    if (gamesPlayed > 0) {
+                        _waitingList.value = _waitingList.value + updatedP
+                    } else {
+                        _waitingList.value = listOf(updatedP) + _waitingList.value
+                    }
                 }
             }
         }
@@ -287,7 +297,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 if(!playing && !currentWait.any { it.id == p.id }) {
                     if (isGameInProgress()) {
                         val updatedP = applyTollIfNecessary(p)
-                        currentWait.add(updatedP)
+                        val gamesPlayed = gamesPlayedTodayMap.value[updatedP.id] ?: 0
+                        if (gamesPlayed > 0) {
+                            currentWait.add(updatedP)
+                        } else {
+                            currentWait.add(0, updatedP)
+                        }
                     } else {
                         currentWait.add(p)
                     }
