@@ -75,8 +75,16 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
 @Composable
 fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
     val isTeamAWin = match.winner == "Time A"
-    val teamANames = match.teamA.replace(",", ", ")
-    val teamBNames = match.teamB.replace(",", ", ")
+    val teamANames = remember(match.teamA) {
+        match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            .sortedBy { it.lowercase() }
+            .joinToString(", ")
+    }
+    val teamBNames = remember(match.teamB) {
+        match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            .sortedBy { it.lowercase() }
+            .joinToString(", ")
+    }
 
     val cardBgColor = if (isTeamAWin) {
         MaterialTheme.colorScheme.primaryContainer

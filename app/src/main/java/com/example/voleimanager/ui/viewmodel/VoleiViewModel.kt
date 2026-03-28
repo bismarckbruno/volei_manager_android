@@ -435,7 +435,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
             _lastWinners.value = newWinners; lastLosers = newLosers
             repository.updatePlayers(updatedPlayers)
-            repository.insertMatch(MatchHistory(date = dateDisplay, teamA = cA.joinToString(", "){it.name}, teamB = cB.joinToString(", "){it.name}, winner = "Time $winner", eloPoints = delta, groupName = cA.first().groupName, teamAAverageElo = cA.map { it.elo }.average(), teamBAverageElo = cB.map { it.elo }.average()))
+            repository.insertMatch(MatchHistory(date = dateDisplay, teamA = cA.sortedBy { it.name.lowercase() }.joinToString(", "){it.name}, teamB = cB.sortedBy { it.name.lowercase() }.joinToString(", "){it.name}, winner = "Time $winner", eloPoints = delta, groupName = cA.first().groupName, teamAAverageElo = cA.map { it.elo }.average(), teamBAverageElo = cB.map { it.elo }.average()))
             _teamA.value = emptyList(); _teamB.value = emptyList()
         }
     }
@@ -665,8 +665,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                      if(cols.size >= 6) {
                                         MatchHistory(
                                             date=cols[0].takeIf { it.isNotBlank() }?.take(20) ?: SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date()), 
-                                            teamA=cols[1].take(255), 
-                                            teamB=cols[2].take(255), 
+                                            teamA=cols[1].take(255).split(",").map{it.trim()}.sortedBy{it.lowercase()}.joinToString(", "), 
+                                            teamB=cols[2].take(255).split(",").map{it.trim()}.sortedBy{it.lowercase()}.joinToString(", "), 
                                             winner=cols[3].take(50), 
                                             eloPoints=cols[4].toDoubleOrNull() ?: 0.0, 
                                             groupName=cols[5].takeIf { it.isNotBlank() }?.take(50) ?: "Geral",
