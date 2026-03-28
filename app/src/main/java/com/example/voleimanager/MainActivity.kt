@@ -873,28 +873,28 @@ fun GameScreenContent(
                                             Text("Lista de presença", fontWeight = FontWeight.Bold)
                                             val all =
                                                 sortedPlayers.all { presentIds.contains(it.id) }; TextButton(
-                                        onClick = {
-                                            viewModel.setAllPlayersPresence(
-                                                sortedPlayers,
-                                                !all
-                                            )
-                                        }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                                            onClick = {
+                                                viewModel.setAllPlayersPresence(
+                                                    sortedPlayers,
+                                                    !all
+                                                )
+                                            }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                                        }
+                                    }
+                                    items(sortedPlayers) { p ->
+                                        PlayerCard(
+                                            p,
+                                            presentIds.contains(p.id),
+                                            gamesPlayedMap[p.id],
+                                            targetDate,
+                                            showElo,
+                                            showToll,
+                                            { viewModel.togglePlayerPresence(p) },
+                                            { onDeleteRequest(p) },
+                                            { editP = p })
                                     }
                                 }
-                                items(sortedPlayers) { p ->
-                                    PlayerCard(
-                                        p,
-                                        presentIds.contains(p.id),
-                                        gamesPlayedMap[p.id],
-                                        targetDate,
-                                        showElo,
-                                        showToll,
-                                        { viewModel.togglePlayerPresence(p) },
-                                        { onDeleteRequest(p) },
-                                        { editP = p })
-                                }
                             }
-                        }
                             
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1311,15 +1311,23 @@ fun EmptyStateCard(
                 }
             } else {
                 Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Mínimo: $minNeeded jogadores",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
             if (hasPreviousMatch) {
                 Button(
-                    onClick = onNextRoundClick,
+                    onClick = {
+                        if (selectedCount >= minNeeded) {
+                            onNextRoundClick()
+                        } else {
+                            onShowSnackbar("Selecione no mínimo $minNeeded jogadores")
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1627,7 +1635,7 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
     var isPriority by remember { mutableStateOf(player.isPriority) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar jogador") },
+        title = { Text("Editar cadastro") },
         text = {
             Column {
                 OutlinedTextField(
@@ -1665,7 +1673,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Novo jogador") },
+        title = { Text("Novo cadastro") },
         text = {
             Column {
                 OutlinedTextField(
@@ -1719,9 +1727,10 @@ fun GroupConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Regras: $groupName") },
+        title = { Text("Regras do grupo $groupName") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Spacer(Modifier.height(16.dp))
                 Text("Jogadores por time: ${teamSize.roundToInt()}")
                 Slider(
                     value = teamSize,
@@ -1742,7 +1751,7 @@ fun GroupConfigDialog(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(checked = priorityEnabled, onCheckedChange = { priorityEnabled = it })
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(16.dp))
                     Text("Mín. 1 prioridade por time", style = MaterialTheme.typography.bodySmall)
                 }
             }
