@@ -690,7 +690,10 @@ fun GameScreenContent(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showAbsentDialog = false }) { Text("Fechar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                TextButton(
+                    onClick = { showAbsentDialog = false },
+                    modifier = Modifier.padding(end = 8.dp)
+                ) { Text("Fechar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         )
     }
@@ -870,28 +873,28 @@ fun GameScreenContent(
                                             Text("Lista de presença", fontWeight = FontWeight.Bold)
                                             val all =
                                                 sortedPlayers.all { presentIds.contains(it.id) }; TextButton(
-                                            onClick = {
-                                                viewModel.setAllPlayersPresence(
-                                                    sortedPlayers,
-                                                    !all
-                                                )
-                                            }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
-                                        }
-                                    }
-                                    items(sortedPlayers) { p ->
-                                        PlayerCard(
-                                            p,
-                                            presentIds.contains(p.id),
-                                            gamesPlayedMap[p.id],
-                                            targetDate,
-                                            showElo,
-                                            showToll,
-                                            { viewModel.togglePlayerPresence(p) },
-                                            { onDeleteRequest(p) },
-                                            { editP = p })
+                                        onClick = {
+                                            viewModel.setAllPlayersPresence(
+                                                sortedPlayers,
+                                                !all
+                                            )
+                                        }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
                                     }
                                 }
+                                items(sortedPlayers) { p ->
+                                    PlayerCard(
+                                        p,
+                                        presentIds.contains(p.id),
+                                        gamesPlayedMap[p.id],
+                                        targetDate,
+                                        showElo,
+                                        showToll,
+                                        { viewModel.togglePlayerPresence(p) },
+                                        { onDeleteRequest(p) },
+                                        { editP = p })
+                                }
                             }
+                        }
                             
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1262,7 +1265,7 @@ fun EmptyStateCard(
     ) {
         Column(
             modifier = Modifier
-                .padding(24.dp)
+                .padding(horizontal = 24.dp, vertical = 12.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -1309,7 +1312,7 @@ fun EmptyStateCard(
             } else {
                 Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    text = if (selectedCount == 0) "Mínimo: $minNeeded jogadores" else "Mínimo: $minNeeded jogadores",
+                    text = "Mínimo: $minNeeded jogadores",
                     color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified
                 )
             }
@@ -1500,7 +1503,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: ()
                     Text(
                         "Elo: ${EloCalculator.formatElo(player.elo)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1609,7 +1612,12 @@ fun SubstitutionDialog(
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { 
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.padding(end = 8.dp)
+            ) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } 
+        }
     )
 }
 
@@ -1820,12 +1828,15 @@ fun Modifier.simpleScrollbar(state: LazyListState): Modifier = this.drawWithCont
     val fractionVisible = visibleItems.size.toFloat() / totalItems.toFloat()
     val fractionScrolled = exactIndex / totalItems.toFloat()
 
-    val scrollbarHeight = size.height * fractionVisible
-    val scrollbarY = size.height * fractionScrolled
+    val verticalPadding = 8.dp.toPx() // Distância do topo e rodapé do container
+    val availableHeight = size.height - (verticalPadding * 2)
+
+    val scrollbarHeight = availableHeight * fractionVisible
+    val scrollbarY = verticalPadding + (availableHeight * fractionScrolled)
 
     drawRoundRect(
         color = Color.Gray.copy(alpha = 0.5f),
-        topLeft = Offset(size.width - 8.dp.toPx(), scrollbarY),
+        topLeft = Offset(size.width - 8.dp.toPx(), scrollbarY), // Empurra um pouco mais para a esquerda
         size = Size(4.dp.toPx(), scrollbarHeight),
         cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
     )

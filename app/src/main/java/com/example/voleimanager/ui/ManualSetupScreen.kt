@@ -25,6 +25,7 @@ import com.example.voleimanager.util.EloCalculator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +40,9 @@ fun ManualSetupScreen(
     // Usamos rememberSaveable para sobreviver à rotação
     var selectionState by rememberSaveable { mutableStateOf(emptyMap<Int, String>()) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     // Calcula os times em tempo real baseados na seleção
     val teamA = players.filter { selectionState[it.id] == "A" }
     val teamB = players.filter { selectionState[it.id] == "B" }
@@ -46,7 +50,9 @@ fun ManualSetupScreen(
 
     val canStart = teamA.size == teamB.size && teamA.size in 2..6
 
-    Scaffold { padding ->
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
 
             // --- 1. CABEÇALHO PERSONALIZADO ---
@@ -75,10 +81,18 @@ fun ManualSetupScreen(
 
                 // Botão Iniciar ancorado na DIREITA
                 Button(
-                    onClick = { onConfirm(teamA, teamB, bench, teamA.size) },
-                    enabled = canStart,
+                    onClick = { 
+                        if (canStart) {
+                            onConfirm(teamA, teamB, bench, teamA.size) 
+                        } else {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Selecione um número igual de pessoas em cada time (mín. 2 e máx. 6)")
+                            }
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = if (canStart) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        contentColor = if (canStart) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     ),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                     modifier = Modifier.align(Alignment.CenterEnd)
@@ -103,19 +117,6 @@ fun ManualSetupScreen(
                 Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // Usando a cor estendida importada do Theme.kt gerado pelo Figma
                 TeamCounter("Time B", teamB.size, LocalExtendedColors.current.anotherPrime.color)
-            }
-
-            if (!canStart) {
-                Text(
-                    text = "Para iniciar o jogo, selecione um número igual de pessoas em cada time (mín. 2 e máx. 6).",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 12.dp)
-                )
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -169,7 +170,7 @@ fun PlayerSelectionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(player.name, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             if (showElo) {
-                Text("${EloCalculator.formatElo(player.elo)} Elo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Elo: ${EloCalculator.formatElo(player.elo)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
