@@ -11,5 +11,7 @@ data class MatchHistory(
     val teamB: String,
     val winner: String,
     val eloPoints: Double,
-    val groupName: String
+    val groupName: String,
+    val teamAAverageElo: Double? = null,
+    val teamBAverageElo: Double? = null
 )

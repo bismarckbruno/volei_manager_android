@@ -184,8 +184,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun sortTeamPlayers(team: List<Player>): List<Player> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
-        // Embaralha primeiro para que os empates na quantidade de jogos sejam quebrados de forma aleatória,
-        // garantindo que não seja mais ordenado por elo em caso de empate de quantidade de jogos.
         return team.shuffled().sortedBy { p -> 
             val actual = usageMap[p.id] ?: 0
             val toll = if (p.tollDate == today) p.dailyToll else 0
@@ -220,7 +218,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun addPlayer(n: String, e: Double, g: String, isPriority: Boolean) = viewModelScope.launch { 
-        val toll = calculateTollForNewPlayer() // Usa a lógica já existente
+        val toll = calculateTollForNewPlayer() 
         
         val pToInsert = Player(name = n, elo = e, groupName = g, isPriority = isPriority, dailyToll = 0, tollDate = "")
         val newId = repository.insertPlayer(pToInsert)
@@ -263,7 +261,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             
             val isWinnerWaiting = _hasPreviousMatch.value && _lastWinners.value.any { it.id == p.id }
             if(!_teamA.value.any{it.id==p.id} && !_teamB.value.any{it.id==p.id} && !_waitingList.value.any{it.id==p.id} && !isWinnerWaiting) {
-                // Se a partida está em andamento (ou seja, ele vai direto pra fila de espera ao marcar presença)
                 if (isGameInProgress()) {
                     val updatedP = applyTollIfNecessary(p)
                     val gamesPlayed = gamesPlayedTodayMap.value[p.id] ?: 0
@@ -322,7 +319,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val available = all.filter { _presentPlayerIds.value.contains(it.id) }
         if(available.size < size * 2) return
 
-        // Aplica o pedágio (atraso)
         val availableWithTollApplied = available.map { applyTollIfNecessary(it) }
 
         val config = _currentGroupConfig.value
@@ -387,7 +383,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val nB = _teamB.value.toMutableList()
         val idxOutA = nA.indexOfFirst { it.id == out.id }; val idxOutB = nB.indexOfFirst { it.id == out.id }
         
-        // Aplica o pedágio na pessoa que está entrando (caso ela não tenha ainda)
         val inWithToll = applyTollIfNecessary(`in`)
 
         val idxInA = nA.indexOfFirst { it.id == inWithToll.id }; val idxInB = nB.indexOfFirst { it.id == inWithToll.id }; val idxInWait = wait.indexOfFirst { it.id == inWithToll.id }
@@ -440,7 +435,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
             _lastWinners.value = newWinners; lastLosers = newLosers
             repository.updatePlayers(updatedPlayers)
-            repository.insertMatch(MatchHistory(date = dateDisplay, teamA = cA.joinToString(", "){it.name}, teamB = cB.joinToString(", "){it.name}, winner = "Time $winner", eloPoints = delta, groupName = cA.first().groupName))
+            repository.insertMatch(MatchHistory(date = dateDisplay, teamA = cA.joinToString(", "){it.name}, teamB = cB.joinToString(", "){it.name}, winner = "Time $winner", eloPoints = delta, groupName = cA.first().groupName, teamAAverageElo = cA.map { it.elo }.average(), teamBAverageElo = cB.map { it.elo }.average()))
             _teamA.value = emptyList(); _teamB.value = emptyList()
         }
     }
@@ -555,16 +550,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             var teamWin = activeWinners.toMutableList()
             var remainingPool = (waitlist + sortedLosers).toMutableList()
             
-            // Lógica para quando o tamanho do time diminui (Ex: 4 para 3)
             if (teamWin.size > conf.teamSize) {
                 teamWin.shuffle()
                 val droppedWinners = teamWin.drop(conf.teamSize)
                 teamWin = teamWin.take(conf.teamSize).toMutableList()
                 
-                // Excedentes vão para o topo da fila de espera
                 remainingPool.addAll(0, droppedWinners)
             }
-            // Lógica para quando o tamanho do time aumenta (Ex: 2 para 6) ou apenas tem buracos
             else if (teamWin.size < conf.teamSize) { 
                 val needed = conf.teamSize - teamWin.size
                 if(remainingPool.size >= needed) { 
@@ -610,7 +602,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     
                     if (backup != null && backup.players != null && backup.history != null && backup.logs != null) {
                         
-                        // SANITIZAÇÃO DE JSON - PREVENÇÃO CONTRA BLOAT E OUT-OF-MEMORY
                         val safePlayers = backup.players.map { p -> 
                             p.copy(name = p.name.take(50), groupName = p.groupName.take(50)) 
                         }
@@ -678,7 +669,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             teamB=cols[2].take(255), 
                                             winner=cols[3].take(50), 
                                             eloPoints=cols[4].toDoubleOrNull() ?: 0.0, 
-                                            groupName=cols[5].takeIf { it.isNotBlank() }?.take(50) ?: "Geral"
+                                            groupName=cols[5].takeIf { it.isNotBlank() }?.take(50) ?: "Geral",
+                                            teamAAverageElo=cols.getOrElse(6) { "" }.toDoubleOrNull(),
+                                            teamBAverageElo=cols.getOrElse(7) { "" }.toDoubleOrNull()
                                         )
                                      } else null
                                  } catch (e: Exception) { null }
@@ -732,8 +725,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         currentGroupPlayers.value.forEach { content.append("${it.id},\"${it.name.replace("\"", "\"\"")}\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${it.groupName.replace("\"", "\"\"")}\",\"${it.isPriority}\",${it.dailyToll},\"${it.tollDate}\"\n") }
                     }
                     CsvType.HISTORICO -> {
-                        content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo\n")
-                        currentGroupHistory.value.forEach { content.append("\"${it.date}\",\"${it.teamA.replace("\"", "\"\"")}\",\"${it.teamB.replace("\"", "\"\"")}\",\"${it.winner}\",${formatElo(it.eloPoints)},\"${it.groupName.replace("\"", "\"\"")}\"\n") }
+                        content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo,MediaEloTimeA,MediaEloTimeB\n")
+                        currentGroupHistory.value.forEach { content.append("\"${it.date}\",\"${it.teamA.replace("\"", "\"\"")}\",\"${it.teamB.replace("\"", "\"\"")}\",\"${it.winner}\",${formatElo(it.eloPoints)},\"${it.groupName.replace("\"", "\"\"")}\",${it.teamAAverageElo?.let { e -> formatElo(e) } ?: ""},${it.teamBAverageElo?.let { e -> formatElo(e) } ?: ""}\n") }
                     }
                     CsvType.ELO_LOGS -> {
                         content.append("ID,PlayerID,Nome,Data,Elo,Grupo\n")

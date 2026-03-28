@@ -67,6 +67,7 @@ import com.example.voleimanager.ui.viewmodel.ThemeMode
 import com.example.voleimanager.ui.viewmodel.CsvType
 import com.example.voleimanager.ui.viewmodel.VoleiViewModel
 import com.example.voleimanager.ui.viewmodel.VoleiViewModelFactory
+import com.example.voleimanager.util.EloCalculator
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -515,7 +516,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             AlertDialog(
                 onDismissRequest = { playerToDelete = null },
                 title = { Text("Excluir ${player.name}?") },
-                text = { Text("O jogador será removido da lista ativa, mas seu histórico de partidas e registros de Elo SERÃO MANTIDOS.") },
+                text = { Text("A pessoa será removida da lista ativa, mas seu histórico de partidas SERÁ MANTIDO.") },
                 confirmButton = {
                     Button(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -591,7 +592,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     actions = {
                         if (currentScreen == Screen.GAME) IconButton(onClick = {
                             showAddPlayerDialog = true
-                        }) { Icon(Icons.Default.Add, "Novo Jogador") }
+                        }) { Icon(Icons.Default.Add, "Adicionar novo jogador") }
                     }
                 )
             }
@@ -818,76 +819,100 @@ fun GameScreenContent(
                             { confirmWinTeam = it },
                             onOpenAbsentList = { showAbsentDialog = true })
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            item {
-                                EmptyStateCard(
-                                    presentIds.size,
-                                    selectedGroup,
-                                    config.teamSize,
-                                    { onSetupModeChange(true) },
-                                    {
-                                        if (presentIds.size >= config.teamSize * 2) viewModel.startNewAutomaticGame(
-                                            sortedPlayers,
-                                            config.teamSize
-                                        )
-                                    },
-                                    hasPrev,
-                                    { viewModel.startNextRound() },
-                                    winners,
-                                    owner,
-                                    streak,
-                                    config.victoryLimit,
-                                    isDarkTheme,
-                                    onShowSnackbar = onShowSnackbar
-                                )
-                            }
-                            
-                            if (sortedPlayers.isEmpty()) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
                                 item {
-                                    Text(
-                                        text = "Para começar, adicione jogadores no botão \"+\" no canto superior direito da tela.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(32.dp)
+                                    EmptyStateCard(
+                                        presentIds.size,
+                                        selectedGroup,
+                                        config.teamSize,
+                                        { onSetupModeChange(true) },
+                                        {
+                                            if (presentIds.size >= config.teamSize * 2) viewModel.startNewAutomaticGame(
+                                                sortedPlayers,
+                                                config.teamSize
+                                            )
+                                        },
+                                        hasPrev,
+                                        { viewModel.startNextRound() },
+                                        winners,
+                                        owner,
+                                        streak,
+                                        config.victoryLimit,
+                                        isDarkTheme,
+                                        onShowSnackbar = onShowSnackbar
                                     )
                                 }
-                            } else {
-                                item {
-                                    Row(
-                                        Modifier.fillMaxWidth(),
-                                        Arrangement.SpaceBetween,
-                                        Alignment.CenterVertically
-                                    ) {
-                                        Text("Lista de presença", fontWeight = FontWeight.Bold)
-                                        val all =
-                                            sortedPlayers.all { presentIds.contains(it.id) }; TextButton(
-                                        onClick = {
-                                            viewModel.setAllPlayersPresence(
-                                                sortedPlayers,
-                                                !all
-                                            )
-                                        }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                                
+                                if (sortedPlayers.isEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "Para começar, adicione jogadores no botão \"+\" no canto superior direito da tela.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(32.dp)
+                                        )
+                                    }
+                                } else {
+                                    item {
+                                        Row(
+                                            Modifier.fillMaxWidth(),
+                                            Arrangement.SpaceBetween,
+                                            Alignment.CenterVertically
+                                        ) {
+                                            Text("Lista de presença", fontWeight = FontWeight.Bold)
+                                            val all =
+                                                sortedPlayers.all { presentIds.contains(it.id) }; TextButton(
+                                            onClick = {
+                                                viewModel.setAllPlayersPresence(
+                                                    sortedPlayers,
+                                                    !all
+                                                )
+                                            }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                                        }
+                                    }
+                                    items(sortedPlayers) { p ->
+                                        PlayerCard(
+                                            p,
+                                            presentIds.contains(p.id),
+                                            gamesPlayedMap[p.id],
+                                            targetDate,
+                                            showElo,
+                                            showToll,
+                                            { viewModel.togglePlayerPresence(p) },
+                                            { onDeleteRequest(p) },
+                                            { editP = p })
                                     }
                                 }
-                                items(sortedPlayers) { p ->
-                                    PlayerCard(
-                                        p,
-                                        presentIds.contains(p.id),
-                                        gamesPlayedMap[p.id],
-                                        targetDate,
-                                        showElo,
-                                        showToll,
-                                        { viewModel.togglePlayerPresence(p) },
-                                        { onDeleteRequest(p) },
-                                        { editP = p })
+                            }
+                            
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shadowElevation = 8.dp
+                            ) {
+                                val selCount = presentIds.size
+                                val totalCount = sortedPlayers.size
+                                val text = if (selCount == 0) {
+                                    "Nenhum selecionado ($totalCount cadastrado${if (totalCount > 1) "s)" else ")"}"
+                                } else {
+                                    "$selCount selecionado${if (selCount > 1) "s" else ""} de $totalCount cadastrado${if (totalCount > 1) "s" else ""}"
                                 }
+                                Text(
+                                    text = text,
+                                    modifier = Modifier.padding(16.dp),
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -1141,7 +1166,7 @@ fun ActiveTeamCard(
                 if (showElo) {
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        "(Média: ${avgElo.roundToInt()})",
+                        "(Média: ${EloCalculator.formatElo(avgElo)})",
                         style = MaterialTheme.typography.bodyMedium,
                         color = contentColor
                     )
@@ -1177,7 +1202,7 @@ fun ActiveTeamCard(
                             )
                     ) {
                         Text(
-                            text = if (showElo) "${p.name} (${p.elo.roundToInt()})" else p.name,
+                            text = if (showElo) "${p.name} (${EloCalculator.formatElo(p.elo)})" else p.name,
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis, color = contentColor
                         )
@@ -1284,7 +1309,7 @@ fun EmptyStateCard(
             } else {
                 Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    text = if (selectedCount == 0) "Mínimo: $minNeeded jogadores" else "Mínimo: $minNeeded jogadores ($selectedCount)",
+                    text = if (selectedCount == 0) "Mínimo: $minNeeded jogadores" else "Mínimo: $minNeeded jogadores",
                     color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified
                 )
             }
@@ -1388,7 +1413,7 @@ fun PlayerCard(
                     }
                     if (showElo) {
                         Text(
-                            text = "Elo: ${"%.0f".format(player.elo)}",
+                            text = "Elo: ${EloCalculator.formatElo(player.elo)}",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -1473,7 +1498,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: ()
                 }
                 if (showElo) {
                     Text(
-                        "Elo: ${"%.0f".format(player.elo)}",
+                        "Elo: ${EloCalculator.formatElo(player.elo)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )

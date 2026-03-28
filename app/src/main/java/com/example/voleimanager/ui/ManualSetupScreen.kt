@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.voleimanager.data.model.Player
 import com.example.voleimanager.ui.theme.LocalExtendedColors
+import com.example.voleimanager.util.EloCalculator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -168,7 +169,7 @@ fun PlayerSelectionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(player.name, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             if (showElo) {
-                Text("${player.elo.toInt()} Elo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${EloCalculator.formatElo(player.elo)} Elo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 

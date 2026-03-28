@@ -1,5 +1,7 @@
 package com.example.voleimanager.util
 
+import java.text.NumberFormat
+import java.util.Locale
 import kotlin.math.pow
 
 object EloCalculator {
@@ -20,5 +22,15 @@ object EloCalculator {
         val delta = K_FACTOR * (1.0 - expectedScore)
 
         return delta
+    }
+
+    /**
+     * Formata o Elo para exibição com separador de milhar.
+     */
+    fun formatElo(elo: Double): String {
+        return NumberFormat.getInstance(Locale.getDefault()).apply {
+            maximumFractionDigits = 0
+            minimumFractionDigits = 0
+        }.format(elo)
     }
 }

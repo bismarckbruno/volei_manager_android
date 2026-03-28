@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import com.example.voleimanager.data.model.MatchHistory
 import com.example.voleimanager.ui.theme.LocalExtendedColors
 import com.example.voleimanager.ui.viewmodel.VoleiViewModel
+import com.example.voleimanager.util.EloCalculator
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -99,7 +101,13 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                 Text(match.date, style = MaterialTheme.typography.labelMedium)
                 if (showElo) {
-                    Text("±${String.format(Locale.US, "%.2f", match.eloPoints)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                    val formattedDelta = remember(match.eloPoints) {
+                        NumberFormat.getInstance(Locale.getDefault()).apply {
+                            maximumFractionDigits = 2
+                            minimumFractionDigits = 0
+                        }.format(match.eloPoints)
+                    }
+                    Text("±$formattedDelta", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                 }
             }
             HorizontalDivider(Modifier.padding(vertical = 8.dp), color = contentColor.copy(alpha = 0.3f))
@@ -113,6 +121,10 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                         }
                     }
                     Text(teamANames, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                    if (showElo && match.teamAAverageElo != null) {
+                        Spacer(Modifier.height(2.dp))
+                        Text("(Média: ${EloCalculator.formatElo(match.teamAAverageElo)})", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = contentColor.copy(alpha = 0.8f))
+                    }
                 }
                 Text("VS", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp), style = MaterialTheme.typography.titleSmall)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -124,6 +136,10 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                         }
                     }
                     Text(teamBNames, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                    if (showElo && match.teamBAverageElo != null) {
+                        Spacer(Modifier.height(2.dp))
+                        Text("(Média: ${EloCalculator.formatElo(match.teamBAverageElo)})", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = contentColor.copy(alpha = 0.8f))
+                    }
                 }
             }
         }
