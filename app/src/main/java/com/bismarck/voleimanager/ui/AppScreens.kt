@@ -13,7 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -179,27 +179,36 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                 color = contentColor.copy(alpha = 0.3f)
             )
 
-            if (hasScore) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                contentColor.copy(alpha = 0.1f),
-                                RoundedCornerShape(8.dp)
-                            )
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "$scoreA - $scoreB",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 20.sp,
-                            color = contentColor
+                    if (isTeamAWin) {
+                        Icon(
+                            Icons.Default.WorkspacePremium,
+                            contentDescription = "Vencedor",
+                            modifier = Modifier.size(22.dp),
+                            tint = starColor
+                        )
+                    }
+                }
+                Spacer(Modifier.width(34.dp))
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!isTeamAWin) {
+                        Icon(
+                            Icons.Default.WorkspacePremium,
+                            contentDescription = "Vencedor",
+                            modifier = Modifier.size(22.dp),
+                            tint = starColor
                         )
                     }
                 }
@@ -211,18 +220,26 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Time A", fontWeight = FontWeight.Bold)
-                        if (isTeamAWin) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = "Vencedor",
-                                modifier = Modifier.size(16.dp),
-                                tint = starColor
+                    Text("Time A", fontWeight = FontWeight.Bold)
+                    if (hasScore){
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    contentColor.copy(alpha = 0.1f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "$scoreA",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                                color = contentColor
                             )
+                            Spacer(Modifier.height(4.dp))
                         }
                     }
+
                     if (showElo && match.teamAAverageElo != null) {
                         Spacer(Modifier.height(2.dp))
                         Text(
@@ -250,18 +267,26 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Time B", fontWeight = FontWeight.Bold)
-                        if (!isTeamAWin) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = "Vencedor",
-                                modifier = Modifier.size(16.dp),
-                                tint = starColor
+                    Text("Time B", fontWeight = FontWeight.Bold)
+                    if (hasScore) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    contentColor.copy(alpha = 0.1f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "$scoreB",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                                color = contentColor
                             )
+                            Spacer(Modifier.height(4.dp))
                         }
                     }
+
                     if (showElo && match.teamBAverageElo != null) {
                         Spacer(Modifier.height(2.dp))
                         Text(
@@ -397,7 +422,8 @@ fun AboutScreen() {
                 Text(
                     "Apoie o projeto ☕",
                     fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(

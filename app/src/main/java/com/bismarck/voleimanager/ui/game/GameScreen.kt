@@ -870,23 +870,38 @@ fun EmptyStateCard(
                     )
                 }
             } else {
+                val canStartAuto = selectedCount >= minNeeded
                 Button(
-                    onClick = onStartAutoClick,
+                    onClick = {
+                        if (canStartAuto) {
+                            onStartAutoClick()
+                        } else {
+                            onShowSnackbar("Selecione no mínimo $minNeeded jogadores ou altere essas configurações em \"Regras do grupo\"")
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    enabled = selectedCount >= minNeeded,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = if (canStartAuto) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                        },
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        disabledContentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Icon(
                         Icons.Default.PlayArrow,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     ); Spacer(Modifier.width(8.dp)); Text(
                     "Iniciar jogo",
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
                 }
             }
