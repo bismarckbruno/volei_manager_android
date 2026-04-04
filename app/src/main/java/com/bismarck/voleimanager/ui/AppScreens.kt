@@ -1,9 +1,11 @@
 package com.bismarck.voleimanager.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -18,6 +20,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.data.model.MatchHistory
 import com.bismarck.voleimanager.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
@@ -104,10 +107,14 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
     } else {
         LocalExtendedColors.current.anotherPrime.color
     }
+    
+    val scoreA = match.teamAScore ?: 0
+    val scoreB = match.teamBScore ?: 0
+    val hasScore = scoreA > 0 || scoreB > 0
 
     Card(colors = CardDefaults.cardColors(containerColor = cardBgColor, contentColor = contentColor)) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(match.date, style = MaterialTheme.typography.labelMedium)
                 if (showElo) {
                     val formattedDelta = remember(match.eloPoints) {
@@ -120,6 +127,24 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                 }
             }
             HorizontalDivider(Modifier.padding(vertical = 8.dp), color = contentColor.copy(alpha = 0.3f))
+            
+            if (hasScore) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), 
+                    horizontalArrangement = Arrangement.Center, 
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.background(contentColor.copy(alpha = 0.1f), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        Text(
+                            text = "$scoreA - $scoreB", 
+                            fontWeight = FontWeight.Black, 
+                            fontSize = 20.sp,
+                            color = contentColor
+                        )
+                    }
+                }
+            }
+
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

@@ -13,7 +13,7 @@ import com.bismarck.voleimanager.data.model.PlayerEloLog
 
 @Database(
     entities = [Player::class, MatchHistory::class, GroupConfig::class, PlayerEloLog::class],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +30,13 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE match_history ADD COLUMN teamBAverageElo REAL DEFAULT NULL")
             }
         }
+        
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamAScore INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamBScore INTEGER DEFAULT NULL")
+            }
+        }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -38,7 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .addMigrations(MIGRATION_8_9)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

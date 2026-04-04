@@ -2,6 +2,7 @@ package com.bismarck.voleimanager.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+val voleiManagerBlue = Color(0xFF0E47A1)
 val primaryLight = Color(0xFF475D92)
 val onPrimaryLight = Color(0xFFFFFFFF)
 val primaryContainerLight = Color(0xFFD9E2FF)

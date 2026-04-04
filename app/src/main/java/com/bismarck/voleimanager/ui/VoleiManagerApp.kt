@@ -1,5 +1,12 @@
 package com.bismarck.voleimanager.ui
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
+import android.view.View
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,6 +16,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,12 +30,26 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.bismarck.voleimanager.R
+import com.bismarck.voleimanager.data.model.MatchHistory
 import com.bismarck.voleimanager.data.model.Player
 import com.bismarck.voleimanager.ui.components.*
 import com.bismarck.voleimanager.ui.game.GameScreenContent
+import com.bismarck.voleimanager.ui.theme.AppTheme
+import com.bismarck.voleimanager.ui.theme.voleiManagerBlue
 import com.bismarck.voleimanager.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.ui.viewmodel.Screen
 import com.bismarck.voleimanager.ui.viewmodel.ThemeMode
@@ -205,16 +228,21 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                Column(Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())) {
+                Column(
+                    Modifier
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
                     Text(
                         "Vôlei Manager",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                    HorizontalDivider(
+                        Modifier.padding(vertical = 16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
 
                     Text("Grupo atual:", style = MaterialTheme.typography.labelMedium)
                     Spacer(Modifier.height(8.dp))
@@ -267,64 +295,78 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     onClick = {
                                         groupExpanded = false
                                         if (selectedGroup != group) {
-                                            if (viewModel.isGameInProgress()) pendingGroupSwitch = group
+                                            if (viewModel.isGameInProgress()) pendingGroupSwitch =
+                                                group
                                             else {
-                                                selectedGroup = group; viewModel.loadGroupConfig(group)
+                                                selectedGroup = group; viewModel.loadGroupConfig(
+                                                    group
+                                                )
                                             }
                                         }
                                     }
                                 )
                             }
-                            DropdownMenuItem(text = { Text("+ Criar novo grupo", fontWeight = FontWeight.Bold) }, onClick = { showCreateGroupDialog = true; groupExpanded = false })
+                            DropdownMenuItem(text = {
+                                Text(
+                                    "+ Criar novo grupo",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }, onClick = { showCreateGroupDialog = true; groupExpanded = false })
                         }
                     }
                     Spacer(Modifier.height(16.dp))
 
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.PlayCircle, null) },
                         label = { Text("Jogo") },
                         selected = currentScreen == Screen.GAME,
                         onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } })
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.DateRange, null) },
                         label = { Text("Histórico") },
                         selected = currentScreen == Screen.HISTORY,
                         onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } })
 
-                    HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                    HorizontalDivider(
+                        Modifier.padding(vertical = 16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
                     Text("Configurações", style = MaterialTheme.typography.labelMedium)
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Settings, null) },
                         label = { Text("Regras do grupo") },
                         selected = false,
                         onClick = { showConfigDialog = true; scope.launch { drawerState.close() } })
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Palette, null) },
                         label = { Text("Tema") },
                         selected = false,
                         onClick = { showThemeDialog = true; scope.launch { drawerState.close() } })
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) },
                         label = { Text("Mostrar Elo") },
                         selected = false,
                         badge = { Switch(checked = showElo, onCheckedChange = null) },
                         onClick = { viewModel.setShowElo(!showElo) }
                     )
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.AlarmAdd, null) },
                         label = { Text("Mostrar atraso") },
                         selected = false,
                         badge = { Switch(checked = showToll, onCheckedChange = null) },
                         onClick = { viewModel.setShowToll(!showToll) }
                     )
-                    HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                    HorizontalDivider(
+                        Modifier.padding(vertical = 16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
                     Text("Dados", style = MaterialTheme.typography.labelMedium)
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.FileUpload, null) },
                         label = { Text("Exportar") },
                         selected = false,
                         onClick = { showExportDialog = true; scope.launch { drawerState.close() } })
-                    NavigationDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.FileDownload, null) },
                         label = { Text("Importar") },
                         selected = false,
@@ -352,7 +394,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (showCreateGroupDialog) CreateGroupDialog(
             { showCreateGroupDialog = false },
             { newName ->
-                selectedGroup = newName; viewModel.loadGroupConfig(newName); showCreateGroupDialog = false
+                selectedGroup = newName; viewModel.loadGroupConfig(newName); showCreateGroupDialog =
+                false
             })
         if (showAddPlayerDialog) AddPlayerDialog(
             { showAddPlayerDialog = false },
@@ -372,13 +415,30 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 title = { Text("Tema") },
                 text = {
                     Column {
-                        ThemeOption("Sistema", mode == ThemeMode.SYSTEM) { viewModel.setThemeMode(ThemeMode.SYSTEM) }
-                        ThemeOption("Claro", mode == ThemeMode.LIGHT) { viewModel.setThemeMode(ThemeMode.LIGHT) }
-                        ThemeOption("Escuro", mode == ThemeMode.DARK) { viewModel.setThemeMode(ThemeMode.DARK) }
+                        ThemeOption("Sistema", mode == ThemeMode.SYSTEM) {
+                            viewModel.setThemeMode(
+                                ThemeMode.SYSTEM
+                            )
+                        }
+                        ThemeOption("Claro", mode == ThemeMode.LIGHT) {
+                            viewModel.setThemeMode(
+                                ThemeMode.LIGHT
+                            )
+                        }
+                        ThemeOption("Escuro", mode == ThemeMode.DARK) {
+                            viewModel.setThemeMode(
+                                ThemeMode.DARK
+                            )
+                        }
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showThemeDialog = false }) { Text("Fechar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    TextButton(onClick = { showThemeDialog = false }) {
+                        Text(
+                            "Fechar",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 })
         }
         playerToDelete?.let { player ->
@@ -394,7 +454,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { playerToDelete = null }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    TextButton(onClick = { playerToDelete = null }) {
+                        Text(
+                            "Cancelar",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 })
         }
 
@@ -422,38 +487,95 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         }) { Text("Excluir") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDeleteGroupDialog = null }) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    TextButton(onClick = { showDeleteGroupDialog = null }) {
+                        Text(
+                            "Cancelar",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 })
         }
 
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
-                TopAppBar(
+                FlexibleTopAppBar(
                     title = {
                         Column {
                             Text("Vôlei Manager")
-                            selectedGroup?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
+                            selectedGroup?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
                         }
                     },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, null)
+                            Icon(Icons.Default.Menu, "Menu lateral")
                         }
                     },
                     actions = {
-                        if (currentScreen == Screen.GAME) IconButton(onClick = { showAddPlayerDialog = true }) { 
-                            Icon(Icons.Default.Add, "Adicionar novo jogador") 
+                        if (currentScreen == Screen.GAME) {
+                            IconButton(onClick = { showAddPlayerDialog = true }) {
+                                Icon(Icons.Default.Add, "Adicionar novo jogador")
+                            }
+                        } else if (currentScreen == Screen.HISTORY) {
+                            val view = LocalView.current
+                            val historyDate by viewModel.historyDateFilter.collectAsState()
+                            val groupHistory by viewModel.currentGroupHistory.collectAsState()
+
+                            IconButton(onClick = {
+                                if (historyDate == null) {
+                                    scope.launch { snackbarHostState.showSnackbar("Selecione uma data específica para compartilhar o histórico.") }
+                                } else {
+                                    Toast.makeText(context, "Gerando imagem...", Toast.LENGTH_SHORT)
+                                        .show()
+                                    val sdf = java.text.SimpleDateFormat(
+                                        "dd/MM/yyyy HH:mm",
+                                        java.util.Locale.getDefault()
+                                    )
+                                    val matchesToShare = groupHistory.filter {
+                                        it.date.startsWith(historyDate!!)
+                                    }.sortedByDescending {
+                                        try {
+                                            sdf.parse(it.date)?.time ?: 0L
+                                        } catch (e: Exception) {
+                                            0L
+                                        }
+                                    }
+
+                                    captureFullHistory(
+                                        context = context,
+                                        view = view,
+                                        matches = matchesToShare,
+                                        date = historyDate!!,
+                                        isDarkTheme = isDarkTheme,
+                                        showElo = showElo
+                                    ) { bitmap ->
+                                        viewModel.shareBitmap(context, bitmap, historyDate!!)
+                                    }
+                                }
+                            }) {
+                                Icon(Icons.Default.Share, "Compartilhar Histórico")
+                            }
                         }
                     }
                 )
             }
         ) { padding ->
-            Box(Modifier.padding(padding).fillMaxSize()) {
+            Box(Modifier
+                .padding(padding)
+                .fillMaxSize()) {
                 AnimatedContent(
                     targetState = currentScreen,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                        fadeIn(animationSpec = tween(500)) togetherWith fadeOut(
+                            animationSpec = tween(
+                                500
+                            )
+                        )
                     },
                     label = "ScreenAnim"
                 ) { screen ->
@@ -467,7 +589,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             isSetupMode = isSetupMode,
                             onSetupModeChange = { isSetupMode = it },
                             onDeleteRequest = { playerToDelete = it },
-                            onShowSnackbar = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+                            onShowSnackbar = { msg ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        msg
+                                    )
+                                }
+                            }
                         )
 
                         Screen.HISTORY -> HistoryScreen(viewModel, isDarkTheme, showElo)
@@ -475,5 +603,212 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FlexibleDrawerItem(
+    label: @Composable () -> Unit,
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: @Composable (() -> Unit)? = null,
+    badge: @Composable (() -> Unit)? = null
+) {
+    val containerColor =
+        if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val contentColor =
+        if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth(),
+        color = containerColor,
+        contentColor = contentColor,
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                icon()
+                Spacer(Modifier.width(12.dp))
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
+                    label()
+                }
+            }
+            if (badge != null) {
+                Spacer(Modifier.width(12.dp))
+                badge()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlexibleTopAppBar(
+    title: @Composable () -> Unit,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+                .padding(vertical = 8.dp)
+                .heightIn(min = 64.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.padding(horizontal = 4.dp)) {
+                navigationIcon()
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 4.dp)
+            ) {
+                ProvideTextStyle(value = MaterialTheme.typography.titleLarge) {
+                    title()
+                }
+            }
+            Row(
+                modifier = Modifier.padding(end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                actions()
+            }
+        }
+    }
+}
+
+private fun captureFullHistory(
+    context: android.content.Context,
+    view: android.view.View,
+    matches: List<MatchHistory>,
+    date: String,
+    isDarkTheme: Boolean,
+    showElo: Boolean,
+    onBitmapReady: (android.graphics.Bitmap) -> Unit
+) {
+    val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
+        setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
+        setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
+        setViewTreeSavedStateRegistryOwner(view.findViewTreeSavedStateRegistryOwner())
+
+        setContent {
+            AppTheme(
+                darkTheme = isDarkTheme,
+                dynamicColor = false // Desativa cores baseadas no papel de parede para garantir o azul/amarelo da marca
+            ) {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    Column(
+                        modifier = Modifier
+                            .width(400.dp)
+                            .padding(horizontal = 16.dp)
+                            .padding(
+                                top = 32.dp,
+                                bottom = 16.dp
+                            ), // Padding vertical com safe area pro notch
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Header com logo e título do App
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = null,
+                                modifier = Modifier.size(56.dp)
+                            )
+                            Text(
+                                "Vôlei Manager",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = voleiManagerBlue
+                            )
+                        }
+
+
+                        // Título de Histórico
+                        Text(
+                            text = "Histórico - $date",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        matches.forEach { match ->
+                            HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo)
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    val scrollView = android.widget.ScrollView(context).apply {
+        addView(composeView)
+        alpha = 0f
+        isVerticalScrollBarEnabled = false
+    }
+
+    val root = view.rootView as? android.view.ViewGroup
+    if (root != null) {
+        root.addView(
+            scrollView, android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        scrollView.postDelayed({
+            try {
+                // Ao fixarmos uma escala predefinida ao invés de baseada no width nativo da View
+                // garantimos que o Bitmap manterá a mesma aparência/escala independente de o 
+                // celular do usuário estar de pé (retrato) ou deitado (paisagem).
+                val constantWidthPixels = 1440 // Fixo em uma resolução típica em pixels
+                val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(
+                    constantWidthPixels,
+                    android.view.View.MeasureSpec.EXACTLY
+                )
+                val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(
+                    0,
+                    android.view.View.MeasureSpec.UNSPECIFIED
+                )
+
+                composeView.measure(widthSpec, heightSpec)
+                composeView.layout(0, 0, composeView.measuredWidth, composeView.measuredHeight)
+
+                if (composeView.measuredWidth > 0 && composeView.measuredHeight > 0) {
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        composeView.measuredWidth,
+                        composeView.measuredHeight,
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(bitmap)
+                    composeView.draw(canvas)
+                    onBitmapReady(bitmap)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                root.removeView(scrollView)
+            }
+        }, 500)
     }
 }
