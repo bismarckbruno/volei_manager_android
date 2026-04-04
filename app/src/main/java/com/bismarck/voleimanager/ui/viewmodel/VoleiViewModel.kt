@@ -30,7 +30,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-enum class Screen { GAME, HISTORY }
+enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
 

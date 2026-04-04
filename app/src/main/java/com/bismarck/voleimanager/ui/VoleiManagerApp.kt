@@ -1,7 +1,9 @@
 package com.bismarck.voleimanager.ui
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -314,34 +317,51 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             }, onClick = { showCreateGroupDialog = true; groupExpanded = false })
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(8.dp))
 
                     FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.PlayCircle, null) },
                         label = { Text("Jogo") },
                         selected = currentScreen == Screen.GAME,
-                        onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } })
+                        onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } }
+                    )
                     FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.DateRange, null) },
                         label = { Text("Histórico") },
                         selected = currentScreen == Screen.HISTORY,
-                        onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } })
+                        onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } }
+                    )
+                    FlexibleDrawerItem(
+                        icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
+                        label = { Text("Perguntas frequentes") },
+                        selected = currentScreen == Screen.FAQ,
+                        onClick = { viewModel.navigateTo(Screen.FAQ); scope.launch { drawerState.close() } }
+                    )
+                    FlexibleDrawerItem(
+                        icon = { Icon(Icons.Outlined.Info, null) },
+                        label = { Text("Sobre o app") },
+                        selected = currentScreen == Screen.ABOUT,
+                        onClick = { viewModel.navigateTo(Screen.ABOUT); scope.launch { drawerState.close() } }
+                    )
 
                     HorizontalDivider(
-                        Modifier.padding(vertical = 16.dp),
+                        Modifier.padding(vertical = 8.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     )
                     Text("Configurações", style = MaterialTheme.typography.labelMedium)
+
                     FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Settings, null) },
                         label = { Text("Regras do grupo") },
                         selected = false,
-                        onClick = { showConfigDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showConfigDialog = true; scope.launch { drawerState.close() } }
+                    )
                     FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Palette, null) },
                         label = { Text("Tema") },
                         selected = false,
-                        onClick = { showThemeDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showThemeDialog = true; scope.launch { drawerState.close() } }
+                    )
                     FlexibleDrawerItem(
                         icon = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) },
                         label = { Text("Mostrar Elo") },
@@ -357,22 +377,49 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         onClick = { viewModel.setShowToll(!showToll) }
                     )
                     HorizontalDivider(
-                        Modifier.padding(vertical = 16.dp),
+                        Modifier.padding(vertical = 8.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     )
                     Text("Dados", style = MaterialTheme.typography.labelMedium)
+
                     FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.FileUpload, null) },
                         label = { Text("Exportar") },
                         selected = false,
-                        onClick = { showExportDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showExportDialog = true; scope.launch { drawerState.close() } }
+                    )
                     FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.FileDownload, null) },
                         label = { Text("Importar") },
                         selected = false,
-                        onClick = { showImportDialog = true; scope.launch { drawerState.close() } })
+                        onClick = { showImportDialog = true; scope.launch { drawerState.close() } }
+                    )
+                    HorizontalDivider(
+                        Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                    Text("Privacidade", style = MaterialTheme.typography.labelMedium)
 
-                    Spacer(Modifier.height(32.dp))
+                    FlexibleDrawerItem(
+                        icon = { Icon(Icons.Outlined.Lock, null) },
+                        label = { Text("Política de Privacidade") },
+                        selected = false,
+                        onClick = { 
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://seusite.com/privacidade"))
+                            context.startActivity(intent)
+                            scope.launch { drawerState.close() } 
+                        })
+                    FlexibleDrawerItem(
+                        icon = { Icon(Icons.Outlined.Description, null) },
+                        label = { Text("Termos de Uso") },
+                        selected = false,
+                        onClick = { 
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://seusite.com/termos"))
+                            context.startActivity(intent)
+                            scope.launch { drawerState.close() } 
+                        })
+
+                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
@@ -599,6 +646,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         )
 
                         Screen.HISTORY -> HistoryScreen(viewModel, isDarkTheme, showElo)
+                        Screen.FAQ -> FAQScreen()
+                        Screen.ABOUT -> AboutScreen()
                     }
                 }
             }
