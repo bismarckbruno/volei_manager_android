@@ -33,6 +33,7 @@ import kotlin.math.roundToInt
 enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
+enum class TeamColorTheme { DEFAULT, RED_GREEN, PURPLE_ORANGE }
 
 data class BackupData(
     val version: Int = 1,
@@ -128,6 +129,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _showToll = MutableStateFlow(false)
     val showToll: StateFlow<Boolean> = _showToll.asStateFlow()
 
+    private val _isSupporter = MutableStateFlow(false)
+    val isSupporter: StateFlow<Boolean> = _isSupporter.asStateFlow()
+
+    private val _teamColorTheme = MutableStateFlow(TeamColorTheme.DEFAULT)
+    val teamColorTheme: StateFlow<TeamColorTheme> = _teamColorTheme.asStateFlow()
+
     private val _teamA = MutableStateFlow<List<Player>>(emptyList());
     val teamA = _teamA.asStateFlow()
     private val _teamB = MutableStateFlow<List<Player>>(emptyList());
@@ -184,6 +191,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .putBoolean("show_toll", show).apply()
     }
 
+    fun setSupporter(isSupporter: Boolean) {
+        _isSupporter.value = isSupporter
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putBoolean("is_supporter", isSupporter).apply()
+        if (!isSupporter) setTeamColorTheme(TeamColorTheme.DEFAULT)
+    }
+
+    fun setTeamColorTheme(theme: TeamColorTheme) {
+        _teamColorTheme.value = theme
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putString("team_color", theme.name).apply()
+    }
+
     fun incrementScoreA() {
         _scoreA.value++
     }
@@ -210,6 +230,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         _showElo.value = prefs.getBoolean("show_elo", false)
         _showToll.value = prefs.getBoolean("show_toll", false)
+        _isSupporter.value = prefs.getBoolean("is_supporter", false)
+        _teamColorTheme.value = try {
+            TeamColorTheme.valueOf(prefs.getString("team_color", "DEFAULT")!!)
+        } catch (e: Exception) {
+            TeamColorTheme.DEFAULT
+        }
     }
 
     fun isGameInProgress(): Boolean = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty()

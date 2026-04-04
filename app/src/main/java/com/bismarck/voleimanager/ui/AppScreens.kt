@@ -30,6 +30,7 @@ import com.bismarck.voleimanager.data.model.MatchHistory
 import com.bismarck.voleimanager.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -293,7 +294,7 @@ fun FAQScreen() {
     ) {
         Text(
             "Perguntas frequentes (FAQ)",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -348,6 +349,7 @@ fun FAQItem(question: String, answer: String) {
 // --- TELA SOBRE ---
 @Composable
 fun AboutScreen() {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -355,8 +357,8 @@ fun AboutScreen() {
             .verticalScroll(rememberScrollState())
     ) {
         Text(
-            "Sobre o Vôlei Manager",
-            style = MaterialTheme.typography.titleMedium,
+            "Sobre o aplicativo",
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -373,7 +375,7 @@ fun AboutScreen() {
 
         Text(
             "Sobre o desenvolvedor",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -399,15 +401,23 @@ fun AboutScreen() {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "O Vôlei Manager é gratuito. Se ele ajudou você e sua turma e quiser me pagar um café, você pode apoiar via PIX:",
+                    "O Vôlei Manager é gratuito. Se ele ajudou você e sua turma, considere me seguir no Instagram para apoiar a continuidade deste projeto :)",
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Chave PIX: bruno@email.com",
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                ) // Substitua pelo PIX real
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/bismarckbruno/"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "@bismarckbruno",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
         Spacer(Modifier.height(32.dp))
