@@ -37,7 +37,7 @@ import java.util.Locale
 
 // --- TELA DE HISTÓRICO ---
 @Composable
-fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Boolean) {
+fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Boolean, showScore: Boolean = true) {
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates by viewModel.availableHistoryDates.collectAsState()
@@ -93,7 +93,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
         Spacer(Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo) }
+            items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo, showScore) }
             if (sortedHistory.isEmpty()) item {
                 Box(
                     modifier = Modifier
@@ -112,7 +112,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
 }
 
 @Composable
-fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
+fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean, showScore: Boolean = true) {
     val isTeamAWin = match.winner == "Time A"
     val teamANames = remember(match.teamA) {
         match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -221,7 +221,7 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                     verticalArrangement = Arrangement.Top
                 ) {
                     Text("Time A", fontWeight = FontWeight.Bold)
-                    if (hasScore){
+                    if (showScore && hasScore){
                         Box(
                             modifier = Modifier
                                 .background(
@@ -268,7 +268,7 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean) {
                     verticalArrangement = Arrangement.Top
                 ) {
                     Text("Time B", fontWeight = FontWeight.Bold)
-                    if (hasScore) {
+                    if (showScore && hasScore) {
                         Box(
                             modifier = Modifier
                                 .background(

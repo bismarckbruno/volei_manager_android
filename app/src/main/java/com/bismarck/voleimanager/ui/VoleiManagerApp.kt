@@ -71,6 +71,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val allPlayers by viewModel.players.collectAsState()
     val showElo by viewModel.showElo.collectAsState()
     val showToll by viewModel.showToll.collectAsState()
+    val groupConfig by viewModel.currentGroupConfig.collectAsState()
+    val showScore = groupConfig.scoreEnabled
     val uniqueGroups = remember(allPlayers) { allPlayers.map { it.groupName }.distinct().sorted() }
     var selectedGroup by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -425,15 +427,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         }
     ) {
         if (showConfigDialog) {
-            val config by viewModel.currentGroupConfig.collectAsState()
             GroupConfigDialog(
                 groupName = selectedGroup ?: "Geral",
-                initialTeamSize = config.teamSize,
-                initialVictoryLimit = config.victoryLimit,
-                initialPriorityEnabled = config.priorityEnabled,
+                initialTeamSize = groupConfig.teamSize,
+                initialVictoryLimit = groupConfig.victoryLimit,
+                initialPriorityEnabled = groupConfig.priorityEnabled,
+                initialScoreEnabled = groupConfig.scoreEnabled,
                 onDismiss = { showConfigDialog = false },
-                onConfirm = { size, limit, prior ->
-                    viewModel.updateConfig(size, limit, prior)
+                onConfirm = { size, limit, prior, scoreEn ->
+                    viewModel.updateConfig(size, limit, prior, scoreEn)
                     showConfigDialog = false
                 }
             )
@@ -599,7 +601,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         matches = matchesToShare,
                                         date = historyDate!!,
                                         isDarkTheme = isDarkTheme,
-                                        showElo = showElo
+                                        showElo = showElo,
+                                        showScore = showScore
                                     ) { bitmap ->
                                         viewModel.shareBitmap(context, bitmap, historyDate!!)
                                     }
@@ -633,6 +636,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             isDarkTheme = isDarkTheme,
                             showElo = showElo,
                             showToll = showToll,
+                            showScore = showScore,
                             isSetupMode = isSetupMode,
                             onSetupModeChange = { isSetupMode = it },
                             onDeleteRequest = { playerToDelete = it },
@@ -645,7 +649,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             }
                         )
 
-                        Screen.HISTORY -> HistoryScreen(viewModel, isDarkTheme, showElo)
+                        Screen.HISTORY -> HistoryScreen(viewModel, isDarkTheme, showElo, showScore)
                         Screen.FAQ -> FAQScreen()
                         Screen.ABOUT -> AboutScreen()
                     }
@@ -746,6 +750,7 @@ private fun captureFullHistory(
     date: String,
     isDarkTheme: Boolean,
     showElo: Boolean,
+    showScore: Boolean,
     onBitmapReady: (android.graphics.Bitmap) -> Unit
 ) {
     val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
@@ -800,7 +805,7 @@ private fun captureFullHistory(
                         )
 
                         matches.forEach { match ->
-                            HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo)
+                            HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo, showScore = showScore)
                         }
 
                         Spacer(Modifier.height(16.dp))

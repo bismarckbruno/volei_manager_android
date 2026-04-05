@@ -61,6 +61,7 @@ fun GameScreenContent(
     isDarkTheme: Boolean,
     showElo: Boolean,
     showToll: Boolean,
+    showScore: Boolean,
     isSetupMode: Boolean,
     onSetupModeChange: (Boolean) -> Unit,
     onDeleteRequest: (Player) -> Unit,
@@ -256,7 +257,8 @@ fun GameScreenContent(
                         viewModel.updateConfig(
                             teamSize,
                             config.victoryLimit,
-                            config.priorityEnabled
+                            config.priorityEnabled,
+                            config.scoreEnabled
                         )
                         viewModel.startManualGame(tA, tB, b)
                         onSetupModeChange(false)
@@ -278,6 +280,7 @@ fun GameScreenContent(
                             streak,
                             isDarkTheme,
                             showElo,
+                            showScore,
                             { showCancel = true },
                             { subOut = it },
                             { confirmWinTeam = it },
@@ -399,6 +402,7 @@ fun ActiveGameView(
     currentStreak: Int,
     isDarkTheme: Boolean,
     showElo: Boolean,
+    showScore: Boolean,
     onCancelRequest: () -> Unit,
     onSubRequest: (Player) -> Unit,
     onWinRequest: (String) -> Unit,
@@ -459,6 +463,7 @@ fun ActiveGameView(
                                 teamAStreak,
                                 showElo,
                                 score = scoreA,
+                                showScore = showScore,
                                 onIncrementScore = { viewModel.incrementScoreA() },
                                 onDecrementScore = { viewModel.decrementScoreA() },
                                 onPlayerClick = onSubRequest
@@ -481,6 +486,7 @@ fun ActiveGameView(
                                 teamBStreak,
                                 showElo,
                                 score = scoreB,
+                                showScore = showScore,
                                 onIncrementScore = { viewModel.incrementScoreB() },
                                 onDecrementScore = { viewModel.decrementScoreB() },
                                 onPlayerClick = onSubRequest
@@ -554,6 +560,7 @@ fun ActiveGameView(
                         teamAStreak,
                         showElo,
                         score = scoreA,
+                        showScore = showScore,
                         onIncrementScore = { viewModel.incrementScoreA() },
                         onDecrementScore = { viewModel.decrementScoreA() },
                         onPlayerClick = onSubRequest
@@ -576,6 +583,7 @@ fun ActiveGameView(
                         teamBStreak,
                         showElo,
                         score = scoreB,
+                        showScore = showScore,
                         onIncrementScore = { viewModel.incrementScoreB() },
                         onDecrementScore = { viewModel.decrementScoreB() },
                         onPlayerClick = onSubRequest
@@ -631,6 +639,7 @@ fun ActiveTeamCard(
     streak: Int,
     showElo: Boolean,
     score: Int,
+    showScore: Boolean = true,
     onIncrementScore: () -> Unit,
     onDecrementScore: () -> Unit,
     onPlayerClick: (Player) -> Unit,
@@ -684,32 +693,34 @@ fun ActiveTeamCard(
             }
             
             // Score Counter
-            Spacer(Modifier.height(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .background(contentColor.copy(alpha = 0.1f), shape = CircleShape)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                IconButton(
-                    onClick = onDecrementScore,
-                    modifier = Modifier.size(32.dp)
+            if (showScore) {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .background(contentColor.copy(alpha = 0.1f), shape = CircleShape)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Icon(Icons.Default.Remove, contentDescription = "Diminuir Placar", tint = contentColor)
-                }
-                Text(
-                    text = score.toString(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                    color = contentColor,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                IconButton(
-                    onClick = onIncrementScore,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Aumentar Placar", tint = contentColor)
+                    IconButton(
+                        onClick = onDecrementScore,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "Diminuir Placar", tint = contentColor)
+                    }
+                    Text(
+                        text = score.toString(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black,
+                        color = contentColor,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    IconButton(
+                        onClick = onIncrementScore,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Aumentar Placar", tint = contentColor)
+                    }
                 }
             }
 

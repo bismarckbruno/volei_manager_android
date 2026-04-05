@@ -206,12 +206,14 @@ fun GroupConfigDialog(
     initialTeamSize: Int,
     initialVictoryLimit: Int,
     initialPriorityEnabled: Boolean,
+    initialScoreEnabled: Boolean = true,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int, Boolean) -> Unit
+    onConfirm: (Int, Int, Boolean, Boolean) -> Unit
 ) {
     var teamSize by remember { mutableFloatStateOf(initialTeamSize.toFloat()) }
     var victoryLimit by remember { mutableFloatStateOf(initialVictoryLimit.toFloat()) }
     var priorityEnabled by remember { mutableStateOf(initialPriorityEnabled) }
+    var scoreEnabled by remember { mutableStateOf(initialScoreEnabled) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -242,6 +244,12 @@ fun GroupConfigDialog(
                     Spacer(Modifier.width(16.dp))
                     Text("Mín. 1 prioridade por time", style = MaterialTheme.typography.bodySmall)
                 }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = scoreEnabled, onCheckedChange = { scoreEnabled = it })
+                    Spacer(Modifier.width(16.dp))
+                    Text("Usar placar", style = MaterialTheme.typography.bodySmall)
+                }
             }
         },
         confirmButton = {
@@ -249,7 +257,8 @@ fun GroupConfigDialog(
                 onConfirm(
                     teamSize.roundToInt(),
                     victoryLimit.roundToInt(),
-                    priorityEnabled
+                    priorityEnabled,
+                    scoreEnabled
                 )
             }) { Text("Salvar") }
         },

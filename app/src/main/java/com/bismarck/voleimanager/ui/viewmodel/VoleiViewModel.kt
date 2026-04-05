@@ -257,7 +257,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _scoreA.value = 0; _scoreB.value = 0
     }
 
-    fun updateConfig(s: Int, l: Int, priorityP: Boolean) {
+    fun updateConfig(s: Int, l: Int, priorityP: Boolean, scoreEnabled: Boolean = true) {
         if (_currentGroupConfig.value.teamSize != s) {
             _currentStreak.value = 0
             _streakOwner.value = null
@@ -265,7 +265,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _currentGroupConfig.value = _currentGroupConfig.value.copy(
             teamSize = s,
             victoryLimit = l,
-            priorityEnabled = priorityP
+            priorityEnabled = priorityP,
+            scoreEnabled = scoreEnabled
         )
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
     }
