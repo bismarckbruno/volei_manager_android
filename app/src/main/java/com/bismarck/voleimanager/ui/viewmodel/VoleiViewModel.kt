@@ -316,9 +316,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         return (sum.toDouble() / alreadyPresentIds.size).roundToInt()
     }
 
-    private fun applyTollIfNecessary(player: Player): Player {
+    private fun applyTollIfNecessary(
+        player: Player,
+        allowSameDayRecalculation: Boolean = false
+    ): Player {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        if (player.tollDate != today) {
+        val shouldRecalculateSameDay =
+            allowSameDayRecalculation && player.tollDate == today && player.dailyToll == 0
+
+        if (player.tollDate != today || shouldRecalculateSameDay) {
             val toll = calculateTollForNewPlayer()
             val updatedP = player.copy(dailyToll = toll, tollDate = today)
             viewModelScope.launch(Dispatchers.IO) { repository.updatePlayer(updatedP) }
@@ -344,7 +350,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _presentPlayerIds.update { it + newPlayer.id }
 
         if (isGameInProgress()) {
-            val updatedP = applyTollIfNecessary(newPlayer)
+            val updatedP = applyTollIfNecessary(newPlayer, allowSameDayRecalculation = true)
             val gamesPlayed = gamesPlayedTodayMap.value[updatedP.id] ?: 0
             if (gamesPlayed > 0) {
                 _waitingList.update { it + updatedP }
@@ -384,7 +390,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _hasPreviousMatch.value && _lastWinners.value.any { it.id == p.id }
             if (!_teamA.value.any { it.id == p.id } && !_teamB.value.any { it.id == p.id } && !_waitingList.value.any { it.id == p.id } && !isWinnerWaiting) {
                 if (isGameInProgress()) {
-                    val updatedP = applyTollIfNecessary(p)
+                    val updatedP = applyTollIfNecessary(p, allowSameDayRecalculation = true)
                     val gamesPlayed = gamesPlayedTodayMap.value[p.id] ?: 0
                     if (gamesPlayed > 0) {
                         _waitingList.value = _waitingList.value + updatedP
@@ -416,7 +422,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     _teamA.value.any { it.id == p.id } || _teamB.value.any { it.id == p.id }
                 if (!playing && !currentWait.any { it.id == p.id }) {
                     if (isGameInProgress()) {
-                        val updatedP = applyTollIfNecessary(p)
+                        val updatedP = applyTollIfNecessary(p, allowSameDayRecalculation = true)
                         val gamesPlayed = gamesPlayedTodayMap.value[updatedP.id] ?: 0
                         if (gamesPlayed > 0) {
                             currentWait.add(updatedP)
@@ -644,7 +650,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         val newPlayersWithToll = newPresentPlayerIds.mapNotNull { id ->
-            currentGroupPlayers.value.find { it.id == id }?.let { applyTollIfNecessary(it) }
+            currentGroupPlayers.value.find { it.id == id }
+                ?.let { applyTollIfNecessary(it, allowSameDayRecalculation = true) }
         }
 
         val waitlist =

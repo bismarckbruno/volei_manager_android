@@ -53,6 +53,9 @@ import com.bismarck.voleimanager.ui.components.simpleScrollbar
 import com.bismarck.voleimanager.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun GameScreenContent(
@@ -371,12 +374,12 @@ fun GameScreenContent(
                                 val selCount = presentIds.size
                                 val totalCount = sortedPlayers.size
                                 val text = if (selCount == 0) {
-                                    "Nenhum selecionado ($totalCount cadastrado${if (totalCount > 1) "s)" else ")"}"
+                                    "Nenhum selecionado ($totalCount cadastro${if (totalCount > 1) "s)" else ")"}"
                                 } else {
-                                    "$selCount selecionado${if (selCount > 1) "s" else ""} de $totalCount cadastrado${if (totalCount > 1) "s" else ""}"
+                                    "$selCount selecionado${if (selCount > 1) "s" else ""} de $totalCount cadastro${if (totalCount > 1) "s" else ""}"
                                 }
                                 Text(
-                                    text = text,
+                                    text = if (totalCount == 0) "Nenhum cadastro" else text,
                                     modifier = Modifier.padding(16.dp),
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -851,7 +854,7 @@ fun EmptyStateCard(
                     )
                 }
             } else {
-                Text("Grupo: $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Grupo $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Mínimo: $minNeeded jogadores",
@@ -887,7 +890,7 @@ fun EmptyStateCard(
                         if (canStartAuto) {
                             onStartAutoClick()
                         } else {
-                            onShowSnackbar("Selecione no mínimo $minNeeded jogadores ou altere essas configurações em \"Regras do grupo\"")
+                            onShowSnackbar("Selecione no mínimo $minNeeded jogadores ou altere essa configuração em \"Regras do grupo\"")
                         }
                     },
                     modifier = Modifier
@@ -995,14 +998,11 @@ fun PlayerCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     val actualGames = gamesPlayed ?: 0
-                    val hasToll = player.tollDate == targetDate && player.dailyToll > 0
-                    val fontScale = LocalDensity.current.fontScale
-                    val isAccessibleMode = fontScale > 1.15f
+                    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+                    val hasToll = player.dailyToll > 0 && (player.tollDate == targetDate || player.tollDate == today)
 
-                    val info = if (actualGames == 0 && !hasToll && !isAccessibleMode) {
-                        "Sem jogos recentes"
-                    } else if (!(actualGames == 0 || !hasToll || isAccessibleMode)) {
-                        "0 jogos"
+                    val info = if (actualGames == 0 && !hasToll) {
+                        "Nenhum jogo"
                     } else {
                         val gamesStr = if (actualGames == 1) "1 jogo" else "$actualGames jogos"
                         if (showToll && hasToll) {
