@@ -411,6 +411,78 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    fun movePlayerToBeginning(p: Player) {
+        val updatedPlayer = if (_presentPlayerIds.value.contains(p.id)) {
+            p
+        } else {
+            applyTollIfNecessary(p, allowSameDayRecalculation = true)
+        }
+
+        _presentPlayerIds.update { it + updatedPlayer.id }
+        _waitingList.update { list ->
+            buildList {
+                add(updatedPlayer)
+                addAll(list.filterNot { it.id == updatedPlayer.id })
+            }
+        }
+    }
+
+    fun movePlayerToEnd(p: Player) {
+        val updatedPlayer = if (_presentPlayerIds.value.contains(p.id)) {
+            p
+        } else {
+            applyTollIfNecessary(p, allowSameDayRecalculation = true)
+        }
+
+        _presentPlayerIds.update { it + updatedPlayer.id }
+        _waitingList.update { list ->
+            buildList {
+                addAll(list.filterNot { it.id == updatedPlayer.id })
+                add(updatedPlayer)
+            }
+        }
+    }
+
+    fun reorderWaitingList(from: Int, to: Int) {
+        if (from < 0 || to < 0) return
+        val newList = _waitingList.value.toMutableList()
+        if (from >= newList.size || to > newList.size) return
+        val item = newList.removeAt(from)
+        newList.add(to, item)
+        _waitingList.value = newList
+    }
+
+    fun moveWaitingPlayerToIndex(player: Player, targetIndex: Int) {
+        _waitingList.update { list ->
+            val withoutPlayer = list.filterNot { it.id == player.id }
+            val safeIndex = targetIndex.coerceIn(0, withoutPlayer.size)
+            buildList {
+                addAll(withoutPlayer.take(safeIndex))
+                add(player)
+                addAll(withoutPlayer.drop(safeIndex))
+            }
+        }
+    }
+
+    fun insertPlayerIntoWaitingList(player: Player, targetIndex: Int) {
+        val updatedPlayer = if (_presentPlayerIds.value.contains(player.id)) {
+            player
+        } else {
+            applyTollIfNecessary(player, allowSameDayRecalculation = true)
+        }
+
+        _presentPlayerIds.update { it + updatedPlayer.id }
+        _waitingList.update { list ->
+            val withoutPlayer = list.filterNot { it.id == updatedPlayer.id }
+            val safeIndex = targetIndex.coerceIn(0, withoutPlayer.size)
+            buildList {
+                addAll(withoutPlayer.take(safeIndex))
+                add(updatedPlayer)
+                addAll(withoutPlayer.drop(safeIndex))
+            }
+        }
+    }
+
     fun setAllPlayersPresence(list: List<Player>, present: Boolean) {
         if (present) {
             val newIds = mutableSetOf<Int>()

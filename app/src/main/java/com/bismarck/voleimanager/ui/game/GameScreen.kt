@@ -11,6 +11,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -36,8 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -287,7 +288,9 @@ fun GameScreenContent(
                             { showCancel = true },
                             { subOut = it },
                             { confirmWinTeam = it },
-                            onOpenAbsentList = { showAbsentDialog = true })
+                            presentIds,
+                            sortedPlayers
+                        )
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
                             LazyColumn(
@@ -409,8 +412,10 @@ fun ActiveGameView(
     onCancelRequest: () -> Unit,
     onSubRequest: (Player) -> Unit,
     onWinRequest: (String) -> Unit,
-    onOpenAbsentList: () -> Unit
+    presentPlayerIds: Set<Int>,
+    allPlayers: List<Player>
 ) {
+    var showWaitingListSheet by remember { mutableStateOf(false) }
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
     val teamBStreak = if (streakOwner == "B") currentStreak else 0
 
@@ -523,10 +528,10 @@ fun ActiveGameView(
                         .weight(0.25f)
                         .fillMaxHeight()
                 ) {
-                    Text(
-                        "Na espera (${waitingList.size})",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                    WaitingListPreviewHeader(
+                        waitingCount = waitingList.size,
+                        onOpen = { showWaitingListSheet = true },
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(Modifier.height(8.dp))
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -536,11 +541,9 @@ fun ActiveGameView(
                             WaitingPlayerCard(
                                 i + 1,
                                 p,
-                                showElo
-                            ) { viewModel.removePlayerFromWaitingList(p) }
-                        }
-                        item {
-                            AbsentPlayerGhostCard(onClick = onOpenAbsentList)
+                                showElo,
+                                onClick = { showWaitingListSheet = true }
+                            )
                         }
                     }
                 }
@@ -607,26 +610,93 @@ fun ActiveGameView(
                 }
             }
             Spacer(Modifier.height(2.dp))
-            Text("Na espera (${waitingList.size})", style = MaterialTheme.typography.titleSmall)
+            WaitingListPreviewHeader(
+                waitingCount = waitingList.size,
+                onOpen = { showWaitingListSheet = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
             Spacer(Modifier.height(2.dp))
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 60.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
                 itemsIndexed(waitingList) { i, p ->
                     WaitingPlayerCard(
                         i + 1,
                         p,
-                        showElo
-                    ) { viewModel.removePlayerFromWaitingList(p) }
-                }
-                item {
-                    AbsentPlayerGhostCard(onClick = onOpenAbsentList)
+                        showElo,
+                        onClick = { showWaitingListSheet = true }
+                    )
                 }
             }
         }
+    }
+
+    // Bottom Sheet for waiting list management
+    if (showWaitingListSheet) {
+        WaitingListBottomSheet(
+            viewModel = viewModel,
+            waitingList = waitingList,
+            presentPlayerIds = presentPlayerIds,
+            allPlayers = allPlayers,
+            showElo = showElo,
+            onDismiss = { showWaitingListSheet = false }
+        )
+    }
+}
+
+@Composable
+private fun WaitingListPreviewHeader(
+    waitingCount: Int,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var accumulatedDrag by remember { mutableStateOf(0f) }
+
+    Column(
+        modifier = modifier
+            .clickable(onClick = onOpen)
+            .pointerInput(onOpen) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        if (dragAmount < 0f) {
+                            accumulatedDrag += dragAmount
+                            if (accumulatedDrag <= -24f) {
+                                accumulatedDrag = 0f
+                                onOpen()
+                            }
+                        } else {
+                            accumulatedDrag = 0f
+                        }
+                    },
+                    onDragEnd = { accumulatedDrag = 0f },
+                    onDragCancel = { accumulatedDrag = 0f }
+                )
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .width(32.dp)
+                .height(4.dp)
+                .background(
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                    shape = CircleShape
+                )
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Na espera ($waitingCount)",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -1040,15 +1110,13 @@ fun PlayerCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: () -> Unit) {
-    var showMenu by remember { mutableStateOf(false) }
-
+fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
             .widthIn(min = 120.dp)
             .heightIn(min = 60.dp)
-            .combinedClickable(onClick = { }, onLongClick = { showMenu = true })
+            .clickable(onClick = onClick)
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -1085,53 +1153,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onRemove: ()
                 }
             }
         }
-        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-            DropdownMenuItem(
-                text = { Text("Remover da fila", color = MaterialTheme.colorScheme.error) },
-                onClick = {
-                    showMenu = false
-                    onRemove()
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Close,
-                        null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            )
-        }
     }
 }
 
-@Composable
-fun AbsentPlayerGhostCard(onClick: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)),
-        modifier = Modifier
-            .widthIn(min = 120.dp)
-            .heightIn(min = 60.dp)
-            .clickable { onClick() }
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start
-        ) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                "Ausentes",
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            )
-        }
-    }
-}
+
