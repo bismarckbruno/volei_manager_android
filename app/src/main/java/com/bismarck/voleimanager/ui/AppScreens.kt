@@ -55,6 +55,14 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
         }
     }
 
+    val uniquePlayerCount = remember(sortedHistory) {
+        sortedHistory.flatMap { match ->
+            (match.teamA.split(",") + match.teamB.split(","))
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+        }.distinct().size
+    }
+
     var expandedDate by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier
@@ -90,7 +98,35 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
+
+        if (sortedHistory.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                val matchLabel = if (sortedHistory.size == 1) "partida" else "partidas"
+                val playerLabel = if (uniquePlayerCount == 1) "jogador" else "jogadores"
+                Text(
+                    "${sortedHistory.size} $matchLabel",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "·",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Text(
+                    "$uniquePlayerCount $playerLabel",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+        }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo, showScore) }
