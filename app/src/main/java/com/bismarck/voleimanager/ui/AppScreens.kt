@@ -335,8 +335,8 @@ fun FAQScreen() {
             "Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com 'Prioridade', o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente."
         )
         FAQItem(
-            "O que é Mostrar Atraso (Pedágio)?",
-            "Quando essa opção está ativa, pessoas que chegam mais tarde na pelada recebem 'partidas fictícias' proporcionais ao que a quadra já jogou. Isso evita que quem chega no fim pule na frente de quem está desde o início esperando para jogar. Se a pessoa chegar no mesmo horário da galera, ela começa com 0 de pedágio."
+            "O que é Mostrar Atraso?",
+            "Quando ativado, mostra quantos jogos fictícios foram somados a quem chegou atrasado, de acordo com o que a quadra já jogou. Isso evita que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa com atraso zero. Só aparecem valores a partir de 1."
         )
         FAQItem(
             "Como criar ou gerenciar Grupos?",

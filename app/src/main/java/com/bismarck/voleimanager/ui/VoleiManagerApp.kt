@@ -20,6 +20,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -34,8 +36,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -369,6 +373,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         label = { Text("Mostrar Elo") },
                         selected = false,
                         badge = { Switch(checked = showElo, onCheckedChange = null) },
+                        tooltipText = "Mostra a pontuação de habilidade de cada jogador e média do time.",
                         onClick = { viewModel.setShowElo(!showElo) }
                     )
                     FlexibleDrawerItem(
@@ -376,6 +381,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         label = { Text("Mostrar atraso") },
                         selected = false,
                         badge = { Switch(checked = showToll, onCheckedChange = null) },
+                        tooltipText = "Mostra a média do número de jogos de quando a pessoa atrasada chegou.",
                         onClick = { viewModel.setShowToll(!showToll) }
                     )
                     HorizontalDivider(
@@ -659,29 +665,36 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun FlexibleDrawerItem(
     label: @Composable () -> Unit,
     selected: Boolean,
     onClick: () -> Unit,
     icon: @Composable (() -> Unit)? = null,
-    badge: @Composable (() -> Unit)? = null
+    badge: @Composable (() -> Unit)? = null,
+    tooltipText: String? = null
 ) {
     val containerColor =
         if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     val contentColor =
         if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val tooltipState = rememberTooltipState(isPersistent = false)
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth(),
-        color = containerColor,
-        contentColor = contentColor,
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
+    val itemContent: @Composable () -> Unit = {
         Row(
             modifier = Modifier
-                .clickable(onClick = onClick)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        if (!tooltipText.isNullOrBlank()) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            scope.launch { tooltipState.show() }
+                        }
+                    }
+                )
                 .heightIn(min = 56.dp)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -698,6 +711,31 @@ private fun FlexibleDrawerItem(
             if (badge != null) {
                 Spacer(Modifier.width(12.dp))
                 badge()
+            }
+        }
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth(),
+        color = containerColor,
+        contentColor = contentColor,
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        if (tooltipText.isNullOrBlank()) {
+            itemContent()
+        } else {
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    PlainTooltip {
+                        Text(tooltipText)
+                    }
+                },
+                state = tooltipState,
+                enableUserInput = false
+            ) {
+                itemContent()
             }
         }
     }

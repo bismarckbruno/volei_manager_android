@@ -61,6 +61,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
@@ -393,6 +395,7 @@ private fun WaitingListPlayerItem(
     onRemove: () -> Unit
 ) {
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -409,6 +412,7 @@ private fun WaitingListPlayerItem(
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 showMenu = true
                             }
                         )
@@ -532,6 +536,7 @@ private fun InactivePlayerItem(
     onMoveToEnd: () -> Unit
 ) {
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -554,6 +559,7 @@ private fun InactivePlayerItem(
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 showMenu = true
                             },
                             onTap = {
@@ -602,6 +608,7 @@ private fun InactivePlayerItem(
                                     showMenu = true
                                 },
                                 onLongPress = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     showMenu = true
                                 }
                             )

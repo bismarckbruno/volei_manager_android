@@ -38,7 +38,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -765,6 +767,7 @@ fun ActiveTeamCard(
     val avgElo = if (players.isNotEmpty()) players.map { it.elo }.average() else 0.0
     val contentColor = if (cardColor.luminance() < 0.5f) Color.White else Color.Black
     val dividerColor = contentColor.copy(alpha = 0.2f)
+    val haptic = LocalHapticFeedback.current
 
     Card(
         modifier = Modifier
@@ -871,7 +874,10 @@ fun ActiveTeamCard(
                             .padding(vertical = 4.dp)
                             .combinedClickable(
                                 onClick = { },
-                                onLongClick = { onPlayerClick(p) }
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onPlayerClick(p)
+                                }
                             )
                     ) {
                         Text(
@@ -1086,13 +1092,20 @@ fun PlayerCard(
     onEdit: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Card(
             modifier = Modifier
                 .padding(vertical = 4.dp)
                 .fillMaxWidth()
-                .combinedClickable(onClick = onTogglePresence, onLongClick = { showMenu = true }),
+                .combinedClickable(
+                    onClick = onTogglePresence,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showMenu = true
+                    }
+                ),
             colors = CardDefaults.cardColors(containerColor = if (isPresent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
             border = if (isPresent) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
         ) {
