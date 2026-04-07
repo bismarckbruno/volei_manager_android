@@ -43,6 +43,21 @@ data class BackupData(
     val logs: List<PlayerEloLog>
 )
 
+data class GameStateSnapshot(
+    val groupName: String,
+    val teamA: List<Player>,
+    val teamB: List<Player>,
+    val waitingList: List<Player>,
+    val presentPlayerIds: List<Int>,
+    val scoreA: Int,
+    val scoreB: Int,
+    val currentStreak: Int,
+    val streakOwner: String?,
+    val hasPreviousMatch: Boolean,
+    val lastWinners: List<Player>,
+    val lastLosers: List<Player>
+)
+
 class VoleiViewModel(application: Application, private val repository: VoleiRepository) :
     AndroidViewModel(application) {
 
@@ -159,13 +174,89 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val lastWinners = _lastWinners.asStateFlow()
     private var lastLosers: List<Player> = emptyList()
 
+    // Controls when game-state persistence is active (after first group load)
+    private var persistenceReady = false
+
     init {
         loadPreferences()
+        observeAndPersistGameState()
         viewModelScope.launch {
             availableHistoryDates.collect { dates ->
                 if (_historyDateFilter.value == null && dates.isNotEmpty()) _historyDateFilter.value =
                     dates.first()
             }
+        }
+    }
+
+    // Observes all game-state flows and persists on every change
+    private fun observeAndPersistGameState() {
+        viewModelScope.launch {
+            combine(
+                _teamA, _teamB, _waitingList, _presentPlayerIds, _scoreA
+            ) { _, _, _, _, _ -> Unit }.collect { if (persistenceReady) saveGameState() }
+        }
+        viewModelScope.launch {
+            combine(
+                _scoreB, _currentStreak, _hasPreviousMatch, _lastWinners, _streakOwner
+            ) { _, _, _, _, _ -> Unit }.collect { if (persistenceReady) saveGameState() }
+        }
+    }
+
+    private fun saveGameState() {
+        val snapshot = GameStateSnapshot(
+            groupName = _currentGroupConfig.value.groupName,
+            teamA = _teamA.value,
+            teamB = _teamB.value,
+            waitingList = _waitingList.value,
+            presentPlayerIds = _presentPlayerIds.value.toList(),
+            scoreA = _scoreA.value,
+            scoreB = _scoreB.value,
+            currentStreak = _currentStreak.value,
+            streakOwner = _streakOwner.value,
+            hasPreviousMatch = _hasPreviousMatch.value,
+            lastWinners = _lastWinners.value,
+            lastLosers = lastLosers
+        )
+        // If nothing meaningful is happening, clear instead of saving
+        if (!snapshot.hasPreviousMatch && snapshot.teamA.isEmpty() && snapshot.teamB.isEmpty()) {
+            clearSavedGameState(snapshot.groupName)
+            return
+        }
+        val json = Gson().toJson(snapshot)
+        getApplication<Application>()
+            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+            .edit().putString("game_state_${snapshot.groupName}", json).apply()
+    }
+
+    private fun clearSavedGameState(groupName: String = _currentGroupConfig.value.groupName) {
+        getApplication<Application>()
+            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+            .edit().remove("game_state_$groupName").apply()
+    }
+
+    private fun tryRestoreGameState(groupName: String): Boolean {
+        val json = getApplication<Application>()
+            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+            .getString("game_state_$groupName", null) ?: return false
+        return try {
+            val snapshot = Gson().fromJson(json, GameStateSnapshot::class.java)
+            if (snapshot == null || snapshot.groupName != groupName) return false
+            _teamA.value = snapshot.teamA
+            _teamB.value = snapshot.teamB
+            _waitingList.value = snapshot.waitingList
+            _presentPlayerIds.value = snapshot.presentPlayerIds.toSet()
+            _scoreA.value = snapshot.scoreA
+            _scoreB.value = snapshot.scoreB
+            _currentStreak.value = snapshot.currentStreak
+            _streakOwner.value = snapshot.streakOwner
+            _hasPreviousMatch.value = snapshot.hasPreviousMatch
+            _lastWinners.value = snapshot.lastWinners
+            lastLosers = snapshot.lastLosers
+            Log.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
+            true
+        } catch (e: Exception) {
+            Log.e("GameState", "Erro ao restaurar estado do jogo: ${e.message}")
+            false
         }
     }
 
@@ -245,7 +336,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         viewModelScope.launch {
             _currentGroupConfig.value = repository.getGroupConfig(name)
                 ?: GroupConfig(name).also { repository.saveGroupConfig(it) }
-            if (!same) resetGameState()
+            if (!same) {
+                // Switching groups: reset current state, then try to restore saved state for new group
+                resetGameState()
+                tryRestoreGameState(name)
+            } else if (!isGameInProgress()) {
+                // Same group, no active game: try to restore (covers process-death scenario)
+                tryRestoreGameState(name)
+            }
+            persistenceReady = true
         }
     }
 
