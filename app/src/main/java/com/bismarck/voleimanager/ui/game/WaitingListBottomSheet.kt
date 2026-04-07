@@ -1,6 +1,8 @@
 package com.bismarck.voleimanager.ui.game
 
 import android.util.Log
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -42,9 +44,11 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,6 +94,7 @@ import com.bismarck.voleimanager.data.model.Player
 import com.bismarck.voleimanager.ui.components.simpleScrollbar
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private enum class WaitingSection { ACTIVE }
@@ -106,6 +111,15 @@ private sealed class UndoAction {
     data class Add(val player: Player, val toIndex: Int) : UndoAction()
 }
 
+private data class FollowMoveRequest(
+    val playerId: Int,
+    val fromIndex: Int,
+    val toIndex: Int,
+    val shouldFollow: Boolean
+)
+
+private const val WAITING_ITEM_REORDER_DURATION_MS = 220
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WaitingListBottomSheet(
@@ -114,17 +128,23 @@ fun WaitingListBottomSheet(
     presentPlayerIds: Set<Int>,
     allPlayers: List<Player>,
     showElo: Boolean,
+    sheetState: SheetState,
     onDismiss: () -> Unit
 ) {
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
     }
     var undoAction by remember { mutableStateOf<UndoAction?>(null) }
+    var followMoveRequest by remember { mutableStateOf<FollowMoveRequest?>(null) }
+    var highlightedPlayerId by remember { mutableStateOf<Int?>(null) }
+    var highlightPulse by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val density = LocalDensity.current
+    val reorderAnimationSpec = remember {
+        tween<IntOffset>(durationMillis = WAITING_ITEM_REORDER_DURATION_MS)
+    }
 
     fun performUndo() {
         val action = undoAction ?: return
@@ -166,6 +186,104 @@ fun WaitingListBottomSheet(
                 true
             )
         }
+    }
+
+    // Prevents LazyColumn's key-based scroll anchoring from chasing a moved item.
+    // When the first visible item is being moved far away, we re-anchor the scroll
+    // to the next item so the viewport stays in place.
+    fun preventAutoScrollForLargeMove(fromIndex: Int, toIndex: Int) {
+        val moveDistance = abs(toIndex - fromIndex)
+        if (moveDistance <= 1) return // single-step moves are fine
+
+        val firstVisibleInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return
+        val firstVisibleIndex = firstVisibleInfo.index
+
+        // Only needed when the moved item is at or very near the scroll anchor (first visible)
+        if (fromIndex in firstVisibleIndex..(firstVisibleIndex + 1)) {
+            val nextAnchor = (firstVisibleIndex + 1).coerceAtMost(
+                listState.layoutInfo.totalItemsCount - 1
+            )
+            scope.launch {
+                listState.scrollToItem(nextAnchor, 0)
+            }
+        }
+    }
+
+    fun queueFollowForMove(player: Player, fromIndex: Int, toIndex: Int) {
+        if (fromIndex == -1 || toIndex == fromIndex) return
+
+        val visibleActiveItems = listState.layoutInfo.visibleItemsInfo
+            .map { it.index }
+            .filter { it in waitingList.indices }
+
+        if (visibleActiveItems.isEmpty()) return
+
+        val firstVisibleActive = visibleActiveItems.first()
+        val lastVisibleActive = visibleActiveItems.last()
+        val moveDistance = abs(toIndex - fromIndex)
+        val touchesTopEdge = fromIndex <= firstVisibleActive + 1 || toIndex <= firstVisibleActive + 1
+        val touchesBottomEdge = fromIndex >= lastVisibleActive - 1 || toIndex >= lastVisibleActive - 1
+
+        val shouldFollow: Boolean = when {
+            moveDistance > 1 -> false
+            else -> touchesTopEdge || touchesBottomEdge
+        }
+
+        // For large moves, prevent LazyColumn from auto-scrolling to follow the keyed item
+        if (!shouldFollow) {
+            preventAutoScrollForLargeMove(fromIndex, toIndex)
+        }
+
+        followMoveRequest = FollowMoveRequest(
+            playerId = player.id,
+            fromIndex = fromIndex,
+            toIndex = toIndex,
+            shouldFollow = shouldFollow
+        )
+    }
+
+    LaunchedEffect(waitingList, followMoveRequest) {
+        val request = followMoveRequest ?: return@LaunchedEffect
+        val movedIndex = waitingList.indexOfFirst { it.id == request.playerId }
+
+        if (movedIndex != request.toIndex) return@LaunchedEffect
+
+        if (movedIndex >= 0) {
+            if (request.shouldFollow) {
+                val visibleActiveItems = listState.layoutInfo.visibleItemsInfo
+                    .map { it.index }
+                    .filter { it in waitingList.indices }
+
+                if (visibleActiveItems.isEmpty()) {
+                    listState.scrollToItem(movedIndex)
+                } else {
+                    val firstVisibleActive = visibleActiveItems.first()
+                    val lastVisibleActive = visibleActiveItems.last()
+                    val visibleCount = visibleActiveItems.size
+                    val topAnchorIndex = (movedIndex - 1).coerceAtLeast(0)
+                    val bottomAnchorIndex =
+                        (movedIndex - visibleCount + 2).coerceAtLeast(0)
+
+                    when {
+                        movedIndex <= firstVisibleActive + 1 -> {
+                            scope.launch { listState.animateScrollToItem(topAnchorIndex) }
+                        }
+
+                        movedIndex >= lastVisibleActive - 1 -> {
+                            scope.launch { listState.animateScrollToItem(bottomAnchorIndex) }
+                        }
+                    }
+                }
+            }
+
+            delay(WAITING_ITEM_REORDER_DURATION_MS.toLong())
+
+            if (waitingList.indexOfFirst { it.id == request.playerId } == request.toIndex) {
+                highlightedPlayerId = request.playerId
+                highlightPulse += 1
+            }
+        }
+        followMoveRequest = null
     }
 
     fun handleRemoveFromWaiting(player: Player) {
@@ -244,26 +362,28 @@ fun WaitingListBottomSheet(
                             waitingList,
                             key = { _, player -> "active_${player.id}" }) { index, player ->
                             WaitingListPlayerItem(
-                                modifier = Modifier.animateItemPlacement(),
+                                modifier = Modifier.animateItemPlacement(reorderAnimationSpec),
                                 index = index,
                                 isFirst = index == 0,
                                 isLast = index == waitingList.lastIndex,
                                 player = player,
                                 showElo = showElo,
+                                highlightPulse = if (highlightedPlayerId == player.id) highlightPulse else 0,
                                 onMoveUp = {
-                                    if (index > 0) viewModel.moveWaitingPlayerToIndex(
-                                        player,
-                                        index - 1
-                                    )
+                                    if (index > 0) {
+                                        queueFollowForMove(player, index, index - 1)
+                                        viewModel.moveWaitingPlayerToIndex(player, index - 1)
+                                    }
                                 },
                                 onMoveDown = {
-                                    if (index < waitingList.lastIndex) viewModel.moveWaitingPlayerToIndex(
-                                        player,
-                                        index + 1
-                                    )
+                                    if (index < waitingList.lastIndex) {
+                                        queueFollowForMove(player, index, index + 1)
+                                        viewModel.moveWaitingPlayerToIndex(player, index + 1)
+                                    }
                                 },
                                 onMoveToBeginning = {
                                     val oldIndex = waitingList.indexOfFirst { it.id == player.id }
+                                    queueFollowForMove(player, oldIndex, 0)
                                     viewModel.movePlayerToBeginning(player)
                                     undoAction =
                                         UndoAction.Move(player, oldIndex, 0, WaitingSection.ACTIVE)
@@ -271,6 +391,7 @@ fun WaitingListBottomSheet(
                                 },
                                 onMoveToEnd = {
                                     val oldIndex = waitingList.indexOfFirst { it.id == player.id }
+                                    queueFollowForMove(player, oldIndex, waitingList.size - 1)
                                     viewModel.movePlayerToEnd(player)
                                     undoAction = UndoAction.Move(
                                         player,
@@ -388,15 +509,25 @@ private fun WaitingListPlayerItem(
     isLast: Boolean,
     player: Player,
     showElo: Boolean,
+    highlightPulse: Int,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onMoveToBeginning: () -> Unit,
     onMoveToEnd: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
+    val highlightAlpha = remember { Animatable(0f) }
+
+    LaunchedEffect(highlightPulse) {
+        if (highlightPulse <= 0) return@LaunchedEffect
+        highlightAlpha.snapTo(0.22f)
+        highlightAlpha.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(durationMillis = 500)
+        )
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
         Card(
@@ -460,6 +591,17 @@ private fun WaitingListPlayerItem(
                     }
                 }
             }
+        }
+
+        if (highlightAlpha.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Color.White.copy(alpha = highlightAlpha.value),
+                        shape = MaterialTheme.shapes.medium
+                    )
+            )
         }
 
         DropdownMenu(

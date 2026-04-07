@@ -2,6 +2,8 @@ package com.bismarck.voleimanager.ui.game
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +42,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -400,7 +403,7 @@ fun GameScreenContent(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveGameView(
     viewModel: VoleiViewModel,
@@ -418,9 +421,34 @@ fun ActiveGameView(
     presentPlayerIds: Set<Int>,
     allPlayers: List<Player>
 ) {
+    val waitingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var showWaitingListSheet by remember { mutableStateOf(false) }
+    var waitingPreviewDragProgress by remember { mutableFloatStateOf(0f) }
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
     val teamBStreak = if (streakOwner == "B") currentStreak else 0
+
+    val waitingTransitionProgress =
+        if (showWaitingListSheet) 1f else waitingPreviewDragProgress.coerceIn(0f, 1f)
+    val waitingPreviewAlpha by animateFloatAsState(
+        targetValue = 1f - waitingTransitionProgress,
+        animationSpec = tween(180),
+        label = "waitingPreviewAlpha"
+    )
+    val waitingPreviewOffsetY by animateDpAsState(
+        targetValue = (16 * waitingTransitionProgress).dp,
+        animationSpec = tween(180),
+        label = "waitingPreviewOffsetY"
+    )
+
+    fun openWaitingSheet() {
+        waitingPreviewDragProgress = 0f
+        showWaitingListSheet = true
+    }
+
+    fun closeWaitingSheet() {
+        showWaitingListSheet = false
+        waitingPreviewDragProgress = 0f
+    }
 
     val scoreA by viewModel.scoreA.collectAsState()
     val scoreB by viewModel.scoreB.collectAsState()
@@ -541,11 +569,27 @@ fun ActiveGameView(
                 ) {
                     WaitingListPreviewHeader(
                         waitingCount = waitingList.size,
-                        onOpen = { showWaitingListSheet = true },
+                        onOpen = ::openWaitingSheet,
+                        onDragProgress = { waitingPreviewDragProgress = it },
+                        onDragRelease = { shouldOpen ->
+                            if (shouldOpen) {
+                                openWaitingSheet()
+                            } else {
+                                waitingPreviewDragProgress = 0f
+                            }
+                        },
+                        interactionEnabled = !showWaitingListSheet,
                         modifier = Modifier.fillMaxWidth()
+                            .alpha(waitingPreviewAlpha)
+                            .offset(y = waitingPreviewOffsetY)
                     )
                     Spacer(Modifier.height(8.dp))
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .alpha(waitingPreviewAlpha)
+                            .offset(y = waitingPreviewOffsetY),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         itemsIndexed(
                             waitingList
                         ) { i, p ->
@@ -553,7 +597,7 @@ fun ActiveGameView(
                                 i + 1,
                                 p,
                                 showElo,
-                                onClick = { showWaitingListSheet = true }
+                                onClick = ::openWaitingSheet
                             )
                         }
                     }
@@ -632,14 +676,27 @@ fun ActiveGameView(
             }
             WaitingListPreviewHeader(
                 waitingCount = waitingList.size,
-                onOpen = { showWaitingListSheet = true },
+                onOpen = ::openWaitingSheet,
+                onDragProgress = { waitingPreviewDragProgress = it },
+                onDragRelease = { shouldOpen ->
+                    if (shouldOpen) {
+                        openWaitingSheet()
+                    } else {
+                        waitingPreviewDragProgress = 0f
+                    }
+                },
+                interactionEnabled = !showWaitingListSheet,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .alpha(waitingPreviewAlpha)
+                    .offset(y = waitingPreviewOffsetY)
             )
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 60.dp),
+                    .heightIn(min = 60.dp)
+                    .alpha(waitingPreviewAlpha)
+                    .offset(y = waitingPreviewOffsetY),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 2.dp)
             ) {
@@ -650,7 +707,7 @@ fun ActiveGameView(
                                 .animateItemPlacement()
                                 .fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            onClick = { showWaitingListSheet = true }
+                            onClick = ::openWaitingSheet
                         ) {
                             Text(
                                 text = "Nenhum jogador na fila de espera",
@@ -669,7 +726,7 @@ fun ActiveGameView(
                             i + 1,
                             p,
                             showElo,
-                            onClick = { showWaitingListSheet = true }
+                            onClick = ::openWaitingSheet
                         )
                     }
                 }
@@ -685,7 +742,8 @@ fun ActiveGameView(
             presentPlayerIds = presentPlayerIds,
             allPlayers = allPlayers,
             showElo = showElo,
-            onDismiss = { showWaitingListSheet = false }
+            sheetState = waitingSheetState,
+            onDismiss = ::closeWaitingSheet
         )
     }
 }
@@ -694,29 +752,48 @@ fun ActiveGameView(
 private fun WaitingListPreviewHeader(
     waitingCount: Int,
     onOpen: () -> Unit,
+    onDragProgress: (Float) -> Unit,
+    onDragRelease: (Boolean) -> Unit,
+    interactionEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var accumulatedDrag by remember { mutableStateOf(0f) }
+    val dragRangePx = with(LocalDensity.current) { 200.dp.toPx() }
+    val openThreshold = 0.35f
+    var accumulatedDragPx by remember { mutableFloatStateOf(0f) }
+
+    fun updateProgress(valuePx: Float) {
+        val clamped = valuePx.coerceIn(0f, dragRangePx)
+        onDragProgress((clamped / dragRangePx).coerceIn(0f, 1f))
+    }
 
     Column(
         modifier = modifier
-            .clickable(onClick = onOpen)
-            .pointerInput(onOpen) {
+            .clickable(enabled = interactionEnabled, onClick = onOpen)
+            .pointerInput(onOpen, interactionEnabled) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
+                        if (!interactionEnabled) return@detectVerticalDragGestures
                         change.consume()
-                        if (dragAmount < 0f) {
-                            accumulatedDrag += dragAmount
-                            if (accumulatedDrag <= -24f) {
-                                accumulatedDrag = 0f
-                                onOpen()
-                            }
+                        if (dragAmount < 0f || accumulatedDragPx > 0f) {
+                            accumulatedDragPx = (accumulatedDragPx - dragAmount).coerceAtLeast(0f)
+                            updateProgress(accumulatedDragPx)
                         } else {
-                            accumulatedDrag = 0f
+                            accumulatedDragPx = 0f
+                            onDragProgress(0f)
                         }
                     },
-                    onDragEnd = { accumulatedDrag = 0f },
-                    onDragCancel = { accumulatedDrag = 0f }
+                    onDragEnd = {
+                        if (interactionEnabled) {
+                            val progress = (accumulatedDragPx / dragRangePx).coerceIn(0f, 1f)
+                            onDragRelease(progress >= openThreshold)
+                        }
+                        accumulatedDragPx = 0f
+                        onDragProgress(0f)
+                    },
+                    onDragCancel = {
+                        accumulatedDragPx = 0f
+                        onDragProgress(0f)
+                    }
                 )
             },
         horizontalAlignment = Alignment.CenterHorizontally
@@ -1194,7 +1271,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
             .heightIn(min = 60.dp)
             .clickable(onClick = onClick)
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 "${index}º",
                 fontWeight = FontWeight.Bold,
