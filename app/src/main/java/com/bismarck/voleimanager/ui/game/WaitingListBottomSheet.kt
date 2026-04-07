@@ -685,14 +685,19 @@ private fun InactivePlayerItem(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .widthIn(min = 120.dp)
-                .heightIn(min = 60.dp),
+                .widthIn(min = 120.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
                     alpha = 0.5f
                 )
             )
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 60.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -757,6 +762,7 @@ private fun InactivePlayerItem(
                         },
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
+            }
             }
         }
 

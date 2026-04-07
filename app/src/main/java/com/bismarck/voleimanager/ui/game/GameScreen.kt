@@ -1268,10 +1268,15 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(min = 120.dp)
-            .heightIn(min = 60.dp)
             .clickable(onClick = onClick)
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 60.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 "${index}º",
                 fontWeight = FontWeight.Bold,
@@ -1307,7 +1312,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                 }
             }
         }
+        }
     }
 }
-
 
