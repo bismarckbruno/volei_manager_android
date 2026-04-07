@@ -138,6 +138,7 @@ fun WaitingListBottomSheet(
     var followMoveRequest by remember { mutableStateOf<FollowMoveRequest?>(null) }
     var highlightedPlayerId by remember { mutableStateOf<Int?>(null) }
     var highlightPulse by remember { mutableIntStateOf(0) }
+    var previousWaitingIds by remember { mutableStateOf(waitingList.map { it.id }.toSet()) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -284,6 +285,38 @@ fun WaitingListBottomSheet(
             }
         }
         followMoveRequest = null
+    }
+
+    // Auto-reset highlight after animation to prevent re-trigger on scroll recycling
+    LaunchedEffect(highlightedPlayerId) {
+        if (highlightedPlayerId != null) {
+            delay(700) // highlight animation (500ms) + safety buffer
+            highlightedPlayerId = null
+        }
+    }
+
+    // Detect newly added players (from inactive list, registration, or undo of removal)
+    LaunchedEffect(waitingList) {
+        val currentIds = waitingList.map { it.id }.toSet()
+        val newIds = currentIds - previousWaitingIds
+        previousWaitingIds = currentIds
+
+        if (newIds.size == 1 && followMoveRequest == null) {
+            val newPlayerId = newIds.first()
+            val newIndex = waitingList.indexOfFirst { it.id == newPlayerId }
+            if (newIndex >= 0) {
+                // Wait for any pending scroll (e.g. from inactive→active callback) and composition
+                delay(350)
+                // Scroll to the new player if not already visible
+                val isVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == newIndex }
+                if (!isVisible) {
+                    listState.animateScrollToItem(newIndex)
+                    delay(200)
+                }
+                highlightedPlayerId = newPlayerId
+                highlightPulse += 1
+            }
+        }
     }
 
     fun handleRemoveFromWaiting(player: Player) {

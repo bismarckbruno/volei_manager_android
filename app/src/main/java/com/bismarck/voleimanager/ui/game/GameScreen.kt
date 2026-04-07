@@ -948,7 +948,7 @@ fun ActiveTeamCard(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                            .defaultMinSize(minHeight = 30.dp)
                             .combinedClickable(
                                 onClick = { },
                                 onLongClick = {
@@ -1276,7 +1276,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                 .heightIn(min = 60.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "${index}º",
                 fontWeight = FontWeight.Bold,
