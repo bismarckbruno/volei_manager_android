@@ -4,8 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import com.bismarck.voleimanager.data.AppDatabase
 import com.bismarck.voleimanager.data.VoleiRepository
@@ -33,7 +38,19 @@ class MainActivity : ComponentActivity() {
             AppTheme(
                 darkTheme = darkTheme
             ) {
-                 VoleiManagerApp(
+                val view = LocalView.current
+                val systemBarColor = MaterialTheme.colorScheme.surface.toArgb()
+
+                SideEffect {
+                    window.navigationBarColor = systemBarColor
+                    window.statusBarColor = systemBarColor
+
+                    val insetsController = WindowCompat.getInsetsController(window, view)
+                    insetsController.isAppearanceLightNavigationBars = !darkTheme
+                    insetsController.isAppearanceLightStatusBars = !darkTheme
+                }
+
+                VoleiManagerApp(
                     viewModel,
                     darkTheme
                 )
