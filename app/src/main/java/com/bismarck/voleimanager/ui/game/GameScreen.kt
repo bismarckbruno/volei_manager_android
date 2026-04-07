@@ -346,12 +346,12 @@ fun GameScreenContent(
                                             val all =
                                                 sortedPlayers.all { presentIds.contains(it.id) }
                                             TextButton(
-                                            onClick = {
-                                                viewModel.setAllPlayersPresence(
-                                                    sortedPlayers,
-                                                    !all
-                                                )
-                                            }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                                                onClick = {
+                                                    viewModel.setAllPlayersPresence(
+                                                        sortedPlayers,
+                                                        !all
+                                                    )
+                                                }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
                                         }
                                     }
                                     items(sortedPlayers) { p ->
@@ -398,6 +398,7 @@ fun GameScreenContent(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ActiveGameView(
     viewModel: VoleiViewModel,
@@ -460,7 +461,11 @@ fun ActiveGameView(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Box(modifier = Modifier.weight(1f).heightIn(min = 250.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 250.dp)
+                        ) {
                             ActiveTeamCard(
                                 "Time A",
                                 teamA,
@@ -483,7 +488,11 @@ fun ActiveGameView(
                                 .align(Alignment.CenterVertically),
                             contentAlignment = Alignment.Center
                         ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
-                        Box(modifier = Modifier.weight(1f).heightIn(min = 250.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 250.dp)
+                        ) {
                             ActiveTeamCard(
                                 "Time B",
                                 teamB,
@@ -506,8 +515,8 @@ fun ActiveGameView(
                         onClick = onCancelRequest,
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
-                            .padding(vertical = 4.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                            .padding(top = 4.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp)
                     ) {
                         Text(
                             "Cancelar partida",
@@ -555,7 +564,11 @@ fun ActiveGameView(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                Box(modifier = Modifier.fillMaxWidth().heightIn(min = 250.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 250.dp)
+                ) {
                     ActiveTeamCard(
                         "Time A",
                         teamA,
@@ -578,7 +591,11 @@ fun ActiveGameView(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
-                Box(modifier = Modifier.fillMaxWidth().heightIn(min = 250.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 250.dp)
+                ) {
                     ActiveTeamCard(
                         "Time B",
                         teamB,
@@ -595,7 +612,7 @@ fun ActiveGameView(
                         onPlayerClick = onSubRequest
                     ) { onWinRequest("B") }
                 }
-                
+
                 TextButton(
                     onClick = onCancelRequest,
                     modifier = Modifier
@@ -608,30 +625,51 @@ fun ActiveGameView(
                         textDecoration = TextDecoration.Underline
                     )
                 }
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider()
             }
-            Spacer(Modifier.height(2.dp))
             WaitingListPreviewHeader(
                 waitingCount = waitingList.size,
                 onOpen = { showWaitingListSheet = true },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
             )
-            Spacer(Modifier.height(2.dp))
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 60.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp)
+                contentPadding = PaddingValues(horizontal = 2.dp)
             ) {
-                itemsIndexed(waitingList) { i, p ->
-                    WaitingPlayerCard(
-                        i + 1,
-                        p,
-                        showElo,
-                        onClick = { showWaitingListSheet = true }
-                    )
+                if (waitingList.isEmpty()) {
+                    item(key = "empty_active") {
+                        Card(
+                            modifier = Modifier
+                                .animateItemPlacement()
+                                .fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            onClick = { showWaitingListSheet = true }
+                        ) {
+                            Text(
+                                text = "Nenhum jogador na fila de espera",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            )
+                        }
+                    }
+                } else {
+                    itemsIndexed(waitingList) { i, p ->
+                        WaitingPlayerCard(
+                            i + 1,
+                            p,
+                            showElo,
+                            onClick = { showWaitingListSheet = true }
+                        )
+                    }
                 }
             }
         }
@@ -681,6 +719,7 @@ private fun WaitingListPreviewHeader(
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(Modifier.height(12.dp))
         Box(
             modifier = Modifier
                 .width(32.dp)
@@ -690,13 +729,18 @@ private fun WaitingListPreviewHeader(
                     shape = CircleShape
                 )
         )
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             text = "Na espera ($waitingCount)",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
         )
+        Spacer(Modifier.height(4.dp))
     }
 }
 
@@ -735,8 +779,12 @@ fun ActiveTeamCard(
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column (horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                ) {
                     Text(
                         name,
                         style = MaterialTheme.typography.titleMedium,
@@ -764,7 +812,7 @@ fun ActiveTeamCard(
                     )
                 }
             }
-            
+
             // Score Counter
             if (showScore) {
                 Spacer(Modifier.height(8.dp))
@@ -779,7 +827,11 @@ fun ActiveTeamCard(
                         onClick = onDecrementScore,
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Default.Remove, contentDescription = "Diminuir Placar", tint = contentColor)
+                        Icon(
+                            Icons.Default.Remove,
+                            contentDescription = "Diminuir Placar",
+                            tint = contentColor
+                        )
                     }
                     Text(
                         text = score.toString(),
@@ -792,7 +844,11 @@ fun ActiveTeamCard(
                         onClick = onIncrementScore,
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Aumentar Placar", tint = contentColor)
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Aumentar Placar",
+                            tint = contentColor
+                        )
                     }
                 }
             }
@@ -1068,8 +1124,14 @@ fun PlayerCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     val actualGames = gamesPlayed ?: 0
-                    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
-                    val hasToll = player.dailyToll > 0 && (player.tollDate == targetDate || player.tollDate == today)
+                    val today = remember {
+                        SimpleDateFormat(
+                            "yyyy-MM-dd",
+                            Locale.getDefault()
+                        ).format(Date())
+                    }
+                    val hasToll =
+                        player.dailyToll > 0 && (player.tollDate == targetDate || player.tollDate == today)
 
                     val info = if (actualGames == 0 && !hasToll) {
                         "Nenhum jogo"
@@ -1114,6 +1176,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
+            .fillMaxWidth()
             .widthIn(min = 120.dp)
             .heightIn(min = 60.dp)
             .clickable(onClick = onClick)
@@ -1131,6 +1194,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                     Text(
                         player.name,
                         style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

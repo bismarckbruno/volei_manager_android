@@ -75,6 +75,15 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PersonAddAlt
+import androidx.compose.material.icons.filled.PersonAddAlt1
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.text.style.TextOverflow
 import com.bismarck.voleimanager.data.model.Player
 import com.bismarck.voleimanager.ui.components.simpleScrollbar
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
@@ -84,7 +93,13 @@ import kotlin.math.roundToInt
 private enum class WaitingSection { ACTIVE }
 
 private sealed class UndoAction {
-    data class Move(val player: Player, val fromIndex: Int, val toIndex: Int, val section: WaitingSection) : UndoAction()
+    data class Move(
+        val player: Player,
+        val fromIndex: Int,
+        val toIndex: Int,
+        val section: WaitingSection
+    ) : UndoAction()
+
     data class Remove(val player: Player, val fromIndex: Int) : UndoAction()
     data class Add(val player: Player, val toIndex: Int) : UndoAction()
 }
@@ -104,7 +119,7 @@ fun WaitingListBottomSheet(
     }
     var undoAction by remember { mutableStateOf<UndoAction?>(null) }
     val listState = rememberLazyListState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val density = LocalDensity.current
@@ -112,8 +127,16 @@ fun WaitingListBottomSheet(
     fun performUndo() {
         val action = undoAction ?: return
         when (action) {
-            is UndoAction.Move -> viewModel.moveWaitingPlayerToIndex(action.player, action.fromIndex)
-            is UndoAction.Remove -> viewModel.insertPlayerIntoWaitingList(action.player, action.fromIndex)
+            is UndoAction.Move -> viewModel.moveWaitingPlayerToIndex(
+                action.player,
+                action.fromIndex
+            )
+
+            is UndoAction.Remove -> viewModel.insertPlayerIntoWaitingList(
+                action.player,
+                action.fromIndex
+            )
+
             is UndoAction.Add -> viewModel.removePlayerFromWaitingList(action.player)
         }
         undoAction = null
@@ -126,7 +149,8 @@ fun WaitingListBottomSheet(
                 actionLabel = if (hasUndo) "Desfazer" else null,
                 duration = SnackbarDuration.Short
             )
-            if (result.toString() == "ActionPerformed" && hasUndo) performUndo() else undoAction = null
+            if (result.toString() == "ActionPerformed" && hasUndo) performUndo() else undoAction =
+                null
         }
     }
 
@@ -135,7 +159,10 @@ fun WaitingListBottomSheet(
         if (currentIndex != -1 && currentIndex != targetIndex) {
             undoAction = UndoAction.Move(player, currentIndex, targetIndex, WaitingSection.ACTIVE)
             viewModel.moveWaitingPlayerToIndex(player, targetIndex)
-            showSnackbar("${player.name} foi de ${currentIndex + 1}º para ${targetIndex + 1}º", true)
+            showSnackbar(
+                "${player.name} foi de ${currentIndex + 1}º para ${targetIndex + 1}º",
+                true
+            )
         }
     }
 
@@ -149,34 +176,47 @@ fun WaitingListBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        scrimColor = Color.Black.copy(alpha = 0.32f),
+        scrimColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
         dragHandle = {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 BottomSheetDefaults.DragHandle()
                 Text(
                     text = "Na espera (${waitingList.size})",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
                 )
+                Spacer(Modifier.height(4.dp))
             }
         },
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f)
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
         ) {
             // Box: LazyColumn
-            Box(modifier = Modifier.weight(1f, fill = true).fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f, fill = true)
+                    .fillMaxWidth()
+            ) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxWidth().simpleScrollbar(listState).padding(horizontal = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .simpleScrollbar(listState)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 8.dp)
                 ) {
                     if (waitingList.isEmpty()) {
                         item(key = "empty_active") {
@@ -191,12 +231,16 @@ fun WaitingListBottomSheet(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
                                 )
                             }
                         }
                     } else {
-                        itemsIndexed(waitingList, key = { _, player -> "active_${player.id}" }) { index, player ->
+                        itemsIndexed(
+                            waitingList,
+                            key = { _, player -> "active_${player.id}" }) { index, player ->
                             WaitingListPlayerItem(
                                 modifier = Modifier.animateItemPlacement(),
                                 index = index,
@@ -205,21 +249,33 @@ fun WaitingListBottomSheet(
                                 player = player,
                                 showElo = showElo,
                                 onMoveUp = {
-                                    if (index > 0) viewModel.moveWaitingPlayerToIndex(player, index - 1)
+                                    if (index > 0) viewModel.moveWaitingPlayerToIndex(
+                                        player,
+                                        index - 1
+                                    )
                                 },
                                 onMoveDown = {
-                                    if (index < waitingList.lastIndex) viewModel.moveWaitingPlayerToIndex(player, index + 1)
+                                    if (index < waitingList.lastIndex) viewModel.moveWaitingPlayerToIndex(
+                                        player,
+                                        index + 1
+                                    )
                                 },
                                 onMoveToBeginning = {
                                     val oldIndex = waitingList.indexOfFirst { it.id == player.id }
                                     viewModel.movePlayerToBeginning(player)
-                                    undoAction = UndoAction.Move(player, oldIndex, 0, WaitingSection.ACTIVE)
+                                    undoAction =
+                                        UndoAction.Move(player, oldIndex, 0, WaitingSection.ACTIVE)
                                     showSnackbar("${player.name} foi para o começo da fila", true)
                                 },
                                 onMoveToEnd = {
                                     val oldIndex = waitingList.indexOfFirst { it.id == player.id }
                                     viewModel.movePlayerToEnd(player)
-                                    undoAction = UndoAction.Move(player, oldIndex, waitingList.size - 1, WaitingSection.ACTIVE)
+                                    undoAction = UndoAction.Move(
+                                        player,
+                                        oldIndex,
+                                        waitingList.size - 1,
+                                        WaitingSection.ACTIVE
+                                    )
                                     showSnackbar("${player.name} foi para o final da fila", true)
                                 },
                                 onRemove = {
@@ -230,12 +286,16 @@ fun WaitingListBottomSheet(
                     }
 
                     item(key = "inactive_header") {
-                        Column(modifier = Modifier.animateItemPlacement().fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier
+                                .animateItemPlacement()
+                                .fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Spacer(Modifier.height(8.dp))
-                            HorizontalDivider()
                             Text(
-                                "Jogadores disponíveis (${absentPlayers.size})",
-                                style = MaterialTheme.typography.labelSmall,
+                                "Ausentes (${absentPlayers.size})",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(8.dp)
                             )
@@ -245,14 +305,19 @@ fun WaitingListBottomSheet(
                     if (absentPlayers.isEmpty()) {
                         item(key = "inactive_empty") {
                             Text(
-                                text = "Todos os jogadores estão na fila",
+                                text = "Todos os jogadores cadastrados estão presentes",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.animateItemPlacement().padding(horizontal = 8.dp, vertical = 12.dp)
+                                modifier = Modifier
+                                    .animateItemPlacement()
+                                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                                textAlign = TextAlign.Center
                             )
                         }
                     } else {
-                        itemsIndexed(absentPlayers, key = { _, player -> "inactive_${player.id}" }) { _, player ->
+                        itemsIndexed(
+                            absentPlayers,
+                            key = { _, player -> "inactive_${player.id}" }) { _, player ->
                             InactivePlayerItem(
                                 modifier = Modifier.animateItemPlacement(),
                                 player = player,
@@ -271,7 +336,9 @@ fun WaitingListBottomSheet(
                                     showSnackbar("${player.name} entrou no final da fila", true)
                                     scope.launch {
                                         delay(100)
-                                        if (waitingList.isNotEmpty()) listState.animateScrollToItem(waitingList.size - 1)
+                                        if (waitingList.isNotEmpty()) listState.animateScrollToItem(
+                                            waitingList.size - 1
+                                        )
                                     }
                                 }
                             )
@@ -288,7 +355,8 @@ fun WaitingListBottomSheet(
         alignment = Alignment.BottomCenter,
         properties = PopupProperties(focusable = false)
     ) {
-        val bottomNavPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val bottomNavPadding =
+            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Box(modifier = Modifier.fillMaxWidth()) {
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -335,7 +403,9 @@ private fun WaitingListPlayerItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp)
+                    .widthIn(min = 120.dp)
+                    .heightIn(min = 60.dp)
+                    .padding(12.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {
@@ -354,11 +424,28 @@ private fun WaitingListPlayerItem(
                     Text(
                         "${index + 1}º",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Column {
-                        Text(player.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                player.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (player.isPriority) {
+                                Spacer(Modifier.width(2.dp))
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = "Prioridade",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                         if (showElo) {
                             Text(
                                 EloCalculator.formatElo(player.elo),
@@ -405,7 +492,12 @@ private fun WaitingListPlayerItem(
             )
             DropdownMenuItem(
                 text = { Text("Final da fila") },
-                leadingIcon = { Icon(Icons.Default.VerticalAlignBottom, contentDescription = null) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.VerticalAlignBottom,
+                        contentDescription = null
+                    )
+                },
                 onClick = {
                     onMoveToEnd()
                     showMenu = false
@@ -414,7 +506,13 @@ private fun WaitingListPlayerItem(
             )
             DropdownMenuItem(
                 text = { Text("Remover da fila", color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                },
                 onClick = {
                     onRemove()
                     showMenu = false
@@ -438,13 +536,21 @@ private fun InactivePlayerItem(
 
     Box(modifier = modifier.fillMaxWidth()) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(min = 120.dp)
+                .heightIn(min = 60.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                    alpha = 0.5f
+                )
+            )
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp)
+                    .padding(vertical = 12.dp)
+                    .padding(start = 16.dp, end = 12.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {
@@ -459,7 +565,24 @@ private fun InactivePlayerItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(player.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            player.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (player.isPriority) {
+                            Spacer(Modifier.width(2.dp))
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "Prioridade",
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     if (showElo) {
                         Text(
                             EloCalculator.formatElo(player.elo),
@@ -469,7 +592,7 @@ private fun InactivePlayerItem(
                     }
                 }
                 Icon(
-                    Icons.Default.Add,
+                    Icons.Default.PersonAddAlt1,
                     contentDescription = "Adicionar à fila",
                     modifier = Modifier
                         .size(20.dp)
@@ -503,7 +626,12 @@ private fun InactivePlayerItem(
             )
             DropdownMenuItem(
                 text = { Text("Final da fila") },
-                leadingIcon = { Icon(Icons.Default.VerticalAlignBottom, contentDescription = null) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.VerticalAlignBottom,
+                        contentDescription = null
+                    )
+                },
                 onClick = {
                     onMoveToEnd()
                     showMenu = false
