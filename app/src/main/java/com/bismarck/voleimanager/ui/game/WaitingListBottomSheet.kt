@@ -416,6 +416,7 @@ fun WaitingListBottomSheet(
     allPlayers: List<Player>,
     showElo: Boolean,
     sheetState: SheetState,
+    contentAlpha: Float = 1f,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -442,7 +443,9 @@ fun WaitingListBottomSheet(
                 Spacer(Modifier.height(4.dp))
             }
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(contentAlpha)
     ) {
         Column(
             modifier = Modifier

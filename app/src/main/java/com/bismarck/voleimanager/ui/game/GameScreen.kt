@@ -430,19 +430,17 @@ fun ActiveGameView(
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
     val teamBStreak = if (streakOwner == "B") currentStreak else 0
 
-    val waitingPreviewAlpha = if (showWaitingListSheet) {
-        // Only allow crossfade once the sheet has settled into Expanded
-        // (currentValue stays Hidden during the opening animation → alpha = 0, no flash)
+    // How far the sheet is toward being dismissed (0 = fully expanded, 1 = at preview height)
+    val sheetDismissProgress = if (showWaitingListSheet) {
         val sheetSettled = waitingSheetState.currentValue == SheetValue.Expanded
         if (!sheetSettled) {
-            0f
+            0f // still opening – treat as fully expanded
         } else {
             val screenHeightPx = with(LocalDensity.current) {
                 LocalConfiguration.current.screenHeightDp.dp.toPx()
             }
             val offset = try { waitingSheetState.requireOffset() } catch (_: Exception) { 0f }
             val sheetTopFraction = (offset / screenHeightPx).coerceIn(0f, 1f)
-            // Preview fades in only when the sheet top nears the preview area
             val fadeStart = 0.80f
             if (sheetTopFraction >= fadeStart) {
                 ((sheetTopFraction - fadeStart) / (1f - fadeStart)).coerceIn(0f, 1f)
@@ -451,8 +449,18 @@ fun ActiveGameView(
             }
         }
     } else {
+        0f
+    }
+
+    // Preview fades IN as the sheet is dismissed (or fades out on drag-to-open)
+    val waitingPreviewAlpha = if (showWaitingListSheet) {
+        sheetDismissProgress
+    } else {
         1f - waitingPreviewDragProgress.coerceIn(0f, 1f)
     }
+
+    // Sheet content fades OUT as it approaches the preview area
+    val sheetContentAlpha = 1f - sheetDismissProgress
 
     fun openWaitingSheet() {
         waitingPreviewDragProgress = 0f
@@ -764,6 +772,7 @@ fun ActiveGameView(
             allPlayers = allPlayers,
             showElo = showElo,
             sheetState = waitingSheetState,
+            contentAlpha = sheetContentAlpha,
             onDismiss = ::closeWaitingSheet
         )
     }
