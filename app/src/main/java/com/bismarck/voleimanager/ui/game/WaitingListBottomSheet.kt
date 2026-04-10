@@ -421,7 +421,7 @@ fun WaitingListBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        scrimColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+        scrimColor = Color.Black.copy(alpha = 0.32f),
         dragHandle = {
             Column(
                 modifier = Modifier.fillMaxWidth(),

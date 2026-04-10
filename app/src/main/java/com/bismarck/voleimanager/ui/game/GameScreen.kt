@@ -20,8 +20,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -421,7 +423,7 @@ fun ActiveGameView(
     presentPlayerIds: Set<Int>,
     allPlayers: List<Player>
 ) {
-    val waitingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val waitingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showWaitingListSheet by remember { mutableStateOf(false) }
     var waitingPreviewDragProgress by remember { mutableFloatStateOf(0f) }
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
@@ -681,60 +683,66 @@ fun ActiveGameView(
                 Spacer(Modifier.height(4.dp))
                 HorizontalDivider()
             }
-            WaitingListPreviewHeader(
-                waitingCount = waitingList.size,
-                onOpen = ::openWaitingSheet,
-                onDragProgress = { waitingPreviewDragProgress = it },
-                onDragRelease = { shouldOpen ->
-                    if (shouldOpen) {
-                        openWaitingSheet()
-                    } else {
-                        waitingPreviewDragProgress = 0f
-                    }
-                },
-                interactionEnabled = !showWaitingListSheet,
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .alpha(waitingPreviewAlpha)
-                    .offset(y = waitingPreviewOffsetY)
-            )
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 60.dp)
                     .alpha(waitingPreviewAlpha)
                     .offset(y = waitingPreviewOffsetY),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 2.dp)
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
-                if (waitingList.isEmpty()) {
-                    item(key = "empty_active") {
-                        Card(
-                            modifier = Modifier
-                                .animateItemPlacement()
-                                .fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            onClick = ::openWaitingSheet
-                        ) {
-                            Text(
-                                text = "Nenhum jogador na fila de espera",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            )
+                Column {
+                    WaitingListPreviewHeader(
+                        waitingCount = waitingList.size,
+                        onOpen = ::openWaitingSheet,
+                        onDragProgress = { waitingPreviewDragProgress = it },
+                        onDragRelease = { shouldOpen ->
+                            if (shouldOpen) {
+                                openWaitingSheet()
+                            } else {
+                                waitingPreviewDragProgress = 0f
+                            }
+                        },
+                        interactionEnabled = !showWaitingListSheet,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 60.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp)
+                    ) {
+                        if (waitingList.isEmpty()) {
+                            item(key = "empty_active") {
+                                Card(
+                                    modifier = Modifier
+                                        .animateItemPlacement()
+                                        .fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                    onClick = ::openWaitingSheet
+                                ) {
+                                    Text(
+                                        text = "Nenhum jogador na fila de espera",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            itemsIndexed(waitingList) { i, p ->
+                                WaitingPlayerCard(
+                                    i + 1,
+                                    p,
+                                    showElo,
+                                    onClick = ::openWaitingSheet
+                                )
+                            }
                         }
-                    }
-                } else {
-                    itemsIndexed(waitingList) { i, p ->
-                        WaitingPlayerCard(
-                            i + 1,
-                            p,
-                            showElo,
-                            onClick = ::openWaitingSheet
-                        )
                     }
                 }
             }
@@ -775,7 +783,12 @@ private fun WaitingListPreviewHeader(
 
     Column(
         modifier = modifier
-            .clickable(enabled = interactionEnabled, onClick = onOpen)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = interactionEnabled,
+                onClick = onOpen
+            )
             .pointerInput(onOpen, interactionEnabled) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
