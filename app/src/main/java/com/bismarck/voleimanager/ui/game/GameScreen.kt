@@ -430,11 +430,12 @@ fun ActiveGameView(
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
     val teamBStreak = if (streakOwner == "B") currentStreak else 0
 
-    // How far the sheet is toward being dismissed (0 = fully expanded, 1 = at preview height)
-    val sheetDismissProgress = if (showWaitingListSheet) {
+    // Closing crossfade: only computed once the sheet has settled into Expanded.
+    // During opening, the phantom overlay handles the visual fade-in instead.
+    val sheetFadeProgress = if (showWaitingListSheet) {
         val sheetSettled = waitingSheetState.currentValue == SheetValue.Expanded
         if (!sheetSettled) {
-            0f // still opening – treat as fully expanded
+            0f
         } else {
             val screenHeightPx = with(LocalDensity.current) {
                 LocalConfiguration.current.screenHeightDp.dp.toPx()
@@ -452,15 +453,15 @@ fun ActiveGameView(
         0f
     }
 
-    // Preview fades IN as the sheet is dismissed (or fades out on drag-to-open)
+    // Preview: hidden during opening (0), crossfades in during closing
     val waitingPreviewAlpha = if (showWaitingListSheet) {
-        sheetDismissProgress
+        sheetFadeProgress
     } else {
         1f - waitingPreviewDragProgress.coerceIn(0f, 1f)
     }
 
-    // Sheet content fades OUT as it approaches the preview area
-    val sheetContentAlpha = 1f - sheetDismissProgress
+    // Sheet: fully opaque during opening, crossfades out during closing
+    val sheetContentAlpha = 1f - sheetFadeProgress
 
     fun openWaitingSheet() {
         waitingPreviewDragProgress = 0f
@@ -496,6 +497,7 @@ fun ActiveGameView(
         if (isLandscape) showWaitingListSheet = false
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -762,6 +764,40 @@ fun ActiveGameView(
             }
         }
     }
+
+    // Phantom sheet overlay during drag-to-open (portrait only).
+    // Fades in and rises from the bottom in sync with the preview fading out.
+    if (!isLandscape && !showWaitingListSheet && waitingPreviewDragProgress > 0f) {
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .alpha(waitingPreviewDragProgress)
+                .offset(y = 48.dp * (1f - waitingPreviewDragProgress)),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shadowElevation = 1.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                BottomSheetDefaults.DragHandle()
+                Text(
+                    text = "Na espera (${waitingList.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                )
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+    }
+    } // end Box
 
     // Bottom Sheet for waiting list management (portrait only)
     if (!isLandscape && showWaitingListSheet) {
