@@ -94,8 +94,6 @@ import com.bismarck.voleimanager.data.model.Player
 import com.bismarck.voleimanager.ui.components.simpleScrollbar
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 private enum class WaitingSection { ACTIVE }
 
@@ -111,12 +109,6 @@ private sealed class UndoAction {
     data class Add(val player: Player, val toIndex: Int) : UndoAction()
 }
 
-private data class FollowMoveRequest(
-    val playerId: Int,
-    val fromIndex: Int,
-    val toIndex: Int,
-    val shouldFollow: Boolean
-)
 
 private const val WAITING_ITEM_REORDER_DURATION_MS = 220
 
@@ -135,7 +127,7 @@ fun WaitingListBottomSheet(
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
     }
     var undoAction by remember { mutableStateOf<UndoAction?>(null) }
-    var followMoveRequest by remember { mutableStateOf<FollowMoveRequest?>(null) }
+    var scrollHighlightJob by remember { mutableStateOf<Job?>(null) }
     var highlightedPlayerId by remember { mutableStateOf<Int?>(null) }
     var highlightPulse by remember { mutableIntStateOf(0) }
     var previousWaitingIds by remember { mutableStateOf(waitingList.map { it.id }.toSet()) }
@@ -189,102 +181,37 @@ fun WaitingListBottomSheet(
         }
     }
 
-    // Prevents LazyColumn's key-based scroll anchoring from chasing a moved item.
-    // When the first visible item is being moved far away, we re-anchor the scroll
-    // to the next item so the viewport stays in place.
-    fun preventAutoScrollForLargeMove(fromIndex: Int, toIndex: Int) {
-        val moveDistance = abs(toIndex - fromIndex)
-        if (moveDistance <= 1) return // single-step moves are fine
+    // After any move, scroll to show the card at its destination and highlight it.
+    // Uses a direct scope.launch — no reactive LaunchedEffect, no timing races.
+    fun scrollToAndHighlight(playerId: Int, targetIndex: Int) {
+        scrollHighlightJob?.cancel()
+        scrollHighlightJob = scope.launch {
+            // Wait for ViewModel update + recomposition + LazyColumn layout to fully settle
+            delay(300)
 
-        val firstVisibleInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return
-        val firstVisibleIndex = firstVisibleInfo.index
+            val visibleIndices = listState.layoutInfo.visibleItemsInfo.map { it.index }
 
-        // Only needed when the moved item is at or very near the scroll anchor (first visible)
-        if (fromIndex in firstVisibleIndex..(firstVisibleIndex + 1)) {
-            val nextAnchor = (firstVisibleIndex + 1).coerceAtMost(
-                listState.layoutInfo.totalItemsCount - 1
-            )
-            scope.launch {
-                listState.scrollToItem(nextAnchor, 0)
-            }
-        }
-    }
+            // Ensure both the target AND one position above are visible,
+            // so the swap animation context is shown (e.g. 1st↔2nd both on screen)
+            val contextIndex = (targetIndex - 1).coerceAtLeast(0)
 
-    fun queueFollowForMove(player: Player, fromIndex: Int, toIndex: Int) {
-        if (fromIndex == -1 || toIndex == fromIndex) return
-
-        val visibleActiveItems = listState.layoutInfo.visibleItemsInfo
-            .map { it.index }
-            .filter { it in waitingList.indices }
-
-        if (visibleActiveItems.isEmpty()) return
-
-        val firstVisibleActive = visibleActiveItems.first()
-        val lastVisibleActive = visibleActiveItems.last()
-        val moveDistance = abs(toIndex - fromIndex)
-        val touchesTopEdge = fromIndex <= firstVisibleActive + 1 || toIndex <= firstVisibleActive + 1
-        val touchesBottomEdge = fromIndex >= lastVisibleActive - 1 || toIndex >= lastVisibleActive - 1
-
-        val shouldFollow: Boolean = when {
-            moveDistance > 1 -> false
-            else -> touchesTopEdge || touchesBottomEdge
-        }
-
-        // For large moves, prevent LazyColumn from auto-scrolling to follow the keyed item
-        if (!shouldFollow) {
-            preventAutoScrollForLargeMove(fromIndex, toIndex)
-        }
-
-        followMoveRequest = FollowMoveRequest(
-            playerId = player.id,
-            fromIndex = fromIndex,
-            toIndex = toIndex,
-            shouldFollow = shouldFollow
-        )
-    }
-
-    LaunchedEffect(waitingList, followMoveRequest) {
-        val request = followMoveRequest ?: return@LaunchedEffect
-        val movedIndex = waitingList.indexOfFirst { it.id == request.playerId }
-
-        if (movedIndex != request.toIndex) return@LaunchedEffect
-
-        if (movedIndex >= 0) {
-            if (request.shouldFollow) {
-                val visibleActiveItems = listState.layoutInfo.visibleItemsInfo
-                    .map { it.index }
-                    .filter { it in waitingList.indices }
-
-                if (visibleActiveItems.isEmpty()) {
-                    listState.scrollToItem(movedIndex)
+            if (contextIndex !in visibleIndices || targetIndex !in visibleIndices) {
+                val firstVisible = visibleIndices.firstOrNull() ?: 0
+                val scrollTarget = if (targetIndex <= firstVisible) {
+                    // Card is at or above viewport → show context above the target
+                    contextIndex
                 } else {
-                    val firstVisibleActive = visibleActiveItems.first()
-                    val lastVisibleActive = visibleActiveItems.last()
-                    val visibleCount = visibleActiveItems.size
-                    val topAnchorIndex = (movedIndex - 1).coerceAtLeast(0)
-                    val bottomAnchorIndex =
-                        (movedIndex - visibleCount + 2).coerceAtLeast(0)
-
-                    when {
-                        movedIndex <= firstVisibleActive + 1 -> {
-                            scope.launch { listState.animateScrollToItem(topAnchorIndex) }
-                        }
-
-                        movedIndex >= lastVisibleActive - 1 -> {
-                            scope.launch { listState.animateScrollToItem(bottomAnchorIndex) }
-                        }
-                    }
+                    // Card is below viewport → position it near the bottom
+                    val visibleCount = visibleIndices.size.coerceAtLeast(1)
+                    (targetIndex - visibleCount + 2).coerceAtLeast(0)
                 }
+                listState.animateScrollToItem(scrollTarget)
             }
 
             delay(WAITING_ITEM_REORDER_DURATION_MS.toLong())
-
-            if (waitingList.indexOfFirst { it.id == request.playerId } == request.toIndex) {
-                highlightedPlayerId = request.playerId
-                highlightPulse += 1
-            }
+            highlightedPlayerId = playerId
+            highlightPulse += 1
         }
-        followMoveRequest = null
     }
 
     // Auto-reset highlight after animation to prevent re-trigger on scroll recycling
@@ -301,7 +228,7 @@ fun WaitingListBottomSheet(
         val newIds = currentIds - previousWaitingIds
         previousWaitingIds = currentIds
 
-        if (newIds.size == 1 && followMoveRequest == null) {
+        if (newIds.size == 1 && scrollHighlightJob?.isActive != true) {
             val newPlayerId = newIds.first()
             val newIndex = waitingList.indexOfFirst { it.id == newPlayerId }
             if (newIndex >= 0) {
@@ -404,28 +331,28 @@ fun WaitingListBottomSheet(
                                 highlightPulse = if (highlightedPlayerId == player.id) highlightPulse else 0,
                                 onMoveUp = {
                                     if (index > 0) {
-                                        queueFollowForMove(player, index, index - 1)
                                         viewModel.moveWaitingPlayerToIndex(player, index - 1)
+                                        scrollToAndHighlight(player.id, index - 1)
                                     }
                                 },
                                 onMoveDown = {
                                     if (index < waitingList.lastIndex) {
-                                        queueFollowForMove(player, index, index + 1)
                                         viewModel.moveWaitingPlayerToIndex(player, index + 1)
+                                        scrollToAndHighlight(player.id, index + 1)
                                     }
                                 },
                                 onMoveToBeginning = {
                                     val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                                    queueFollowForMove(player, oldIndex, 0)
                                     viewModel.movePlayerToBeginning(player)
+                                    scrollToAndHighlight(player.id, 0)
                                     undoAction =
                                         UndoAction.Move(player, oldIndex, 0, WaitingSection.ACTIVE)
                                     showSnackbar("${player.name} foi para o começo da fila", true)
                                 },
                                 onMoveToEnd = {
                                     val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                                    queueFollowForMove(player, oldIndex, waitingList.size - 1)
                                     viewModel.movePlayerToEnd(player)
+                                    scrollToAndHighlight(player.id, waitingList.size - 1)
                                     undoAction = UndoAction.Move(
                                         player,
                                         oldIndex,
