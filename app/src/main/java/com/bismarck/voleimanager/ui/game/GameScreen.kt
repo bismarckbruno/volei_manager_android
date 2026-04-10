@@ -279,6 +279,9 @@ fun GameScreenContent(
             } else {
                 AnimatedContent(
                     targetState = teamA.isNotEmpty() || teamB.isNotEmpty(),
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(150))
+                    },
                     label = "GameActiveAnim"
                 ) { active ->
                     if (active) {
@@ -677,7 +680,6 @@ fun ActiveGameView(
                     )
                 }
                 Spacer(Modifier.height(4.dp))
-                HorizontalDivider()
             }
             Surface(
                 modifier = Modifier
