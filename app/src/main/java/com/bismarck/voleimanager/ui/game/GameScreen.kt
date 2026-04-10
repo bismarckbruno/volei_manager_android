@@ -2,8 +2,6 @@ package com.bismarck.voleimanager.ui.game
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -432,18 +430,29 @@ fun ActiveGameView(
     val teamAStreak = if (streakOwner == "A") currentStreak else 0
     val teamBStreak = if (streakOwner == "B") currentStreak else 0
 
-    val waitingTransitionProgress =
-        if (showWaitingListSheet) 1f else waitingPreviewDragProgress.coerceIn(0f, 1f)
-    val waitingPreviewAlpha by animateFloatAsState(
-        targetValue = 1f - waitingTransitionProgress,
-        animationSpec = tween(180),
-        label = "waitingPreviewAlpha"
-    )
-    val waitingPreviewOffsetY by animateDpAsState(
-        targetValue = (16 * waitingTransitionProgress).dp,
-        animationSpec = tween(180),
-        label = "waitingPreviewOffsetY"
-    )
+    val waitingPreviewAlpha = if (showWaitingListSheet) {
+        // Only allow crossfade once the sheet has settled into Expanded
+        // (currentValue stays Hidden during the opening animation → alpha = 0, no flash)
+        val sheetSettled = waitingSheetState.currentValue == SheetValue.Expanded
+        if (!sheetSettled) {
+            0f
+        } else {
+            val screenHeightPx = with(LocalDensity.current) {
+                LocalConfiguration.current.screenHeightDp.dp.toPx()
+            }
+            val offset = try { waitingSheetState.requireOffset() } catch (_: Exception) { 0f }
+            val sheetTopFraction = (offset / screenHeightPx).coerceIn(0f, 1f)
+            // Preview fades in only when the sheet top nears the preview area
+            val fadeStart = 0.80f
+            if (sheetTopFraction >= fadeStart) {
+                ((sheetTopFraction - fadeStart) / (1f - fadeStart)).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+        }
+    } else {
+        1f - waitingPreviewDragProgress.coerceIn(0f, 1f)
+    }
 
     fun openWaitingSheet() {
         waitingPreviewDragProgress = 0f
@@ -684,8 +693,7 @@ fun ActiveGameView(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .alpha(waitingPreviewAlpha)
-                    .offset(y = waitingPreviewOffsetY),
+                    .alpha(waitingPreviewAlpha),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
