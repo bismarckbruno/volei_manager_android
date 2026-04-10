@@ -2,17 +2,15 @@ package com.bismarck.voleimanager.ui
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.outlined.SportsSoccer
@@ -48,7 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 // --- TELA DE HISTÓRICO ---
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Boolean, showScore: Boolean = true) {
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
@@ -58,7 +57,9 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
     val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
 
     // 0 = Partidas, 1 = Jogadores
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+    val selectedTab by remember { derivedStateOf { pagerState.currentPage } }
+    val coroutineScope = rememberCoroutineScope()
     // Match sort: true = newest first
     var matchSortNewest by remember { mutableStateOf(true) }
     // Player sort: true = by Elo, false = alphabetical
@@ -180,7 +181,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
             SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
                 SegmentedButton(
                     selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     icon = { SegmentedButtonDefaults.Icon(active = selectedTab == 0) {
                         Icon(Icons.Outlined.SportsSoccer, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
@@ -191,7 +192,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
                 }
                 SegmentedButton(
                     selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     icon = { SegmentedButtonDefaults.Icon(active = selectedTab == 1) {
                         Icon(Icons.Default.Groups, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
@@ -260,21 +261,13 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
         }
         Spacer(Modifier.height(12.dp))
 
-        // --- Animated content switching between matches and players ---
-        AnimatedContent(
-            targetState = selectedTab,
-            transitionSpec = {
-                if (targetState > initialState) {
-                    slideInHorizontally { width -> width } togetherWith
-                            slideOutHorizontally { width -> -width }
-                } else {
-                    slideInHorizontally { width -> -width } togetherWith
-                            slideOutHorizontally { width -> width }
-                } using SizeTransform(clip = false)
-            },
-            label = "HistoryTabContent"
-        ) { tab ->
-            when (tab) {
+        // --- HorizontalPager for swipe between matches and players ---
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            pageSpacing = 16.dp
+        ) { page ->
+            when (page) {
                 0 -> {
                     // --- Matches view ---
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -359,6 +352,14 @@ fun HistoryPlayerCard(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                } else {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.width(8.dp))
                 }
