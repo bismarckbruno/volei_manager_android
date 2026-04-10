@@ -774,7 +774,7 @@ fun ActiveGameView(
                 .fillMaxWidth()
                 .alpha(waitingPreviewDragProgress)
                 .offset(y = 48.dp * (1f - waitingPreviewDragProgress)),
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             shadowElevation = 1.dp
         ) {
@@ -793,7 +793,7 @@ fun ActiveGameView(
                         .fillMaxWidth()
                         .padding(bottom = 8.dp)
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(41.dp))
             }
         }
     }
