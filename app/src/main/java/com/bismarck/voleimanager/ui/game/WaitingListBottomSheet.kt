@@ -250,13 +250,17 @@ internal fun WaitingListContent(
         showSnackbar("${player.name} saiu da fila de espera", true)
     }
 
+    // Ensure enough end padding so the scrollbar track (drawn at width−8dp, 4dp wide)
+    // doesn't overlap the cards. At least 10dp keeps a small gap.
+    val endPadding = maxOf(horizontalPadding, 10.dp)
+
     Box(modifier = modifier) {
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .simpleScrollbar(listState)
-                .padding(horizontal = horizontalPadding),
+                .padding(start = horizontalPadding, end = endPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 56.dp)
         ) {
