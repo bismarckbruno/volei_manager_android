@@ -69,6 +69,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -81,6 +82,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -112,16 +114,16 @@ private sealed class UndoAction {
 
 private const val WAITING_ITEM_REORDER_DURATION_MS = 220
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun WaitingListBottomSheet(
+internal fun WaitingListContent(
     viewModel: VoleiViewModel,
     waitingList: List<Player>,
     presentPlayerIds: Set<Int>,
     allPlayers: List<Player>,
     showElo: Boolean,
-    sheetState: SheetState,
-    onDismiss: () -> Unit
+    modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 16.dp
 ) {
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
@@ -134,7 +136,6 @@ fun WaitingListBottomSheet(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val density = LocalDensity.current
     val reorderAnimationSpec = remember {
         tween<IntOffset>(durationMillis = WAITING_ITEM_REORDER_DURATION_MS)
     }
@@ -169,24 +170,9 @@ fun WaitingListBottomSheet(
         }
     }
 
-    fun movePlayerInWaitingList(player: Player, targetIndex: Int) {
-        val currentIndex = waitingList.indexOfFirst { it.id == player.id }
-        if (currentIndex != -1 && currentIndex != targetIndex) {
-            undoAction = UndoAction.Move(player, currentIndex, targetIndex, WaitingSection.ACTIVE)
-            viewModel.moveWaitingPlayerToIndex(player, targetIndex)
-            showSnackbar(
-                "${player.name} foi de ${currentIndex + 1}º para ${targetIndex + 1}º",
-                true
-            )
-        }
-    }
-
-    // After any move, scroll to show the card at its destination and highlight it.
-    // Uses a direct scope.launch — no reactive LaunchedEffect, no timing races.
     fun scrollToAndHighlight(playerId: Int, targetIndex: Int) {
         scrollHighlightJob?.cancel()
         scrollHighlightJob = scope.launch {
-            // Wait for ViewModel update + recomposition + LazyColumn layout to fully settle
             delay(300)
 
             val layoutInfo = listState.layoutInfo
@@ -262,6 +248,168 @@ fun WaitingListBottomSheet(
         showSnackbar("${player.name} saiu da fila de espera", true)
     }
 
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .simpleScrollbar(listState)
+                .padding(horizontal = horizontalPadding),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 56.dp)
+        ) {
+            if (waitingList.isEmpty()) {
+                item(key = "empty_active") {
+                    Card(
+                        modifier = Modifier
+                            .animateItemPlacement()
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Text(
+                            text = "Nenhum jogador na fila de espera",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        )
+                    }
+                }
+            } else {
+                itemsIndexed(
+                    waitingList,
+                    key = { _, player -> "active_${player.id}" }) { index, player ->
+                    WaitingListPlayerItem(
+                        modifier = Modifier.animateItemPlacement(reorderAnimationSpec),
+                        index = index,
+                        isFirst = index == 0,
+                        isLast = index == waitingList.lastIndex,
+                        player = player,
+                        showElo = showElo,
+                        highlightPulse = if (highlightedPlayerId == player.id) highlightPulse else 0,
+                        onMoveUp = {
+                            if (index > 0) {
+                                viewModel.moveWaitingPlayerToIndex(player, index - 1)
+                                scrollToAndHighlight(player.id, index - 1)
+                            }
+                        },
+                        onMoveDown = {
+                            if (index < waitingList.lastIndex) {
+                                viewModel.moveWaitingPlayerToIndex(player, index + 1)
+                                scrollToAndHighlight(player.id, index + 1)
+                            }
+                        },
+                        onMoveToBeginning = {
+                            val oldIndex = waitingList.indexOfFirst { it.id == player.id }
+                            viewModel.movePlayerToBeginning(player)
+                            scrollToAndHighlight(player.id, 0)
+                            undoAction =
+                                UndoAction.Move(player, oldIndex, 0, WaitingSection.ACTIVE)
+                            showSnackbar("${player.name} foi para o começo da fila", true)
+                        },
+                        onMoveToEnd = {
+                            val oldIndex = waitingList.indexOfFirst { it.id == player.id }
+                            viewModel.movePlayerToEnd(player)
+                            scrollToAndHighlight(player.id, waitingList.size - 1)
+                            undoAction = UndoAction.Move(
+                                player,
+                                oldIndex,
+                                waitingList.size - 1,
+                                WaitingSection.ACTIVE
+                            )
+                            showSnackbar("${player.name} foi para o final da fila", true)
+                        },
+                        onRemove = {
+                            handleRemoveFromWaiting(player)
+                        }
+                    )
+                }
+            }
+
+            item(key = "inactive_header") {
+                Column(
+                    modifier = Modifier
+                        .animateItemPlacement()
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Ausentes (${absentPlayers.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+
+            if (absentPlayers.isEmpty()) {
+                item(key = "inactive_empty") {
+                    Text(
+                        text = "Todos os jogadores cadastrados estão presentes",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .animateItemPlacement()
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                itemsIndexed(
+                    absentPlayers,
+                    key = { _, player -> "inactive_${player.id}" }) { _, player ->
+                    InactivePlayerItem(
+                        modifier = Modifier.animateItemPlacement(),
+                        player = player,
+                        showElo = showElo,
+                        onMoveToBeginning = {
+                            val targetIndex = 0
+                            undoAction = UndoAction.Add(player, targetIndex)
+                            viewModel.insertPlayerIntoWaitingList(player, targetIndex)
+                            showSnackbar("${player.name} entrou no começo da fila", true)
+                            scope.launch { delay(100); listState.animateScrollToItem(0) }
+                        },
+                        onMoveToEnd = {
+                            val targetIndex = waitingList.size
+                            undoAction = UndoAction.Add(player, targetIndex)
+                            viewModel.insertPlayerIntoWaitingList(player, targetIndex)
+                            showSnackbar("${player.name} entrou no final da fila", true)
+                            scope.launch {
+                                delay(100)
+                                if (waitingList.isNotEmpty()) listState.animateScrollToItem(
+                                    waitingList.size - 1
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        } // end LazyColumn
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        )
+    } // end Box
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun WaitingListBottomSheet(
+    viewModel: VoleiViewModel,
+    waitingList: List<Player>,
+    presentPlayerIds: Set<Int>,
+    allPlayers: List<Player>,
+    showElo: Boolean,
+    sheetState: SheetState,
+    onDismiss: () -> Unit
+) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -292,179 +440,17 @@ fun WaitingListBottomSheet(
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
         ) {
-            // Box: LazyColumn
-            Box(
+            WaitingListContent(
+                viewModel = viewModel,
+                waitingList = waitingList,
+                presentPlayerIds = presentPlayerIds,
+                allPlayers = allPlayers,
+                showElo = showElo,
                 modifier = Modifier
+                    .fillMaxWidth()
                     .weight(1f, fill = true)
-                    .fillMaxWidth()
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .simpleScrollbar(listState)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 8.dp)
-                ) {
-                    if (waitingList.isEmpty()) {
-                        item(key = "empty_active") {
-                            Card(
-                                modifier = Modifier
-                                    .animateItemPlacement()
-                                    .fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Text(
-                                    text = "Nenhum jogador na fila de espera",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                )
-                            }
-                        }
-                    } else {
-                        itemsIndexed(
-                            waitingList,
-                            key = { _, player -> "active_${player.id}" }) { index, player ->
-                            WaitingListPlayerItem(
-                                modifier = Modifier.animateItemPlacement(reorderAnimationSpec),
-                                index = index,
-                                isFirst = index == 0,
-                                isLast = index == waitingList.lastIndex,
-                                player = player,
-                                showElo = showElo,
-                                highlightPulse = if (highlightedPlayerId == player.id) highlightPulse else 0,
-                                onMoveUp = {
-                                    if (index > 0) {
-                                        viewModel.moveWaitingPlayerToIndex(player, index - 1)
-                                        scrollToAndHighlight(player.id, index - 1)
-                                    }
-                                },
-                                onMoveDown = {
-                                    if (index < waitingList.lastIndex) {
-                                        viewModel.moveWaitingPlayerToIndex(player, index + 1)
-                                        scrollToAndHighlight(player.id, index + 1)
-                                    }
-                                },
-                                onMoveToBeginning = {
-                                    val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                                    viewModel.movePlayerToBeginning(player)
-                                    scrollToAndHighlight(player.id, 0)
-                                    undoAction =
-                                        UndoAction.Move(player, oldIndex, 0, WaitingSection.ACTIVE)
-                                    showSnackbar("${player.name} foi para o começo da fila", true)
-                                },
-                                onMoveToEnd = {
-                                    val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                                    viewModel.movePlayerToEnd(player)
-                                    scrollToAndHighlight(player.id, waitingList.size - 1)
-                                    undoAction = UndoAction.Move(
-                                        player,
-                                        oldIndex,
-                                        waitingList.size - 1,
-                                        WaitingSection.ACTIVE
-                                    )
-                                    showSnackbar("${player.name} foi para o final da fila", true)
-                                },
-                                onRemove = {
-                                    handleRemoveFromWaiting(player)
-                                }
-                            )
-                        }
-                    }
-
-                    item(key = "inactive_header") {
-                        Column(
-                            modifier = Modifier
-                                .animateItemPlacement()
-                                .fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "Ausentes (${absentPlayers.size})",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
-                    }
-
-                    if (absentPlayers.isEmpty()) {
-                        item(key = "inactive_empty") {
-                            Text(
-                                text = "Todos os jogadores cadastrados estão presentes",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .animateItemPlacement()
-                                    .padding(horizontal = 8.dp, vertical = 12.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    } else {
-                        itemsIndexed(
-                            absentPlayers,
-                            key = { _, player -> "inactive_${player.id}" }) { _, player ->
-                            InactivePlayerItem(
-                                modifier = Modifier.animateItemPlacement(),
-                                player = player,
-                                showElo = showElo,
-                                onMoveToBeginning = {
-                                    val targetIndex = 0
-                                    undoAction = UndoAction.Add(player, targetIndex)
-                                    viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                    showSnackbar("${player.name} entrou no começo da fila", true)
-                                    scope.launch { delay(100); listState.animateScrollToItem(0) }
-                                },
-                                onMoveToEnd = {
-                                    val targetIndex = waitingList.size
-                                    undoAction = UndoAction.Add(player, targetIndex)
-                                    viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                    showSnackbar("${player.name} entrou no final da fila", true)
-                                    scope.launch {
-                                        delay(100)
-                                        if (waitingList.isNotEmpty()) listState.animateScrollToItem(
-                                            waitingList.size - 1
-                                        )
-                                    }
-                                }
-                            )
-                        }
-                    }
-                } // end LazyColumn
-            } // end Box
-
+            )
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-        } // end Column
-    } // end ModalBottomSheet
-
-    Popup(
-        alignment = Alignment.BottomCenter,
-        properties = PopupProperties(focusable = false)
-    ) {
-        val bottomNavPadding =
-            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        Box(modifier = Modifier.fillMaxWidth()) {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = bottomNavPadding + 16.dp)
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .windowInsetsBottomHeight(WindowInsets.navigationBars)
-                    .background(Color.Black)
-            )
         }
     }
 }

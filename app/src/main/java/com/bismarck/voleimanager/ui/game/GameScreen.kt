@@ -469,6 +469,11 @@ fun ActiveGameView(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    // Dismiss bottom sheet when rotating to landscape (inline list replaces it)
+    LaunchedEffect(isLandscape) {
+        if (isLandscape) showWaitingListSheet = false
+    }
+
     Column(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -567,40 +572,27 @@ fun ActiveGameView(
                         .weight(0.25f)
                         .fillMaxHeight()
                 ) {
-                    WaitingListPreviewHeader(
-                        waitingCount = waitingList.size,
-                        onOpen = ::openWaitingSheet,
-                        onDragProgress = { waitingPreviewDragProgress = it },
-                        onDragRelease = { shouldOpen ->
-                            if (shouldOpen) {
-                                openWaitingSheet()
-                            } else {
-                                waitingPreviewDragProgress = 0f
-                            }
-                        },
-                        interactionEnabled = !showWaitingListSheet,
-                        modifier = Modifier.fillMaxWidth()
-                            .alpha(waitingPreviewAlpha)
-                            .offset(y = waitingPreviewOffsetY)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LazyColumn(
+                    Text(
+                        text = "Na espera (${waitingList.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier
-                            .alpha(waitingPreviewAlpha)
-                            .offset(y = waitingPreviewOffsetY),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        itemsIndexed(
-                            waitingList
-                        ) { i, p ->
-                            WaitingPlayerCard(
-                                i + 1,
-                                p,
-                                showElo,
-                                onClick = ::openWaitingSheet
-                            )
-                        }
-                    }
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    )
+                    WaitingListContent(
+                        viewModel = viewModel,
+                        waitingList = waitingList,
+                        presentPlayerIds = presentPlayerIds,
+                        allPlayers = allPlayers,
+                        showElo = showElo,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        horizontalPadding = 4.dp
+                    )
                 }
             }
         } else {
@@ -734,8 +726,8 @@ fun ActiveGameView(
         }
     }
 
-    // Bottom Sheet for waiting list management
-    if (showWaitingListSheet) {
+    // Bottom Sheet for waiting list management (portrait only)
+    if (!isLandscape && showWaitingListSheet) {
         WaitingListBottomSheet(
             viewModel = viewModel,
             waitingList = waitingList,
