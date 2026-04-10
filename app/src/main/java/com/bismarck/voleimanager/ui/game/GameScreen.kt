@@ -571,7 +571,7 @@ fun ActiveGameView(
                     .fillMaxHeight()
                     .width(1.dp)
                     .alpha(0.2f)
-            ); Spacer(Modifier.width(16.dp))
+            ); Spacer(Modifier.width(2.dp))
                 Column(
                     modifier = Modifier
                         .weight(0.25f)
@@ -585,7 +585,7 @@ fun ActiveGameView(
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp)
+                            .padding(bottom = 8.dp)
                     )
                     WaitingListContent(
                         viewModel = viewModel,
