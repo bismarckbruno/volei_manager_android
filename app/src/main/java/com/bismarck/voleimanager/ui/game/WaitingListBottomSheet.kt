@@ -422,6 +422,7 @@ fun WaitingListBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         scrimColor = Color.Black.copy(alpha = 0.32f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = {
             Column(
                 modifier = Modifier.fillMaxWidth(),

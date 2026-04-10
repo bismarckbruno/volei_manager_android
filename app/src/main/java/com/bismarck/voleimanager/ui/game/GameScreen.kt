@@ -478,8 +478,6 @@ fun ActiveGameView(
 
     Column(
         modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 8.dp)
             .fillMaxSize()
     ) {
         if (isLandscape) {
@@ -488,6 +486,8 @@ fun ActiveGameView(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp)
             ) {
             Row(
                 modifier = Modifier
@@ -568,12 +568,7 @@ fun ActiveGameView(
                         )
                     }
                 }
-                Spacer(Modifier.width(16.dp)); HorizontalDivider(
-                Modifier
-                    .fillMaxHeight()
-                    .width(1.dp)
-                    .alpha(0.2f)
-            ); Spacer(Modifier.width(2.dp))
+                Spacer(Modifier.width(16.dp))
                 Column(
                     modifier = Modifier
                         .weight(0.25f)
@@ -617,6 +612,7 @@ fun ActiveGameView(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Box(
@@ -711,7 +707,7 @@ fun ActiveGameView(
                             .fillMaxWidth()
                             .heightIn(min = 60.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(horizontal = 2.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp)
                     ) {
                         if (waitingList.isEmpty()) {
                             item(key = "empty_active") {

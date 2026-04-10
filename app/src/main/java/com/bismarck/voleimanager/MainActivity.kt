@@ -39,11 +39,12 @@ class MainActivity : ComponentActivity() {
                 darkTheme = darkTheme
             ) {
                 val view = LocalView.current
-                val systemBarColor = MaterialTheme.colorScheme.surface.toArgb()
+                val statusBarColor = MaterialTheme.colorScheme.surface.toArgb()
+                val navBarColor = MaterialTheme.colorScheme.surfaceContainerLow.toArgb()
 
                 SideEffect {
-                    window.navigationBarColor = systemBarColor
-                    window.statusBarColor = systemBarColor
+                    window.navigationBarColor = navBarColor
+                    window.statusBarColor = statusBarColor
 
                     val insetsController = WindowCompat.getInsetsController(window, view)
                     insetsController.isAppearanceLightNavigationBars = !darkTheme
