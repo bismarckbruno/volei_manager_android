@@ -189,13 +189,22 @@ fun WaitingListBottomSheet(
             // Wait for ViewModel update + recomposition + LazyColumn layout to fully settle
             delay(300)
 
-            val visibleIndices = listState.layoutInfo.visibleItemsInfo.map { it.index }
+            val layoutInfo = listState.layoutInfo
 
-            // Ensure both the target AND one position above are visible,
+            // Check if an item is fully visible (not just partially peeking at an edge)
+            fun isFullyVisible(index: Int): Boolean {
+                val item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                    ?: return false
+                return item.offset >= layoutInfo.viewportStartOffset &&
+                        item.offset + item.size <= layoutInfo.viewportEndOffset
+            }
+
+            // Ensure both the target AND one position above are fully visible,
             // so the swap animation context is shown (e.g. 1st↔2nd both on screen)
             val contextIndex = (targetIndex - 1).coerceAtLeast(0)
 
-            if (contextIndex !in visibleIndices || targetIndex !in visibleIndices) {
+            if (!isFullyVisible(contextIndex) || !isFullyVisible(targetIndex)) {
+                val visibleIndices = layoutInfo.visibleItemsInfo.map { it.index }
                 val firstVisible = visibleIndices.firstOrNull() ?: 0
                 val scrollTarget = if (targetIndex <= firstVisible) {
                     // Card is at or above viewport → show context above the target
