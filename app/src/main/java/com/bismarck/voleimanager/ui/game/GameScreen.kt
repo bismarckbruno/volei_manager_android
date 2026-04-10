@@ -481,10 +481,15 @@ fun ActiveGameView(
             .fillMaxSize()
     ) {
         if (isLandscape) {
-            Row(
+            val landscapeSnackbarHostState = remember { SnackbarHostState() }
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+            ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
             ) {
                 Column(
                     modifier = Modifier
@@ -591,10 +596,19 @@ fun ActiveGameView(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                        horizontalPadding = 4.dp
+                        horizontalPadding = 4.dp,
+                        externalSnackbarHostState = landscapeSnackbarHostState
                     )
                 }
-            }
+            } // end Row
+            SnackbarHost(
+                hostState = landscapeSnackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            } // end Box
         } else {
             Column(
                 modifier = Modifier

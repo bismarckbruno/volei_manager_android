@@ -123,7 +123,8 @@ internal fun WaitingListContent(
     allPlayers: List<Player>,
     showElo: Boolean,
     modifier: Modifier = Modifier,
-    horizontalPadding: Dp = 16.dp
+    horizontalPadding: Dp = 16.dp,
+    externalSnackbarHostState: SnackbarHostState? = null
 ) {
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
@@ -135,7 +136,8 @@ internal fun WaitingListContent(
     var previousWaitingIds by remember { mutableStateOf(waitingList.map { it.id }.toSet()) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val internalSnackbarHostState = remember { SnackbarHostState() }
+    val snackbarHostState = externalSnackbarHostState ?: internalSnackbarHostState
     val reorderAnimationSpec = remember {
         tween<IntOffset>(durationMillis = WAITING_ITEM_REORDER_DURATION_MS)
     }
@@ -389,13 +391,15 @@ internal fun WaitingListContent(
             }
         } // end LazyColumn
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-        )
+        if (externalSnackbarHostState == null) {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+            )
+        }
     } // end Box
 }
 
