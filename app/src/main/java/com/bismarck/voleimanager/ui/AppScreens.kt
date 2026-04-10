@@ -2,18 +2,28 @@ package com.bismarck.voleimanager.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.outlined.SportsSoccer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,9 +34,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.data.model.MatchHistory
+import com.bismarck.voleimanager.data.model.Player
 import com.bismarck.voleimanager.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
@@ -36,31 +48,88 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 // --- TELA DE HISTÓRICO ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Boolean, showScore: Boolean = true) {
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates by viewModel.availableHistoryDates.collectAsState()
+    val eloLogs by viewModel.currentGroupEloLogs.collectAsState()
+    val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
 
-    val sortedHistory = remember(groupHistory, historyDate) {
+    // 0 = Partidas, 1 = Jogadores
+    var selectedTab by remember { mutableIntStateOf(0) }
+    // Match sort: true = newest first
+    var matchSortNewest by remember { mutableStateOf(true) }
+    // Player sort: true = by Elo, false = alphabetical
+    var playerSortByElo by remember { mutableStateOf(true) }
+    var expandedFilter by remember { mutableStateOf(false) }
+
+    val sortedHistory = remember(groupHistory, historyDate, matchSortNewest) {
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        groupHistory.filter {
+        val filtered = groupHistory.filter {
             (historyDate == null || it.date.startsWith(historyDate!!))
-        }.sortedByDescending {
-            try {
-                sdf.parse(it.date)?.time ?: 0L
-            } catch (e: Exception) {
-                0L
+        }
+        if (matchSortNewest) {
+            filtered.sortedByDescending {
+                try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+            }
+        } else {
+            filtered.sortedBy {
+                try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
             }
         }
     }
 
-    val uniquePlayerCount = remember(sortedHistory) {
+    // Unique player names from filtered history
+    val uniquePlayerNames = remember(sortedHistory) {
         sortedHistory.flatMap { match ->
             (match.teamA.split(",") + match.teamB.split(","))
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
-        }.distinct().size
+        }.distinct()
+    }
+
+    val uniquePlayerCount = uniquePlayerNames.size
+
+    // Build player list with Elo for the selected date
+    val historyPlayerList = remember(uniquePlayerNames, groupPlayers, eloLogs, historyDate, playerSortByElo) {
+        // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
+        val eloDateStr: String? = if (historyDate != null) {
+            try {
+                val parts = historyDate!!.split("/")
+                if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
+            } catch (_: Exception) { null }
+        } else null
+
+        val playerDataList = uniquePlayerNames.mapNotNull { name ->
+            val player = groupPlayers.find { it.name == name }
+            if (player != null) {
+                val eloForDisplay = if (eloDateStr != null) {
+                    // Get the last elo log for this player on this specific date
+                    eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
+                        .maxByOrNull { it.id }?.elo ?: player.elo
+                } else {
+                    // "All dates" → use most recent elo log entry
+                    eloLogs.filter { it.playerId == player.id }
+                        .maxByOrNull { it.id }?.elo ?: player.elo
+                }
+                Triple(player, eloForDisplay, name)
+            } else {
+                // Player not found in current group (deleted/renamed) — show as "ghost" entry
+                Triple(
+                    Player(name = name, groupName = "", elo = 1200.0),
+                    1200.0,
+                    name
+                )
+            }
+        }
+
+        if (playerSortByElo) {
+            playerDataList.sortedByDescending { it.second }
+        } else {
+            playerDataList.sortedBy { it.first.name.lowercase() }
+        }
     }
 
     var expandedDate by remember { mutableStateOf(false) }
@@ -68,6 +137,8 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
     Column(modifier = Modifier
         .fillMaxSize()
         .padding(16.dp)) {
+
+        // --- Date filter dropdown ---
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = { expandedDate = true }, modifier = Modifier.fillMaxWidth()) {
                 Icon(
@@ -100,47 +171,223 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
         }
         Spacer(Modifier.height(12.dp))
 
-        if (sortedHistory.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                val matchLabel = if (sortedHistory.size == 1) "partida" else "partidas"
-                val playerLabel = if (uniquePlayerCount == 1) "jogador" else "jogadores"
-                Text(
-                    "${sortedHistory.size} $matchLabel",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "·",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-                Text(
-                    "$uniquePlayerCount $playerLabel",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo, showScore) }
-            if (sortedHistory.isEmpty()) item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
+        // --- Segmented button row + filter icon ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
+                SegmentedButton(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    icon = { SegmentedButtonDefaults.Icon(active = selectedTab == 0) {
+                        Icon(Icons.Outlined.SportsSoccer, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
+                    }}
                 ) {
-                    Text(
-                        "Nenhuma partida encontrada.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    val matchLabel = if (sortedHistory.size == 1) "partida" else "partidas"
+                    Text("${sortedHistory.size} $matchLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                SegmentedButton(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    icon = { SegmentedButtonDefaults.Icon(active = selectedTab == 1) {
+                        Icon(Icons.Default.Groups, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
+                    }}
+                ) {
+                    val playerLabel = if (uniquePlayerCount == 1) "jogador" else "jogadores"
+                    Text("$uniquePlayerCount $playerLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+
+            // Filter/sort icon button
+            Box {
+                IconButton(onClick = { expandedFilter = true }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort,
+                        contentDescription = "Ordenar",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+                DropdownMenu(expanded = expandedFilter, onDismissRequest = { expandedFilter = false }) {
+                    if (selectedTab == 0) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = matchSortNewest, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Mais recentes primeiro")
+                                }
+                            },
+                            onClick = { matchSortNewest = true; expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = !matchSortNewest, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Mais antigos primeiro")
+                                }
+                            },
+                            onClick = { matchSortNewest = false; expandedFilter = false }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = playerSortByElo, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por Elo")
+                                }
+                            },
+                            onClick = { playerSortByElo = true; expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = !playerSortByElo, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por ordem alfabética")
+                                }
+                            },
+                            onClick = { playerSortByElo = false; expandedFilter = false }
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+
+        // --- Animated content switching between matches and players ---
+        AnimatedContent(
+            targetState = selectedTab,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    slideInHorizontally { width -> width } togetherWith
+                            slideOutHorizontally { width -> -width }
+                } else {
+                    slideInHorizontally { width -> -width } togetherWith
+                            slideOutHorizontally { width -> width }
+                } using SizeTransform(clip = false)
+            },
+            label = "HistoryTabContent"
+        ) { tab ->
+            when (tab) {
+                0 -> {
+                    // --- Matches view ---
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo, showScore) }
+                        if (sortedHistory.isEmpty()) item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "Nenhuma partida encontrada.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+                1 -> {
+                    // --- Players view ---
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (historyPlayerList.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Nenhum jogador encontrado.",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            itemsIndexed(historyPlayerList) { index, (player, elo, _) ->
+                                HistoryPlayerCard(
+                                    rank = if (playerSortByElo) index + 1 else null,
+                                    player = player,
+                                    displayElo = elo,
+                                    showElo = showElo
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HistoryPlayerCard(
+    rank: Int?,
+    player: Player,
+    displayElo: Double,
+    showElo: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(min = 120.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 60.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (rank != null) {
+                    Text(
+                        "${rank}º",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 16.sp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            player.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (player.isPriority) {
+                            Spacer(Modifier.width(2.dp))
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "Prioridade",
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (showElo) {
+                        Text(
+                            EloCalculator.formatElo(displayElo),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
