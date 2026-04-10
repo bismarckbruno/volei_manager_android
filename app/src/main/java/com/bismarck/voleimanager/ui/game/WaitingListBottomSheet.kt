@@ -262,7 +262,7 @@ internal fun WaitingListContent(
                 .simpleScrollbar(listState)
                 .padding(start = horizontalPadding, end = endPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(bottom = 56.dp)
+            contentPadding = PaddingValues(bottom = if (externalSnackbarHostState != null) 8.dp else 56.dp)
         ) {
             if (waitingList.isEmpty()) {
                 item(key = "empty_active") {

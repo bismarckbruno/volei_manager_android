@@ -602,6 +602,13 @@ fun ActiveGameView(
                 }
             } // end Row
 
+                SnackbarHost(
+                    hostState = landscapeSnackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp)
+                )
             } // end Box
         } else {
             Column(
