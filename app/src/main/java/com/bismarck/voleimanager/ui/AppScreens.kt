@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material.icons.outlined.SportsSoccer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +30,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -198,7 +198,11 @@ fun HistoryScreen(
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     icon = { SegmentedButtonDefaults.Icon(active = selectedTab == 0) {
-                        Icon(Icons.Outlined.SportsSoccer, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
+                        Icon(
+                            painter = painterResource(id = com.bismarck.voleimanager.R.drawable.bola_de_v_lei_s_lida_para_variar_a_cor),
+                            contentDescription = null,
+                            modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                        )
                     }}
                 ) {
                     val matchLabel = if (sortedHistory.size == 1) "partida" else "partidas"
