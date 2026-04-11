@@ -49,7 +49,16 @@ import java.util.Locale
 // --- TELA DE HISTÓRICO ---
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Boolean, showScore: Boolean = true) {
+fun HistoryScreen(
+    viewModel: VoleiViewModel,
+    isDarkTheme: Boolean,
+    showElo: Boolean,
+    showScore: Boolean = true,
+    selectedTab: Int = 0,
+    onTabChanged: (Int) -> Unit = {},
+    playerSortByElo: Boolean = true,
+    onPlayerSortByEloChanged: (Boolean) -> Unit = {}
+) {
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates by viewModel.availableHistoryDates.collectAsState()
@@ -57,13 +66,18 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
     val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
 
     // 0 = Partidas, 1 = Jogadores
-    val pagerState = rememberPagerState(initialPage = 0) { 2 }
-    val selectedTab by remember { derivedStateOf { pagerState.currentPage } }
+    val pagerState = rememberPagerState(initialPage = selectedTab) { 2 }
+    LaunchedEffect(pagerState.currentPage) {
+        onTabChanged(pagerState.currentPage)
+    }
+    LaunchedEffect(selectedTab) {
+        if (pagerState.currentPage != selectedTab) {
+            pagerState.animateScrollToPage(selectedTab)
+        }
+    }
     val coroutineScope = rememberCoroutineScope()
     // Match sort: true = newest first
     var matchSortNewest by remember { mutableStateOf(true) }
-    // Player sort: true = by Elo, false = alphabetical
-    var playerSortByElo by remember { mutableStateOf(true) }
     var expandedFilter by remember { mutableStateOf(false) }
 
     val sortedHistory = remember(groupHistory, historyDate, matchSortNewest) {
@@ -243,7 +257,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
                                     Text("Por Elo")
                                 }
                             },
-                            onClick = { playerSortByElo = true; expandedFilter = false }
+                            onClick = { onPlayerSortByEloChanged(true); expandedFilter = false }
                         )
                         DropdownMenuItem(
                             text = {
@@ -253,7 +267,7 @@ fun HistoryScreen(viewModel: VoleiViewModel, isDarkTheme: Boolean, showElo: Bool
                                     Text("Por ordem alfabética")
                                 }
                             },
-                            onClick = { playerSortByElo = false; expandedFilter = false }
+                            onClick = { onPlayerSortByEloChanged(false); expandedFilter = false }
                         )
                     }
                 }

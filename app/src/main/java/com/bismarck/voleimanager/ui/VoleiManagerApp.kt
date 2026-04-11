@@ -79,6 +79,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var selectedGroup by rememberSaveable { mutableStateOf<String?>(null) }
 
     var isSetupMode by rememberSaveable { mutableStateOf(false) }
+    var historySelectedTab by rememberSaveable { mutableStateOf(0) }
+    var historyPlayerSortByElo by rememberSaveable { mutableStateOf(true) }
 
     var showConfigDialog by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -727,6 +729,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             val view = LocalView.current
                             val historyDate by viewModel.historyDateFilter.collectAsState()
                             val groupHistory by viewModel.currentGroupHistory.collectAsState()
+                            val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
+                            val eloLogs by viewModel.currentGroupEloLogs.collectAsState()
 
                             IconButton(onClick = {
                                 if (historyDate == null) {
@@ -734,30 +738,87 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 } else {
                                     Toast.makeText(context, "Gerando imagem...", Toast.LENGTH_SHORT)
                                         .show()
-                                    val sdf = java.text.SimpleDateFormat(
-                                        "dd/MM/yyyy HH:mm",
-                                        java.util.Locale.getDefault()
-                                    )
-                                    val matchesToShare = groupHistory.filter {
-                                        it.date.startsWith(historyDate!!)
-                                    }.sortedByDescending {
-                                        try {
-                                            sdf.parse(it.date)?.time ?: 0L
-                                        } catch (e: Exception) {
-                                            0L
-                                        }
-                                    }
 
-                                    captureFullHistory(
-                                        context = context,
-                                        view = view,
-                                        matches = matchesToShare,
-                                        date = historyDate!!,
-                                        isDarkTheme = isDarkTheme,
-                                        showElo = showElo,
-                                        showScore = showScore
-                                    ) { bitmap ->
-                                        viewModel.shareBitmap(context, bitmap, historyDate!!)
+                                    if (historySelectedTab == 0) {
+                                        // --- Export matches ---
+                                        val sdf = java.text.SimpleDateFormat(
+                                            "dd/MM/yyyy HH:mm",
+                                            java.util.Locale.getDefault()
+                                        )
+                                        val matchesToShare = groupHistory.filter {
+                                            it.date.startsWith(historyDate!!)
+                                        }.sortedByDescending {
+                                            try {
+                                                sdf.parse(it.date)?.time ?: 0L
+                                            } catch (e: Exception) {
+                                                0L
+                                            }
+                                        }
+
+                                        captureFullHistory(
+                                            context = context,
+                                            view = view,
+                                            matches = matchesToShare,
+                                            date = historyDate!!,
+                                            isDarkTheme = isDarkTheme,
+                                            showElo = showElo,
+                                            showScore = showScore
+                                        ) { bitmap ->
+                                            viewModel.shareBitmap(context, bitmap, historyDate!!)
+                                        }
+                                    } else {
+                                        // --- Export players ---
+                                        val uniquePlayerNames = groupHistory.filter {
+                                            it.date.startsWith(historyDate!!)
+                                        }.flatMap { match ->
+                                            (match.teamA.split(",") + match.teamB.split(","))
+                                                .map { it.trim() }
+                                                .filter { it.isNotEmpty() }
+                                        }.distinct()
+
+                                        // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
+                                        val eloDateStr: String? = try {
+                                            val parts = historyDate!!.split("/")
+                                            if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
+                                        } catch (_: Exception) { null }
+
+                                        val playerDataList = uniquePlayerNames.mapNotNull { name ->
+                                            val player = groupPlayers.find { it.name == name }
+                                            if (player != null) {
+                                                val eloForDisplay = if (eloDateStr != null) {
+                                                    eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
+                                                        .maxByOrNull { it.id }?.elo ?: player.elo
+                                                } else {
+                                                    eloLogs.filter { it.playerId == player.id }
+                                                        .maxByOrNull { it.id }?.elo ?: player.elo
+                                                }
+                                                Triple(player, eloForDisplay, name)
+                                            } else {
+                                                Triple(
+                                                    Player(name = name, groupName = "", elo = 1200.0),
+                                                    1200.0,
+                                                    name
+                                                )
+                                            }
+                                        }
+
+                                        val sortedPlayers = if (historyPlayerSortByElo) {
+                                            playerDataList.sortedByDescending { it.second }
+                                        } else {
+                                            playerDataList.sortedBy { it.first.name.lowercase() }
+                                        }
+
+                                        captureFullPlayers(
+                                            context = context,
+                                            view = view,
+                                            players = sortedPlayers,
+                                            date = historyDate!!,
+                                            isDarkTheme = isDarkTheme,
+                                            showElo = showElo,
+                                            sortedByElo = historyPlayerSortByElo
+                                        ) { bitmap ->
+                                            viewModel.shareBitmap(context, bitmap, historyDate!!)
+                                        }
                                     }
                                 }
                             }) {
@@ -802,7 +863,16 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             }
                         )
 
-                        Screen.HISTORY -> HistoryScreen(viewModel, isDarkTheme, showElo, showScore)
+                        Screen.HISTORY -> HistoryScreen(
+                            viewModel = viewModel,
+                            isDarkTheme = isDarkTheme,
+                            showElo = showElo,
+                            showScore = showScore,
+                            selectedTab = historySelectedTab,
+                            onTabChanged = { historySelectedTab = it },
+                            playerSortByElo = historyPlayerSortByElo,
+                            onPlayerSortByEloChanged = { historyPlayerSortByElo = it }
+                        )
                         Screen.FAQ -> FAQScreen()
                         Screen.ABOUT -> AboutScreen()
                     }
@@ -967,7 +1037,10 @@ private fun captureFullHistory(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                painter = painterResource(
+                                    id = if (isDarkTheme) R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
+                                    else R.drawable.ic_launcher_foreground
+                                ),
                                 contentDescription = null,
                                 modifier = Modifier.size(56.dp)
                             )
@@ -975,7 +1048,7 @@ private fun captureFullHistory(
                                 "Vôlei Manager",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = voleiManagerBlue
+                                color = if (isDarkTheme) MaterialTheme.colorScheme.primary else voleiManagerBlue
                             )
                         }
 
@@ -992,8 +1065,6 @@ private fun captureFullHistory(
                         matches.forEach { match ->
                             HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo, showScore = showScore)
                         }
-
-                        Spacer(Modifier.height(16.dp))
                     }
                 }
             }
@@ -1021,6 +1092,129 @@ private fun captureFullHistory(
                 // garantimos que o Bitmap manterá a mesma aparência/escala independente de o 
                 // celular do usuário estar de pé (retrato) ou deitado (paisagem).
                 val constantWidthPixels = 1440 // Fixo em uma resolução típica em pixels
+                val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(
+                    constantWidthPixels,
+                    android.view.View.MeasureSpec.EXACTLY
+                )
+                val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(
+                    0,
+                    android.view.View.MeasureSpec.UNSPECIFIED
+                )
+
+                composeView.measure(widthSpec, heightSpec)
+                composeView.layout(0, 0, composeView.measuredWidth, composeView.measuredHeight)
+
+                if (composeView.measuredWidth > 0 && composeView.measuredHeight > 0) {
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        composeView.measuredWidth,
+                        composeView.measuredHeight,
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(bitmap)
+                    composeView.draw(canvas)
+                    onBitmapReady(bitmap)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                root.removeView(scrollView)
+            }
+        }, 500)
+    }
+}
+
+private fun captureFullPlayers(
+    context: android.content.Context,
+    view: android.view.View,
+    players: List<Triple<Player, Double, String>>,
+    date: String,
+    isDarkTheme: Boolean,
+    showElo: Boolean,
+    sortedByElo: Boolean,
+    onBitmapReady: (android.graphics.Bitmap) -> Unit
+) {
+    val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
+        setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
+        setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
+        setViewTreeSavedStateRegistryOwner(view.findViewTreeSavedStateRegistryOwner())
+
+        setContent {
+            AppTheme(
+                darkTheme = isDarkTheme,
+                dynamicColor = false
+            ) {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    Column(
+                        modifier = Modifier
+                            .width(400.dp)
+                            .padding(horizontal = 16.dp)
+                            .padding(top = 32.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Header com logo e título do App
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Image(
+                                painter = painterResource(
+                                    id = if (isDarkTheme) R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
+                                    else R.drawable.ic_launcher_foreground
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.size(56.dp)
+                            )
+                            Text(
+                                "Vôlei Manager",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDarkTheme) MaterialTheme.colorScheme.primary else voleiManagerBlue
+                            )
+                        }
+
+                        // Subtítulo
+                        Text(
+                            text = "Jogadores - $date",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        players.forEachIndexed { index, (player, elo, _) ->
+                            HistoryPlayerCard(
+                                rank = if (sortedByElo) index + 1 else null,
+                                player = player,
+                                displayElo = elo,
+                                showElo = showElo
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val scrollView = android.widget.ScrollView(context).apply {
+        addView(composeView)
+        alpha = 0f
+        isVerticalScrollBarEnabled = false
+    }
+
+    val root = view.rootView as? android.view.ViewGroup
+    if (root != null) {
+        root.addView(
+            scrollView, android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        scrollView.postDelayed({
+            try {
+                val constantWidthPixels = 1440
                 val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(
                     constantWidthPixels,
                     android.view.View.MeasureSpec.EXACTLY
