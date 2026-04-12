@@ -16,6 +16,7 @@ import com.bismarck.voleimanager.data.model.MatchHistory
 import com.bismarck.voleimanager.data.model.Player
 import com.bismarck.voleimanager.data.model.PlayerEloLog
 import com.bismarck.voleimanager.util.EloCalculator
+import com.bismarck.voleimanager.util.TollCalculator
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -394,38 +395,30 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
         return team.shuffled().sortedBy { p ->
-            val actual = usageMap[p.id] ?: 0
-            val toll = if (p.tollDate == today) p.dailyToll else 0
-            actual + toll
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
         }
     }
 
     private fun calculateTollForNewPlayer(excludePlayerId: Int? = null): Int {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
-        val alreadyPresentIds = _presentPlayerIds.value.let { ids ->
-            if (excludePlayerId != null) ids - excludePlayerId else ids
+        val presentPlayers = _presentPlayerIds.value.mapNotNull { id ->
+            currentGroupPlayers.value.find { it.id == id }
         }
-        if (alreadyPresentIds.isEmpty()) return 0
-
-        val sum = alreadyPresentIds.sumOf { id ->
-            val pTemp = currentGroupPlayers.value.find { it.id == id }
-            val actual = usageMap[id] ?: 0
-            val toll = if (pTemp?.tollDate == today) pTemp.dailyToll else 0
-            actual + toll
-        }
-        return (sum.toDouble() / alreadyPresentIds.size).roundToInt()
+        return TollCalculator.calculateToll(presentPlayers, usageMap, today, excludePlayerId)
     }
 
     private fun applyTollIfNecessary(player: Player): Player {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        if (player.tollDate != today) {
-            val toll = calculateTollForNewPlayer(excludePlayerId = player.id)
-            val updatedP = player.copy(dailyToll = toll, tollDate = today)
-            viewModelScope.launch(Dispatchers.IO) { repository.updatePlayer(updatedP) }
-            return updatedP
+        val usageMap = getUsageCountMap(today)
+        val presentPlayers = _presentPlayerIds.value.mapNotNull { id ->
+            currentGroupPlayers.value.find { it.id == id }
         }
-        return player
+        val updatedP = TollCalculator.applyToll(player, presentPlayers, usageMap, today)
+        if (updatedP !== player) {
+            viewModelScope.launch(Dispatchers.IO) { repository.updatePlayer(updatedP) }
+        }
+        return updatedP
     }
 
     fun addPlayer(n: String, e: Double, g: String, isPriority: Boolean) = viewModelScope.launch {
@@ -619,11 +612,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
 
-        fun getEffectiveGames(p: Player): Int {
-            val actual = usageMap[p.id] ?: 0
-            val toll = if (p.tollDate == today) p.dailyToll else 0
-            return actual + toll
-        }
+        fun getEffectiveGames(p: Player): Int =
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
 
         val selectedPlayers = mutableListOf<Player>()
         val pool =
@@ -825,11 +815,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
 
-        fun getEffectiveGames(p: Player): Int {
-            val actual = usageMap[p.id] ?: 0
-            val toll = if (p.tollDate == today) p.dailyToll else 0
-            return actual + toll
-        }
+        fun getEffectiveGames(p: Player): Int =
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
 
         val sortedLosers = losers.shuffled().sortedBy { getEffectiveGames(it) }
 
