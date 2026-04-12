@@ -55,7 +55,7 @@ data class HistoryPlayerInfo(
     val victories: Int
 )
 
-enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES }
+enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE }
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA }
 
 // --- TELA DE HISTÓRICO ---
@@ -179,6 +179,9 @@ fun HistoryScreen(
             PlayerSortMode.ELO -> playerDataList.sortedByDescending { it.displayElo }
             PlayerSortMode.GAMES -> playerDataList.sortedByDescending { it.gamesPlayed }
             PlayerSortMode.VICTORIES -> playerDataList.sortedByDescending { it.victories }
+            PlayerSortMode.PERCENTAGE -> playerDataList.sortedByDescending {
+                if (it.gamesPlayed > 0) it.victories.toDouble() / it.gamesPlayed else 0.0
+            }
             PlayerSortMode.ALPHABETICAL -> playerDataList.sortedBy { it.player.name.lowercase() }
         }
     }
@@ -339,6 +342,16 @@ fun HistoryScreen(
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false }
                         )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por porcentagem")
+                                }
+                            },
+                            onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false }
+                        )
                     }
                 }
             }
@@ -485,6 +498,18 @@ fun HistoryPlayerCard(
                     val gamesLabel = if (gamesPlayed == 1) "jogo" else "jogos"
                     Text(
                         "$victoriesText / $gamesPlayed $gamesLabel",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val percentage = if (gamesPlayed > 0) {
+                        victories.toDouble() / gamesPlayed * 100.0
+                    } else 0.0
+                    val percentageFormatted = NumberFormat.getInstance(Locale.getDefault()).apply {
+                        maximumFractionDigits = 2
+                        minimumFractionDigits = 0
+                    }.format(percentage)
+                    Text(
+                        "$percentageFormatted%",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

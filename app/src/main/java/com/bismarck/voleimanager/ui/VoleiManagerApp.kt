@@ -832,6 +832,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             PlayerSortMode.ELO -> playerDataList.sortedByDescending { it.displayElo }
                                             PlayerSortMode.GAMES -> playerDataList.sortedByDescending { it.gamesPlayed }
                                             PlayerSortMode.VICTORIES -> playerDataList.sortedByDescending { it.victories }
+                                            PlayerSortMode.PERCENTAGE -> playerDataList.sortedByDescending {
+                                                if (it.gamesPlayed > 0) it.victories.toDouble() / it.gamesPlayed else 0.0
+                                            }
                                             PlayerSortMode.ALPHABETICAL -> playerDataList.sortedBy { it.player.name.lowercase() }
                                         }
 
