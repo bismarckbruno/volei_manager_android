@@ -14,5 +14,6 @@ data class PlayerEloLog(
     val playerNameSnapshot: String,
     val date: String,
     val elo: Double,
-    val groupName: String
+    val groupName: String,
+    val won: Boolean? = null
 )

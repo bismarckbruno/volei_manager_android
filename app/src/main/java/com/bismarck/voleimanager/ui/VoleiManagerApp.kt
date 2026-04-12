@@ -768,9 +768,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         }
                                     } else {
                                         // --- Export players ---
-                                        val uniquePlayerNames = groupHistory.filter {
+                                        val filteredMatches = groupHistory.filter {
                                             it.date.startsWith(historyDate!!)
-                                        }.flatMap { match ->
+                                        }
+                                        val uniquePlayerNames = filteredMatches.flatMap { match ->
                                             (match.teamA.split(",") + match.teamB.split(","))
                                                 .map { it.trim() }
                                                 .filter { it.isNotEmpty() }
@@ -782,30 +783,55 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
                                         } catch (_: Exception) { null }
 
+                                        // Precompute match-based stats (fallback for old data)
+                                        val matchStats = mutableMapOf<String, Pair<Int, Int>>()
+                                        filteredMatches.forEach { match ->
+                                            val teamANames = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                            val teamBNames = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                            val isTeamAWin = match.winner == "Time A"
+                                            teamANames.forEach { n ->
+                                                val (g, v) = matchStats.getOrDefault(n, 0 to 0)
+                                                matchStats[n] = (g + 1) to (v + if (isTeamAWin) 1 else 0)
+                                            }
+                                            teamBNames.forEach { n ->
+                                                val (g, v) = matchStats.getOrDefault(n, 0 to 0)
+                                                matchStats[n] = (g + 1) to (v + if (!isTeamAWin) 1 else 0)
+                                            }
+                                        }
+
                                         val playerDataList = uniquePlayerNames.mapNotNull { name ->
                                             val player = groupPlayers.find { it.name == name }
                                             if (player != null) {
-                                                val eloForDisplay = if (eloDateStr != null) {
+                                                val playerLogs = if (eloDateStr != null) {
                                                     eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
-                                                        .maxByOrNull { it.id }?.elo ?: player.elo
                                                 } else {
                                                     eloLogs.filter { it.playerId == player.id }
-                                                        .maxByOrNull { it.id }?.elo ?: player.elo
                                                 }
-                                                Triple(player, eloForDisplay, name)
+                                                val eloForDisplay = playerLogs.maxByOrNull { it.id }?.elo ?: player.elo
+
+                                                val (games, victories) = if (player.id > 0 && playerLogs.isNotEmpty() && playerLogs.all { it.won != null }) {
+                                                    playerLogs.size to playerLogs.count { it.won == true }
+                                                } else {
+                                                    matchStats[name] ?: (0 to 0)
+                                                }
+
+                                                HistoryPlayerInfo(player, eloForDisplay, name, games, victories)
                                             } else {
-                                                Triple(
+                                                val (games, victories) = matchStats[name] ?: (0 to 0)
+                                                HistoryPlayerInfo(
                                                     Player(name = name, groupName = "", elo = 1200.0),
                                                     1200.0,
-                                                    name
+                                                    name,
+                                                    games,
+                                                    victories
                                                 )
                                             }
                                         }
 
                                         val sortedPlayers = if (historyPlayerSortByElo) {
-                                            playerDataList.sortedByDescending { it.second }
+                                            playerDataList.sortedByDescending { it.displayElo }
                                         } else {
-                                            playerDataList.sortedBy { it.first.name.lowercase() }
+                                            playerDataList.sortedBy { it.player.name.lowercase() }
                                         }
 
                                         captureFullPlayers(
@@ -1126,7 +1152,7 @@ private fun captureFullHistory(
 private fun captureFullPlayers(
     context: android.content.Context,
     view: android.view.View,
-    players: List<Triple<Player, Double, String>>,
+    players: List<HistoryPlayerInfo>,
     date: String,
     isDarkTheme: Boolean,
     showElo: Boolean,
@@ -1183,12 +1209,14 @@ private fun captureFullPlayers(
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
 
-                        players.forEachIndexed { index, (player, elo, _) ->
+                        players.forEachIndexed { index, info ->
                             HistoryPlayerCard(
                                 rank = if (sortedByElo) index + 1 else null,
-                                player = player,
-                                displayElo = elo,
-                                showElo = showElo
+                                player = info.player,
+                                displayElo = info.displayElo,
+                                showElo = showElo,
+                                gamesPlayed = info.gamesPlayed,
+                                victories = info.victories
                             )
                         }
                     }

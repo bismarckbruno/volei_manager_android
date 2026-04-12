@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.data.model.MatchHistory
 import com.bismarck.voleimanager.data.model.Player
+import com.bismarck.voleimanager.data.model.PlayerEloLog
 import com.bismarck.voleimanager.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
@@ -45,6 +46,14 @@ import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+data class HistoryPlayerInfo(
+    val player: Player,
+    val displayElo: Double,
+    val name: String,
+    val gamesPlayed: Int,
+    val victories: Int
+)
 
 // --- TELA DE HISTÓRICO ---
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -107,8 +116,8 @@ fun HistoryScreen(
 
     val uniquePlayerCount = uniquePlayerNames.size
 
-    // Build player list with Elo for the selected date
-    val historyPlayerList = remember(uniquePlayerNames, groupPlayers, eloLogs, historyDate, playerSortByElo) {
+    // Build player list with Elo and stats for the selected date
+    val historyPlayerList = remember(uniquePlayerNames, groupPlayers, eloLogs, historyDate, playerSortByElo, sortedHistory) {
         // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
         val eloDateStr: String? = if (historyDate != null) {
             try {
@@ -117,33 +126,57 @@ fun HistoryScreen(
             } catch (_: Exception) { null }
         } else null
 
+        // Precompute match-based stats (fallback for old data without PlayerEloLog.won)
+        val matchStats = mutableMapOf<String, Pair<Int, Int>>() // name -> (games, victories)
+        sortedHistory.forEach { match ->
+            val teamANames = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val teamBNames = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val isTeamAWin = match.winner == "Time A"
+            teamANames.forEach { n ->
+                val (g, v) = matchStats.getOrDefault(n, 0 to 0)
+                matchStats[n] = (g + 1) to (v + if (isTeamAWin) 1 else 0)
+            }
+            teamBNames.forEach { n ->
+                val (g, v) = matchStats.getOrDefault(n, 0 to 0)
+                matchStats[n] = (g + 1) to (v + if (!isTeamAWin) 1 else 0)
+            }
+        }
+
         val playerDataList = uniquePlayerNames.mapNotNull { name ->
             val player = groupPlayers.find { it.name == name }
             if (player != null) {
-                val eloForDisplay = if (eloDateStr != null) {
-                    // Get the last elo log for this player on this specific date
+                val playerLogs = if (eloDateStr != null) {
                     eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
-                        .maxByOrNull { it.id }?.elo ?: player.elo
                 } else {
-                    // "All dates" → use most recent elo log entry
                     eloLogs.filter { it.playerId == player.id }
-                        .maxByOrNull { it.id }?.elo ?: player.elo
                 }
-                Triple(player, eloForDisplay, name)
+                val eloForDisplay = playerLogs.maxByOrNull { it.id }?.elo ?: player.elo
+
+                // Use EloLog-based stats when all entries have 'won' info; otherwise fallback to match name matching
+                val (games, victories) = if (player.id > 0 && playerLogs.isNotEmpty() && playerLogs.all { it.won != null }) {
+                    playerLogs.size to playerLogs.count { it.won == true }
+                } else {
+                    matchStats[name] ?: (0 to 0)
+                }
+
+                HistoryPlayerInfo(player, eloForDisplay, name, games, victories)
             } else {
                 // Player not found in current group (deleted/renamed) — show as "ghost" entry
-                Triple(
+                val (games, victories) = matchStats[name] ?: (0 to 0)
+                HistoryPlayerInfo(
                     Player(name = name, groupName = "", elo = 1200.0),
                     1200.0,
-                    name
+                    name,
+                    games,
+                    victories
                 )
             }
         }
 
         if (playerSortByElo) {
-            playerDataList.sortedByDescending { it.second }
+            playerDataList.sortedByDescending { it.displayElo }
         } else {
-            playerDataList.sortedBy { it.first.name.lowercase() }
+            playerDataList.sortedBy { it.player.name.lowercase() }
         }
     }
 
@@ -323,12 +356,14 @@ fun HistoryScreen(
                                 }
                             }
                         } else {
-                            itemsIndexed(historyPlayerList) { index, (player, elo, _) ->
+                            itemsIndexed(historyPlayerList) { index, info ->
                                 HistoryPlayerCard(
                                     rank = if (playerSortByElo) index + 1 else null,
-                                    player = player,
-                                    displayElo = elo,
-                                    showElo = showElo
+                                    player = info.player,
+                                    displayElo = info.displayElo,
+                                    showElo = showElo,
+                                    gamesPlayed = info.gamesPlayed,
+                                    victories = info.victories
                                 )
                             }
                         }
@@ -344,7 +379,9 @@ fun HistoryPlayerCard(
     rank: Int?,
     player: Player,
     displayElo: Double,
-    showElo: Boolean
+    showElo: Boolean,
+    gamesPlayed: Int = 0,
+    victories: Int = 0
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -402,11 +439,18 @@ fun HistoryPlayerCard(
                     }
                     if (showElo) {
                         Text(
-                            EloCalculator.formatElo(displayElo),
+                            "Elo: ${EloCalculator.formatElo(displayElo)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    val victoriesLabel = if (victories == 1) "vitória" else "vitórias"
+                    val gamesLabel = if (gamesPlayed == 1) "jogo" else "jogos"
+                    Text(
+                        "$victories $victoriesLabel / $gamesPlayed $gamesLabel",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

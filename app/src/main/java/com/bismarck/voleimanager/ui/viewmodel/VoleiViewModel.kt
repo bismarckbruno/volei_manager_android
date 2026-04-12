@@ -758,7 +758,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             playerNameSnapshot = u.name,
                             date = dateLog,
                             elo = newElo,
-                            groupName = u.groupName
+                            groupName = u.groupName,
+                            won = won
                         )
                     )
                 }
@@ -1078,7 +1079,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                                 ).format(Date()),
                                             elo = cols[4].toDoubleOrNull() ?: 1200.0,
                                             groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
-                                                ?: "Geral"
+                                                ?: "Geral",
+                                            won = cols.getOrElse(6) { "" }.toBooleanStrictOrNull()
                                         )
                                     } else null
                                 } catch (e: Exception) {
@@ -1164,7 +1166,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     }
 
                     CsvType.ELO_LOGS -> {
-                        content.append("ID,PlayerID,Nome,Data,Elo,Grupo\n")
+                        content.append("ID,PlayerID,Nome,Data,Elo,Grupo,Vitoria\n")
                         currentGroupEloLogs.value.forEach {
                             content.append(
                                 "${it.id},${it.playerId},\"${
@@ -1177,7 +1179,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                         "\"",
                                         "\"\""
                                     )
-                                }\"\n"
+                                }\",${it.won ?: ""}\n"
                             )
                         }
                     }

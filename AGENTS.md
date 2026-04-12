@@ -69,7 +69,7 @@ When adding a new entity, always pass `groupName` explicitly. Renaming/deleting 
 
 ## Database Migrations
 
-DB version is currently **10** (`AppDatabase.kt`). `exportSchema = false`.  
+DB version is currently **12** (`AppDatabase.kt`). `exportSchema = false`.  
 When adding columns, add a `Migration(old, new)` object and register it in `addMigrations(...)`.  
 `fallbackToDestructiveMigration()` is enabled as a safety net — avoid relying on it for release.
 
