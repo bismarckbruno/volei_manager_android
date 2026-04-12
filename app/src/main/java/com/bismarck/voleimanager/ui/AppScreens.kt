@@ -55,6 +55,9 @@ data class HistoryPlayerInfo(
     val victories: Int
 )
 
+enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES }
+enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA }
+
 // --- TELA DE HISTÓRICO ---
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -65,8 +68,8 @@ fun HistoryScreen(
     showScore: Boolean = true,
     selectedTab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
-    playerSortByElo: Boolean = true,
-    onPlayerSortByEloChanged: (Boolean) -> Unit = {}
+    playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL,
+    onPlayerSortModeChanged: (PlayerSortMode) -> Unit = {}
 ) {
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
     val historyDate by viewModel.historyDateFilter.collectAsState()
@@ -85,23 +88,22 @@ fun HistoryScreen(
         }
     }
     val coroutineScope = rememberCoroutineScope()
-    // Match sort: true = newest first
-    var matchSortNewest by remember { mutableStateOf(true) }
+    var matchSortMode by remember { mutableStateOf(MatchSortMode.NEWEST) }
     var expandedFilter by remember { mutableStateOf(false) }
 
-    val sortedHistory = remember(groupHistory, historyDate, matchSortNewest) {
+    val sortedHistory = remember(groupHistory, historyDate, matchSortMode) {
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         val filtered = groupHistory.filter {
             (historyDate == null || it.date.startsWith(historyDate!!))
         }
-        if (matchSortNewest) {
-            filtered.sortedByDescending {
+        when (matchSortMode) {
+            MatchSortMode.NEWEST -> filtered.sortedByDescending {
                 try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
             }
-        } else {
-            filtered.sortedBy {
+            MatchSortMode.OLDEST -> filtered.sortedBy {
                 try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
             }
+            MatchSortMode.ELO_DELTA -> filtered.sortedByDescending { it.eloPoints }
         }
     }
 
@@ -117,7 +119,7 @@ fun HistoryScreen(
     val uniquePlayerCount = uniquePlayerNames.size
 
     // Build player list with Elo and stats for the selected date
-    val historyPlayerList = remember(uniquePlayerNames, groupPlayers, eloLogs, historyDate, playerSortByElo, sortedHistory) {
+    val historyPlayerList = remember(uniquePlayerNames, groupPlayers, eloLogs, historyDate, playerSortMode, sortedHistory) {
         // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
         val eloDateStr: String? = if (historyDate != null) {
             try {
@@ -173,10 +175,11 @@ fun HistoryScreen(
             }
         }
 
-        if (playerSortByElo) {
-            playerDataList.sortedByDescending { it.displayElo }
-        } else {
-            playerDataList.sortedBy { it.player.name.lowercase() }
+        when (playerSortMode) {
+            PlayerSortMode.ELO -> playerDataList.sortedByDescending { it.displayElo }
+            PlayerSortMode.GAMES -> playerDataList.sortedByDescending { it.gamesPlayed }
+            PlayerSortMode.VICTORIES -> playerDataList.sortedByDescending { it.victories }
+            PlayerSortMode.ALPHABETICAL -> playerDataList.sortedBy { it.player.name.lowercase() }
         }
     }
 
@@ -268,43 +271,73 @@ fun HistoryScreen(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = matchSortNewest, onClick = null)
+                                    RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text("Mais recentes primeiro")
                                 }
                             },
-                            onClick = { matchSortNewest = true; expandedFilter = false }
+                            onClick = { matchSortMode = MatchSortMode.NEWEST; expandedFilter = false }
                         )
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = !matchSortNewest, onClick = null)
+                                    RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text("Mais antigos primeiro")
                                 }
                             },
-                            onClick = { matchSortNewest = false; expandedFilter = false }
+                            onClick = { matchSortMode = MatchSortMode.OLDEST; expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por Elo movimentado")
+                                }
+                            },
+                            onClick = { matchSortMode = MatchSortMode.ELO_DELTA; expandedFilter = false }
                         )
                     } else {
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = playerSortByElo, onClick = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Por Elo")
-                                }
-                            },
-                            onClick = { onPlayerSortByEloChanged(true); expandedFilter = false }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = !playerSortByElo, onClick = null)
+                                    RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text("Por ordem alfabética")
                                 }
                             },
-                            onClick = { onPlayerSortByEloChanged(false); expandedFilter = false }
+                            onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por Elo")
+                                }
+                            },
+                            onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por número de jogos")
+                                }
+                            },
+                            onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por número de vitórias")
+                                }
+                            },
+                            onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false }
                         )
                     }
                 }
@@ -358,7 +391,7 @@ fun HistoryScreen(
                         } else {
                             itemsIndexed(historyPlayerList) { index, info ->
                                 HistoryPlayerCard(
-                                    rank = if (playerSortByElo) index + 1 else null,
+                                    rank = if (playerSortMode != PlayerSortMode.ALPHABETICAL) index + 1 else null,
                                     player = info.player,
                                     displayElo = info.displayElo,
                                     showElo = showElo,
@@ -444,10 +477,14 @@ fun HistoryPlayerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    val victoriesLabel = if (victories == 1) "vitória" else "vitórias"
+                    val victoriesText = when (victories) {
+                        0 -> "Nenhuma vitória"
+                        1 -> "1 vitória"
+                        else -> "$victories vitórias"
+                    }
                     val gamesLabel = if (gamesPlayed == 1) "jogo" else "jogos"
                     Text(
-                        "$victories $victoriesLabel / $gamesPlayed $gamesLabel",
+                        "$victoriesText / $gamesPlayed $gamesLabel",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

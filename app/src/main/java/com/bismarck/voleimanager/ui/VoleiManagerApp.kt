@@ -80,7 +80,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
     var isSetupMode by rememberSaveable { mutableStateOf(false) }
     var historySelectedTab by rememberSaveable { mutableStateOf(0) }
-    var historyPlayerSortByElo by rememberSaveable { mutableStateOf(true) }
+    var historyPlayerSortMode by rememberSaveable { mutableStateOf(PlayerSortMode.ALPHABETICAL) }
 
     var showConfigDialog by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -828,10 +828,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             }
                                         }
 
-                                        val sortedPlayers = if (historyPlayerSortByElo) {
-                                            playerDataList.sortedByDescending { it.displayElo }
-                                        } else {
-                                            playerDataList.sortedBy { it.player.name.lowercase() }
+                                        val sortedPlayers = when (historyPlayerSortMode) {
+                                            PlayerSortMode.ELO -> playerDataList.sortedByDescending { it.displayElo }
+                                            PlayerSortMode.GAMES -> playerDataList.sortedByDescending { it.gamesPlayed }
+                                            PlayerSortMode.VICTORIES -> playerDataList.sortedByDescending { it.victories }
+                                            PlayerSortMode.ALPHABETICAL -> playerDataList.sortedBy { it.player.name.lowercase() }
                                         }
 
                                         captureFullPlayers(
@@ -841,7 +842,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             date = historyDate!!,
                                             isDarkTheme = isDarkTheme,
                                             showElo = showElo,
-                                            sortedByElo = historyPlayerSortByElo
+                                            sortedByElo = historyPlayerSortMode != PlayerSortMode.ALPHABETICAL
                                         ) { bitmap ->
                                             viewModel.shareBitmap(context, bitmap, historyDate!!)
                                         }
@@ -896,8 +897,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             showScore = showScore,
                             selectedTab = historySelectedTab,
                             onTabChanged = { historySelectedTab = it },
-                            playerSortByElo = historyPlayerSortByElo,
-                            onPlayerSortByEloChanged = { historyPlayerSortByElo = it }
+                            playerSortMode = historyPlayerSortMode,
+                            onPlayerSortModeChanged = { historyPlayerSortMode = it }
                         )
                         Screen.FAQ -> FAQScreen()
                         Screen.ABOUT -> AboutScreen()
