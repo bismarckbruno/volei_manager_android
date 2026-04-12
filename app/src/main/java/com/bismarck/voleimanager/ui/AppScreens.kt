@@ -56,7 +56,7 @@ data class HistoryPlayerInfo(
 )
 
 enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE }
-enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA }
+enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 
 // --- TELA DE HISTÓRICO ---
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -97,13 +97,27 @@ fun HistoryScreen(
             (historyDate == null || it.date.startsWith(historyDate!!))
         }
         when (matchSortMode) {
-            MatchSortMode.NEWEST -> filtered.sortedByDescending {
-                try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
-            }
-            MatchSortMode.OLDEST -> filtered.sortedBy {
-                try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
-            }
-            MatchSortMode.ELO_DELTA -> filtered.sortedByDescending { it.eloPoints }
+            MatchSortMode.NEWEST -> filtered.sortedWith(
+                compareByDescending<MatchHistory> {
+                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                }.thenByDescending { it.id }
+            )
+            MatchSortMode.OLDEST -> filtered.sortedWith(
+                compareBy<MatchHistory> {
+                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                }.thenByDescending { it.id }
+            )
+            MatchSortMode.ELO_DELTA -> filtered.sortedWith(
+                compareByDescending<MatchHistory> { it.eloPoints }
+                    .thenByDescending { it.id }
+            )
+            MatchSortMode.SCORE_DIFF -> filtered.sortedWith(
+                compareByDescending<MatchHistory> {
+                    val sa = it.teamAScore ?: 0
+                    val sb = it.teamBScore ?: 0
+                    kotlin.math.abs(sa - sb)
+                }.thenByDescending { it.id }
+            )
         }
     }
 
@@ -175,14 +189,33 @@ fun HistoryScreen(
             }
         }
 
+        fun HistoryPlayerInfo.winRate(): Double =
+            if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
+
         when (playerSortMode) {
-            PlayerSortMode.ELO -> playerDataList.sortedByDescending { it.displayElo }
-            PlayerSortMode.GAMES -> playerDataList.sortedByDescending { it.gamesPlayed }
-            PlayerSortMode.VICTORIES -> playerDataList.sortedByDescending { it.victories }
-            PlayerSortMode.PERCENTAGE -> playerDataList.sortedByDescending {
-                if (it.gamesPlayed > 0) it.victories.toDouble() / it.gamesPlayed else 0.0
-            }
-            PlayerSortMode.ALPHABETICAL -> playerDataList.sortedBy { it.player.name.lowercase() }
+            PlayerSortMode.ELO -> playerDataList.sortedWith(
+                compareByDescending<HistoryPlayerInfo> { it.displayElo }
+                    .thenByDescending { it.winRate() }
+            )
+            PlayerSortMode.GAMES -> playerDataList.sortedWith(
+                compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
+                    .thenByDescending { it.winRate() }
+                    .thenByDescending { it.displayElo }
+            )
+            PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
+                compareByDescending<HistoryPlayerInfo> { it.victories }
+                    .thenByDescending { it.winRate() }
+                    .thenByDescending { it.displayElo }
+            )
+            PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
+                compareByDescending<HistoryPlayerInfo> { it.winRate() }
+                    .thenBy { it.gamesPlayed }
+                    .thenByDescending { it.displayElo }
+            )
+            PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
+                compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
+                    .thenByDescending { it.displayElo }
+            )
         }
     }
 
@@ -300,6 +333,16 @@ fun HistoryScreen(
                                 }
                             },
                             onClick = { matchSortMode = MatchSortMode.ELO_DELTA; expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Por diferença de placar")
+                                }
+                            },
+                            onClick = { matchSortMode = MatchSortMode.SCORE_DIFF; expandedFilter = false }
                         )
                     } else {
                         DropdownMenuItem(
