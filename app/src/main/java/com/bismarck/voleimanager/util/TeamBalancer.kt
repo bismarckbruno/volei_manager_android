@@ -29,7 +29,7 @@ object TeamBalancer {
             player !in teamA && player !in teamB
         }
 
-        // Separa levantadores e outros, ordenando por Elo (Do maior para o menor)
+        // Separa prioridades e outros, ordenando por Elo (Do maior para o menor)
         val (setters, others) = playersToDistribute.partition { it.isPriority }
         val sortedSetters = setters.sortedByDescending { it.elo }
         val sortedOthers = others.sortedByDescending { it.elo }
@@ -55,10 +55,10 @@ object TeamBalancer {
             }
         }
 
-        // 1. Distribui Levantadores primeiro (para garantir 1 em cada lado se possível)
+        // 1. Distribui prioridades primeiro (para garantir 1 em cada lado, se possível)
         sortedSetters.forEach { allocatePlayer(it) }
 
-        // 2. Distribui o resto do pessoal
+        // 2. Distribui o restante do pessoal
         sortedOthers.forEach { allocatePlayer(it) }
 
         return BalancedResult(teamA, teamB)
