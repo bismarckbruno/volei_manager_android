@@ -922,6 +922,7 @@ fun ActiveTeamCard(
                 ) {
                     RepeatingScoreButton(
                         onClick = onDecrementScore,
+                        canRepeat = { score > 0 },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -1336,17 +1337,21 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
 /**
  * A button that fires [onClick] immediately on press (with haptic feedback),
  * then repeats it continuously while the finger is held down.
+ * If [canRepeat] is provided and returns false, the repeat loop (and vibration) stops
+ * until the user lifts and presses again.
  */
 @Composable
 fun RepeatingScoreButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    canRepeat: (() -> Boolean)? = null,
     initialDelayMs: Long = 400L,
     repeatDelayMs: Long = 80L,
     content: @Composable () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     val currentOnClick by rememberUpdatedState(onClick)
+    val currentCanRepeat by rememberUpdatedState(canRepeat)
     var pressed by remember { mutableStateOf(false) }
 
     LaunchedEffect(pressed) {
@@ -1354,7 +1359,7 @@ fun RepeatingScoreButton(
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             currentOnClick()
             delay(initialDelayMs)
-            while (true) {
+            while (currentCanRepeat?.invoke() != false) {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 currentOnClick()
                 delay(repeatDelayMs)
