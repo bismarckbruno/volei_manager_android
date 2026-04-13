@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bismarck.voleimanager.data.model.Player
@@ -239,13 +241,25 @@ fun GroupConfigDialog(
                 )
                 Spacer(Modifier.height(16.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(32.dp))
+                        .clickable { priorityEnabled = !priorityEnabled }
+                ) {
                     Switch(checked = priorityEnabled, onCheckedChange = { priorityEnabled = it })
                     Spacer(Modifier.width(16.dp))
                     Text("Mín. 1 prioridade por time", style = MaterialTheme.typography.bodySmall)
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(32.dp))
+                        .clickable { scoreEnabled = !scoreEnabled }
+                ) {
                     Switch(checked = scoreEnabled, onCheckedChange = { scoreEnabled = it })
                     Spacer(Modifier.width(16.dp))
                     Text("Usar placar", style = MaterialTheme.typography.bodySmall)

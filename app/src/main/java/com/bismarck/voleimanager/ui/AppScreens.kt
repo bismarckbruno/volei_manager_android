@@ -28,7 +28,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.content.res.Configuration
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -36,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -224,6 +224,39 @@ fun HistoryScreen(
     }
 
     var expandedDate by remember { mutableStateOf(false) }
+
+    // --- Compute layout mode once for all player cards ---
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val nameTextStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+    val statsTextStyle = MaterialTheme.typography.bodySmall
+    val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
+    // Overhead: 16dp*2 (Column padding) + 12dp*2 (Card padding) + 28dp (rank) + 8dp (spacer) + 12dp (gap)
+    val contentOverheadPx = with(density) { 104.dp.roundToPx() }
+    val availableContentPx = screenWidthPx - contentOverheadPx
+    val minNamePx = with(density) { 80.dp.roundToPx() }
+
+    val playersSideBySide = remember(historyPlayerList, availableContentPx, showElo) {
+        if (historyPlayerList.isEmpty() || availableContentPx <= 0) true
+        else historyPlayerList.all { info ->
+            // Left column width (name + optional star)
+            val nameW = textMeasurer.measure(info.player.name, nameTextStyle).size.width +
+                    (if (info.player.isPriority) with(density) { 14.dp.roundToPx() } else 0)
+            val eloW = if (showElo) textMeasurer.measure(
+                "Elo: ${EloCalculator.formatElo(info.displayElo)}", statsTextStyle
+            ).size.width else 0
+            val leftW = maxOf(nameW, eloW)
+
+            // Right column width (stats line is always the widest)
+            val vText = when (info.victories) {
+                0 -> "Nenhuma vitória"; 1 -> "1 vitória"; else -> "${info.victories} vitórias"
+            }
+            val gLabel = if (info.gamesPlayed == 1) "jogo" else "jogos"
+            val rightW = textMeasurer.measure("$vText / ${info.gamesPlayed} $gLabel", statsTextStyle).size.width
+
+            (leftW + rightW <= availableContentPx) && (availableContentPx - rightW >= minNamePx)
+        }
+    }
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -496,7 +529,8 @@ fun HistoryScreen(
                                     displayElo = info.displayElo,
                                     showElo = showElo,
                                     gamesPlayed = info.gamesPlayed,
-                                    victories = info.victories
+                                    victories = info.victories,
+                                    useSideBySide = playersSideBySide
                                 )
                             }
                         }
@@ -514,10 +548,9 @@ fun HistoryPlayerCard(
     displayElo: Double,
     showElo: Boolean,
     gamesPlayed: Int = 0,
-    victories: Int = 0
+    victories: Int = 0,
+    useSideBySide: Boolean = true
 ) {
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-
     val victoriesText = when (victories) {
         0 -> "Nenhuma vitória"
         1 -> "1 vitória"
@@ -538,48 +571,43 @@ fun HistoryPlayerCard(
             .fillMaxWidth()
             .widthIn(min = 120.dp)
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 60.dp),
-            contentAlignment = Alignment.CenterStart
+                .heightIn(min = 60.dp)
+                .padding(12.dp),
+            verticalAlignment = if (useSideBySide) Alignment.CenterVertically else Alignment.Top
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier.widthIn(min = 28.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.widthIn(min = 28.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (rank != null) {
-                        Text(
-                            "${rank}º",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 16.sp
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                if (rank != null) {
+                    Text(
+                        "${rank}º",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 16.sp
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Spacer(Modifier.width(8.dp))
-                // Player name + elo (left section)
-                Column(modifier = if (isLandscape) Modifier.weight(1f) else Modifier.weight(1f)) {
+            }
+            Spacer(Modifier.width(8.dp))
+
+            if (useSideBySide) {
+                // Wide layout: name+elo left, stats right
+                Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             player.name,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            fontWeight = FontWeight.Medium
                         )
                         if (player.isPriority) {
                             Spacer(Modifier.width(2.dp))
@@ -598,41 +626,58 @@ fun HistoryPlayerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    // In portrait, stats stay below name
-                    if (!isLandscape) {
-                        Text(
-                            "$victoriesText / $gamesPlayed $gamesLabel",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            "$percentageFormatted%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
-                // In landscape, stats move to center-right
-                if (isLandscape) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                "$victoriesText / $gamesPlayed $gamesLabel",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                "$percentageFormatted%",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                Spacer(Modifier.width(12.dp))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "$victoriesText / $gamesPlayed $gamesLabel",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "$percentageFormatted%",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                // Narrow layout: everything stacked vertically
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            player.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (player.isPriority) {
+                            Spacer(Modifier.width(2.dp))
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "Prioridade",
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+                    if (showElo) {
+                        Text(
+                            "Elo: ${EloCalculator.formatElo(displayElo)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        "$victoriesText / $gamesPlayed $gamesLabel",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "$percentageFormatted%",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
