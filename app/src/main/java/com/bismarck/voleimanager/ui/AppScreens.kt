@@ -28,8 +28,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.content.res.Configuration
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -514,6 +516,22 @@ fun HistoryPlayerCard(
     gamesPlayed: Int = 0,
     victories: Int = 0
 ) {
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val victoriesText = when (victories) {
+        0 -> "Nenhuma vitória"
+        1 -> "1 vitória"
+        else -> "$victories vitórias"
+    }
+    val gamesLabel = if (gamesPlayed == 1) "jogo" else "jogos"
+    val percentage = if (gamesPlayed > 0) {
+        victories.toDouble() / gamesPlayed * 100.0
+    } else 0.0
+    val percentageFormatted = NumberFormat.getInstance(Locale.getDefault()).apply {
+        maximumFractionDigits = 2
+        minimumFractionDigits = 0
+    }.format(percentage)
+
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
@@ -553,7 +571,8 @@ fun HistoryPlayerCard(
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
+                // Player name + elo (left section)
+                Column(modifier = if (isLandscape) Modifier.weight(1f) else Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             player.name,
@@ -579,29 +598,41 @@ fun HistoryPlayerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    val victoriesText = when (victories) {
-                        0 -> "Nenhuma vitória"
-                        1 -> "1 vitória"
-                        else -> "$victories vitórias"
+                    // In portrait, stats stay below name
+                    if (!isLandscape) {
+                        Text(
+                            "$victoriesText / $gamesPlayed $gamesLabel",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "$percentageFormatted%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    val gamesLabel = if (gamesPlayed == 1) "jogo" else "jogos"
-                    Text(
-                        "$victoriesText / $gamesPlayed $gamesLabel",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val percentage = if (gamesPlayed > 0) {
-                        victories.toDouble() / gamesPlayed * 100.0
-                    } else 0.0
-                    val percentageFormatted = NumberFormat.getInstance(Locale.getDefault()).apply {
-                        maximumFractionDigits = 2
-                        minimumFractionDigits = 0
-                    }.format(percentage)
-                    Text(
-                        "$percentageFormatted%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                }
+                // In landscape, stats move to center-right
+                if (isLandscape) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "$victoriesText / $gamesPlayed $gamesLabel",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "$percentageFormatted%",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }
