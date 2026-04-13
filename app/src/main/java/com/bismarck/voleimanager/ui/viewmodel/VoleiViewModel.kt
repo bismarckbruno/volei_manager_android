@@ -152,6 +152,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _teamColorTheme = MutableStateFlow(TeamColorTheme.DEFAULT)
     val teamColorTheme: StateFlow<TeamColorTheme> = _teamColorTheme.asStateFlow()
 
+    private val _teamsSwapped = MutableStateFlow(false)
+    val teamsSwapped: StateFlow<Boolean> = _teamsSwapped.asStateFlow()
+    fun toggleTeamsSwapped() { _teamsSwapped.value = !_teamsSwapped.value }
+
     private val _teamA = MutableStateFlow<List<Player>>(emptyList());
     val teamA = _teamA.asStateFlow()
     private val _teamB = MutableStateFlow<List<Player>>(emptyList());

@@ -489,6 +489,33 @@ fun ActiveGameView(
     val streakColorA = if (isDarkTheme) yellowStreakColor else defaultStreakColor
     val streakColorB = if (isDarkTheme) yellowStreakColor else defaultStreakColor
 
+    val teamsSwapped by viewModel.teamsSwapped.collectAsState()
+
+    // Display-order slots: first = top/left, second = bottom/right
+    val firstName = if (teamsSwapped) "Time B" else "Time A"
+    val firstPlayers = if (teamsSwapped) teamB else teamA
+    val firstCardColor = if (teamsSwapped) cardColorB else cardColorA
+    val firstBtnColor = if (teamsSwapped) btnColorB else btnColorA
+    val firstBtnTextColor = if (teamsSwapped) btnTextColorB else btnTextColorA
+    val firstStreakColor = if (teamsSwapped) streakColorB else streakColorA
+    val firstStreak = if (teamsSwapped) teamBStreak else teamAStreak
+    val firstScore = if (teamsSwapped) scoreB else scoreA
+    val firstOnIncrement: () -> Unit = if (teamsSwapped) { { viewModel.incrementScoreB() } } else { { viewModel.incrementScoreA() } }
+    val firstOnDecrement: () -> Unit = if (teamsSwapped) { { viewModel.decrementScoreB() } } else { { viewModel.decrementScoreA() } }
+    val firstWinId = if (teamsSwapped) "B" else "A"
+
+    val secondName = if (teamsSwapped) "Time A" else "Time B"
+    val secondPlayers = if (teamsSwapped) teamA else teamB
+    val secondCardColor = if (teamsSwapped) cardColorA else cardColorB
+    val secondBtnColor = if (teamsSwapped) btnColorA else btnColorB
+    val secondBtnTextColor = if (teamsSwapped) btnTextColorA else btnTextColorB
+    val secondStreakColor = if (teamsSwapped) streakColorA else streakColorB
+    val secondStreak = if (teamsSwapped) teamAStreak else teamBStreak
+    val secondScore = if (teamsSwapped) scoreA else scoreB
+    val secondOnIncrement: () -> Unit = if (teamsSwapped) { { viewModel.incrementScoreA() } } else { { viewModel.incrementScoreB() } }
+    val secondOnDecrement: () -> Unit = if (teamsSwapped) { { viewModel.decrementScoreA() } } else { { viewModel.decrementScoreB() } }
+    val secondWinId = if (teamsSwapped) "A" else "B"
+
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -531,25 +558,26 @@ fun ActiveGameView(
                                 .heightIn(min = 250.dp)
                         ) {
                             ActiveTeamCard(
-                                "Time A",
-                                teamA,
-                                cardColorA,
-                                btnColorA,
-                                btnTextColorA,
-                                streakColorA,
-                                teamAStreak,
+                                firstName,
+                                firstPlayers,
+                                firstCardColor,
+                                firstBtnColor,
+                                firstBtnTextColor,
+                                firstStreakColor,
+                                firstStreak,
                                 showElo,
-                                score = scoreA,
+                                score = firstScore,
                                 showScore = showScore,
-                                onIncrementScore = { viewModel.incrementScoreA() },
-                                onDecrementScore = { viewModel.decrementScoreA() },
+                                onIncrementScore = firstOnIncrement,
+                                onDecrementScore = firstOnDecrement,
                                 onPlayerClick = onSubRequest
-                            ) { onWinRequest("A") }
+                            ) { onWinRequest(firstWinId) }
                         }
                         Box(
                             modifier = Modifier
                                 .width(50.dp)
-                                .align(Alignment.CenterVertically),
+                                .align(Alignment.CenterVertically)
+                                .clickable { viewModel.toggleTeamsSwapped() },
                             contentAlignment = Alignment.Center
                         ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
                         Box(
@@ -558,20 +586,20 @@ fun ActiveGameView(
                                 .heightIn(min = 250.dp)
                         ) {
                             ActiveTeamCard(
-                                "Time B",
-                                teamB,
-                                cardColorB,
-                                btnColorB,
-                                btnTextColorB,
-                                streakColorB,
-                                teamBStreak,
+                                secondName,
+                                secondPlayers,
+                                secondCardColor,
+                                secondBtnColor,
+                                secondBtnTextColor,
+                                secondStreakColor,
+                                secondStreak,
                                 showElo,
-                                score = scoreB,
+                                score = secondScore,
                                 showScore = showScore,
-                                onIncrementScore = { viewModel.incrementScoreB() },
-                                onDecrementScore = { viewModel.decrementScoreB() },
+                                onIncrementScore = secondOnIncrement,
+                                onDecrementScore = secondOnDecrement,
                                 onPlayerClick = onSubRequest
-                            ) { onWinRequest("B") }
+                            ) { onWinRequest(secondWinId) }
                         }
 
                     }
@@ -643,25 +671,26 @@ fun ActiveGameView(
                         .heightIn(min = 250.dp)
                 ) {
                     ActiveTeamCard(
-                        "Time A",
-                        teamA,
-                        cardColorA,
-                        btnColorA,
-                        btnTextColorA,
-                        streakColorA,
-                        teamAStreak,
+                        firstName,
+                        firstPlayers,
+                        firstCardColor,
+                        firstBtnColor,
+                        firstBtnTextColor,
+                        firstStreakColor,
+                        firstStreak,
                         showElo,
-                        score = scoreA,
+                        score = firstScore,
                         showScore = showScore,
-                        onIncrementScore = { viewModel.incrementScoreA() },
-                        onDecrementScore = { viewModel.decrementScoreA() },
+                        onIncrementScore = firstOnIncrement,
+                        onDecrementScore = firstOnDecrement,
                         onPlayerClick = onSubRequest
-                    ) { onWinRequest("A") }
+                    ) { onWinRequest(firstWinId) }
                 }
                 Box(
                     modifier = Modifier
                         .height(40.dp)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .clickable { viewModel.toggleTeamsSwapped() },
                     contentAlignment = Alignment.Center
                 ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
                 Box(
@@ -670,20 +699,20 @@ fun ActiveGameView(
                         .heightIn(min = 250.dp)
                 ) {
                     ActiveTeamCard(
-                        "Time B",
-                        teamB,
-                        cardColorB,
-                        btnColorB,
-                        btnTextColorB,
-                        streakColorB,
-                        teamBStreak,
+                        secondName,
+                        secondPlayers,
+                        secondCardColor,
+                        secondBtnColor,
+                        secondBtnTextColor,
+                        secondStreakColor,
+                        secondStreak,
                         showElo,
-                        score = scoreB,
+                        score = secondScore,
                         showScore = showScore,
-                        onIncrementScore = { viewModel.incrementScoreB() },
-                        onDecrementScore = { viewModel.decrementScoreB() },
+                        onIncrementScore = secondOnIncrement,
+                        onDecrementScore = secondOnDecrement,
                         onPlayerClick = onSubRequest
-                    ) { onWinRequest("B") }
+                    ) { onWinRequest(secondWinId) }
                 }
 
                 TextButton(
