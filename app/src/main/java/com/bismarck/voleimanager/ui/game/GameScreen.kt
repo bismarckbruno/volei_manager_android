@@ -89,95 +89,10 @@ fun GameScreenContent(
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
 
-    val absentPlayers = remember(sortedPlayers, presentIds) {
-        sortedPlayers.filter { !presentIds.contains(it.id) }
-    }
-
-    var showAbsentDialog by remember { mutableStateOf(false) }
-    var playerToAddFromAbsent by remember { mutableStateOf<Player?>(null) }
     var showCancel by remember { mutableStateOf(false) }
     var subOut by remember { mutableStateOf<Player?>(null) }
     var editP by remember { mutableStateOf<Player?>(null) }
     var confirmWinTeam by remember { mutableStateOf<String?>(null) }
-
-    if (showAbsentDialog) {
-        AlertDialog(
-            onDismissRequest = { showAbsentDialog = false },
-            title = { Text("Selecionar jogadores") },
-            text = {
-                if (absentPlayers.isEmpty()) {
-                    Text("Todos os jogadores cadastrados já estão presentes na quadra.")
-                } else {
-                    val listState = rememberLazyListState()
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .heightIn(max = 300.dp)
-                            .simpleScrollbar(listState)
-                    ) {
-                        items(absentPlayers) { p ->
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        p.name,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        Icons.Default.Person,
-                                        null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    playerToAddFromAbsent = p
-                                    showAbsentDialog = false
-                                }
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { showAbsentDialog = false },
-                    modifier = Modifier.padding(end = 8.dp)
-                ) { Text("Fechar", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
-        )
-    }
-
-    playerToAddFromAbsent?.let { p ->
-        val playedToday = (gamesPlayedMap[p.id] ?: 0) > 0
-        AlertDialog(
-            onDismissRequest = { playerToAddFromAbsent = null },
-            title = { Text("Selecionar ${p.name}?") },
-            text = {
-                if (playedToday) {
-                    Text("A pessoa selecionada irá para o final da fila de espera.")
-                } else {
-                    Text("A pessoa selecionada irá para o começo da fila de espera por ainda não ter jogado hoje.")
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.togglePlayerPresence(p)
-                    playerToAddFromAbsent = null
-                }) {
-                    Text("Confirmar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { playerToAddFromAbsent = null }) {
-                    Text(
-                        "Cancelar",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        )
-    }
 
     if (showCancel) AlertDialog(
         onDismissRequest = { showCancel = false },
