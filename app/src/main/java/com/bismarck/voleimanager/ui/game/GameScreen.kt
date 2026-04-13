@@ -11,6 +11,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -59,6 +60,7 @@ import com.bismarck.voleimanager.ui.components.simpleScrollbar
 import com.bismarck.voleimanager.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -918,7 +920,7 @@ fun ActiveTeamCard(
                         .background(contentColor.copy(alpha = 0.1f), shape = CircleShape)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    IconButton(
+                    RepeatingScoreButton(
                         onClick = onDecrementScore,
                         modifier = Modifier.size(32.dp)
                     ) {
@@ -935,7 +937,7 @@ fun ActiveTeamCard(
                         color = contentColor,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    IconButton(
+                    RepeatingScoreButton(
                         onClick = onIncrementScore,
                         modifier = Modifier.size(32.dp)
                     ) {
@@ -1331,3 +1333,48 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
     }
 }
 
+/**
+ * A button that fires [onClick] immediately on press (with haptic feedback),
+ * then repeats it continuously while the finger is held down.
+ */
+@Composable
+fun RepeatingScoreButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    initialDelayMs: Long = 400L,
+    repeatDelayMs: Long = 80L,
+    content: @Composable () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    val currentOnClick by rememberUpdatedState(onClick)
+    var pressed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pressed) {
+        if (pressed) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            currentOnClick()
+            delay(initialDelayMs)
+            while (true) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                currentOnClick()
+                delay(repeatDelayMs)
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        pressed = true
+                        tryAwaitRelease()
+                        pressed = false
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
