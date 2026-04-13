@@ -16,6 +16,7 @@ import com.bismarck.voleimanager.data.model.MatchHistory
 import com.bismarck.voleimanager.data.model.Player
 import com.bismarck.voleimanager.data.model.PlayerEloLog
 import com.bismarck.voleimanager.util.EloCalculator
+import com.bismarck.voleimanager.util.TeamBalancer
 import com.bismarck.voleimanager.util.TollCalculator
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -617,7 +618,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         val selectedPlayers = mutableListOf<Player>()
         val pool =
-            availableWithTollApplied.shuffled().sortedBy { getEffectiveGames(it) }.toMutableList()
+            TeamBalancer.groupAndInterleave(availableWithTollApplied) { getEffectiveGames(it) }.toMutableList()
 
         if (config.priorityEnabled) {
             val priorities = pool.filter { it.isPriority }
@@ -815,12 +816,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         fun getEffectiveGames(p: Player): Int =
             TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
 
-        val sortedLosers = losers.shuffled().sortedBy { getEffectiveGames(it) }
+        val sortedLosers = TeamBalancer.groupAndInterleave(losers) { getEffectiveGames(it) }
 
         if (_currentStreak.value >= conf.victoryLimit) {
             _currentStreak.value = 0; _streakOwner.value = null
 
-            val sortedWinners = activeWinners.shuffled().sortedBy { getEffectiveGames(it) }
+            val sortedWinners = TeamBalancer.groupAndInterleave(activeWinners) { getEffectiveGames(it) }
             val winnersToKeep = sortedWinners.take(conf.teamSize * 2)
             val winnersToDrop = sortedWinners.drop(conf.teamSize * 2)
 
@@ -902,10 +903,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             var remainingPool = (waitlist + sortedLosers).toMutableList()
 
             if (teamWin.size > conf.teamSize) {
-                teamWin.shuffle()
-                val droppedWinners = teamWin.drop(conf.teamSize)
-                teamWin = teamWin.take(conf.teamSize).toMutableList()
-
+                val sorted = TeamBalancer.groupAndInterleave(teamWin.toList()) { getEffectiveGames(it) }
+                teamWin = sorted.take(conf.teamSize).toMutableList()
+                val droppedWinners = TeamBalancer.interleaveByElo(sorted.drop(conf.teamSize))
                 remainingPool.addAll(0, droppedWinners)
             } else if (teamWin.size < conf.teamSize) {
                 val needed = conf.teamSize - teamWin.size

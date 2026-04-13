@@ -63,4 +63,42 @@ object TeamBalancer {
 
         return BalancedResult(teamA, teamB)
     }
+
+    /**
+     * Intercala jogadores por Elo em zigzag (alto-baixo-alto-baixo...).
+     *
+     * Garante que qualquer prefixo da lista resultante contenha
+     * uma mistura equilibrada de jogadores fortes e fracos.
+     *
+     * Algoritmo: ordena por Elo decrescente, depois pega alternadamente
+     * da frente (mais forte) e de trás (mais fraco).
+     */
+    fun interleaveByElo(players: List<Player>): List<Player> {
+        if (players.size <= 1) return players
+        val sorted = players.sortedByDescending { it.elo }
+        val result = mutableListOf<Player>()
+        var lo = 0
+        var hi = sorted.lastIndex
+        var takeHigh = true
+        while (lo <= hi) {
+            if (takeHigh) result.add(sorted[lo++]) else result.add(sorted[hi--])
+            takeHigh = !takeHigh
+        }
+        return result
+    }
+
+    /**
+     * Agrupa jogadores pela chave fornecida (ex: effectiveGames),
+     * ordena os grupos em ordem crescente da chave,
+     * e dentro de cada grupo aplica [interleaveByElo].
+     *
+     * Resultado: lista onde jogadores com menor chave vêm primeiro (prioridade de jogo),
+     * e dentro de cada faixa a diversidade de Elo é garantida.
+     */
+    fun groupAndInterleave(players: List<Player>, keySelector: (Player) -> Int): List<Player> {
+        return players
+            .groupBy { keySelector(it) }
+            .toSortedMap()
+            .flatMap { (_, tier) -> interleaveByElo(tier) }
+    }
 }
