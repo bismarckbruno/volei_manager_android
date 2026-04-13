@@ -1,7 +1,9 @@
 package com.bismarck.voleimanager.util
 
+import com.bismarck.voleimanager.data.model.Player
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.pow
 
 object EloCalculator {
@@ -22,6 +24,37 @@ object EloCalculator {
         val delta = K_FACTOR * (1.0 - expectedScore)
 
         return delta
+    }
+
+    /**
+     * Calcula o delta Elo individual de um jogador contra a média do time adversário.
+     */
+    fun calculateIndividualEloChange(
+        playerElo: Double,
+        opponentTeamAvgElo: Double,
+        won: Boolean
+    ): Double {
+        val exponent = (opponentTeamAvgElo - playerElo) / 400.0
+        val expectedScore = 1.0 / (1.0 + 10.0.pow(exponent))
+        val actualScore = if (won) 1.0 else 0.0
+        return K_FACTOR * (actualScore - expectedScore)
+    }
+
+    /**
+     * Calcula deltas individuais normalizados para preservar o total (zero-sum).
+     * sum(abs(deltas)) == flatDelta × players.size
+     */
+    fun calculateNormalizedDeltas(
+        players: List<Player>,
+        opponentTeamAvgElo: Double,
+        won: Boolean,
+        flatDelta: Double
+    ): List<Double> {
+        val rawDeltas = players.map { calculateIndividualEloChange(it.elo, opponentTeamAvgElo, won) }
+        val rawAbsSum = rawDeltas.sumOf { abs(it) }
+        val targetAbsSum = flatDelta * players.size
+        val scale = if (rawAbsSum > 0.0) targetAbsSum / rawAbsSum else 1.0
+        return rawDeltas.map { it * scale }
     }
 
     /**

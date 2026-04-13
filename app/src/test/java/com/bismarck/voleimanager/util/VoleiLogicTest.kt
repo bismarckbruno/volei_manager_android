@@ -64,4 +64,60 @@ class VoleiLogicTest {
         assertEquals(3, result.teamB.size)
         // Sobram 4 (10 - 6)
     }
+
+    // --- TESTES DE ELO INDIVIDUAL ---
+    @Test
+    fun individualElo_strongPlayerWins_getsSmallDelta() {
+        val delta = EloCalculator.calculateIndividualEloChange(1400.0, 1200.0, true)
+        assertTrue("Jogador forte deve ganhar pouco", delta < 10.0)
+        assertTrue("Delta deve ser positivo", delta > 0.0)
+    }
+
+    @Test
+    fun individualElo_weakPlayerWins_getsBigDelta() {
+        val delta = EloCalculator.calculateIndividualEloChange(1000.0, 1200.0, true)
+        assertTrue("Jogador fraco deve ganhar muito", delta > 20.0)
+    }
+
+    @Test
+    fun individualElo_strongPlayerLoses_losesMore() {
+        val delta = EloCalculator.calculateIndividualEloChange(1400.0, 1200.0, false)
+        assertTrue("Jogador forte deve perder muito", delta < -20.0)
+    }
+
+    @Test
+    fun individualElo_weakPlayerLoses_losesLess() {
+        val delta = EloCalculator.calculateIndividualEloChange(1000.0, 1200.0, false)
+        assertTrue("Jogador fraco deve perder pouco", delta > -10.0)
+        assertTrue("Delta deve ser negativo", delta < 0.0)
+    }
+
+    @Test
+    fun normalizedDeltas_sumMatchesFlatTotal() {
+        val players = listOf(
+            Player(id=1, name="Forte", elo=1400.0, groupName="G"),
+            Player(id=2, name="Médio", elo=1200.0, groupName="G"),
+            Player(id=3, name="Fraco", elo=1000.0, groupName="G")
+        )
+        val flatDelta = 16.0
+        val opponentAvg = 1200.0
+
+        val winDeltas = EloCalculator.calculateNormalizedDeltas(players, opponentAvg, true, flatDelta)
+        assertEquals("Soma dos ganhos deve ser flatDelta × tamanho", flatDelta * 3, winDeltas.sum(), 0.01)
+
+        val loseDeltas = EloCalculator.calculateNormalizedDeltas(players, opponentAvg, false, flatDelta)
+        assertEquals("Soma das perdas deve ser -flatDelta × tamanho", -flatDelta * 3, loseDeltas.sum(), 0.01)
+    }
+
+    @Test
+    fun normalizedDeltas_equalPlayersGetEqualDeltas() {
+        val players = listOf(
+            Player(id=1, name="P1", elo=1200.0, groupName="G"),
+            Player(id=2, name="P2", elo=1200.0, groupName="G")
+        )
+        val flatDelta = 16.0
+        val deltas = EloCalculator.calculateNormalizedDeltas(players, 1200.0, true, flatDelta)
+        assertEquals(16.0, deltas[0], 0.01)
+        assertEquals(16.0, deltas[1], 0.01)
+    }
 }

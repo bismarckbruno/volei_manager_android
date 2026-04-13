@@ -727,14 +727,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _lastWinners.value = winners; lastLosers = losers; _hasPreviousMatch.value = true
 
         viewModelScope.launch(Dispatchers.IO) {
+            val avgA = cA.map { it.elo }.average()
+            val avgB = cB.map { it.elo }.average()
             val delta =
-                if (winner == "A") EloCalculator.calculateEloChange(
-                    cA.map { it.elo }.average(),
-                    cB.map { it.elo }.average()
-                ) else EloCalculator.calculateEloChange(
-                    cB.map { it.elo }.average(),
-                    cA.map { it.elo }.average()
-                )
+                if (winner == "A") EloCalculator.calculateEloChange(avgA, avgB)
+                else EloCalculator.calculateEloChange(avgB, avgA)
             val dateLog = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val dateDisplay =
                 SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
@@ -743,9 +740,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val newWinners = mutableListOf<Player>();
             val newLosers = mutableListOf<Player>()
 
-            suspend fun process(list: List<Player>, won: Boolean) {
-                list.forEach { p ->
-                    val newElo = if (won) p.elo + delta else p.elo - delta
+            suspend fun process(list: List<Player>, won: Boolean, opponentAvgElo: Double) {
+                val deltas = EloCalculator.calculateNormalizedDeltas(list, opponentAvgElo, won, delta)
+                list.forEachIndexed { i, p ->
+                    val newElo = p.elo + deltas[i]
                     val u = p.copy(
                         elo = newElo,
                         matchesPlayed = p.matchesPlayed + 1,
@@ -764,10 +762,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     )
                 }
             }
-            process(if (winner == "A") cA else cB, true); process(
-            if (winner == "A") cB else cA,
-            false
-        )
+            process(winners, true, if (winner == "A") avgB else avgA)
+            process(losers, false, if (winner == "A") avgA else avgB)
 
             _lastWinners.value = newWinners; lastLosers = newLosers
             repository.updatePlayers(updatedPlayers)
@@ -779,8 +775,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     winner = "Time $winner",
                     eloPoints = delta,
                     groupName = cA.first().groupName,
-                    teamAAverageElo = cA.map { it.elo }.average(),
-                    teamBAverageElo = cB.map { it.elo }.average(),
+                    teamAAverageElo = avgA,
+                    teamBAverageElo = avgB,
                     teamAScore = sA,
                     teamBScore = sB
                 )
