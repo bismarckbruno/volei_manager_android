@@ -2,6 +2,7 @@ package com.bismarck.voleimanager.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -17,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
@@ -223,7 +225,7 @@ fun HistoryScreen(
 
     Column(modifier = Modifier
         .fillMaxSize()
-        .padding(16.dp)) {
+        .padding(horizontal = 16.dp)) {
 
         // --- Date filter dropdown ---
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -269,27 +271,67 @@ fun HistoryScreen(
                     selected = selectedTab == 0,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    icon = { SegmentedButtonDefaults.Icon(active = selectedTab == 0) {
-                        Icon(
-                            painter = painterResource(id = com.bismarck.voleimanager.R.drawable.bola_de_v_lei_s_lida_para_variar_a_cor),
-                            contentDescription = null,
-                            modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
-                        )
-                    }}
+                    icon = { }
                 ) {
-                    val matchLabel = if (sortedHistory.size == 1) "partida" else "partidas"
-                    Text("${sortedHistory.size} $matchLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Crossfade(
+                            targetState = selectedTab == 0,
+                            label = "tabIcon0"
+                        ) { isSelected ->
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(id = com.bismarck.voleimanager.R.drawable.bola_de_v_lei_s_lida_para_variar_a_cor),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        val matchLabel = if (sortedHistory.size == 1) "partida" else "partidas"
+                        Text("${sortedHistory.size} $matchLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
                 SegmentedButton(
                     selected = selectedTab == 1,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    icon = { SegmentedButtonDefaults.Icon(active = selectedTab == 1) {
-                        Icon(Icons.Default.Groups, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
-                    }}
+                    icon = { }
                 ) {
-                    val playerLabel = if (uniquePlayerCount == 1) "jogador" else "jogadores"
-                    Text("$uniquePlayerCount $playerLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Crossfade(
+                            targetState = selectedTab == 1,
+                            label = "tabIcon1"
+                        ) { isSelected ->
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Groups,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        val playerLabel = if (uniquePlayerCount == 1) "jogador" else "jogadores"
+                        Text("$uniquePlayerCount $playerLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
 
@@ -490,23 +532,27 @@ fun HistoryPlayerCard(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (rank != null) {
-                    Text(
-                        "${rank}º",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 16.sp
-                    )
-                    Spacer(Modifier.width(8.dp))
-                } else {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier.widthIn(min = 28.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (rank != null) {
+                        Text(
+                            "${rank}º",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 16.sp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
+                Spacer(Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
