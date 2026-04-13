@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,6 +130,7 @@ internal fun WaitingListContent(
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
     }
+    var absentExpanded by remember { mutableStateOf(false) }
     var undoAction by remember { mutableStateOf<UndoAction?>(null) }
     var scrollHighlightJob by remember { mutableStateOf<Job?>(null) }
     var highlightedPlayerId by remember { mutableStateOf<Int?>(null) }
@@ -338,59 +340,74 @@ internal fun WaitingListContent(
                 Column(
                     modifier = Modifier
                         .animateItemPlacement()
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .clickable { absentExpanded = !absentExpanded },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Ausentes (${absentPlayers.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.padding(8.dp)
-                    )
+                    ) {
+                        Text(
+                            "Ausentes (${absentPlayers.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (absentExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (absentExpanded) "Recolher" else "Expandir",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            if (absentPlayers.isEmpty()) {
-                item(key = "inactive_empty") {
-                    Text(
-                        text = "Todos os jogadores cadastrados estão presentes",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .animateItemPlacement()
-                            .padding(horizontal = 8.dp, vertical = 12.dp),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            } else {
-                itemsIndexed(
-                    absentPlayers,
-                    key = { _, player -> "inactive_${player.id}" }) { _, player ->
-                    InactivePlayerItem(
-                        modifier = Modifier.animateItemPlacement(),
-                        player = player,
-                        showElo = showElo,
-                        onMoveToBeginning = {
-                            val targetIndex = 0
-                            undoAction = UndoAction.Add(player, targetIndex)
-                            viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                            showSnackbar("${player.name} entrou no começo da fila", true)
-                            scope.launch { delay(100); listState.animateScrollToItem(0) }
-                        },
-                        onMoveToEnd = {
-                            val targetIndex = waitingList.size
-                            undoAction = UndoAction.Add(player, targetIndex)
-                            viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                            showSnackbar("${player.name} entrou no final da fila", true)
-                            scope.launch {
-                                delay(100)
-                                if (waitingList.isNotEmpty()) listState.animateScrollToItem(
-                                    waitingList.size - 1
-                                )
+            if (absentExpanded) {
+                if (absentPlayers.isEmpty()) {
+                    item(key = "inactive_empty") {
+                        Text(
+                            text = "Todos os jogadores cadastrados estão presentes",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .animateItemPlacement()
+                                .padding(horizontal = 8.dp, vertical = 12.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    itemsIndexed(
+                        absentPlayers,
+                        key = { _, player -> "inactive_${player.id}" }) { _, player ->
+                        InactivePlayerItem(
+                            modifier = Modifier.animateItemPlacement(),
+                            player = player,
+                            showElo = showElo,
+                            onMoveToBeginning = {
+                                val targetIndex = 0
+                                undoAction = UndoAction.Add(player, targetIndex)
+                                viewModel.insertPlayerIntoWaitingList(player, targetIndex)
+                                showSnackbar("${player.name} entrou no começo da fila", true)
+                                scope.launch { delay(100); listState.animateScrollToItem(0) }
+                            },
+                            onMoveToEnd = {
+                                val targetIndex = waitingList.size
+                                undoAction = UndoAction.Add(player, targetIndex)
+                                viewModel.insertPlayerIntoWaitingList(player, targetIndex)
+                                showSnackbar("${player.name} entrou no final da fila", true)
+                                scope.launch {
+                                    delay(100)
+                                    if (waitingList.isNotEmpty()) listState.animateScrollToItem(
+                                        waitingList.size - 1
+                                    )
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         } // end LazyColumn
