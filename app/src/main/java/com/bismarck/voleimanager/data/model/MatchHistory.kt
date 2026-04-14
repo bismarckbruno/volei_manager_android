@@ -15,5 +15,8 @@ data class MatchHistory(
     val teamAAverageElo: Double? = null,
     val teamBAverageElo: Double? = null,
     val teamAScore: Int? = null,
-    val teamBScore: Int? = null
+    val teamBScore: Int? = null,
+    val startTimestamp: Long? = null,
+    val endTimestamp: Long? = null
 )
+

@@ -29,7 +29,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -42,14 +41,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.data.model.MatchHistory
 import com.bismarck.voleimanager.data.model.Player
-import com.bismarck.voleimanager.data.model.PlayerEloLog
 import com.bismarck.voleimanager.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.util.EloCalculator
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 data class HistoryPlayerInfo(
     val player: Player,
@@ -103,12 +103,12 @@ fun HistoryScreen(
         when (matchSortMode) {
             MatchSortMode.NEWEST -> filtered.sortedWith(
                 compareByDescending<MatchHistory> {
-                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
                 }.thenByDescending { it.id }
             )
             MatchSortMode.OLDEST -> filtered.sortedWith(
                 compareBy<MatchHistory> {
-                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
                 }.thenByDescending { it.id }
             )
             MatchSortMode.ELO_DELTA -> filtered.sortedWith(
@@ -123,6 +123,94 @@ fun HistoryScreen(
                 }.thenByDescending { it.id }
             )
         }
+    }
+
+    val matchDurationsMinutes = remember(sortedHistory) {
+        val sdfDateTime = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        val sdfDay = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+
+        data class MatchTiming(
+            val match: MatchHistory,
+            val endTimestamp: Long?,
+            val dayKey: String,
+            val exactMinutes: Int?
+        )
+
+        val timing = sortedHistory.map { match ->
+            val parsedEnd = match.endTimestamp ?: try {
+                sdfDateTime.parse(match.date)?.time
+            } catch (_: Exception) {
+                null
+            }
+
+            val dayKey = when {
+                parsedEnd != null -> sdfDay.format(Date(parsedEnd))
+                else -> match.date.substringBefore(" ").takeIf { it.isNotBlank() } ?: ""
+            }
+
+            val exactMinutes = if (
+                match.startTimestamp != null && match.endTimestamp != null &&
+                match.endTimestamp > match.startTimestamp
+            ) {
+                ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
+            } else {
+                null
+            }
+
+            MatchTiming(match, parsedEnd, dayKey, exactMinutes)
+        }
+
+        val chronologic = timing.sortedWith(
+            compareBy<MatchTiming> { it.endTimestamp ?: 0L }
+                .thenBy { it.match.id }
+        )
+
+        val result = mutableMapOf<Int, Int>()
+        chronologic.groupBy { it.dayKey }.forEach { (_, dayMatches) ->
+            val rawLegacyMinutes = mutableMapOf<Int, Int?>()
+            var previousEnd: Long? = null
+
+            dayMatches.forEach { item ->
+                if (item.exactMinutes != null) {
+                    result[item.match.id] = item.exactMinutes
+                } else {
+                    val raw = if (
+                        item.endTimestamp != null && previousEnd != null && item.endTimestamp > previousEnd
+                    ) {
+                        ((item.endTimestamp - previousEnd) / 60000L).toInt().coerceAtLeast(1)
+                    } else {
+                        null
+                    }
+                    rawLegacyMinutes[item.match.id] = raw
+                }
+                previousEnd = item.endTimestamp ?: previousEnd
+            }
+
+            val dayLegacyMean = rawLegacyMinutes.values
+                .filterNotNull()
+                .takeIf { it.isNotEmpty() }
+                ?.average()
+
+            rawLegacyMinutes.forEach { (matchId, raw) ->
+                val normalized = when {
+                    dayLegacyMean == null -> raw?.toDouble()
+                    raw == null -> dayLegacyMean
+                    raw < dayLegacyMean / 3.0 -> dayLegacyMean
+                    raw > dayLegacyMean * 3.0 -> dayLegacyMean
+                    else -> raw.toDouble()
+                }
+
+                if (normalized != null) {
+                    result[matchId] = normalized.roundToInt().coerceAtLeast(1)
+                }
+            }
+        }
+
+        result
+    }
+
+    val averageMatchDurationMinutes = remember(matchDurationsMinutes) {
+        if (matchDurationsMinutes.isEmpty()) null else matchDurationsMinutes.values.average().toInt()
     }
 
     // Unique player names from filtered history
@@ -221,6 +309,12 @@ fun HistoryScreen(
                     .thenByDescending { it.displayElo }
             )
         }
+    }
+
+    val averagePlayersEloText = remember(historyPlayerList) {
+        if (historyPlayerList.isEmpty()) null
+        else NumberFormat.getIntegerInstance(Locale.getDefault())
+            .format(historyPlayerList.map { it.displayElo }.average().toInt())
     }
 
     var expandedDate by remember { mutableStateOf(false) }
@@ -487,8 +581,25 @@ fun HistoryScreen(
             when (page) {
                 0 -> {
                     // --- Matches view ---
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(sortedHistory) { match -> HistoryItem(match, isDarkTheme, showElo, showScore) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (sortedHistory.isNotEmpty()) {
+                            item {
+                                val avgDurationText = averageMatchDurationMinutes?.let { "$it min" } ?: "--"
+                                HistorySummaryItem(text = "Duração média das partidas: $avgDurationText")
+                            }
+                        }
+                        items(sortedHistory) { match ->
+                            HistoryItem(
+                                match = match,
+                                isDarkTheme = isDarkTheme,
+                                showElo = showElo,
+                                showScore = showScore,
+                                durationMinutes = matchDurationsMinutes[match.id]
+                            )
+                        }
                         if (sortedHistory.isEmpty()) item {
                             Box(
                                 modifier = Modifier
@@ -506,7 +617,10 @@ fun HistoryScreen(
                 }
                 1 -> {
                     // --- Players view ---
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         if (historyPlayerList.isEmpty()) {
                             item {
                                 Box(
@@ -522,6 +636,11 @@ fun HistoryScreen(
                                 }
                             }
                         } else {
+                            item {
+                                HistorySummaryItem(
+                                    text = "Média de Elo dos jogadores: ${averagePlayersEloText ?: "--"}"
+                                )
+                            }
                             itemsIndexed(historyPlayerList) { index, info ->
                                 HistoryPlayerCard(
                                     rank = if (playerSortMode != PlayerSortMode.ALPHABETICAL) index + 1 else null,
@@ -538,6 +657,23 @@ fun HistoryScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HistorySummaryItem(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        )
     }
 }
 
@@ -685,7 +821,13 @@ fun HistoryPlayerCard(
 }
 
 @Composable
-fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean, showScore: Boolean = true) {
+fun HistoryItem(
+    match: MatchHistory,
+    isDarkTheme: Boolean,
+    showElo: Boolean,
+    showScore: Boolean = true,
+    durationMinutes: Int? = null
+) {
     val isTeamAWin = match.winner == "Time A"
     val teamANames = remember(match.teamA) {
         match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -719,6 +861,14 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean, sho
     val scoreA = match.teamAScore ?: 0
     val scoreB = match.teamBScore ?: 0
     val hasScore = scoreA > 0 || scoreB > 0
+    val formattedDelta = remember(match.eloPoints) {
+        NumberFormat.getInstance(Locale.getDefault()).apply {
+            maximumFractionDigits = 2
+            minimumFractionDigits = 0
+        }.format(match.eloPoints)
+    }
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
 
     Card(
         colors = CardDefaults.cardColors(
@@ -727,24 +877,86 @@ fun HistoryItem(match: MatchHistory, isDarkTheme: Boolean, showElo: Boolean, sho
         )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(match.date, style = MaterialTheme.typography.labelMedium)
-                if (showElo) {
-                    val formattedDelta = remember(match.eloPoints) {
-                        NumberFormat.getInstance(Locale.getDefault()).apply {
-                            maximumFractionDigits = 2
-                            minimumFractionDigits = 0
-                        }.format(match.eloPoints)
-                    }
-                    Text(
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val maxWidthPx = with(density) { maxWidth.roundToPx() }
+                val dateWidthPx = textMeasurer.measure(match.date, style = MaterialTheme.typography.labelMedium).size.width
+                val eloWidthPx = if (showElo) {
+                    textMeasurer.measure(
                         "±$formattedDelta",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                    ).size.width
+                } else 0
+                val durationWidthPx = if (durationMinutes != null) {
+                    textMeasurer.measure(
+                        "$durationMinutes min",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                    ).size.width + with(density) { 16.dp.roundToPx() }
+                } else 0
+                val durationGapPx = if (durationMinutes != null) with(density) { 8.dp.roundToPx() } else 0
+                val minGapLeftRightPx = if (showElo) with(density) { 12.dp.roundToPx() } else 0
+
+                val shouldBreakDurationLine = showElo && durationMinutes != null &&
+                    (dateWidthPx + durationGapPx + durationWidthPx + minGapLeftRightPx + eloWidthPx > maxWidthPx)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    if (shouldBreakDurationLine) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(match.date, style = MaterialTheme.typography.labelMedium)
+                            Spacer(Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        contentColor.copy(alpha = 0.12f),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "$durationMinutes min",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = contentColor
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(match.date, style = MaterialTheme.typography.labelMedium)
+                            if (durationMinutes != null) {
+                                Spacer(Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            contentColor.copy(alpha = 0.12f),
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "$durationMinutes min",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = contentColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (showElo) {
+                        Text(
+                            "±$formattedDelta",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
             }
             HorizontalDivider(

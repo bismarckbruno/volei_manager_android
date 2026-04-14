@@ -57,7 +57,8 @@ data class GameStateSnapshot(
     val streakOwner: String?,
     val hasPreviousMatch: Boolean,
     val lastWinners: List<Player>,
-    val lastLosers: List<Player>
+    val lastLosers: List<Player>,
+    val currentMatchStartTimestamp: Long? = null
 )
 
 class VoleiViewModel(application: Application, private val repository: VoleiRepository) :
@@ -179,6 +180,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _lastWinners = MutableStateFlow<List<Player>>(emptyList());
     val lastWinners = _lastWinners.asStateFlow()
     private var lastLosers: List<Player> = emptyList()
+    private val _currentMatchStartTimestamp = MutableStateFlow<Long?>(null)
 
     // Controls when game-state persistence is active (after first group load)
     private var persistenceReady = false
@@ -221,7 +223,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             streakOwner = _streakOwner.value,
             hasPreviousMatch = _hasPreviousMatch.value,
             lastWinners = _lastWinners.value,
-            lastLosers = lastLosers
+            lastLosers = lastLosers,
+            currentMatchStartTimestamp = _currentMatchStartTimestamp.value
         )
         // If nothing meaningful is happening, clear instead of saving
         if (!snapshot.hasPreviousMatch && snapshot.teamA.isEmpty() && snapshot.teamB.isEmpty()) {
@@ -258,6 +261,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _hasPreviousMatch.value = snapshot.hasPreviousMatch
             _lastWinners.value = snapshot.lastWinners
             lastLosers = snapshot.lastLosers
+            _currentMatchStartTimestamp.value = snapshot.currentMatchStartTimestamp
             Log.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
             true
         } catch (e: Exception) {
@@ -360,6 +364,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             null; _hasPreviousMatch.value = false
         _historyDateFilter.value = null
         _scoreA.value = 0; _scoreB.value = 0
+        _currentMatchStartTimestamp.value = null
     }
 
     fun updateConfig(s: Int, l: Int, priorityP: Boolean, scoreEnabled: Boolean = true) {
@@ -643,6 +648,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             sortTeamPlayers(finalB); _waitingList.value = pool
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         _scoreA.value = 0; _scoreB.value = 0
+        _currentMatchStartTimestamp.value = System.currentTimeMillis()
     }
 
     private fun balanceTeamsWithPriority(
@@ -676,12 +682,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             sortTeamPlayers(tBWithToll); _waitingList.value = remWithToll
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         _scoreA.value = 0; _scoreB.value = 0
+        _currentMatchStartTimestamp.value = System.currentTimeMillis()
     }
 
     fun cancelGame() {
         _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
         _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
         _scoreA.value = 0; _scoreB.value = 0
+        _currentMatchStartTimestamp.value = null
     }
 
     fun substitutePlayer(out: Player, `in`: Player) {
@@ -738,8 +746,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 if (winner == "A") EloCalculator.calculateEloChange(avgA, avgB)
                 else EloCalculator.calculateEloChange(avgB, avgA)
             val dateLog = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val endTimestamp = System.currentTimeMillis()
             val dateDisplay =
-                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(endTimestamp))
+            val startTimestamp = _currentMatchStartTimestamp.value
 
             val updatedPlayers = mutableListOf<Player>()
             val newWinners = mutableListOf<Player>();
@@ -783,11 +793,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     teamAAverageElo = avgA,
                     teamBAverageElo = avgB,
                     teamAScore = sA,
-                    teamBScore = sB
+                    teamBScore = sB,
+                    startTimestamp = startTimestamp,
+                    endTimestamp = endTimestamp
                 )
             )
             _teamA.value = emptyList(); _teamB.value = emptyList()
             _scoreA.value = 0; _scoreB.value = 0
+            _currentMatchStartTimestamp.value = null
         }
     }
 
@@ -950,6 +963,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _hasPreviousMatch.value = false
         _scoreA.value = 0
         _scoreB.value = 0
+        _currentMatchStartTimestamp.value = System.currentTimeMillis()
     }
 
     private fun formatElo(elo: Double): String = String.format(Locale.US, "%.2f", elo)
@@ -1053,7 +1067,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             teamBAverageElo = cols.getOrElse(7) { "" }
                                                 .toDoubleOrNull(),
                                             teamAScore = cols.getOrElse(8) { "" }.toIntOrNull(),
-                                            teamBScore = cols.getOrElse(9) { "" }.toIntOrNull()
+                                            teamBScore = cols.getOrElse(9) { "" }.toIntOrNull(),
+                                            startTimestamp = cols.getOrElse(10) { "" }
+                                                .toLongOrNull(),
+                                            endTimestamp = cols.getOrElse(11) { "" }
+                                                .toLongOrNull()
                                         )
                                     } else null
                                 } catch (e: Exception) {
@@ -1137,7 +1155,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     }
 
                     CsvType.HISTORICO -> {
-                        content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo,MediaEloTimeA,MediaEloTimeB,PlacarTimeA,PlacarTimeB\n")
+                        content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo,MediaEloTimeA,MediaEloTimeB,PlacarTimeA,PlacarTimeB,InicioPartida,FimPartida\n")
                         currentGroupHistory.value.forEach {
                             content.append(
                                 "\"${it.date}\",\"${
@@ -1161,7 +1179,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             e
                                         )
                                     } ?: ""
-                                },${it.teamAScore ?: ""},${it.teamBScore ?: ""}\n")
+                                },${it.teamAScore ?: ""},${it.teamBScore ?: ""},${it.startTimestamp ?: ""},${it.endTimestamp ?: ""}\n")
                         }
                     }
 
