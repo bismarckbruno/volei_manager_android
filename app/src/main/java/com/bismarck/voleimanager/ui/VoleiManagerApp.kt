@@ -132,6 +132,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     selectedGroup = pendingGroupSwitch
                     viewModel.loadGroupConfig(pendingGroupSwitch!!)
                     pendingGroupSwitch = null
+                    scope.launch { drawerState.close() }
                 }) { Text("Mudar mesmo assim") }
             },
             dismissButton = {
@@ -413,10 +414,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         OutlinedTextField(
                             value = selectedGroup ?: "Selecione",
                             onValueChange = {}, readOnly = true,
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = groupExpanded) },
+                            trailingIcon = { Icon(if (groupExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null) },
                             modifier = Modifier
                                 .menuAnchor()
-                                .fillMaxWidth()
+                                .fillMaxWidth(),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
                         )
                         ExposedDropdownMenu(
                             expanded = groupExpanded,
@@ -463,6 +465,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 )
                                             }
                                         }
+                                        scope.launch { drawerState.close() }
                                     }
                                 )
                             }
