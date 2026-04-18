@@ -580,7 +580,8 @@ fun ActiveGameView(
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
@@ -606,7 +607,7 @@ fun ActiveGameView(
                 Box(
                     modifier = Modifier
                         .height(40.dp)
-                        .fillMaxWidth()
+                        .width(50.dp)
                         .clickable { viewModel.toggleTeamsSwapped() },
                     contentAlignment = Alignment.Center
                 ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
