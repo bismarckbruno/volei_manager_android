@@ -1084,7 +1084,7 @@ fun EmptyStateCard(
                 Text("Grupo $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Mínimo: $minNeeded jogadores",
+                    text = if (selectedCount < minNeeded) "Selecione no mínimo $minNeeded jogadores" else "Clique no botão para iniciar o jogo",
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified
                 )

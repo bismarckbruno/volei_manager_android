@@ -583,12 +583,12 @@ fun HistoryScreen(
                     // --- Matches view ---
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         if (sortedHistory.isNotEmpty()) {
                             item {
                                 val avgDurationText = averageMatchDurationMinutes?.let { "$it min" } ?: "--"
-                                HistorySummaryItem(text = "Duração média das partidas: $avgDurationText")
+                                HistorySummaryItem(text = "Duração média: $avgDurationText")
                             }
                         }
                         items(sortedHistory) { match ->
@@ -613,13 +613,14 @@ fun HistoryScreen(
                                 )
                             }
                         }
+                        item {  }
                     }
                 }
                 1 -> {
                     // --- Players view ---
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         if (historyPlayerList.isEmpty()) {
                             item {
@@ -638,7 +639,7 @@ fun HistoryScreen(
                         } else {
                             item {
                                 HistorySummaryItem(
-                                    text = "Média de Elo dos jogadores: ${averagePlayersEloText ?: "--"}"
+                                    text = "Elo médio: ${averagePlayersEloText ?: "--"}"
                                 )
                             }
                             itemsIndexed(historyPlayerList) { index, info ->
@@ -653,6 +654,7 @@ fun HistoryScreen(
                                 )
                             }
                         }
+                        item {  }
                     }
                 }
             }
@@ -770,6 +772,7 @@ fun HistoryPlayerCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         "$percentageFormatted%",
                         style = MaterialTheme.typography.bodySmall,
@@ -1099,7 +1102,7 @@ fun FAQScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
         Text(
@@ -1121,14 +1124,14 @@ fun FAQScreen() {
         )
         FAQItem(
             "O que é Mostrar Atraso?",
-            "Quando ativado, mostra quantos jogos fictícios foram somados a quem chegou atrasado, de acordo com o que a quadra já jogou. Isso evita que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa com atraso zero. Só aparecem valores a partir de 1."
+            "Quando ativado, mostra quantos jogos fictícios foram somados a quem chegou atrasado, de acordo com o que a quadra já jogou. Isso evita que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa com atraso zero. Só aparecem valores a partir de um."
         )
         FAQItem(
             "Como criar ou gerenciar Grupos?",
             "No menu lateral, você pode criar diferentes 'Grupos'. Isso é útil se você joga em lugares ou com turmas diferentes (ex: Vôlei de Sábado e Vôlei da Empresa). Cada grupo tem seu próprio histórico e lista de jogadores."
         )
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -1163,7 +1166,7 @@ fun AboutScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
         Text(
@@ -1231,7 +1234,7 @@ fun AboutScreen() {
                 }
             }
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(16.dp))
     }
 }
 

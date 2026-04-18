@@ -178,7 +178,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         TextButton(onClick = {
                             viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
                             showExportDialog = false
-                        }) { Text("Logs") }
+                        }) { Text("Elo diário") }
                     }
                 }
             },
@@ -224,7 +224,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             pendingImportType = CsvType.ELO_LOGS
                             launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
                             showImportDialog = false
-                        }) { Text("Logs") }
+                        }) { Text("Elo diário") }
                     }
                 }
             },
