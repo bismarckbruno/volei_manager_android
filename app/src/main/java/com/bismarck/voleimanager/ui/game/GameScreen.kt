@@ -886,7 +886,7 @@ fun ActiveTeamCard(
                         name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = contentColor,
+                        color = buttonColor,
                         modifier = Modifier.align(Alignment.TopCenter)
                     )
                     if (streak > 0) {
@@ -917,7 +917,7 @@ fun ActiveTeamCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
                     modifier = Modifier
-                        .background(contentColor.copy(alpha = 0.1f), shape = CircleShape)
+                        .background(buttonColor.copy(alpha = 0.1f), shape = CircleShape)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     RepeatingScoreButton(
@@ -928,15 +928,19 @@ fun ActiveTeamCard(
                         Icon(
                             Icons.Default.Remove,
                             contentDescription = "Diminuir Placar",
-                            tint = contentColor
+                            tint = buttonColor
                         )
                     }
                     Text(
                         text = score.toString(),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black,
-                        color = contentColor,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        color = buttonColor,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 60.dp)
+                            .padding(horizontal = 12.dp)
                     )
                     RepeatingScoreButton(
                         onClick = onIncrementScore,
@@ -945,7 +949,7 @@ fun ActiveTeamCard(
                         Icon(
                             Icons.Default.Add,
                             contentDescription = "Aumentar Placar",
-                            tint = contentColor
+                            tint = buttonColor
                         )
                     }
                 }
