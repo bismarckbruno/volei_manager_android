@@ -962,6 +962,7 @@ fun HistoryItem(
                     }
                 }
             }
+
             HorizontalDivider(
                 Modifier.padding(vertical = 8.dp),
                 color = contentColor.copy(alpha = 0.3f)
