@@ -560,7 +560,7 @@ private fun WaitingListPlayerItem(
                                 Icon(
                                     Icons.Default.Star,
                                     contentDescription = "Prioridade",
-                                    modifier = Modifier.size(12.dp),
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -585,7 +585,7 @@ private fun WaitingListPlayerItem(
                         Color.White.copy(alpha = highlightAlpha.value),
                         shape = MaterialTheme.shapes.medium
                     )
-            )
+            ) { }
         }
 
         DropdownMenu(
@@ -715,7 +715,7 @@ private fun InactivePlayerItem(
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "Prioridade",
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

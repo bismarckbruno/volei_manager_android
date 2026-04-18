@@ -752,7 +752,7 @@ fun HistoryPlayerCard(
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "Prioridade",
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -794,7 +794,7 @@ fun HistoryPlayerCard(
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "Prioridade",
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

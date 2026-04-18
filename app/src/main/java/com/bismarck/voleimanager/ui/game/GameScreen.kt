@@ -990,7 +990,7 @@ fun ActiveTeamCard(
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "Prioridade",
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = contentColor.copy(alpha = 0.7f)
                             )
                         }
@@ -1223,7 +1223,7 @@ fun PlayerCard(
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "Prioridade",
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -1321,7 +1321,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                         Icon(
                             Icons.Default.Star,
                             contentDescription = "Prioridade",
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
