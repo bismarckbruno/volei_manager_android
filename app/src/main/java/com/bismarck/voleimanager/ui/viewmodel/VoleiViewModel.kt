@@ -131,11 +131,20 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     val sortedPlayersForPresence =
         combine(currentGroupPlayers, gamesPlayedTodayMap) { pList, gamesMap ->
-            pList.sortedWith(
-                compareByDescending<Player> {
-                    gamesMap[it.id] ?: 0
-                }.thenByDescending { it.elo }
-            )
+            pList.sortedWith { p1, p2 ->
+                val g1 = gamesMap[p1.id] ?: 0
+                val g2 = gamesMap[p2.id] ?: 0
+                when {
+                    g1 > 0 || g2 > 0 -> {
+                        // For players who played today, sort by games descending, then Elo descending
+                        if (g1 != g2) g2.compareTo(g1) else p2.elo.compareTo(p1.elo)
+                    }
+                    else -> {
+                        // For players with no games, sort alphabetically by name
+                        p1.name.compareTo(p2.name)
+                    }
+                }
+            }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
