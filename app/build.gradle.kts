@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.bismarck.voleimanager"
+    namespace = "com.bismarck.voleimanager.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.bismarck.voleimanager"
+        applicationId = "com.bismarck.voleimanager.app"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
