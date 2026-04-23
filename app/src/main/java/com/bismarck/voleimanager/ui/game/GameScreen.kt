@@ -33,6 +33,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -244,7 +247,8 @@ fun GameScreenContent(
                                         streak,
                                         config.victoryLimit,
                                         isDarkTheme,
-                                        onShowSnackbar = onShowSnackbar
+                                        onShowSnackbar = onShowSnackbar,
+                                        onClearRecent = { viewModel.clearRecentGameData() }
                                     )
                                 }
 
@@ -1031,8 +1035,35 @@ fun EmptyStateCard(
     currentStreak: Int = 0,
     victoryLimit: Int = 3,
     isDarkTheme: Boolean = false,
-    onShowSnackbar: (String) -> Unit
+    onShowSnackbar: (String) -> Unit,
+    onClearRecent: () -> Unit
 ) {
+    var showClearConfirmation by remember { mutableStateOf(false) }
+    var showSecondaryMenu by remember { mutableStateOf(false) }
+
+    if (showClearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmation = false },
+            title = { Text("Limpar dados recentes?") },
+            text = { Text("O histórico de jogos recentes será apagado. Esta ação não pode ser desfeita.") },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    onClick = {
+                        onClearRecent()
+                        showClearConfirmation = false
+                    }) { Text("Sim, excluir") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmation = false }) {
+                    Text(
+                        "Não",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            })
+    }
+
     val minNeeded = currentTeamSize * 2
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1095,82 +1126,116 @@ fun EmptyStateCard(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-            if (hasPreviousMatch) {
-                Button(
-                    onClick = {
-                        if (selectedCount >= minNeeded) {
-                            onNextRoundClick()
-                        } else {
-                            onShowSnackbar("Selecione no mínimo $minNeeded jogadores")
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                ) {
-                    Text(
-                        "Iniciar próximo jogo",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            } else {
-                val canStartAuto = selectedCount >= minNeeded
-                Button(
-                    onClick = {
-                        if (canStartAuto) {
-                            onStartAutoClick()
-                        } else {
-                            onShowSnackbar("Selecione no mínimo $minNeeded jogadores ou altere essa configuração em \"Regras do grupo\"")
-                        }
-                    },
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (canStartAuto) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                        },
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                        disabledContentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    horizontalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    ); Spacer(Modifier.width(8.dp)); Text(
-                    "Iniciar jogo",
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
+                    // Leading Button: Iniciar jogo / Iniciar próximo jogo
+                    Button(
+                        onClick = {
+                            if (hasPreviousMatch) {
+                                if (selectedCount >= minNeeded) {
+                                    onNextRoundClick()
+                                } else {
+                                    onShowSnackbar("Selecione no mínimo $minNeeded jogadores")
+                                }
+                            } else {
+                                val canStartAuto = selectedCount >= minNeeded
+                                if (canStartAuto) {
+                                    onStartAutoClick()
+                                } else {
+                                    onShowSnackbar("Selecione no mínimo $minNeeded jogadores ou altere essa configuração em \"Regras do grupo\"")
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (selectedCount >= minNeeded) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                            },
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (hasPreviousMatch) "Iniciar próximo jogo" else "Iniciar jogo",
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+
+                    // Trailing Button: Dropdown menu
+                    Button(
+                        onClick = { showSecondaryMenu = !showSecondaryMenu },
+                        modifier = Modifier
+                            .width(48.dp)
+                            .fillMaxHeight(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        contentPadding = PaddingValues(0.dp),
+                        shape = RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ArrowDropDown,
+                            contentDescription = "Menu de opções",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            if (selectedCount >= 4) {
-                TextButton(onClick = onStartManualClick) {
-                    Text(
-                        text = "Ou montar times manualmente",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textDecoration = TextDecoration.Underline,
-                        textAlign = TextAlign.Center
+
+                DropdownMenu(
+                    expanded = showSecondaryMenu,
+                    onDismissRequest = { showSecondaryMenu = false }
+                ) {
+                    // Opção: Montar times manualmente
+                    DropdownMenuItem(
+                        text = { Text("Montar times manualmente") },
+                        onClick = {
+                            if (selectedCount >= 4) {
+                                onStartManualClick()
+                                showSecondaryMenu = false
+                            } else {
+                                onShowSnackbar("Selecione no mínimo 4 jogadores")
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Groups,
+                                contentDescription = null
+                            )
+                        },
+                        enabled = selectedCount >= 4
                     )
-                }
-            } else {
-                TextButton(onClick = {
-                    onShowSnackbar("Selecione no mínimo 4 jogadores")
-                }) {
-                    Text(
-                        text = "Ou montar times manualmente",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+
+                    // Opção: Limpar dados recentes
+                    DropdownMenuItem(
+                        text = { Text("Limpar dados recentes", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            showSecondaryMenu = false
+                            showClearConfirmation = true
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.DeleteSweep,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     )
                 }
             }

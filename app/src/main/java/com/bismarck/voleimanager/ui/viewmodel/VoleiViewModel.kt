@@ -1280,6 +1280,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         result.add(current.toString().trim())
         return result.map { it.replace("\"", "").trim() }
     }
+
+    fun clearRecentGameData() {
+        resetGameState()
+        clearSavedGameState()
+    }
 }
 
 class VoleiViewModelFactory(
