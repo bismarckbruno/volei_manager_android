@@ -19,6 +19,29 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
     suspend fun insertPlayers(players: List<com.bismarck.voleimanager.app.data.model.Player>) = voleiDao.insertPlayers(players)
     suspend fun updatePlayers(players: List<com.bismarck.voleimanager.app.data.model.Player>) = voleiDao.updatePlayers(players)
     suspend fun updatePlayer(player: com.bismarck.voleimanager.app.data.model.Player) = voleiDao.updatePlayer(player)
+
+    suspend fun renamePlayerCascade(oldName: String, newName: String, groupName: String) {
+        val historyToUpdate = voleiDao.getAllHistorySync().filter { 
+            it.groupName == groupName && 
+            (it.teamA.split(", ").contains(oldName) || it.teamB.split(", ").contains(oldName))
+        }.map { match ->
+            val newTeamA = match.teamA.split(", ").map { if (it == oldName) newName else it }.sorted().joinToString(", ")
+            val newTeamB = match.teamB.split(", ").map { if (it == oldName) newName else it }.sorted().joinToString(", ")
+            match.copy(teamA = newTeamA, teamB = newTeamB)
+        }
+        if (historyToUpdate.isNotEmpty()) {
+            voleiDao.updateMatchHistories(historyToUpdate)
+        }
+
+        val logsToUpdate = voleiDao.getAllEloLogsSync().filter {
+            it.groupName == groupName && it.playerNameSnapshot == oldName
+        }.map { log ->
+            log.copy(playerNameSnapshot = newName)
+        }
+        if (logsToUpdate.isNotEmpty()) {
+            voleiDao.updatePlayerEloLogs(logsToUpdate)
+        }
+    }
     suspend fun deletePlayer(player: com.bismarck.voleimanager.app.data.model.Player) = voleiDao.deletePlayer(player)
 
     // --- History ---

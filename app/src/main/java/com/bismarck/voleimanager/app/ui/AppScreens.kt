@@ -73,6 +73,8 @@ fun HistoryScreen(
     selectedTab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
     playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL,
+    matchSortMode: MatchSortMode = MatchSortMode.NEWEST,
+    onMatchSortModeChanged: (MatchSortMode) -> Unit = {},
     onPlayerSortModeChanged: (PlayerSortMode) -> Unit = {}
 ) {
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
@@ -92,7 +94,7 @@ fun HistoryScreen(
         }
     }
     val coroutineScope = rememberCoroutineScope()
-    var matchSortMode by remember { mutableStateOf(MatchSortMode.NEWEST) }
+    // removed matchSortMode local state
     var expandedFilter by remember { mutableStateOf(false) }
 
     val sortedHistory = remember(groupHistory, historyDate, matchSortMode) {
@@ -493,7 +495,7 @@ fun HistoryScreen(
                                     Text("Mais recentes primeiro")
                                 }
                             },
-                            onClick = { matchSortMode = MatchSortMode.NEWEST; expandedFilter = false }
+                            onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false }
                         )
                         DropdownMenuItem(
                             text = {
@@ -503,7 +505,7 @@ fun HistoryScreen(
                                     Text("Mais antigos primeiro")
                                 }
                             },
-                            onClick = { matchSortMode = MatchSortMode.OLDEST; expandedFilter = false }
+                            onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false }
                         )
                         DropdownMenuItem(
                             text = {
@@ -513,7 +515,7 @@ fun HistoryScreen(
                                     Text("Por Elo movimentado")
                                 }
                             },
-                            onClick = { matchSortMode = MatchSortMode.ELO_DELTA; expandedFilter = false }
+                            onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false }
                         )
                         DropdownMenuItem(
                             text = {
@@ -523,7 +525,7 @@ fun HistoryScreen(
                                     Text("Por diferença de placar")
                                 }
                             },
-                            onClick = { matchSortMode = MatchSortMode.SCORE_DIFF; expandedFilter = false }
+                            onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false }
                         )
                     } else {
                         DropdownMenuItem(
@@ -1248,6 +1250,114 @@ fun AboutScreen() {
             }
         }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun ExportableImageContent(
+    matches: List<com.bismarck.voleimanager.app.data.model.MatchHistory>?,
+    matchSortMode: MatchSortMode?,
+    players: List<HistoryPlayerInfo>?,
+    playerSortMode: PlayerSortMode?,
+    date: String,
+    isDarkTheme: Boolean,
+    showElo: Boolean,
+    showScore: Boolean,
+    matchDurationsMinutes: Map<Int, Int>? = null,
+    averagePlayersEloText: String? = null
+) {
+    androidx.compose.foundation.layout.Column(
+        modifier = androidx.compose.ui.Modifier
+            .width(400.dp)
+            .padding(horizontal = 16.dp)
+            .padding(top = 32.dp, bottom = 16.dp),
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+    ) {
+        androidx.compose.foundation.layout.Row(
+            androidx.compose.ui.Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+        ) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(
+                    id = if (isDarkTheme) com.bismarck.voleimanager.app.R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
+                    else com.bismarck.voleimanager.app.R.drawable.ic_launcher_foreground
+                ),
+                contentDescription = null,
+                modifier = androidx.compose.ui.Modifier.size(56.dp)
+            )
+            androidx.compose.material3.Text(
+                text = "Vôlei Manager",
+                style = androidx.compose.material3.MaterialTheme.typography.headlineMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = if (isDarkTheme) androidx.compose.material3.MaterialTheme.colorScheme.primary else com.bismarck.voleimanager.app.ui.theme.voleiManagerBlue
+            )
+        }
+
+        val title = if (matches != null) "Histórico - $date" else "Jogadores - $date"
+        androidx.compose.material3.Text(
+            text = title,
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+            modifier = androidx.compose.ui.Modifier.padding(bottom = 4.dp)
+        )
+        
+        val sortLabel = when {
+            matches != null -> when (matchSortMode) {
+                MatchSortMode.NEWEST -> "Ordenação: Mais recentes primeiro"
+                MatchSortMode.OLDEST -> "Ordenação: Mais antigos primeiro"
+                MatchSortMode.ELO_DELTA -> "Ordenação: Maior variação de Elo"
+                MatchSortMode.SCORE_DIFF -> "Ordenação: Maior diferença de pontos"
+                else -> ""
+            }
+            players != null -> when (playerSortMode) {
+                PlayerSortMode.ELO -> "Ordenação: Maior Elo"
+                PlayerSortMode.GAMES -> "Ordenação: Mais jogos"
+                PlayerSortMode.VICTORIES -> "Ordenação: Mais vitórias"
+                PlayerSortMode.PERCENTAGE -> "Ordenação: Maior aproveitamento"
+                PlayerSortMode.ALPHABETICAL -> "Ordenação: Ordem Alfabética"
+                else -> ""
+            }
+            else -> ""
+        }
+        
+        if (sortLabel.isNotEmpty()) {
+            androidx.compose.material3.Text(
+                text = sortLabel,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = androidx.compose.ui.Modifier.padding(bottom = 8.dp)
+            )
+        }
+        
+        if (players != null && showElo && averagePlayersEloText != null) {
+            androidx.compose.material3.Text(
+                text = "Elo médio do grupo: $averagePlayersEloText",
+                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                modifier = androidx.compose.ui.Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        matches?.forEach { match ->
+            val duration = matchDurationsMinutes?.get(match.id)
+            HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo, showScore = showScore, durationMinutes = duration)
+        }
+        
+        val isSortedByElo = playerSortMode != PlayerSortMode.ALPHABETICAL
+        players?.forEachIndexed { index, info ->
+            HistoryPlayerCard(
+                rank = if (isSortedByElo) index + 1 else null,
+                player = info.player,
+                displayElo = info.displayElo,
+                showElo = showElo,
+                gamesPlayed = info.gamesPlayed,
+                victories = info.victories
+            )
+        }
     }
 }
 

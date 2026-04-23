@@ -9,6 +9,12 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.lifecycle.viewModelScope
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.GroupConfig
@@ -469,9 +475,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     )
     }
 
-    fun editPlayer(p: Player, n: String, isPriority: Boolean) = viewModelScope.launch {
+    fun editPlayer(p: Player, n: String, isPriority: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+        val oldName = p.name
         val up = p.copy(name = n, isPriority = isPriority)
         repository.updatePlayer(up)
+        if (oldName != n) {
+            repository.renamePlayerCascade(oldName, n, p.groupName)
+        }
         _teamA.value = sortTeamPlayers(_teamA.value.map { if (it.id == p.id) up else it })
         _teamB.value = sortTeamPlayers(_teamB.value.map { if (it.id == p.id) up else it })
         _waitingList.value = _waitingList.value.map { if (it.id == p.id) up else it }
@@ -1277,6 +1287,94 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         result.add(current.toString().trim())
         return result.map { it.replace("\"", "").trim() }
+    }
+
+    fun standardizeJsonBackupData(jsonString: String): String {
+        val gson = com.google.gson.Gson()
+        val data = gson.fromJson(jsonString, com.google.gson.JsonObject::class.java)
+        data.addProperty("version", 1)
+        val historyArray = data.getAsJsonArray("history")
+        if (historyArray != null) {
+            for (element in historyArray) {
+                val match = element.asJsonObject
+                if (match.has("teamA")) {
+                    val t = match.get("teamA").asString.split(",").map { it.trim() }.filter { it.isNotEmpty() }.sortedBy { it.lowercase() }.joinToString(", ")
+                    match.addProperty("teamA", t)
+                }
+                if (match.has("teamB")) {
+                    val t = match.get("teamB").asString.split(",").map { it.trim() }.filter { it.isNotEmpty() }.sortedBy { it.lowercase() }.joinToString(", ")
+                    match.addProperty("teamB", t)
+                }
+                if (!match.has("teamAScore")) match.addProperty("teamAScore", 0)
+                if (!match.has("teamBScore")) match.addProperty("teamBScore", 0)
+                if (!match.has("teamAAverageElo")) match.addProperty("teamAAverageElo", 0.0)
+                if (!match.has("teamBAverageElo")) match.addProperty("teamBAverageElo", 0.0)
+                if (!match.has("startTimestamp")) match.addProperty("startTimestamp", 0L)
+                if (!match.has("endTimestamp")) match.addProperty("endTimestamp", 0L)
+            }
+        }
+        val playersArray = data.getAsJsonArray("players")
+        if (playersArray != null) {
+            var nextId = (playersArray.mapNotNull { it.asJsonObject.get("id")?.asInt }.maxOrNull() ?: 0) + 1
+            for (element in playersArray) {
+                val p = element.asJsonObject
+                if (!p.has("id") || p.get("id").asInt <= 0) p.addProperty("id", nextId++)
+            }
+        }
+        return gson.toJson(data)
+    }
+
+    fun captureHistoryScreenAsImage(
+        context: android.content.Context,
+        view: android.view.View,
+        matches: List<com.bismarck.voleimanager.app.data.model.MatchHistory>?,
+        matchSortMode: com.bismarck.voleimanager.app.ui.MatchSortMode?,
+        players: List<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo>?,
+        playerSortMode: com.bismarck.voleimanager.app.ui.PlayerSortMode?,
+        date: String,
+        isDarkTheme: Boolean,
+        showElo: Boolean,
+        showScore: Boolean,
+        matchDurationsMinutes: Map<Int, Int>? = null,
+        averagePlayersEloText: String? = null
+    ) {
+        val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
+            setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
+            setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
+            setViewTreeSavedStateRegistryOwner(view.findViewTreeSavedStateRegistryOwner())
+
+            setContent {
+                com.bismarck.voleimanager.app.ui.theme.AppTheme(darkTheme = isDarkTheme, dynamicColor = false) {
+                    androidx.compose.material3.Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
+                        com.bismarck.voleimanager.app.ui.ExportableImageContent(matches, matchSortMode, players, playerSortMode, date, isDarkTheme, showElo, showScore, matchDurationsMinutes, averagePlayersEloText)
+                    }
+                }
+            }
+        }
+        val scrollView = android.widget.ScrollView(context).apply {
+            addView(composeView)
+            alpha = 0f
+            isVerticalScrollBarEnabled = false
+        }
+        val root = view.rootView as? android.view.ViewGroup
+        if (root != null) {
+            root.addView(scrollView, android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT))
+            scrollView.postDelayed({
+                try {
+                    composeView.measure(
+                        android.view.View.MeasureSpec.makeMeasureSpec(1440, android.view.View.MeasureSpec.EXACTLY),
+                        android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+                    )
+                    composeView.layout(0, 0, composeView.measuredWidth, composeView.measuredHeight)
+                    if (composeView.measuredWidth > 0 && composeView.measuredHeight > 0) {
+                        val bitmap = android.graphics.Bitmap.createBitmap(composeView.measuredWidth, composeView.measuredHeight, android.graphics.Bitmap.Config.ARGB_8888)
+                        val canvas = android.graphics.Canvas(bitmap)
+                        composeView.draw(canvas)
+                        shareBitmap(context, bitmap, date)
+                    }
+                } catch (e: Exception) { e.printStackTrace() } finally { root.removeView(scrollView) }
+            }, 500)
+        }
     }
 
     fun clearRecentGameData() {

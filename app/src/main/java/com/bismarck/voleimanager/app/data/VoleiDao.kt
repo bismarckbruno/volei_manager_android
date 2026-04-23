@@ -44,12 +44,24 @@ interface VoleiDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertHistoryList(history: List<com.bismarck.voleimanager.app.data.model.MatchHistory>)
 
+    @Update
+    suspend fun updateMatchHistories(history: List<com.bismarck.voleimanager.app.data.model.MatchHistory>)
+
+    @Query("SELECT * FROM match_history")
+    suspend fun getAllHistorySync(): List<com.bismarck.voleimanager.app.data.model.MatchHistory>
+
     // --- ELO LOGS ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEloLog(log: com.bismarck.voleimanager.app.data.model.PlayerEloLog)
 
     @Query("SELECT * FROM elo_logs ORDER BY date ASC")
     fun getAllEloLogs(): Flow<List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>>
+
+    @Query("SELECT * FROM elo_logs")
+    suspend fun getAllEloLogsSync(): List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>
+
+    @Update
+    suspend fun updatePlayerEloLogs(logs: List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>)
 
     // --- CONFIGS ---
     @Query("SELECT * FROM group_configs WHERE groupName = :groupName LIMIT 1")

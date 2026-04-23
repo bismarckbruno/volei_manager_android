@@ -71,6 +71,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
     var isSetupMode by rememberSaveable { mutableStateOf(false) }
     var historySelectedTab by rememberSaveable { mutableStateOf(0) }
     var historyPlayerSortMode by rememberSaveable { mutableStateOf(com.bismarck.voleimanager.app.ui.PlayerSortMode.ALPHABETICAL) }
+    var historyMatchSortMode by rememberSaveable { mutableStateOf(com.bismarck.voleimanager.app.ui.MatchSortMode.NEWEST) }
 
     var showConfigDialog by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -757,17 +758,26 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             }
                                         }
 
-                                        com.bismarck.voleimanager.app.ui.captureFullHistory(
+                                        val mdm = matchesToShare.associate { m ->
+                                            val d = if (m.startTimestamp != null && m.startTimestamp > 0L && m.endTimestamp != null && m.endTimestamp > m.startTimestamp) {
+                                                ((m.endTimestamp - m.startTimestamp) / 60000L).toInt()
+                                            } else 0
+                                            m.id to d
+                                        }.filterValues { it > 0 }
+                                        viewModel.captureHistoryScreenAsImage(
                                             context = context,
                                             view = view,
                                             matches = matchesToShare,
+                                            matchSortMode = historyMatchSortMode,
+                                            players = null,
+                                            playerSortMode = null,
                                             date = historyDate!!,
                                             isDarkTheme = isDarkTheme,
                                             showElo = showElo,
-                                            showScore = showScore
-                                        ) { bitmap ->
-                                            viewModel.shareBitmap(context, bitmap, historyDate!!)
-                                        }
+                                            showScore = showScore,
+                                            matchDurationsMinutes = mdm,
+                                            averagePlayersEloText = null
+                                        )
                                     } else {
                                         // --- Export players ---
                                         val filteredMatches = groupHistory.filter {
@@ -862,17 +872,23 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             com.bismarck.voleimanager.app.ui.PlayerSortMode.ALPHABETICAL -> playerDataList.sortedBy { it.player.name.lowercase() }
                                         }
 
-                                        com.bismarck.voleimanager.app.ui.captureFullPlayers(
+                                        val avgText = if (sortedPlayers.isNotEmpty()) {
+                                            String.format(java.util.Locale.getDefault(), "%.1f", sortedPlayers.map { it.displayElo }.average())
+                                        } else null
+                                        viewModel.captureHistoryScreenAsImage(
                                             context = context,
                                             view = view,
+                                            matches = null,
+                                            matchSortMode = null,
                                             players = sortedPlayers,
+                                            playerSortMode = historyPlayerSortMode,
                                             date = historyDate!!,
                                             isDarkTheme = isDarkTheme,
                                             showElo = showElo,
-                                            sortedByElo = historyPlayerSortMode != com.bismarck.voleimanager.app.ui.PlayerSortMode.ALPHABETICAL
-                                        ) { bitmap ->
-                                            viewModel.shareBitmap(context, bitmap, historyDate!!)
-                                        }
+                                            showScore = showScore,
+                                            matchDurationsMinutes = null,
+                                            averagePlayersEloText = avgText
+                                        )
                                     }
                                 }
                             }) {
@@ -918,6 +934,8 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                         )
 
                         com.bismarck.voleimanager.app.ui.viewmodel.Screen.HISTORY -> com.bismarck.voleimanager.app.ui.HistoryScreen(
+                            matchSortMode = historyMatchSortMode,
+                            onMatchSortModeChanged = { historyMatchSortMode = it },
                             viewModel = viewModel,
                             isDarkTheme = isDarkTheme,
                             showElo = showElo,
