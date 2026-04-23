@@ -67,3 +67,5 @@ object EloCalculator {
         }.format(elo)
     }
 }
+
+

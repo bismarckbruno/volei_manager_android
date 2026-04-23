@@ -75,3 +75,5 @@ object TollCalculator {
         return player.copy(dailyToll = toll, tollDate = today)
     }
 }
+
+

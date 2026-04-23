@@ -49,3 +49,5 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
         voleiDao.deleteEloLogsByGroup(groupName)
     }
 }
+
+

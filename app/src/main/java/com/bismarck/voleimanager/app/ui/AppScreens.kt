@@ -1255,3 +1255,5 @@ fun Modifier.scale(scale: Float): Modifier = composed {
     val density = LocalDensity.current
     this.size(with(density) { (20 * scale).dp })
 }
+
+

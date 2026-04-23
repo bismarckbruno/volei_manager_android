@@ -303,3 +303,5 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
+
+

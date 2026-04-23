@@ -416,3 +416,5 @@ class TollCalculatorTest {
         assertEquals(today, result.tollDate) // data atualizada
     }
 }
+
+
