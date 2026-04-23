@@ -797,68 +797,29 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             null
                                         }
 
-                                        // Precompute match-based stats (fallback for old data)
-                                        val matchStats = mutableMapOf<String, Pair<Int, Int>>()
-                                        filteredMatches.forEach { match ->
-                                            val teamANames =
-                                                match.teamA.split(",").map { it.trim() }
-                                                    .filter { it.isNotEmpty() }
-                                            val teamBNames =
-                                                match.teamB.split(",").map { it.trim() }
-                                                    .filter { it.isNotEmpty() }
-                                            val isTeamAWin = match.winner == "Time A"
-                                            teamANames.forEach { n ->
-                                                val (g, v) = matchStats.getOrDefault(n, 0 to 0)
-                                                matchStats[n] =
-                                                    (g + 1) to (v + if (isTeamAWin) 1 else 0)
-                                            }
-                                            teamBNames.forEach { n ->
-                                                val (g, v) = matchStats.getOrDefault(n, 0 to 0)
-                                                matchStats[n] =
-                                                    (g + 1) to (v + if (!isTeamAWin) 1 else 0)
-                                            }
-                                        }
-
                                         val playerDataList = uniquePlayerNames.mapNotNull { name ->
                                             val player = groupPlayers.find { it.name == name }
-                                            if (player != null) {
-                                                val playerLogs = if (eloDateStr != null) {
-                                                    eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
-                                                } else {
-                                                    eloLogs.filter { it.playerId == player.id }
-                                                }
-                                                val eloForDisplay =
-                                                    playerLogs.maxByOrNull { it.id }?.elo
-                                                        ?: player.elo
-
-                                                val (games, victories) = if (player.id > 0 && playerLogs.isNotEmpty() && playerLogs.all { it.won != null }) {
-                                                    playerLogs.size to playerLogs.count { it.won == true }
-                                                } else {
-                                                    matchStats[name] ?: (0 to 0)
-                                                }
-
-                                                com.bismarck.voleimanager.app.ui.HistoryPlayerInfo(
-                                                    player,
-                                                    eloForDisplay,
-                                                    name,
-                                                    games,
-                                                    victories
-                                                )
+                                            val logsForPlayer = if (eloDateStr != null) {
+                                                if (player != null) eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
+                                                else eloLogs.filter { it.playerNameSnapshot == name && it.date == eloDateStr }
                                             } else {
-                                                val (games, victories) = matchStats[name]
-                                                    ?: (0 to 0)
-                                                com.bismarck.voleimanager.app.ui.HistoryPlayerInfo(
-                                                    com.bismarck.voleimanager.app.data.model.Player(
-                                                        name = name,
-                                                        groupName = "",
-                                                        elo = 1200.0
-                                                    ),
-                                                    1200.0,
-                                                    name,
-                                                    games,
-                                                    victories
-                                                )
+                                                if (player != null) eloLogs.filter { it.playerId == player.id }
+                                                else eloLogs.filter { it.playerNameSnapshot == name }
                                             }
+                                            
+                                            val games = logsForPlayer.size
+                                            val victories = logsForPlayer.count { it.won == true }
+                                            val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
+
+                                            val effectivePlayer = player ?: com.bismarck.voleimanager.app.data.model.Player(name = name, groupName = "", elo = 1200.0)
+                                            
+                                            com.bismarck.voleimanager.app.ui.HistoryPlayerInfo(
+                                                effectivePlayer,
+                                                eloForDisplay,
+                                                name,
+                                                games,
+                                                victories
+                                            )
                                         }
 
                                         val sortedPlayers = when (historyPlayerSortMode) {

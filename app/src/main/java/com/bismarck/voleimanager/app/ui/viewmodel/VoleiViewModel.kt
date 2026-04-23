@@ -994,7 +994,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).use { it.readText() }
                     val backup = Gson().fromJson(json, BackupData::class.java)
 
-                    if (backup != null && backup.players != null && backup.history != null && backup.logs != null) {
+                    if (backup != null) {
 
                         val safePlayers = backup.players.map { p ->
                             p.copy(name = p.name.take(50), groupName = p.groupName.take(50))
