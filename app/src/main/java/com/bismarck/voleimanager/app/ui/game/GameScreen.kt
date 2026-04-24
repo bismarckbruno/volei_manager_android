@@ -219,12 +219,10 @@ fun GameScreenContent(
                             sortedPlayers
                         )
                     } else {
-                        Column(modifier = Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             LazyColumn(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth(),
-                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 0.dp),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp, top = 0.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 item {
@@ -298,9 +296,13 @@ fun GameScreenContent(
                             }
 
                             Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shadowElevation = 8.dp
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shadowElevation = 4.dp
                             ) {
                                 val selCount = presentIds.size
                                 val totalCount = sortedPlayers.size
@@ -315,7 +317,7 @@ fun GameScreenContent(
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                         }
@@ -1122,7 +1124,8 @@ fun EmptyStateCard(
                 Text(
                     text = if (selectedCount < minNeeded) "Selecione no mínimo $minNeeded jogadores" else "Clique no botão para iniciar o jogo",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified
+                    color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified,
+                    textAlign = TextAlign.Center
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
