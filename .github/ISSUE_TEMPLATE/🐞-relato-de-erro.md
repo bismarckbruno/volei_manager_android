@@ -1,5 +1,5 @@
 ---
-name: "Relato de Erro \U0001F41E"
+name: "\U0001F41E Relato de Erro"
 about: Descreva um problema para nos ajudar a melhorar o Vôlei Manager
 title: "[BUG]"
 labels: bug
