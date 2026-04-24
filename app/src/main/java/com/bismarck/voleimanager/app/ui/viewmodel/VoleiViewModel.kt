@@ -1336,7 +1336,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         showElo: Boolean,
         showScore: Boolean,
         matchDurationsMinutes: Map<Int, Int>? = null,
-        averagePlayersEloText: String? = null
+        averagePlayersEloText: String? = null,
+        averageMatchDurationText: String? = null
     ) {
         val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
             setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
@@ -1346,7 +1347,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             setContent {
                 com.bismarck.voleimanager.app.ui.theme.AppTheme(darkTheme = isDarkTheme, dynamicColor = false) {
                     androidx.compose.material3.Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
-                        com.bismarck.voleimanager.app.ui.ExportableImageContent(matches, matchSortMode, players, playerSortMode, date, isDarkTheme, showElo, showScore, matchDurationsMinutes, averagePlayersEloText)
+                        com.bismarck.voleimanager.app.ui.ExportableImageContent(matches, matchSortMode, players, playerSortMode, date, isDarkTheme, showElo, showScore, matchDurationsMinutes, averagePlayersEloText, averageMatchDurationText)
                     }
                 }
             }

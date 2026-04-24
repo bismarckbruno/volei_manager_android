@@ -748,22 +748,44 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             "dd/MM/yyyy HH:mm",
                                             java.util.Locale.getDefault()
                                         )
-                                        val matchesToShare = groupHistory.filter {
+                                        val filteredMatches = groupHistory.filter {
                                             it.date.startsWith(historyDate!!)
-                                        }.sortedByDescending {
-                                            try {
-                                                sdf.parse(it.date)?.time ?: 0L
-                                            } catch (e: Exception) {
-                                                0L
+                                        }
+                                        val matchesToShare = when (historyMatchSortMode) {
+                                            com.bismarck.voleimanager.app.ui.MatchSortMode.NEWEST -> filteredMatches.sortedWith(
+                                                compareByDescending<com.bismarck.voleimanager.app.data.model.MatchHistory> {
+                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                                                }.thenByDescending { it.id }
+                                            )
+                                            com.bismarck.voleimanager.app.ui.MatchSortMode.OLDEST -> filteredMatches.sortedWith(
+                                                compareBy<com.bismarck.voleimanager.app.data.model.MatchHistory> {
+                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                                                }.thenByDescending { it.id }
+                                            )
+                                            com.bismarck.voleimanager.app.ui.MatchSortMode.ELO_DELTA -> filteredMatches.sortedWith(
+                                                compareByDescending<com.bismarck.voleimanager.app.data.model.MatchHistory> { it.eloPoints }
+                                                    .thenByDescending { it.id }
+                                            )
+                                            com.bismarck.voleimanager.app.ui.MatchSortMode.SCORE_DIFF -> filteredMatches.sortedWith(
+                                                compareByDescending<com.bismarck.voleimanager.app.data.model.MatchHistory> {
+                                                    val sa = it.teamAScore ?: 0
+                                                    val sb = it.teamBScore ?: 0
+                                                    kotlin.math.abs(sa - sb)
+                                                }.thenByDescending { it.id }
+                                            )
+                                        }
+
+                                        val mdm = mutableMapOf<Int, Int>()
+                                        matchesToShare.forEach { match ->
+                                            if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
+                                                mdm[match.id] = ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
                                             }
                                         }
 
-                                        val mdm = matchesToShare.associate { m ->
-                                            val d = if (m.startTimestamp != null && m.startTimestamp > 0L && m.endTimestamp != null && m.endTimestamp > m.startTimestamp) {
-                                                ((m.endTimestamp - m.startTimestamp) / 60000L).toInt()
-                                            } else 0
-                                            m.id to d
-                                        }.filterValues { it > 0 }
+                                        val avgDurationText = if (mdm.isNotEmpty()) {
+                                            "${mdm.values.average().toInt()} min"
+                                        } else null
+
                                         viewModel.captureHistoryScreenAsImage(
                                             context = context,
                                             view = view,
@@ -776,7 +798,8 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             showElo = showElo,
                                             showScore = showScore,
                                             matchDurationsMinutes = mdm,
-                                            averagePlayersEloText = null
+                                            averagePlayersEloText = null,
+                                            averageMatchDurationText = avgDurationText
                                         )
                                     } else {
                                         // --- Export players ---
@@ -822,19 +845,38 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             )
                                         }
 
-                                        val sortedPlayers = when (historyPlayerSortMode) {
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.ELO -> playerDataList.sortedByDescending { it.displayElo }
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.GAMES -> playerDataList.sortedByDescending { it.gamesPlayed }
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.VICTORIES -> playerDataList.sortedByDescending { it.victories }
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.PERCENTAGE -> playerDataList.sortedByDescending {
-                                                if (it.gamesPlayed > 0) it.victories.toDouble() / it.gamesPlayed else 0.0
-                                            }
+                                        fun com.bismarck.voleimanager.app.ui.HistoryPlayerInfo.winRate(): Double =
+                                            if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
 
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.ALPHABETICAL -> playerDataList.sortedBy { it.player.name.lowercase() }
+                                        val sortedPlayers = when (historyPlayerSortMode) {
+                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.ELO -> playerDataList.sortedWith(
+                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.displayElo }
+                                                    .thenByDescending { it.winRate() }
+                                            )
+                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.GAMES -> playerDataList.sortedWith(
+                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.gamesPlayed }
+                                                    .thenByDescending { it.winRate() }
+                                                    .thenByDescending { it.displayElo }
+                                            )
+                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
+                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.victories }
+                                                    .thenByDescending { it.winRate() }
+                                                    .thenByDescending { it.displayElo }
+                                            )
+                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
+                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.winRate() }
+                                                    .thenBy { it.gamesPlayed }
+                                                    .thenByDescending { it.displayElo }
+                                            )
+                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
+                                                compareBy<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.player.name.lowercase() }
+                                                    .thenByDescending { it.displayElo }
+                                            )
                                         }
 
                                         val avgText = if (sortedPlayers.isNotEmpty()) {
-                                            String.format(java.util.Locale.getDefault(), "%.1f", sortedPlayers.map { it.displayElo }.average())
+                                            val eloAvg = sortedPlayers.map { it.displayElo }.average()
+                                            com.bismarck.voleimanager.app.util.EloCalculator.formatElo(eloAvg)
                                         } else null
                                         viewModel.captureHistoryScreenAsImage(
                                             context = context,
@@ -848,7 +890,8 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             showElo = showElo,
                                             showScore = showScore,
                                             matchDurationsMinutes = null,
-                                            averagePlayersEloText = avgText
+                                            averagePlayersEloText = avgText,
+                                            averageMatchDurationText = null
                                         )
                                     }
                                 }

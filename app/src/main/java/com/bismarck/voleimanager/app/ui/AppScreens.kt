@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.ui
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.Crossfade
@@ -128,86 +129,12 @@ fun HistoryScreen(
     }
 
     val matchDurationsMinutes = remember(sortedHistory) {
-        val sdfDateTime = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        val sdfDay = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
-        data class MatchTiming(
-            val match: MatchHistory,
-            val endTimestamp: Long?,
-            val dayKey: String,
-            val exactMinutes: Int?
-        )
-
-        val timing = sortedHistory.map { match ->
-            val parsedEnd = match.endTimestamp ?: try {
-                sdfDateTime.parse(match.date)?.time
-            } catch (_: Exception) {
-                null
-            }
-
-            val dayKey = when {
-                parsedEnd != null -> sdfDay.format(Date(parsedEnd))
-                else -> match.date.substringBefore(" ").takeIf { it.isNotBlank() } ?: ""
-            }
-
-            val exactMinutes = if (
-                match.startTimestamp != null && match.endTimestamp != null &&
-                match.endTimestamp > match.startTimestamp
-            ) {
-                ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
-            } else {
-                null
-            }
-
-            MatchTiming(match, parsedEnd, dayKey, exactMinutes)
-        }
-
-        val chronologic = timing.sortedWith(
-            compareBy<MatchTiming> { it.endTimestamp ?: 0L }
-                .thenBy { it.match.id }
-        )
-
         val result = mutableMapOf<Int, Int>()
-        chronologic.groupBy { it.dayKey }.forEach { (_, dayMatches) ->
-            val rawLegacyMinutes = mutableMapOf<Int, Int?>()
-            var previousEnd: Long? = null
-
-            dayMatches.forEach { item ->
-                if (item.exactMinutes != null) {
-                    result[item.match.id] = item.exactMinutes
-                } else {
-                    val raw = if (
-                        item.endTimestamp != null && previousEnd != null && item.endTimestamp > previousEnd
-                    ) {
-                        ((item.endTimestamp - previousEnd) / 60000L).toInt().coerceAtLeast(1)
-                    } else {
-                        null
-                    }
-                    rawLegacyMinutes[item.match.id] = raw
-                }
-                previousEnd = item.endTimestamp ?: previousEnd
-            }
-
-            val dayLegacyMean = rawLegacyMinutes.values
-                .filterNotNull()
-                .takeIf { it.isNotEmpty() }
-                ?.average()
-
-            rawLegacyMinutes.forEach { (matchId, raw) ->
-                val normalized = when {
-                    dayLegacyMean == null -> raw?.toDouble()
-                    raw == null -> dayLegacyMean
-                    raw < dayLegacyMean / 3.0 -> dayLegacyMean
-                    raw > dayLegacyMean * 3.0 -> dayLegacyMean
-                    else -> raw.toDouble()
-                }
-
-                if (normalized != null) {
-                    result[matchId] = normalized.roundToInt().coerceAtLeast(1)
-                }
+        sortedHistory.forEach { match ->
+            if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
+                result[match.id] = ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
             }
         }
-
         result
     }
 
@@ -250,7 +177,7 @@ fun HistoryScreen(
             val victories = logsForPlayer.count { it.won == true }
             val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
 
-            val effectivePlayer = player ?: com.bismarck.voleimanager.app.data.model.Player(name = name, groupName = "", elo = 1200.0)
+            val effectivePlayer = player ?: Player(name = name, groupName = "", elo = 1200.0)
             
             HistoryPlayerInfo(
                 player = effectivePlayer,
@@ -574,7 +501,7 @@ fun HistoryScreen(
                             }
                         }
                         items(sortedHistory) { match ->
-                            _root_ide_package_.com.bismarck.voleimanager.app.ui.HistoryItem(
+                            HistoryItem(
                                 match = match,
                                 isDarkTheme = isDarkTheme,
                                 showElo = showElo,
@@ -805,6 +732,7 @@ fun HistoryPlayerCard(
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun HistoryItem(
     match: MatchHistory,
@@ -1223,7 +1151,7 @@ fun AboutScreen() {
 
 @Composable
 fun ExportableImageContent(
-    matches: List<com.bismarck.voleimanager.app.data.model.MatchHistory>?,
+    matches: List<MatchHistory>?,
     matchSortMode: MatchSortMode?,
     players: List<HistoryPlayerInfo>?,
     playerSortMode: PlayerSortMode?,
@@ -1232,44 +1160,45 @@ fun ExportableImageContent(
     showElo: Boolean,
     showScore: Boolean,
     matchDurationsMinutes: Map<Int, Int>? = null,
-    averagePlayersEloText: String? = null
+    averagePlayersEloText: String? = null,
+    averageMatchDurationText: String? = null
 ) {
-    androidx.compose.foundation.layout.Column(
-        modifier = androidx.compose.ui.Modifier
+    Column(
+        modifier = Modifier
             .width(400.dp)
             .padding(horizontal = 16.dp)
             .padding(top = 32.dp, bottom = 16.dp),
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        androidx.compose.foundation.layout.Row(
-            androidx.compose.ui.Modifier.fillMaxWidth(),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(
+                painter = painterResource(
                     id = if (isDarkTheme) com.bismarck.voleimanager.app.R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
                     else com.bismarck.voleimanager.app.R.drawable.ic_launcher_foreground
                 ),
                 contentDescription = null,
-                modifier = androidx.compose.ui.Modifier.size(56.dp)
+                modifier = Modifier.size(56.dp)
             )
-            androidx.compose.material3.Text(
+            Text(
                 text = "Vôlei Manager",
-                style = androidx.compose.material3.MaterialTheme.typography.headlineMedium,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                color = if (isDarkTheme) androidx.compose.material3.MaterialTheme.colorScheme.primary else com.bismarck.voleimanager.app.ui.theme.voleiManagerBlue
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isDarkTheme) MaterialTheme.colorScheme.primary else com.bismarck.voleimanager.app.ui.theme.voleiManagerBlue
             )
         }
 
-        val title = if (matches != null) "Histórico - $date" else "Jogadores - $date"
-        androidx.compose.material3.Text(
+        val title = if (matches != null) "Partidas - $date" else "Jogadores - $date"
+        Text(
             text = title,
-            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-            modifier = androidx.compose.ui.Modifier.padding(bottom = 4.dp)
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 4.dp)
         )
         
         val sortLabel = when {
@@ -1277,14 +1206,14 @@ fun ExportableImageContent(
                 MatchSortMode.NEWEST -> "Ordenação: Mais recentes primeiro"
                 MatchSortMode.OLDEST -> "Ordenação: Mais antigos primeiro"
                 MatchSortMode.ELO_DELTA -> "Ordenação: Maior variação de Elo"
-                MatchSortMode.SCORE_DIFF -> "Ordenação: Maior diferença de pontos"
+                MatchSortMode.SCORE_DIFF -> "Ordenação: Maior diferença de placar"
                 else -> ""
             }
             players != null -> when (playerSortMode) {
                 PlayerSortMode.ELO -> "Ordenação: Maior Elo"
                 PlayerSortMode.GAMES -> "Ordenação: Mais jogos"
                 PlayerSortMode.VICTORIES -> "Ordenação: Mais vitórias"
-                PlayerSortMode.PERCENTAGE -> "Ordenação: Maior aproveitamento"
+                PlayerSortMode.PERCENTAGE -> "Ordenação: Maior porcentagem"
                 PlayerSortMode.ALPHABETICAL -> "Ordenação: Ordem Alfabética"
                 else -> ""
             }
@@ -1292,21 +1221,29 @@ fun ExportableImageContent(
         }
         
         if (sortLabel.isNotEmpty()) {
-            androidx.compose.material3.Text(
+            Text(
                 text = sortLabel,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = androidx.compose.ui.Modifier.padding(bottom = 8.dp)
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = if (players != null && !showElo) Modifier.padding(bottom = 8.dp) else Modifier.padding()
             )
         }
         
         if (players != null && showElo && averagePlayersEloText != null) {
-            androidx.compose.material3.Text(
-                text = "Elo médio do grupo: $averagePlayersEloText",
-                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
-                modifier = androidx.compose.ui.Modifier.padding(bottom = 8.dp)
+            Text(
+                text = "Elo médio: $averagePlayersEloText",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        if (matches != null && averageMatchDurationText != null) {
+            Text(
+                text = "Duração média: $averageMatchDurationText",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
             )
         }
 
@@ -1331,7 +1268,7 @@ fun ExportableImageContent(
 
 fun Modifier.scale(scale: Float): Modifier = composed {
     val density = LocalDensity.current
-    this.size(with(density) { (20 * scale).dp })
+    this.size((20 * scale).dp)
 }
 
 
