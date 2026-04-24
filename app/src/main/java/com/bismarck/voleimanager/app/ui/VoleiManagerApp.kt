@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -53,7 +55,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel, isDarkTheme: Boolean) {
+fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -70,8 +72,8 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
 
     var isSetupMode by rememberSaveable { mutableStateOf(false) }
     var historySelectedTab by rememberSaveable { mutableStateOf(0) }
-    var historyPlayerSortMode by rememberSaveable { mutableStateOf(com.bismarck.voleimanager.app.ui.PlayerSortMode.ALPHABETICAL) }
-    var historyMatchSortMode by rememberSaveable { mutableStateOf(com.bismarck.voleimanager.app.ui.MatchSortMode.NEWEST) }
+    var historyPlayerSortMode by rememberSaveable { mutableStateOf(PlayerSortMode.ALPHABETICAL) }
+    var historyMatchSortMode by rememberSaveable { mutableStateOf(MatchSortMode.NEWEST) }
 
     var showConfigDialog by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -79,7 +81,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
     var showDeleteGroupDialog by remember { mutableStateOf<String?>(null) }
     var showAddPlayerDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
-    var playerToDelete by remember { mutableStateOf<com.bismarck.voleimanager.app.data.model.Player?>(null) }
+    var playerToDelete by remember { mutableStateOf<Player?>(null) }
 
     var pendingGroupSwitch by remember { mutableStateOf<String?>(null) }
 
@@ -88,7 +90,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
     var showTermsOfUseDialog by remember { mutableStateOf(false) }
     var exportFileName by remember { mutableStateOf("volei_data") }
-    var pendingImportType by remember { mutableStateOf(com.bismarck.voleimanager.app.ui.viewmodel.CsvType.JOGADORES) }
+    var pendingImportType by remember { mutableStateOf(CsvType.JOGADORES) }
 
     val launcherImport =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -103,13 +105,13 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
     }
     LaunchedEffect(selectedGroup) { selectedGroup?.let { viewModel.loadGroupConfig(it) } }
 
-    BackHandler(enabled = drawerState.isOpen || isSetupMode || currentScreen != com.bismarck.voleimanager.app.ui.viewmodel.Screen.GAME) {
+    BackHandler(enabled = drawerState.isOpen || isSetupMode || currentScreen != Screen.GAME) {
         if (drawerState.isOpen) {
             scope.launch { drawerState.close() }
         } else if (isSetupMode) {
             isSetupMode = false
-        } else if (currentScreen != com.bismarck.voleimanager.app.ui.viewmodel.Screen.GAME) {
-            viewModel.navigateTo(com.bismarck.voleimanager.app.ui.viewmodel.Screen.GAME)
+        } else if (currentScreen != Screen.GAME) {
+            viewModel.navigateTo(Screen.GAME)
         }
     }
 
@@ -148,7 +150,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
-                            viewModel.exportData(context, com.bismarck.voleimanager.app.ui.viewmodel.CsvType.BACKUP_COMPLETO, exportFileName)
+                            viewModel.exportData(context, CsvType.BACKUP_COMPLETO, exportFileName)
                             showExportDialog = false
                         }) {
                         Icon(Icons.Default.Share, null)
@@ -159,15 +161,15 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     Text("Exportar CSV (Avançado)", style = MaterialTheme.typography.labelSmall)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = {
-                            viewModel.exportData(context, com.bismarck.voleimanager.app.ui.viewmodel.CsvType.JOGADORES, exportFileName)
+                            viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
                             showExportDialog = false
                         }) { Text("Jogadores") }
                         TextButton(onClick = {
-                            viewModel.exportData(context, com.bismarck.voleimanager.app.ui.viewmodel.CsvType.HISTORICO, exportFileName)
+                            viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
                             showExportDialog = false
                         }) { Text("Histórico") }
                         TextButton(onClick = {
-                            viewModel.exportData(context, com.bismarck.voleimanager.app.ui.viewmodel.CsvType.ELO_LOGS, exportFileName)
+                            viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
                             showExportDialog = false
                         }) { Text("Elo diário") }
                     }
@@ -190,7 +192,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
-                            pendingImportType = com.bismarck.voleimanager.app.ui.viewmodel.CsvType.BACKUP_COMPLETO
+                            pendingImportType = CsvType.BACKUP_COMPLETO
                             launcherImport.launch(arrayOf("application/json", "text/plain"))
                             showImportDialog = false
                         }) {
@@ -202,17 +204,17 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     Text("Importar CSV (Avançado)", style = MaterialTheme.typography.labelSmall)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = {
-                            pendingImportType = com.bismarck.voleimanager.app.ui.viewmodel.CsvType.JOGADORES
+                            pendingImportType = CsvType.JOGADORES
                             launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
                             showImportDialog = false
                         }) { Text("Jogadores") }
                         TextButton(onClick = {
-                            pendingImportType = com.bismarck.voleimanager.app.ui.viewmodel.CsvType.HISTORICO
+                            pendingImportType = CsvType.HISTORICO
                             launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
                             showImportDialog = false
                         }) { Text("Histórico") }
                         TextButton(onClick = {
-                            pendingImportType = com.bismarck.voleimanager.app.ui.viewmodel.CsvType.ELO_LOGS
+                            pendingImportType = CsvType.ELO_LOGS
                             launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
                             showImportDialog = false
                         }) { Text("Elo diário") }
@@ -391,10 +393,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    HorizontalDivider(
-                        Modifier.padding(vertical = 16.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
+                    Spacer(Modifier.height(16.dp))
 
                     Text("Grupo atual:", style = MaterialTheme.typography.labelMedium)
                     Spacer(Modifier.height(8.dp))
@@ -405,11 +404,22 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                         OutlinedTextField(
                             value = selectedGroup ?: "Selecione",
                             onValueChange = {}, readOnly = true,
-                            trailingIcon = { Icon(if (groupExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null) },
+                            trailingIcon = {
+                                val rotation by animateFloatAsState(
+                                    targetValue = if (groupExpanded) 180f else 0f,
+                                    animationSpec = tween(durationMillis = 200),
+                                    label = "GroupMenuRotation"
+                                )
+                                Icon(
+                                    Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.rotate(rotation)
+                                )
+                            },
                             modifier = Modifier
                                 .menuAnchor()
                                 .fillMaxWidth(),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(56.dp)
                         )
                         ExposedDropdownMenu(
                             expanded = groupExpanded,
@@ -470,29 +480,29 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     }
                     Spacer(Modifier.height(8.dp))
 
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.PlayCircle, null) },
                         label = { Text("Jogo") },
-                        selected = currentScreen == com.bismarck.voleimanager.app.ui.viewmodel.Screen.GAME,
-                        onClick = { viewModel.navigateTo(com.bismarck.voleimanager.app.ui.viewmodel.Screen.GAME); scope.launch { drawerState.close() } }
+                        selected = currentScreen == Screen.GAME,
+                        onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } }
                     )
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.DateRange, null) },
                         label = { Text("Histórico") },
-                        selected = currentScreen == com.bismarck.voleimanager.app.ui.viewmodel.Screen.HISTORY,
-                        onClick = { viewModel.navigateTo(com.bismarck.voleimanager.app.ui.viewmodel.Screen.HISTORY); scope.launch { drawerState.close() } }
+                        selected = currentScreen == Screen.HISTORY,
+                        onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } }
                     )
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
                         label = { Text("Perguntas frequentes") },
-                        selected = currentScreen == com.bismarck.voleimanager.app.ui.viewmodel.Screen.FAQ,
-                        onClick = { viewModel.navigateTo(com.bismarck.voleimanager.app.ui.viewmodel.Screen.FAQ); scope.launch { drawerState.close() } }
+                        selected = currentScreen == Screen.FAQ,
+                        onClick = { viewModel.navigateTo(Screen.FAQ); scope.launch { drawerState.close() } }
                     )
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Info, null) },
                         label = { Text("Sobre o app") },
-                        selected = currentScreen == com.bismarck.voleimanager.app.ui.viewmodel.Screen.ABOUT,
-                        onClick = { viewModel.navigateTo(com.bismarck.voleimanager.app.ui.viewmodel.Screen.ABOUT); scope.launch { drawerState.close() } }
+                        selected = currentScreen == Screen.ABOUT,
+                        onClick = { viewModel.navigateTo(Screen.ABOUT); scope.launch { drawerState.close() } }
                     )
 
                     HorizontalDivider(
@@ -501,19 +511,19 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     )
                     Text("Configurações", style = MaterialTheme.typography.labelMedium)
 
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Settings, null) },
                         label = { Text("Regras do grupo") },
                         selected = false,
                         onClick = { showConfigDialog = true; scope.launch { drawerState.close() } }
                     )
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Palette, null) },
                         label = { Text("Tema") },
                         selected = false,
                         onClick = { showThemeDialog = true; scope.launch { drawerState.close() } }
                     )
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) },
                         label = { Text("Mostrar Elo") },
                         selected = false,
@@ -521,7 +531,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                         tooltipText = "Mostra a pontuação de habilidade de cada jogador e média do time.",
                         onClick = { viewModel.setShowElo(!showElo) }
                     )
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.AlarmAdd, null) },
                         label = { Text("Mostrar atraso") },
                         selected = false,
@@ -535,13 +545,13 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     )
                     Text("Dados", style = MaterialTheme.typography.labelMedium)
 
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.FileUpload, null) },
                         label = { Text("Exportar") },
                         selected = false,
                         onClick = { showExportDialog = true; scope.launch { drawerState.close() } }
                     )
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.FileDownload, null) },
                         label = { Text("Importar") },
                         selected = false,
@@ -553,7 +563,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     )
                     Text("Privacidade", style = MaterialTheme.typography.labelMedium)
 
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Lock, null) },
                         label = { Text("Política de Privacidade") },
                         selected = false,
@@ -561,7 +571,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                             showPrivacyPolicyDialog = true
                             scope.launch { drawerState.close() }
                         })
-                    com.bismarck.voleimanager.app.ui.FlexibleDrawerItem(
+                    FlexibleDrawerItem(
                         icon = { Icon(Icons.Outlined.Description, null) },
                         label = { Text("Termos de Uso") },
                         selected = false,
@@ -576,7 +586,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
         }
     ) {
         if (showConfigDialog) {
-            com.bismarck.voleimanager.app.ui.components.GroupConfigDialog(
+            GroupConfigDialog(
                 groupName = selectedGroup ?: "Geral",
                 initialTeamSize = groupConfig.teamSize,
                 initialVictoryLimit = groupConfig.victoryLimit,
@@ -589,13 +599,13 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                 }
             )
         }
-        if (showCreateGroupDialog) com.bismarck.voleimanager.app.ui.components.CreateGroupDialog(
+        if (showCreateGroupDialog) CreateGroupDialog(
             { showCreateGroupDialog = false },
             { newName ->
                 selectedGroup = newName; viewModel.loadGroupConfig(newName); showCreateGroupDialog =
                 false
             })
-        if (showAddPlayerDialog) com.bismarck.voleimanager.app.ui.components.AddPlayerDialog(
+        if (showAddPlayerDialog) AddPlayerDialog(
             { showAddPlayerDialog = false },
             { name, elo, isPriority ->
                 viewModel.addPlayer(
@@ -613,28 +623,28 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                 title = { Text("Tema") },
                 text = {
                     Column {
-                        com.bismarck.voleimanager.app.ui.components.ThemeOption(
+                        ThemeOption(
                             "Sistema",
-                            mode == com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.SYSTEM
+                            mode == ThemeMode.SYSTEM
                         ) {
                             viewModel.setThemeMode(
-                                com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.SYSTEM
+                                ThemeMode.SYSTEM
                             )
                         }
-                        com.bismarck.voleimanager.app.ui.components.ThemeOption(
+                        ThemeOption(
                             "Claro",
-                            mode == com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.LIGHT
+                            mode == ThemeMode.LIGHT
                         ) {
                             viewModel.setThemeMode(
-                                com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.LIGHT
+                                ThemeMode.LIGHT
                             )
                         }
-                        com.bismarck.voleimanager.app.ui.components.ThemeOption(
+                        ThemeOption(
                             "Escuro",
-                            mode == com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.DARK
+                            mode == ThemeMode.DARK
                         ) {
                             viewModel.setThemeMode(
-                                com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.DARK
+                                ThemeMode.DARK
                             )
                         }
                     }
@@ -671,7 +681,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
         }
 
         showRenameGroupDialog?.let { group ->
-            com.bismarck.voleimanager.app.ui.components.RenameGroupDialog(
+            RenameGroupDialog(
                 group,
                 { showRenameGroupDialog = null },
                 { newName ->
@@ -706,7 +716,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
-                com.bismarck.voleimanager.app.ui.FlexibleTopAppBar(
+                FlexibleTopAppBar(
                     title = {
                         Column {
                             Text("Vôlei Manager")
@@ -724,11 +734,11 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                         }
                     },
                     actions = {
-                        if (currentScreen == com.bismarck.voleimanager.app.ui.viewmodel.Screen.GAME) {
+                        if (currentScreen == Screen.GAME) {
                             IconButton(onClick = { showAddPlayerDialog = true }) {
                                 Icon(Icons.Default.Add, "Adicionar novo jogador")
                             }
-                        } else if (currentScreen == com.bismarck.voleimanager.app.ui.viewmodel.Screen.HISTORY) {
+                        } else if (currentScreen == Screen.HISTORY) {
                             val view = LocalView.current
                             val historyDate by viewModel.historyDateFilter.collectAsState()
                             val groupHistory by viewModel.currentGroupHistory.collectAsState()
@@ -752,22 +762,22 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             it.date.startsWith(historyDate!!)
                                         }
                                         val matchesToShare = when (historyMatchSortMode) {
-                                            com.bismarck.voleimanager.app.ui.MatchSortMode.NEWEST -> filteredMatches.sortedWith(
-                                                compareByDescending<com.bismarck.voleimanager.app.data.model.MatchHistory> {
+                                            MatchSortMode.NEWEST -> filteredMatches.sortedWith(
+                                                compareByDescending<MatchHistory> {
                                                     try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
                                                 }.thenByDescending { it.id }
                                             )
-                                            com.bismarck.voleimanager.app.ui.MatchSortMode.OLDEST -> filteredMatches.sortedWith(
-                                                compareBy<com.bismarck.voleimanager.app.data.model.MatchHistory> {
+                                            MatchSortMode.OLDEST -> filteredMatches.sortedWith(
+                                                compareBy<MatchHistory> {
                                                     try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
                                                 }.thenByDescending { it.id }
                                             )
-                                            com.bismarck.voleimanager.app.ui.MatchSortMode.ELO_DELTA -> filteredMatches.sortedWith(
-                                                compareByDescending<com.bismarck.voleimanager.app.data.model.MatchHistory> { it.eloPoints }
+                                            MatchSortMode.ELO_DELTA -> filteredMatches.sortedWith(
+                                                compareByDescending<MatchHistory> { it.eloPoints }
                                                     .thenByDescending { it.id }
                                             )
-                                            com.bismarck.voleimanager.app.ui.MatchSortMode.SCORE_DIFF -> filteredMatches.sortedWith(
-                                                compareByDescending<com.bismarck.voleimanager.app.data.model.MatchHistory> {
+                                            MatchSortMode.SCORE_DIFF -> filteredMatches.sortedWith(
+                                                compareByDescending<MatchHistory> {
                                                     val sa = it.teamAScore ?: 0
                                                     val sb = it.teamBScore ?: 0
                                                     kotlin.math.abs(sa - sb)
@@ -834,9 +844,9 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             val victories = logsForPlayer.count { it.won == true }
                                             val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
 
-                                            val effectivePlayer = player ?: com.bismarck.voleimanager.app.data.model.Player(name = name, groupName = "", elo = 1200.0)
-                                            
-                                            com.bismarck.voleimanager.app.ui.HistoryPlayerInfo(
+                                            val effectivePlayer = player ?: Player(name = name, groupName = "", elo = 1200.0)
+
+                                            HistoryPlayerInfo(
                                                 effectivePlayer,
                                                 eloForDisplay,
                                                 name,
@@ -845,31 +855,31 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                                             )
                                         }
 
-                                        fun com.bismarck.voleimanager.app.ui.HistoryPlayerInfo.winRate(): Double =
+                                        fun HistoryPlayerInfo.winRate(): Double =
                                             if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
 
                                         val sortedPlayers = when (historyPlayerSortMode) {
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.ELO -> playerDataList.sortedWith(
-                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.displayElo }
+                                            PlayerSortMode.ELO -> playerDataList.sortedWith(
+                                                compareByDescending<HistoryPlayerInfo> { it.displayElo }
                                                     .thenByDescending { it.winRate() }
                                             )
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.GAMES -> playerDataList.sortedWith(
-                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.gamesPlayed }
-                                                    .thenByDescending { it.winRate() }
-                                                    .thenByDescending { it.displayElo }
-                                            )
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
-                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.victories }
+                                            PlayerSortMode.GAMES -> playerDataList.sortedWith(
+                                                compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
                                                     .thenByDescending { it.winRate() }
                                                     .thenByDescending { it.displayElo }
                                             )
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
-                                                compareByDescending<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.winRate() }
+                                            PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
+                                                compareByDescending<HistoryPlayerInfo> { it.victories }
+                                                    .thenByDescending { it.winRate() }
+                                                    .thenByDescending { it.displayElo }
+                                            )
+                                            PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
+                                                compareByDescending<HistoryPlayerInfo> { it.winRate() }
                                                     .thenBy { it.gamesPlayed }
                                                     .thenByDescending { it.displayElo }
                                             )
-                                            com.bismarck.voleimanager.app.ui.PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
-                                                compareBy<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo> { it.player.name.lowercase() }
+                                            PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
+                                                compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
                                                     .thenByDescending { it.displayElo }
                                             )
                                         }
@@ -918,7 +928,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                     label = "ScreenAnim"
                 ) { screen ->
                     when (screen) {
-                        com.bismarck.voleimanager.app.ui.viewmodel.Screen.GAME -> com.bismarck.voleimanager.app.ui.game.GameScreenContent(
+                        Screen.GAME -> GameScreenContent(
                             viewModel = viewModel,
                             selectedGroup = selectedGroup ?: "Geral",
                             isDarkTheme = isDarkTheme,
@@ -937,7 +947,7 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                             }
                         )
 
-                        com.bismarck.voleimanager.app.ui.viewmodel.Screen.HISTORY -> com.bismarck.voleimanager.app.ui.HistoryScreen(
+                        Screen.HISTORY -> HistoryScreen(
                             matchSortMode = historyMatchSortMode,
                             onMatchSortModeChanged = { historyMatchSortMode = it },
                             viewModel = viewModel,
@@ -949,8 +959,8 @@ fun VoleiManagerApp(viewModel: com.bismarck.voleimanager.app.ui.viewmodel.VoleiV
                             playerSortMode = historyPlayerSortMode,
                             onPlayerSortModeChanged = { historyPlayerSortMode = it }
                         )
-                        com.bismarck.voleimanager.app.ui.viewmodel.Screen.FAQ -> com.bismarck.voleimanager.app.ui.FAQScreen()
-                        com.bismarck.voleimanager.app.ui.viewmodel.Screen.ABOUT -> com.bismarck.voleimanager.app.ui.AboutScreen()
+                        Screen.FAQ -> FAQScreen()
+                        Screen.ABOUT -> AboutScreen()
                     }
                 }
             }
@@ -1077,7 +1087,7 @@ private fun FlexibleTopAppBar(
 private fun captureFullHistory(
     context: android.content.Context,
     view: android.view.View,
-    matches: List<com.bismarck.voleimanager.app.data.model.MatchHistory>,
+    matches: List<MatchHistory>,
     date: String,
     isDarkTheme: Boolean,
     showElo: Boolean,

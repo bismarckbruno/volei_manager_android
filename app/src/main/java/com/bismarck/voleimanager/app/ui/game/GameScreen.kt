@@ -3,6 +3,8 @@ package com.bismarck.voleimanager.app.ui.game
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -32,12 +34,13 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
@@ -221,7 +224,7 @@ fun GameScreenContent(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth(),
-                                contentPadding = PaddingValues(16.dp),
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 0.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 item {
@@ -1068,7 +1071,8 @@ fun EmptyStateCard(
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp, bottom = 24.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -1126,8 +1130,8 @@ fun EmptyStateCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    horizontalArrangement = Arrangement.spacedBy(0.dp)
+                        .height(56.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     // Leading Button: Iniciar jogo / Iniciar próximo jogo
                     Button(
@@ -1151,19 +1155,15 @@ fun EmptyStateCard(
                             .weight(1f)
                             .fillMaxHeight(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (selectedCount >= minNeeded) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                            },
+                            containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
+                        shape = RoundedCornerShape(topEnd = 4.dp, topStart = 56.dp, bottomStart = 56.dp, bottomEnd = 4.dp)
                     ) {
                         Icon(
                             Icons.Default.PlayArrow,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(24.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(Modifier.width(8.dp))
@@ -1175,64 +1175,90 @@ fun EmptyStateCard(
                     }
 
                     // Trailing Button: Dropdown menu
-                    Button(
-                        onClick = { showSecondaryMenu = !showSecondaryMenu },
-                        modifier = Modifier
-                            .width(48.dp)
-                            .fillMaxHeight(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        contentPadding = PaddingValues(0.dp),
-                        shape = RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = "Menu de opções",
-                            tint = MaterialTheme.colorScheme.onPrimary
+                    Box(modifier = Modifier.width(56.dp).fillMaxHeight()) {
+                        val rotation by animateFloatAsState(
+                            targetValue = if (showSecondaryMenu) 180f else 0f,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "MenuRotation"
                         )
-                    }
-                }
+                        val iconOffset by animateDpAsState(
+                            targetValue = if (showSecondaryMenu) 0.dp else (-2).dp,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "MenuIconOffset"
+                        )
+                        val cornerRadius by animateDpAsState(
+                            targetValue = if (showSecondaryMenu) 28.dp else 4.dp,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "MenuCornerRadius"
+                        )
+                        val trailingColor = if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
+                        val trailingIconColor = MaterialTheme.colorScheme.onPrimary
 
-                DropdownMenu(
-                    expanded = showSecondaryMenu,
-                    onDismissRequest = { showSecondaryMenu = false }
-                ) {
-                    // Opção: Montar times manualmente
-                    DropdownMenuItem(
-                        text = { Text("Montar times manualmente") },
-                        onClick = {
-                            if (selectedCount >= 4) {
-                                onStartManualClick()
-                                showSecondaryMenu = false
-                            } else {
-                                onShowSnackbar("Selecione no mínimo 4 jogadores")
-                            }
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Groups,
-                                contentDescription = null
+                        Button(
+                            onClick = { showSecondaryMenu = !showSecondaryMenu },
+                            modifier = Modifier.fillMaxSize(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = trailingColor
+                            ),
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(
+                                topStart = cornerRadius,
+                                topEnd = 28.dp,
+                                bottomEnd = 28.dp,
+                                bottomStart = cornerRadius
                             )
-                        },
-                        enabled = selectedCount >= 4
-                    )
-
-                    // Opção: Limpar dados recentes
-                    DropdownMenuItem(
-                        text = { Text("Limpar dados recentes", color = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            showSecondaryMenu = false
-                            showClearConfirmation = true
-                        },
-                        leadingIcon = {
+                        ) {
                             Icon(
-                                Icons.Default.DeleteSweep,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Menu de opções",
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .offset(x = iconOffset)
+                                    .rotate(rotation),
+                                tint = trailingIconColor
                             )
                         }
-                    )
+                        
+                        DropdownMenu(
+                            expanded = showSecondaryMenu,
+                            onDismissRequest = { showSecondaryMenu = false },
+                            offset = DpOffset(0.dp, 4.dp)
+                        ) {
+                            // Opção: Montar times manualmente
+                            DropdownMenuItem(
+                                text = { Text("Montar times manualmente") },
+                                onClick = {
+                                    showSecondaryMenu = false
+                                    if (selectedCount >= 4) {
+                                        onStartManualClick()
+                                    } else {
+                                        onShowSnackbar("Selecione no mínimo 4 jogadores")
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Groups,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+
+                            // Opção: Limpar dados recentes
+                            DropdownMenuItem(
+                                text = { Text("Limpar dados recentes")},
+                                onClick = {
+                                    showSecondaryMenu = false
+                                    showClearConfirmation = true
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.DeleteSweep,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1449,5 +1475,3 @@ fun RepeatingScoreButton(
         content()
     }
 }
-
-

@@ -2,6 +2,7 @@ package com.bismarck.voleimanager.app.ui.game
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -339,10 +341,15 @@ internal fun WaitingListContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.width(4.dp))
+                        val absentRotation by animateFloatAsState(
+                            targetValue = if (absentExpanded) 180f else 0f,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "AbsentRotation"
+                        )
                         Icon(
-                            imageVector = if (absentExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = if (absentExpanded) "Recolher" else "Expandir",
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(20.dp).rotate(absentRotation),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
