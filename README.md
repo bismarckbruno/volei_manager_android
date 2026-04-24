@@ -5,12 +5,12 @@
 ## ✨ Funcionalidades
 
 ### 🎮 Gerenciamento de Partidas
-- **Sorteio Automático**: Equilibra os times com base na pontuação Elo e na distribuição de jogadores prioritários.
-- **Montagem Manual**: Tela dedicada para selecionar manualmente a composição dos times.
-- **Placar em Tempo Real**: Contagem de pontos de cada time durante a partida.
-- **Rotação Justa**: Sistema de fila de prioridade para garantir que todos joguem.
-  - **Lógica da Fila (FIFO)**: Prioridade por ordem de chegada para evitar que jogadores fiquem muito tempo esperando.
+- **Sorteio Automático Inteligente**: O app seleciona as pessoas e equilibra os grupos da forma mais justa possível, misturando participantes com diferentes níveis de habilidade (utilizando o sistema de pontuação Elo) e distribuindo uniformemente os jogadores prioritários.
+- **Rotação Justa**: Sistema de fila de prioridade inteligente para garantir que todos aproveitem o jogo.
+  - **Prioridade por Partidas**: Na hora de decidir quem entra na quadra ou quem fica entre os perdedores para jogar mais, **o app dá prioridade para quem jogou menos vezes**. Isso equilibra a frequência de jogo para que ninguém fique parado!
   - **Divisão de Vencedores**: Times que vencem muitas seguidas são divididos para evitar domínio e garantir rotatividade ("Rei da Quadra").
+- **Montagem Manual**: Tela dedicada para selecionar ou ajustar manualmente a composição dos times.
+- **Placar em Tempo Real**: Contagem de pontos de cada time durante a partida.
 
 ### 📊 Ranking e Estatísticas
 - **Sistema Elo**: Pontuação dinâmica calculada após cada partida com base na força do oponente (K=32, Elo inicial 1200).
@@ -52,8 +52,10 @@
 - **Limite de Vitórias**: Máximo de vitórias consecutivas antes do time vencedor ser dividido.
 - **Ativar Prioridade**: Garante ao menos um jogador prioritário por time no sorteio automático (se houver disponibilidade).
 
-## 🤝 Contribuição
-Contribuições são bem-vindas! Sinta-se à vontade para abrir uma *issue* ou enviar um *pull request*.
+## 🤝 Contribuição e Feedback
+Contribuições são bem-vindas! Sinta-se à vontade para enviar um *pull request*.
+
+Encontrou um problema ou tem uma ideia? Abra uma [Issue aqui](https://github.com/bismarckbruno/volei_manager_android/issues/new/choose).
 
 ## 📄 Licença
 Este projeto é open-source e está disponível sob a [Licença MIT](LICENSE).
