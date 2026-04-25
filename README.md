@@ -74,14 +74,12 @@ O **Vôlei Manager** é um projeto independente e gratuito. Se o app te ajudou a
 <details>
   <summary><b>Clique para exibir o QR Code e Chave PIX</b></summary>
   <br>
-  <p align="center">
+  <div align="center">
     <img src="apoio/qr_code_pix.png" width="200" alt="QR Code PIX"><br>
     <sub>Escaneie o QR Code acima ou use o código Copia e Cola abaixo:</sub>
-  </p>
-
-  ```text
-  00020126650014br.gov.bcb.pix0136d143999e-2f7a-4ce4-84c3-b3b03b41536e0203Pix5204000053039865802BR5925BRUNO_BISMARCK_DA_SILVA_M6006CAXIAS62210517ApoioVoleiManager63044F13
-  ```
+    <br><br>
+    <p><code>00020126650014br.gov.bcb.pix0136d143999e-2f7a-4ce4-84c3-b3b03b41536e0203Pix5204000053039865802BR5925BRUNO_BISMARCK_DA_SILVA_M6006CAXIAS62210517ApoioVoleiManager63044F13</code></p>
+  </div>
 </details>
 
 ---
