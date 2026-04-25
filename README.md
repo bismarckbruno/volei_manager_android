@@ -60,9 +60,7 @@ Encontrou um problema ou tem uma ideia? Abra uma [Issue aqui](https://github.com
 ## ⚖️ Documentação Legal
 - [Política de Privacidade](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY)
 - [Termos de Uso](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE)
-
-## 📄 Licença
-Este projeto é open-source e está disponível sob a [Licença MIT](LICENSE).
+- [Licença MIT](LICENSE)
 
 ## ☕ Apoie o Projeto
 
