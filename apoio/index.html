@@ -31,7 +31,21 @@
             text-align: center;
         }
         h1 { font-size: 1.5rem; margin-bottom: 10px; }
-        p { font-size: 0.95rem; line-height: 1.5; color: #666; }
+        p { font-size: 0.95rem; line-height: 1.5; color: #666; margin-bottom: 25px; }
+        
+        /* Estilo para o container e imagem do QR Code */
+        .qr-container {
+            margin-bottom: 20px;
+        }
+        .qr-image {
+            max-width: 200px; /* Tamanho ideal para leitura */
+            width: 100%;
+            height: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 12px;
+        }
+
         .pix-code {
             background: #eee;
             padding: 12px;
@@ -39,10 +53,13 @@
             font-family: monospace;
             font-size: 0.8rem;
             word-break: break-all;
-            margin: 20px 0;
+            margin: 10px 0;
             border: 1px dashed #ccc;
             cursor: pointer;
+            position: relative;
         }
+        .pix-code:active { background: #e0e0e0; }
+        
         .btn {
             display: block;
             background: var(--primary);
@@ -56,7 +73,9 @@
         }
         .btn:hover { opacity: 0.9; }
         .btn-secondary { background: #ea4aaa; } /* Cor do GitHub Sponsors */
-        .copy-hint { font-size: 0.75rem; color: var(--primary); margin-top: -15px; display: block; }
+        .copy-hint { font-size: 0.75rem; color: var(--primary); display: block; margin-bottom: 20px;}
+        
+        hr { margin: 25px 0; border: 0; border-top: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -65,12 +84,17 @@
     <h1>🏐 Apoie o Vôlei Manager</h1>
     <p>Se o app te ajuda a organizar suas partidas, considere pagar um café para o desenvolvedor!</p>
     
-    <div class="pix-code" id="pixCode" onclick="copyPix()">
+    <div class="qr-container">
+        <img src="qr_code_pix.png" alt="QR Code PIX para doação" class="qr-image">
+    </div>
+
+    <p style="font-size: 0.85rem; margin-bottom: 5px;">Ou use o Pix Copia e Cola:</p>
+    <div class="pix-code" id="pixCode" onclick="copyPix()" title="Clique para copiar">
         00020126650014br.gov.bcb.pix0136d143999e-2f7a-4ce4-84c3-b3b03b41536e0203Pix5204000053039865802BR5925BRUNO_BISMARCK_DA_SILVA_M6006CAXIAS62210517ApoioVoleiManager63044F13
     </div>
-    <span class="copy-hint">Clique no código acima para copiar o PIX</span>
+    <span class="copy-hint">Toque no código acima para copiar</span>
 
-    <hr style="margin: 25px 0; border: 0; border-top: 1px solid #eee;">
+    <hr>
 
     <a href="https://github.com/sponsors/bismarckbruno" class="btn btn-secondary">Apoiar via GitHub Sponsors</a>
     <a href="https://github.com/bismarckbruno/volei_manager_android" class="btn" style="background: #333;">Ver Código no GitHub</a>
@@ -79,9 +103,30 @@
 <script>
     function copyPix() {
         const text = document.getElementById('pixCode').innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            alert('Código PIX copiado com sucesso!');
-        });
+        // Usando a API de área de transferência moderna
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showVisualFeedback();
+            }).catch(err => {
+                // Fallback para navegadores antigos se necessário
+                console.error('Erro ao copiar: ', err);
+                alert('Não foi possível copiar automaticamente. Por favor, selecione e copie o código.');
+            });
+        } else {
+            // Fallback simples
+            alert('Código PIX: ' + text);
+        }
+    }
+
+    function showVisualFeedback() {
+        const hint = document.querySelector('.copy-hint');
+        const originalText = hint.innerText;
+        hint.innerText = '✅ Código copiado!';
+        hint.style.color = '#4CAF50'; // Verde de sucesso
+        setTimeout(() => {
+            hint.innerText = originalText;
+            hint.style.color = 'var(--primary)';
+        }, 2000);
     }
 </script>
 
