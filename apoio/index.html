@@ -9,6 +9,7 @@
             --primary: #2196F3; /* Azul funcional (Vôlei) */
             --bg: #f4f7f9;
             --text: #333;
+            --secondary: #ea4aaa; /* GitHub Sponsors Pink */
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -31,14 +32,13 @@
             text-align: center;
         }
         h1 { font-size: 1.5rem; margin-bottom: 10px; }
-        p { font-size: 0.95rem; line-height: 1.5; color: #666; margin-bottom: 25px; }
+        p { font-size: 0.95rem; line-height: 1.5; color: #666; margin-bottom: 20px; }
         
-        /* Estilo para o container e imagem do QR Code */
         .qr-container {
             margin-bottom: 20px;
         }
         .qr-image {
-            max-width: 200px; /* Tamanho ideal para leitura */
+            max-width: 180px;
             width: 100%;
             height: auto;
             border: 1px solid #eee;
@@ -47,18 +47,18 @@
         }
 
         .pix-code {
-            background: #eee;
+            background: #f8f9fa;
             padding: 12px;
             border-radius: 8px;
             font-family: monospace;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             word-break: break-all;
             margin: 10px 0;
             border: 1px dashed #ccc;
             cursor: pointer;
-            position: relative;
+            transition: background 0.2s;
         }
-        .pix-code:active { background: #e0e0e0; }
+        .pix-code:hover { background: #f0f2f5; }
         
         .btn {
             display: block;
@@ -69,12 +69,43 @@
             border-radius: 8px;
             font-weight: bold;
             margin-bottom: 10px;
-            transition: opacity 0.2s;
+            transition: transform 0.1s, opacity 0.2s;
         }
         .btn:hover { opacity: 0.9; }
-        .btn-secondary { background: #ea4aaa; } /* Cor do GitHub Sponsors */
-        .copy-hint { font-size: 0.75rem; color: var(--primary); display: block; margin-bottom: 20px;}
+        .btn:active { transform: scale(0.98); }
+        .btn-secondary { background: var(--secondary); }
         
+        .copy-hint { 
+            font-size: 0.75rem; 
+            color: var(--primary); 
+            display: block; 
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        /* Nova seção de Dica de UX */
+        .info-box {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #f0f7ff;
+            border-radius: 10px;
+            text-align: left;
+            border-left: 4px solid var(--primary);
+        }
+        .info-box h2 {
+            font-size: 0.85rem;
+            margin: 0 0 5px 0;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-box p {
+            font-size: 0.8rem;
+            margin: 0;
+            color: #555;
+            line-height: 1.4;
+        }
+
         hr { margin: 25px 0; border: 0; border-top: 1px solid #eee; }
     </style>
 </head>
@@ -82,13 +113,13 @@
 
 <div class="card">
     <h1>🏐 Apoie o Vôlei Manager</h1>
-    <p>Se o app te ajuda a organizar suas partidas, considere pagar um café para o desenvolvedor!</p>
+    <p>Se o app te ajuda a organizar suas partidas, considere apoiar o desenvolvimento independente.</p>
     
     <div class="qr-container">
         <img src="qr_code_pix.png" alt="QR Code PIX para doação" class="qr-image">
     </div>
 
-    <p style="font-size: 0.85rem; margin-bottom: 5px;">Ou use o Pix Copia e Cola:</p>
+    <p style="font-size: 0.85rem; margin-bottom: 5px; font-weight: bold;">Pix Copia e Cola:</p>
     <div class="pix-code" id="pixCode" onclick="copyPix()" title="Clique para copiar">
         00020126650014br.gov.bcb.pix0136d143999e-2f7a-4ce4-84c3-b3b03b41536e0203Pix5204000053039865802BR5925BRUNO_BISMARCK_DA_SILVA_M6006CAXIAS62210517ApoioVoleiManager63044F13
     </div>
@@ -98,22 +129,24 @@
 
     <a href="https://github.com/sponsors/bismarckbruno" class="btn btn-secondary">Apoiar via GitHub Sponsors</a>
     <a href="https://github.com/bismarckbruno/volei_manager_android" class="btn" style="background: #333;">Ver Código no GitHub</a>
+
+    <div class="info-box">
+        <h2>💡 Qual escolher?</h2>
+        <p>O <b>PIX</b> é ideal para apoios pontuais e imediatos (Brasil). O <b>GitHub Sponsors</b> é ideal para quem deseja apoiar o projeto de forma recorrente e ganhar um selo de patrocinador no perfil.</p>
+    </div>
 </div>
 
 <script>
     function copyPix() {
         const text = document.getElementById('pixCode').innerText;
-        // Usando a API de área de transferência moderna
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(() => {
                 showVisualFeedback();
             }).catch(err => {
-                // Fallback para navegadores antigos se necessário
                 console.error('Erro ao copiar: ', err);
-                alert('Não foi possível copiar automaticamente. Por favor, selecione e copie o código.');
+                alert('Código PIX: ' + text);
             });
         } else {
-            // Fallback simples
             alert('Código PIX: ' + text);
         }
     }
@@ -122,7 +155,7 @@
         const hint = document.querySelector('.copy-hint');
         const originalText = hint.innerText;
         hint.innerText = '✅ Código copiado!';
-        hint.style.color = '#4CAF50'; // Verde de sucesso
+        hint.style.color = '#4CAF50';
         setTimeout(() => {
             hint.innerText = originalText;
             hint.style.color = 'var(--primary)';
