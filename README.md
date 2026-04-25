@@ -57,5 +57,32 @@ Contribuições são bem-vindas! Sinta-se à vontade para enviar um *pull reques
 
 Encontrou um problema ou tem uma ideia? Abra uma [Issue aqui](https://github.com/bismarckbruno/volei_manager_android/issues/new/choose).
 
+## ⚖️ Documentação Legal
+- [Política de Privacidade](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY)
+- [Termos de Uso](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE)
+
 ## 📄 Licença
 Este projeto é open-source e está disponível sob a [Licença MIT](LICENSE).
+
+## ☕ Apoie o Projeto
+
+O **Vôlei Manager** é um projeto independente e gratuito. Se o app te ajudou a organizar melhor suas partidas e você quiser incentivar o desenvolvimento de novas funcionalidades, considere me pagar um café!
+
+### Formas de apoiar:
+
+* **GitHub Sponsors:** [Clique aqui para apoiar via GitHub](https://github.com/sponsors/bismarckbruno)
+* **PIX:** Veja as opções abaixo:
+
+<details>
+  <summary><b>Clique para exibir o QR Code e Chave PIX</b></summary>
+  <br>
+  <p align="center">
+    <img src="apoio/qr_code_pix.png" width="200" alt="QR Code PIX"><br>
+    <sub>Escaneie o QR Code acima ou use o código Copia e Cola abaixo:</sub>
+  </p>
+
+  ```text
+  00020126650014br.gov.bcb.pix0136d143999e-2f7a-4ce4-84c3-b3b03b41536e0203Pix5204000053039865802BR5925BRUNO_BISMARCK_DA_SILVA_M6006CAXIAS62210517ApoioVoleiManager63044F13
+
+---
+*Qualquer valor é bem-vindo e ajuda a manter o café (e o código) fluindo!* 🏐
