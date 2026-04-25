@@ -83,6 +83,8 @@ O **Vôlei Manager** é um projeto independente e gratuito. Se o app te ajudou a
 
   ```text
   00020126650014br.gov.bcb.pix0136d143999e-2f7a-4ce4-84c3-b3b03b41536e0203Pix5204000053039865802BR5925BRUNO_BISMARCK_DA_SILVA_M6006CAXIAS62210517ApoioVoleiManager63044F13
+  ```
+</details>
 
 ---
 *Qualquer valor é bem-vindo e ajuda a manter o café (e o código) fluindo!* 🏐
