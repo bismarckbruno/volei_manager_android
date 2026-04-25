@@ -302,6 +302,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 TextButton(onClick = { showPrivacyPolicyDialog = false }) {
                     Text("Fechar")
                 }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY"))
+                    context.startActivity(intent)
+                }) {
+                    Text("Ver no navegador")
+                }
             }
         )
     }
@@ -374,11 +382,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 TextButton(onClick = { showTermsOfUseDialog = false }) {
                     Text("Fechar")
                 }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE"))
+                    context.startActivity(intent)
+                }) {
+                    Text("Ver no navegador")
+                }
             }
         )
     }
 
     ModalNavigationDrawer(
+        modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
