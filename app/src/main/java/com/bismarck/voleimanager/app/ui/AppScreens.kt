@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -1090,206 +1091,239 @@ fun AboutScreen() {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        Spacer(Modifier.height(8.dp))
+
         // ========== SEÇÃO 1: SOBRE O APLICATIVO ==========
-        Text(
-            "Sobre o aplicativo",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            "O Vôlei Manager surgiu da necessidade real de organizar as peladas de vôlei de forma justa e dinâmica. Quem nunca passou pelo problema de times desequilibrados ou confusão na hora de saber quem é o próximo a jogar? O app cuida da fila, do nível de habilidade (através do Elo) e da diversão da galera. Se você tiver alguma sugestão ou encontrou algum problema, não hesite em usar o botão abaixo para enviar o seu feedback!",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://forms.gle/WkE1Dd7X8emHMid66"))
-                context.startActivity(intent)
-            },
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Text("Enviar Feedback", fontWeight = FontWeight.Bold)
-        }
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Sobre o aplicativo",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
 
-        Spacer(Modifier.height(32.dp))
+                Text(
+                    "O Vôlei Manager surgiu da necessidade real de organizar as peladas de vôlei de forma justa e dinâmica. Quem nunca passou pelo problema de times desequilibrados ou confusão na hora de saber quem é o próximo a jogar? O app cuida da fila, do nível de habilidade (através do Elo) e da diversão da galera. Se você tiver alguma sugestão ou encontrou algum problema, não hesite em usar o botão abaixo para enviar o seu feedback!",
+                    style = MaterialTheme.typography.bodyMedium
+                )
 
-        // ========== SEÇÃO 2: SOBRE O CÓDIGO ==========
-        Text(
-            "Sobre o código",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            "Projeto open-source desenvolvido nativamente em Kotlin com Jetpack Compose. A arquitetura segue o padrão MVVM limpo, utilizando Room Database para o armazenamento local e offline de todos os dados. Para se aprofundar na arquitetura ou contribuir com o código, acesse a documentação do projeto no botão abaixo.",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://bismarckbruno.github.io/volei_manager_android/"))
-                context.startActivity(intent)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        ) {
-            Text("Documentação do Projeto", fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(Modifier.height(32.dp))
-
-        // ========== SEÇÃO 3: SOBRE O DESENVOLVEDOR ==========
-        Text(
-            "Sobre o desenvolvedor",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            "Olá! Eu sou o Bruno Bismarck, desenvolvedor e UX Designer por trás deste projeto. Criei este aplicativo com dedicação para facilitar a vida de quem organiza jogos com os amigos. Acompanhe meu trabalho, dê um alô e fique por dentro das novidades através do meu Instagram clicando no botão abaixo!",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Foto de perfil circular
-            val imageResId = remember {
-                try {
-                    com.bismarck.voleimanager.app.R.drawable.foto_perfil_desenvolvedor
-                } catch (e: Exception) {
-                    null
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://forms.gle/WkE1Dd7X8emHMid66"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Text("Enviar Feedback", fontWeight = FontWeight.Bold)
                 }
             }
+        }
 
-            if (imageResId != null) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(id = imageResId),
-                    contentDescription = "Bruno Bismarck",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        )
-                        .padding(2.dp),
-                    contentScale = ContentScale.Crop
+        // ========== SEÇÃO 2: SOBRE O CÓDIGO ==========
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Sobre o código",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
-            } else {
-                // Fallback if image not found
-                Surface(
-                    modifier = Modifier
-                        .size(80.dp),
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant
+
+                Text(
+                    "Projeto open-source desenvolvido nativamente em Kotlin com Jetpack Compose. A arquitetura segue o padrão MVVM limpo, utilizando Room Database para o armazenamento local e offline de todos os dados. Para se aprofundar na arquitetura ou contribuir com o código, acesse a documentação do projeto no botão abaixo.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://bismarckbruno.github.io/volei_manager_android/"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                    Text("Documentação do Projeto", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // ========== SEÇÃO 3: SOBRE O DESENVOLVEDOR ==========
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Sobre o desenvolvedor",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+
+                Text(
+                    "Olá! Eu sou o Bruno Bismarck, desenvolvedor e UX Designer por trás deste projeto. Criei este aplicativo com dedicação para facilitar a vida de quem organiza jogos com os amigos. Acompanhe meu trabalho, dê um alô e fique por dentro das novidades através do meu Instagram clicando no botão abaixo!",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Foto de perfil circular
+                    val imageResId = remember {
+                        try {
+                            com.bismarck.voleimanager.app.R.drawable.foto_perfil_desenvolvedor
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
+                    if (imageResId != null) {
+                        androidx.compose.foundation.Image(
+                            painter = painterResource(id = imageResId),
+                            contentDescription = "Bruno Bismarck",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = androidx.compose.foundation.shape.CircleShape
+                                )
+                                .padding(2.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Fallback if image not found
+                        Surface(
+                            modifier = Modifier
+                                .size(80.dp),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.width(16.dp))
+
+                    // Pílula do Instagram
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/bismarckbruno/"))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
+                        val instagramIcon = remember {
+                            androidx.compose.ui.graphics.vector.ImageVector.Builder(
+                                name = "Instagram",
+                                defaultWidth = 20.dp,
+                                defaultHeight = 20.dp,
+                                viewportWidth = 24f,
+                                viewportHeight = 24f
+                            ).apply {
+                                path(
+                                    fill = null,
+                                    stroke = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.Black),
+                                    strokeLineWidth = 2f,
+                                    strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                    strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
+                                ) {
+                                    moveTo(7f, 2f)
+                                    lineTo(17f, 2f)
+                                    arcToRelative(5f, 5f, 0f, false, true, 5f, 5f)
+                                    lineTo(22f, 17f)
+                                    arcToRelative(5f, 5f, 0f, false, true, -5f, 5f)
+                                    lineTo(7f, 22f)
+                                    arcToRelative(5f, 5f, 0f, false, true, -5f, -5f)
+                                    lineTo(2f, 7f)
+                                    arcToRelative(5f, 5f, 0f, false, true, 5f, -5f)
+                                    close()
+                                    moveTo(16f, 12f)
+                                    arcToRelative(4f, 4f, 0f, false, true, -4f, 4f)
+                                    arcToRelative(4f, 4f, 0f, false, true, -4f, -4f)
+                                    arcToRelative(4f, 4f, 0f, false, true, 4f, -4f)
+                                    arcToRelative(4f, 4f, 0f, false, true, 4f, 4f)
+                                    close()
+                                    moveTo(17.5f, 6.5f)
+                                    lineTo(17.51f, 6.5f)
+                                }
+                            }.build()
+                        }
                         Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = instagramIcon,
+                            contentDescription = "Instagram",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "bismarckbruno",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
-
-            Spacer(Modifier.width(16.dp))
-
-            // Pílula do Instagram
-            Button(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/bismarckbruno/"))
-                    context.startActivity(intent)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                val instagramIcon = remember {
-                    androidx.compose.ui.graphics.vector.ImageVector.Builder(
-                        name = "Instagram",
-                        defaultWidth = 20.dp,
-                        defaultHeight = 20.dp,
-                        viewportWidth = 24f,
-                        viewportHeight = 24f
-                    ).apply {
-                        path(
-                            fill = null,
-                            stroke = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.Black), // Cor será ajustada pelo tint do Icon
-                            strokeLineWidth = 2f,
-                            strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round
-                        ) {
-                            moveTo(7f, 2f)
-                            lineTo(17f, 2f)
-                            arcToRelative(5f, 5f, 0f, false, true, 5f, 5f)
-                            lineTo(22f, 17f)
-                            arcToRelative(5f, 5f, 0f, false, true, -5f, 5f)
-                            lineTo(7f, 22f)
-                            arcToRelative(5f, 5f, 0f, false, true, -5f, -5f)
-                            lineTo(2f, 7f)
-                            arcToRelative(5f, 5f, 0f, false, true, 5f, -5f)
-                            close()
-                            moveTo(16f, 12f)
-                            arcToRelative(4f, 4f, 0f, false, true, -4f, 4f)
-                            arcToRelative(4f, 4f, 0f, false, true, -4f, -4f)
-                            arcToRelative(4f, 4f, 0f, false, true, 4f, -4f)
-                            arcToRelative(4f, 4f, 0f, false, true, 4f, 4f)
-                            close()
-                            moveTo(17.5f, 6.5f)
-                            lineTo(17.51f, 6.5f)
-                        }
-                    }.build()
-                }
-                Icon(
-                    imageVector = instagramIcon,
-                    contentDescription = "Instagram",
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "@bismarckbruno",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -1424,4 +1458,9 @@ fun AboutScreenPreview() {
         }
     }
 }
+
+
+
+
+
 

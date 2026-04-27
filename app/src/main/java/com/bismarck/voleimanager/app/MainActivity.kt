@@ -23,6 +23,10 @@ import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModelFactory
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Respeita os insets do sistema (notch, cutout, etc.) em landscape
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         val database = com.bismarck.voleimanager.app.data.AppDatabase.getDatabase(this)
         val repository =
             com.bismarck.voleimanager.app.data.VoleiRepository(database.voleiDao())
@@ -52,8 +56,12 @@ class MainActivity : ComponentActivity() {
                     window.statusBarColor = statusBarColor
 
                     val insetsController = WindowCompat.getInsetsController(window, view)
-                    insetsController.isAppearanceLightNavigationBars = !darkTheme
-                    insetsController.isAppearanceLightStatusBars = !darkTheme
+                    if (insetsController != null) {
+                        // Em modo escuro, status bar escura com ícones claros
+                        // Em modo claro, status bar clara com ícones escuros
+                        insetsController.isAppearanceLightStatusBars = !darkTheme
+                        insetsController.isAppearanceLightNavigationBars = !darkTheme
+                    }
                 }
 
                 com.bismarck.voleimanager.app.ui.VoleiManagerApp(

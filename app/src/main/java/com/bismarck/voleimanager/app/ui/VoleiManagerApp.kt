@@ -930,20 +930,21 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 )
             }
         ) { padding ->
-            Box(Modifier
-                .padding(padding)
-                .fillMaxSize()) {
-                AnimatedContent(
-                    targetState = currentScreen,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(500)) togetherWith fadeOut(
-                            animationSpec = tween(
-                                500
-                            )
-                        )
-                    },
-                    label = "ScreenAnim"
-                ) { screen ->
+             Box(Modifier
+                 .padding(padding)
+                 .fillMaxSize()
+                 .systemBarsPadding()) {
+                 AnimatedContent(
+                     targetState = currentScreen,
+                     transitionSpec = {
+                         fadeIn(animationSpec = tween(500)) togetherWith fadeOut(
+                             animationSpec = tween(
+                                 500
+                             )
+                         )
+                     },
+                     label = "ScreenAnim"
+                 ) { screen ->
                     when (screen) {
                         Screen.GAME -> GameScreenContent(
                             viewModel = viewModel,
