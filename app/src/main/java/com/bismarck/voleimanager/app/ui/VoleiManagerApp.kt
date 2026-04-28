@@ -43,6 +43,47 @@ import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import kotlinx.coroutines.launch
+import android.content.Context
+import android.content.res.Configuration
+import android.view.Surface
+import android.view.WindowManager
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+
+@Composable
+fun getLandscapeSide(): LandscapeSide {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+
+    // 1. Verifica se está no modo paisagem
+    if (configuration.orientation != Configuration.ORIENTATION_LANDSCAPE) {
+        return LandscapeSide.Portrait
+    }
+
+    // 2. Obtém a rotação da tela
+    val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    val rotation = windowManager.defaultDisplay.rotation
+
+    // 3. Determina o lado com base na rotação
+    return remember(rotation) {
+        when (rotation) {
+            Surface.ROTATION_90 -> LandscapeSide.Right // Barra na Direita
+            Surface.ROTATION_270 -> LandscapeSide.Left // Barra na Esquerda
+            else -> LandscapeSide.Unknown
+        }
+    }
+}
+
+// Enum para facilitar o uso
+enum class LandscapeSide {
+    Left, Right, Portrait, Unknown
+}
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +123,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showTermsOfUseDialog by remember { mutableStateOf(false) }
     var exportFileName by remember { mutableStateOf("volei_data") }
     var pendingImportType by remember { mutableStateOf(CsvType.JOGADORES) }
+
+    val landscapeSide = getLandscapeSide()
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val navBarInsets = WindowInsets.navigationBars
+
+// 2. Verifique os lados (em DP)
+    val navBarLeft = with(density) { navBarInsets.getLeft(density, layoutDirection).toDp() }
+    val navBarRight = with(density) { navBarInsets.getRight(density, layoutDirection).toDp() }
 
     val launcherImport =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -922,12 +972,25 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                 )
             }
-        ) { padding ->
+        )
+
+        { padding ->
              Box(Modifier
                  .padding(padding)
                  .fillMaxSize()
-                 .windowInsetsPadding(WindowInsets.safeDrawing
-                     .only(WindowInsetsSides.Start))) {
+                 .windowInsetsPadding(
+                     WindowInsets.safeDrawing.only(
+                        when {
+                            // Se houver barra na esquerda, protege o End (Direita)
+                            navBarLeft > 0.dp -> WindowInsetsSides.End
+                            // Se houver barra na direita, protege o Star (Esquerda)
+                            navBarRight > 0.dp -> WindowInsetsSides.Start
+                            // Caso padrão (barra embaixo ou gestos), mantém o comportamento padrão
+                            else -> WindowInsetsSides.Horizontal
+                        }
+                     )
+                 )
+             ) {
                  AnimatedContent(
                      targetState = currentScreen,
                      transitionSpec = {
