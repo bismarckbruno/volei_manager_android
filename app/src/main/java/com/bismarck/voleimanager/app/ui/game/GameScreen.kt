@@ -298,8 +298,8 @@ fun GameScreenContent(
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                                    .width(IntrinsicSize.Max)
+                                    .padding(start = 22.dp, end = 22.dp, bottom = 8.dp),
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.secondaryContainer,
                                 shadowElevation = 4.dp
@@ -677,6 +677,7 @@ fun ActiveGameView(
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(bottom = 8.dp)
                             .heightIn(min = 60.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp)
@@ -745,7 +746,7 @@ fun ActiveGameView(
                         .fillMaxWidth()
                         .padding(bottom = 8.dp)
                 )
-                Spacer(Modifier.height(41.dp))
+                Spacer(Modifier.height(47.dp))
             }
         }
     }
@@ -1129,7 +1130,7 @@ fun EmptyStateCard(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

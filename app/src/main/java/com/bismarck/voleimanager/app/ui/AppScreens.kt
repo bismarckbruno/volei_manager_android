@@ -57,6 +57,7 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 data class HistoryPlayerInfo(
@@ -595,7 +596,7 @@ private fun HistorySummaryItem(text: String) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .fillMaxWidth()
+                .width(IntrinsicSize.Max)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         )
     }
@@ -1127,13 +1128,13 @@ fun AboutScreen() {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://forms.gle/WkE1Dd7X8emHMid66"))
                         context.startActivity(intent)
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.width(IntrinsicSize.Max).align(Alignment.CenterHorizontally),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
-                    Text("Enviar Feedback", fontWeight = FontWeight.Bold)
+                    Text("Enviar feedback", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1160,7 +1161,7 @@ fun AboutScreen() {
                 )
 
                 Text(
-                    "Projeto open-source desenvolvido nativamente em Kotlin com Jetpack Compose. A arquitetura segue o padrão MVVM limpo, utilizando Room Database para o armazenamento local e offline de todos os dados. Para se aprofundar na arquitetura ou contribuir com o código, acesse a documentação do projeto no botão abaixo.",
+                    "Projeto open-source desenvolvido nativamente em Kotlin com Jetpack Compose. A arquitetura segue o padrão MVVM limpo, utilizando Room Database para o armazenamento local e offline de todos os dados. Para se aprofundar na arquitetura ou contribuir com o projeto, acesse a documentação pelo botão abaixo.",
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -1169,13 +1170,13 @@ fun AboutScreen() {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://bismarckbruno.github.io/volei_manager_android/"))
                         context.startActivity(intent)
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.width(IntrinsicSize.Max).align(Alignment.CenterHorizontally),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
-                    Text("Documentação do Projeto", fontWeight = FontWeight.Bold)
+                    Text("Documentação do projeto", fontWeight = FontWeight.Bold)
                 }
             }
         }

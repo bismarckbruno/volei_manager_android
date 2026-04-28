@@ -10,7 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
@@ -32,22 +31,13 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.lifecycle.findViewTreeLifecycleOwner
-import androidx.lifecycle.findViewTreeViewModelStoreOwner
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.findViewTreeSavedStateRegistryOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.*
 import com.bismarck.voleimanager.app.ui.game.GameScreenContent
-import com.bismarck.voleimanager.app.ui.theme.AppTheme
-import com.bismarck.voleimanager.app.ui.theme.voleiManagerBlue
 import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
@@ -936,7 +926,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
              Box(Modifier
                  .padding(padding)
                  .fillMaxSize()
-                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+                 .windowInsetsPadding(WindowInsets.safeDrawing
+                     .only(WindowInsetsSides.Start))) {
                  AnimatedContent(
                      targetState = currentScreen,
                      transitionSpec = {
@@ -1102,256 +1093,6 @@ private fun FlexibleTopAppBar(
                 actions()
             }
         }
-    }
-}
-
-private fun captureFullHistory(
-    context: android.content.Context,
-    view: android.view.View,
-    matches: List<MatchHistory>,
-    date: String,
-    isDarkTheme: Boolean,
-    showElo: Boolean,
-    showScore: Boolean,
-    onBitmapReady: (android.graphics.Bitmap) -> Unit
-) {
-    val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
-        setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
-        setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
-        setViewTreeSavedStateRegistryOwner(view.findViewTreeSavedStateRegistryOwner())
-
-        setContent {
-            AppTheme(
-                darkTheme = isDarkTheme,
-                dynamicColor = false // Desativa cores baseadas no papel de parede para garantir o azul/amarelo da marca
-            ) {
-                Surface(color = MaterialTheme.colorScheme.background) {
-                    Column(
-                        modifier = Modifier
-                            .width(400.dp)
-                            .padding(horizontal = 16.dp)
-                            .padding(
-                                top = 32.dp,
-                                bottom = 16.dp
-                            ), // Padding vertical com safe area pro notch
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Header com logo e título do App
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Image(
-                                painter = painterResource(
-                                    id = if (isDarkTheme) com.bismarck.voleimanager.app.R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
-                                    else com.bismarck.voleimanager.app.R.drawable.ic_launcher_foreground
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(56.dp)
-                            )
-                            Text(
-                                "Vôlei Manager",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDarkTheme) MaterialTheme.colorScheme.primary else voleiManagerBlue
-                            )
-                        }
-
-
-                        // Título de Histórico
-                        Text(
-                            text = "Histórico - $date",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        matches.forEach { match ->
-                            HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo, showScore = showScore)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    val scrollView = android.widget.ScrollView(context).apply {
-        addView(composeView)
-        alpha = 0f
-        isVerticalScrollBarEnabled = false
-    }
-
-    val root = view.rootView as? android.view.ViewGroup
-    if (root != null) {
-        root.addView(
-            scrollView, android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
-        scrollView.postDelayed({
-            try {
-                // Ao fixarmos uma escala predefinida ao invés de baseada no width nativo da View
-                // garantimos que o Bitmap manterá a mesma aparência/escala independente de o 
-                // celular do usuário estar de pé (retrato) ou deitado (paisagem).
-                val constantWidthPixels = 1440 // Fixo em uma resolução típica em pixels
-                val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(
-                    constantWidthPixels,
-                    android.view.View.MeasureSpec.EXACTLY
-                )
-                val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(
-                    0,
-                    android.view.View.MeasureSpec.UNSPECIFIED
-                )
-
-                composeView.measure(widthSpec, heightSpec)
-                composeView.layout(0, 0, composeView.measuredWidth, composeView.measuredHeight)
-
-                if (composeView.measuredWidth > 0 && composeView.measuredHeight > 0) {
-                    val bitmap = android.graphics.Bitmap.createBitmap(
-                        composeView.measuredWidth,
-                        composeView.measuredHeight,
-                        android.graphics.Bitmap.Config.ARGB_8888
-                    )
-                    val canvas = android.graphics.Canvas(bitmap)
-                    composeView.draw(canvas)
-                    onBitmapReady(bitmap)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                root.removeView(scrollView)
-            }
-        }, 500)
-    }
-}
-
-private fun captureFullPlayers(
-    context: android.content.Context,
-    view: android.view.View,
-    players: List<HistoryPlayerInfo>,
-    date: String,
-    isDarkTheme: Boolean,
-    showElo: Boolean,
-    sortedByElo: Boolean,
-    onBitmapReady: (android.graphics.Bitmap) -> Unit
-) {
-    val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
-        setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
-        setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
-        setViewTreeSavedStateRegistryOwner(view.findViewTreeSavedStateRegistryOwner())
-
-        setContent {
-            AppTheme(
-                darkTheme = isDarkTheme,
-                dynamicColor = false
-            ) {
-                Surface(color = MaterialTheme.colorScheme.background) {
-                    Column(
-                        modifier = Modifier
-                            .width(400.dp)
-                            .padding(horizontal = 16.dp)
-                            .padding(top = 32.dp, bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Header com logo e título do App
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Image(
-                                painter = painterResource(
-                                    id = if (isDarkTheme) com.bismarck.voleimanager.app.R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
-                                    else com.bismarck.voleimanager.app.R.drawable.ic_launcher_foreground
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier.size(56.dp)
-                            )
-                            Text(
-                                "Vôlei Manager",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDarkTheme) MaterialTheme.colorScheme.primary else voleiManagerBlue
-                            )
-                        }
-
-                        // Subtítulo
-                        Text(
-                            text = "Jogadores - $date",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        players.forEachIndexed { index, info ->
-                            HistoryPlayerCard(
-                                rank = if (sortedByElo) index + 1 else null,
-                                player = info.player,
-                                displayElo = info.displayElo,
-                                showElo = showElo,
-                                gamesPlayed = info.gamesPlayed,
-                                victories = info.victories
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    val scrollView = android.widget.ScrollView(context).apply {
-        addView(composeView)
-        alpha = 0f
-        isVerticalScrollBarEnabled = false
-    }
-
-    val root = view.rootView as? android.view.ViewGroup
-    if (root != null) {
-        root.addView(
-            scrollView, android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
-        scrollView.postDelayed({
-            try {
-                val constantWidthPixels = 1440
-                val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(
-                    constantWidthPixels,
-                    android.view.View.MeasureSpec.EXACTLY
-                )
-                val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(
-                    0,
-                    android.view.View.MeasureSpec.UNSPECIFIED
-                )
-
-                composeView.measure(widthSpec, heightSpec)
-                composeView.layout(0, 0, composeView.measuredWidth, composeView.measuredHeight)
-
-                if (composeView.measuredWidth > 0 && composeView.measuredHeight > 0) {
-                    val bitmap = android.graphics.Bitmap.createBitmap(
-                        composeView.measuredWidth,
-                        composeView.measuredHeight,
-                        android.graphics.Bitmap.Config.ARGB_8888
-                    )
-                    val canvas = android.graphics.Canvas(bitmap)
-                    composeView.draw(canvas)
-                    onBitmapReady(bitmap)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                root.removeView(scrollView)
-            }
-        }, 500)
     }
 }
 
