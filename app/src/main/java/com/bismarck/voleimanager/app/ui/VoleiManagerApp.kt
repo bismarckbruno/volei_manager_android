@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -305,7 +306,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY"))
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, "https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY".toUri())
                     context.startActivity(intent)
                 }) {
                     Text("Ver no navegador")
@@ -385,7 +386,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE"))
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, "https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE".toUri())
                     context.startActivity(intent)
                 }) {
                     Text("Ver no navegador")
@@ -397,12 +398,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
-                Column(
-                    Modifier
-                        .padding(16.dp)
-                        .verticalScroll(rememberScrollState())
+            Box(modifier = Modifier.safeDrawingPadding()) {
+                ModalDrawerSheet(
+                    windowInsets = WindowInsets(0, 0, 0, 0)
                 ) {
+                    Column(
+                        Modifier
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
                     Text(
                         "Vôlei Manager",
                         style = MaterialTheme.typography.headlineSmall,
@@ -600,7 +604,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 }
             }
         }
-    ) {
+    }) {
         if (showConfigDialog) {
             GroupConfigDialog(
                 groupName = selectedGroup ?: "Geral",
@@ -780,12 +784,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         val matchesToShare = when (historyMatchSortMode) {
                                             MatchSortMode.NEWEST -> filteredMatches.sortedWith(
                                                 compareByDescending<MatchHistory> {
-                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
                                                 }.thenByDescending { it.id }
                                             )
                                             MatchSortMode.OLDEST -> filteredMatches.sortedWith(
                                                 compareBy<MatchHistory> {
-                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (e: Exception) { 0L }
+                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
                                                 }.thenByDescending { it.id }
                                             )
                                             MatchSortMode.ELO_DELTA -> filteredMatches.sortedWith(
