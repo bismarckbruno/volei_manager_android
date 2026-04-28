@@ -395,7 +395,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     ModalNavigationDrawer(
-        modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
@@ -933,7 +932,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
              Box(Modifier
                  .padding(padding)
                  .fillMaxSize()
-                 .systemBarsPadding()) {
+                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
                  AnimatedContent(
                      targetState = currentScreen,
                      transitionSpec = {
@@ -1075,7 +1074,7 @@ private fun FlexibleTopAppBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                 .padding(vertical = 8.dp)
                 .heightIn(min = 64.dp),
             verticalAlignment = Alignment.CenterVertically
