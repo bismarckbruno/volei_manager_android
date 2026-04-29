@@ -124,7 +124,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var exportFileName by remember { mutableStateOf("volei_data") }
     var pendingImportType by remember { mutableStateOf(CsvType.JOGADORES) }
 
-    val landscapeSide = getLandscapeSide()
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val navBarInsets = WindowInsets.navigationBars
@@ -966,7 +965,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     }
                                 }
                             }) {
-                                Icon(Icons.Default.Share, "Compartilhar Histórico")
+                                Icon(Icons.Default.Share, "Compartilhar histórico")
                             }
                         }
                     }
