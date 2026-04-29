@@ -132,6 +132,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val navBarLeft = with(density) { navBarInsets.getLeft(density, layoutDirection).toDp() }
     val navBarRight = with(density) { navBarInsets.getRight(density, layoutDirection).toDp() }
 
+    val safeDrawingNavBarDirection = WindowInsets.safeDrawing.only(
+        when {
+            // Se houver barra na esquerda, protege o End (Direita)
+            navBarLeft > 0.dp -> WindowInsetsSides.End
+            // Se houver barra na direita, protege o Star (Esquerda)
+            navBarRight > 0.dp -> WindowInsetsSides.Start
+            // Caso padrão (barra embaixo ou gestos), mantém o comportamento padrão
+            else -> WindowInsetsSides.Horizontal
+        }
+    )
+
     val launcherImport =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let {
@@ -437,212 +448,230 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            Box(modifier = Modifier.safeDrawingPadding()) {
-                ModalDrawerSheet(
-                    windowInsets = WindowInsets(0, 0, 0, 0)
-                ) {
-                    Column(
-                        Modifier
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState())
+            Box(modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(
+                WindowInsetsSides.Vertical))) {
+                ModalDrawerSheet {
+                    Box(
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Start))
                     ) {
-                    Text(
-                        "Vôlei Manager",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.height(16.dp))
+                        Column(
+                            Modifier
+                                .padding(16.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                "Vôlei Manager",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(16.dp))
 
-                    Text("Grupo atual:", style = MaterialTheme.typography.labelMedium)
-                    Spacer(Modifier.height(8.dp))
-                    var groupExpanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = groupExpanded,
-                        onExpandedChange = { groupExpanded = !groupExpanded }) {
-                        OutlinedTextField(
-                            value = selectedGroup ?: "Selecione",
-                            onValueChange = {}, readOnly = true,
-                            trailingIcon = {
-                                val rotation by animateFloatAsState(
-                                    targetValue = if (groupExpanded) 180f else 0f,
-                                    animationSpec = tween(durationMillis = 200),
-                                    label = "GroupMenuRotation"
-                                )
-                                Icon(
-                                    Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    modifier = Modifier.rotate(rotation)
-                                )
-                            },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth(),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(56.dp)
-                        )
-                        ExposedDropdownMenu(
-                            expanded = groupExpanded,
-                            onDismissRequest = { groupExpanded = false }) {
-                            uniqueGroups.forEach { group ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(group, modifier = Modifier.weight(1f))
-                                            IconButton(onClick = {
-                                                showRenameGroupDialog = group
-                                                groupExpanded = false
-                                            }) {
-                                                Icon(
-                                                    Icons.Default.Edit,
-                                                    null,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                            IconButton(onClick = {
-                                                showDeleteGroupDialog = group
-                                                groupExpanded = false
-                                            }) {
-                                                Icon(
-                                                    Icons.Default.Delete,
-                                                    null,
-                                                    tint = MaterialTheme.colorScheme.error,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                        }
+                            Text("Grupo atual:", style = MaterialTheme.typography.labelMedium)
+                            Spacer(Modifier.height(8.dp))
+                            var groupExpanded by remember { mutableStateOf(false) }
+                            ExposedDropdownMenuBox(
+                                expanded = groupExpanded,
+                                onExpandedChange = { groupExpanded = !groupExpanded }) {
+                                OutlinedTextField(
+                                    value = selectedGroup ?: "Selecione",
+                                    onValueChange = {}, readOnly = true,
+                                    trailingIcon = {
+                                        val rotation by animateFloatAsState(
+                                            targetValue = if (groupExpanded) 180f else 0f,
+                                            animationSpec = tween(durationMillis = 200),
+                                            label = "GroupMenuRotation"
+                                        )
+                                        Icon(
+                                            Icons.Default.KeyboardArrowDown,
+                                            contentDescription = null,
+                                            modifier = Modifier.rotate(rotation)
+                                        )
                                     },
-                                    onClick = {
-                                        groupExpanded = false
-                                        if (selectedGroup != group) {
-                                            if (viewModel.isGameInProgress()) pendingGroupSwitch =
-                                                group
-                                            else {
-                                                selectedGroup = group; viewModel.loadGroupConfig(
-                                                    group
-                                                )
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth(),
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(56.dp)
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = groupExpanded,
+                                    onDismissRequest = { groupExpanded = false }) {
+                                    uniqueGroups.forEach { group ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text(group, modifier = Modifier.weight(1f))
+                                                    IconButton(onClick = {
+                                                        showRenameGroupDialog = group
+                                                        groupExpanded = false
+                                                    }) {
+                                                        Icon(
+                                                            Icons.Default.Edit,
+                                                            null,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                    IconButton(onClick = {
+                                                        showDeleteGroupDialog = group
+                                                        groupExpanded = false
+                                                    }) {
+                                                        Icon(
+                                                            Icons.Default.Delete,
+                                                            null,
+                                                            tint = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = {
+                                                groupExpanded = false
+                                                if (selectedGroup != group) {
+                                                    if (viewModel.isGameInProgress()) pendingGroupSwitch =
+                                                        group
+                                                    else {
+                                                        selectedGroup =
+                                                            group; viewModel.loadGroupConfig(
+                                                            group
+                                                        )
+                                                    }
+                                                }
+                                                scope.launch { drawerState.close() }
                                             }
-                                        }
-                                        scope.launch { drawerState.close() }
+                                        )
                                     }
-                                )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "+ Criar novo grupo",
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        },
+                                        onClick = {
+                                            showCreateGroupDialog = true; groupExpanded = false
+                                        })
+                                }
                             }
-                            DropdownMenuItem(text = {
-                                Text(
-                                    "+ Criar novo grupo",
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }, onClick = { showCreateGroupDialog = true; groupExpanded = false })
+                            Spacer(Modifier.height(8.dp))
+
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.PlayCircle, null) },
+                                label = { Text("Jogo") },
+                                selected = currentScreen == Screen.GAME,
+                                onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.DateRange, null) },
+                                label = { Text("Histórico") },
+                                selected = currentScreen == Screen.HISTORY,
+                                onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
+                                label = { Text("Perguntas frequentes") },
+                                selected = currentScreen == Screen.FAQ,
+                                onClick = { viewModel.navigateTo(Screen.FAQ); scope.launch { drawerState.close() } }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.Info, null) },
+                                label = { Text("Sobre o app") },
+                                selected = currentScreen == Screen.ABOUT,
+                                onClick = { viewModel.navigateTo(Screen.ABOUT); scope.launch { drawerState.close() } }
+                            )
+
+                            HorizontalDivider(
+                                Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                            Text("Configurações", style = MaterialTheme.typography.labelMedium)
+
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.Settings, null) },
+                                label = { Text("Regras do grupo") },
+                                selected = false,
+                                onClick = {
+                                    showConfigDialog = true; scope.launch { drawerState.close() }
+                                }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.Palette, null) },
+                                label = { Text("Tema") },
+                                selected = false,
+                                onClick = {
+                                    showThemeDialog = true; scope.launch { drawerState.close() }
+                                }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) },
+                                label = { Text("Mostrar Elo") },
+                                selected = false,
+                                badge = { Switch(checked = showElo, onCheckedChange = null) },
+                                tooltipText = "Mostra a pontuação de habilidade de cada jogador e média do time.",
+                                onClick = { viewModel.setShowElo(!showElo) }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.AlarmAdd, null) },
+                                label = { Text("Mostrar atraso") },
+                                selected = false,
+                                badge = { Switch(checked = showToll, onCheckedChange = null) },
+                                tooltipText = "Mostra a média do número de jogos de quando a pessoa atrasada chegou.",
+                                onClick = { viewModel.setShowToll(!showToll) }
+                            )
+                            HorizontalDivider(
+                                Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                            Text("Dados", style = MaterialTheme.typography.labelMedium)
+
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.FileUpload, null) },
+                                label = { Text("Exportar") },
+                                selected = false,
+                                onClick = {
+                                    showExportDialog = true; scope.launch { drawerState.close() }
+                                }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.FileDownload, null) },
+                                label = { Text("Importar") },
+                                selected = false,
+                                onClick = {
+                                    showImportDialog = true; scope.launch { drawerState.close() }
+                                }
+                            )
+                            HorizontalDivider(
+                                Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                            Text("Privacidade", style = MaterialTheme.typography.labelMedium)
+
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.Lock, null) },
+                                label = { Text("Política de Privacidade") },
+                                selected = false,
+                                onClick = {
+                                    showPrivacyPolicyDialog = true
+                                    scope.launch { drawerState.close() }
+                                })
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.Description, null) },
+                                label = { Text("Termos de Uso") },
+                                selected = false,
+                                onClick = {
+                                    showTermsOfUseDialog = true
+                                    scope.launch { drawerState.close() }
+                                })
+
+                            Spacer(Modifier.height(16.dp))
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.PlayCircle, null) },
-                        label = { Text("Jogo") },
-                        selected = currentScreen == Screen.GAME,
-                        onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } }
-                    )
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.DateRange, null) },
-                        label = { Text("Histórico") },
-                        selected = currentScreen == Screen.HISTORY,
-                        onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } }
-                    )
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
-                        label = { Text("Perguntas frequentes") },
-                        selected = currentScreen == Screen.FAQ,
-                        onClick = { viewModel.navigateTo(Screen.FAQ); scope.launch { drawerState.close() } }
-                    )
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.Info, null) },
-                        label = { Text("Sobre o app") },
-                        selected = currentScreen == Screen.ABOUT,
-                        onClick = { viewModel.navigateTo(Screen.ABOUT); scope.launch { drawerState.close() } }
-                    )
-
-                    HorizontalDivider(
-                        Modifier.padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
-                    Text("Configurações", style = MaterialTheme.typography.labelMedium)
-
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.Settings, null) },
-                        label = { Text("Regras do grupo") },
-                        selected = false,
-                        onClick = { showConfigDialog = true; scope.launch { drawerState.close() } }
-                    )
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.Palette, null) },
-                        label = { Text("Tema") },
-                        selected = false,
-                        onClick = { showThemeDialog = true; scope.launch { drawerState.close() } }
-                    )
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) },
-                        label = { Text("Mostrar Elo") },
-                        selected = false,
-                        badge = { Switch(checked = showElo, onCheckedChange = null) },
-                        tooltipText = "Mostra a pontuação de habilidade de cada jogador e média do time.",
-                        onClick = { viewModel.setShowElo(!showElo) }
-                    )
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.AlarmAdd, null) },
-                        label = { Text("Mostrar atraso") },
-                        selected = false,
-                        badge = { Switch(checked = showToll, onCheckedChange = null) },
-                        tooltipText = "Mostra a média do número de jogos de quando a pessoa atrasada chegou.",
-                        onClick = { viewModel.setShowToll(!showToll) }
-                    )
-                    HorizontalDivider(
-                        Modifier.padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
-                    Text("Dados", style = MaterialTheme.typography.labelMedium)
-
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.FileUpload, null) },
-                        label = { Text("Exportar") },
-                        selected = false,
-                        onClick = { showExportDialog = true; scope.launch { drawerState.close() } }
-                    )
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.FileDownload, null) },
-                        label = { Text("Importar") },
-                        selected = false,
-                        onClick = { showImportDialog = true; scope.launch { drawerState.close() } }
-                    )
-                    HorizontalDivider(
-                        Modifier.padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                    )
-                    Text("Privacidade", style = MaterialTheme.typography.labelMedium)
-
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.Lock, null) },
-                        label = { Text("Política de Privacidade") },
-                        selected = false,
-                        onClick = {
-                            showPrivacyPolicyDialog = true
-                            scope.launch { drawerState.close() }
-                        })
-                    FlexibleDrawerItem(
-                        icon = { Icon(Icons.Outlined.Description, null) },
-                        label = { Text("Termos de Uso") },
-                        selected = false,
-                        onClick = {
-                            showTermsOfUseDialog = true
-                            scope.launch { drawerState.close() }
-                        })
-
-                    Spacer(Modifier.height(16.dp))
                 }
             }
-        }
     }) {
         if (showConfigDialog) {
             GroupConfigDialog(
@@ -977,18 +1006,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
              Box(Modifier
                  .padding(padding)
                  .fillMaxSize()
-                 .windowInsetsPadding(
-                     WindowInsets.safeDrawing.only(
-                        when {
-                            // Se houver barra na esquerda, protege o End (Direita)
-                            navBarLeft > 0.dp -> WindowInsetsSides.End
-                            // Se houver barra na direita, protege o Star (Esquerda)
-                            navBarRight > 0.dp -> WindowInsetsSides.Start
-                            // Caso padrão (barra embaixo ou gestos), mantém o comportamento padrão
-                            else -> WindowInsetsSides.Horizontal
-                        }
-                     )
-                 )
+                 .windowInsetsPadding(safeDrawingNavBarDirection)
              ) {
                  AnimatedContent(
                      targetState = currentScreen,
