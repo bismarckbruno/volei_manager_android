@@ -29,9 +29,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManualSetupScreen(
-    players: List<com.bismarck.voleimanager.app.data.model.Player>, // Jogadores do grupo selecionado
+    players: List<Player>, // Jogadores do grupo selecionado
     showElo: Boolean, // Passado do ViewModel para respeitar a configuração
-    onConfirm: (List<com.bismarck.voleimanager.app.data.model.Player>, List<com.bismarck.voleimanager.app.data.model.Player>, List<com.bismarck.voleimanager.app.data.model.Player>, Int) -> Unit, // Retorna (TimeA, TimeB, Resto, TeamSize)
+    onConfirm: (List<Player>, List<Player>, List<Player>, Int) -> Unit, // Retorna (TimeA, TimeB, Resto, TeamSize)
     onCancel: () -> Unit
 ) {
     // Estado para guardar onde cada jogador está alocado
@@ -58,8 +58,8 @@ fun ManualSetupScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 8.dp, end = 16.dp)
-                    .padding(vertical = 8.dp)
+                    .padding(start = 4.dp, end = 16.dp)
+                    .padding(top = 0.dp, bottom = 8.dp)
             ) {
                 // Botão Cancelar ancorado na ESQUERDA
                 IconButton(
@@ -103,7 +103,8 @@ fun ManualSetupScreen(
                     }
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.padding(horizontal = 16.dp))
             // --- 2. PLACAR COM CONTAGEM ---
             Row(
                 modifier = Modifier
@@ -112,26 +113,27 @@ fun ManualSetupScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                com.bismarck.voleimanager.app.ui.TeamCounter(
+                TeamCounter(
                     "Time A",
                     teamA.size,
                     MaterialTheme.colorScheme.primary
                 )
                 Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // Usando a cor estendida importada do Theme.kt gerado pelo Figma
-                com.bismarck.voleimanager.app.ui.TeamCounter(
+                TeamCounter(
                     "Time B",
                     teamB.size,
-                    com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors.current.anotherPrime.color
+                    LocalExtendedColors.current.anotherPrime.color
                 )
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.padding(horizontal = 16.dp))
 
             // --- 3. LISTA DE SELEÇÃO ---
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(players) { player ->
-                    com.bismarck.voleimanager.app.ui.PlayerSelectionRow(
+                    PlayerSelectionRow(
                         player = player,
                         currentSelection = selectionState[player.id],
                         showElo = showElo,
@@ -162,7 +164,7 @@ fun TeamCounter(label: String, count: Int, color: Color) {
 
 @Composable
 fun PlayerSelectionRow(
-    player: com.bismarck.voleimanager.app.data.model.Player,
+    player: Player,
     currentSelection: String?, // "A", "B" ou null
     showElo: Boolean,
     onSelect: (String) -> Unit
@@ -177,7 +179,7 @@ fun PlayerSelectionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(player.name, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             if (showElo) {
-                Text("Elo: ${com.bismarck.voleimanager.app.util.EloCalculator.formatElo(player.elo)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Elo: ${EloCalculator.formatElo(player.elo)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -188,7 +190,7 @@ fun PlayerSelectionRow(
                 .padding(2.dp)
         ) {
             // Botão A
-            com.bismarck.voleimanager.app.ui.SelectionButton(
+            SelectionButton(
                 text = "A",
                 isSelected = currentSelection == "A",
                 activeColor = MaterialTheme.colorScheme.primary,
@@ -199,11 +201,11 @@ fun PlayerSelectionRow(
             Spacer(modifier = Modifier.width(4.dp))
 
             // Botão B
-            com.bismarck.voleimanager.app.ui.SelectionButton(
+            SelectionButton(
                 text = "B",
                 isSelected = currentSelection == "B",
-                activeColor = com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors.current.anotherPrime.color,
-                onActiveColor = com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors.current.anotherPrime.onColor,
+                activeColor = LocalExtendedColors.current.anotherPrime.color,
+                onActiveColor = LocalExtendedColors.current.anotherPrime.onColor,
                 onClick = { onSelect("B") }
             )
         }
