@@ -446,6 +446,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     ModalNavigationDrawer(
+        modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
         drawerContent = {
             Box(modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(
@@ -672,7 +673,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                 }
             }
-    }) {
+        }
+
+    ) {
         if (showConfigDialog) {
             GroupConfigDialog(
                 groupName = selectedGroup ?: "Geral",
