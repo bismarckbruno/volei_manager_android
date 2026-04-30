@@ -1046,15 +1046,15 @@ fun EmptyStateCard(
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
-            title = { Text("Limpar dados recentes?") },
-            text = { Text("O histórico de jogos recentes será apagado. Esta ação não pode ser desfeita.") },
+            title = { Text("Limpar jogo atual?") },
+            text = { Text("Os dados temporários serão apagados sem afetar o histórico, que será mantido. Todos os jogadores serão desmarcados. Use essa opção ao finalizar o último jogo do dia.") },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     onClick = {
                         onClearRecent()
                         showClearConfirmation = false
-                    }) { Text("Sim, excluir") }
+                    }) { Text("Sim, limpar") }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmation = false }) {
@@ -1247,9 +1247,9 @@ fun EmptyStateCard(
                                 }
                             )
 
-                            // Opção: Limpar dados recentes
+                            // Opção: Limpar jogo atual
                             DropdownMenuItem(
-                                text = { Text("Limpar dados recentes")},
+                                text = { Text("Limpar jogo atual")},
                                 onClick = {
                                     showSecondaryMenu = false
                                     showClearConfirmation = true
