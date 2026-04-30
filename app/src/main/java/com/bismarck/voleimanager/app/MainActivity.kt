@@ -27,24 +27,24 @@ class MainActivity : ComponentActivity() {
         
         enableEdgeToEdge()
 
-        val database = com.bismarck.voleimanager.app.data.AppDatabase.getDatabase(this)
+        val database = AppDatabase.getDatabase(this)
         val repository =
-            com.bismarck.voleimanager.app.data.VoleiRepository(database.voleiDao())
+            VoleiRepository(database.voleiDao())
         val viewModelFactory =
-            com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModelFactory(
+            VoleiViewModelFactory(
                 application,
                 repository
             )
-        val viewModel = ViewModelProvider(this, viewModelFactory)[com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel::class.java]
+        val viewModel = ViewModelProvider(this, viewModelFactory)[VoleiViewModel::class.java]
 
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
             val darkTheme = when (themeMode) {
-                com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.LIGHT -> false
-                com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
             }
-            com.bismarck.voleimanager.app.ui.theme.AppTheme(
+            AppTheme(
                 darkTheme = darkTheme
             ) {
                 DisposableEffect(darkTheme) {
@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    com.bismarck.voleimanager.app.ui.VoleiManagerApp(
+                    VoleiManagerApp(
                         viewModel,
                         darkTheme
                     )

@@ -73,6 +73,7 @@ import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.filled.PersonAddAlt1
@@ -430,6 +431,7 @@ fun WaitingListBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         scrimColor = Color.Black.copy(alpha = 0.32f),
+        windowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = {
             Column(
@@ -458,6 +460,7 @@ fun WaitingListBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
+                .navigationBarsPadding()
         ) {
             WaitingListContent(
                 viewModel = viewModel,
@@ -469,7 +472,6 @@ fun WaitingListBottomSheet(
                     .fillMaxWidth()
                     .weight(1f, fill = true)
             )
-            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
     }
 }
