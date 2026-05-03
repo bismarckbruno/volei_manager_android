@@ -43,11 +43,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -66,6 +68,9 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
+import android.app.Activity
 
 @Composable
 fun GameScreenContent(
@@ -440,6 +445,26 @@ fun ActiveGameView(
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val view = LocalView.current
+    val navBarColor = MaterialTheme.colorScheme.surfaceContainerLow.toArgb()
+    val transparentColor = Color.Transparent.toArgb()
+
+    if (!view.isInEditMode) {
+        // ✅ MUDANÇA AQUI: Adicionamos o 'isDarkTheme' e o 'navBarColor' como chaves!
+        // Agora, se o usuário trocar o tema, o Compose destrói o efeito antigo e roda o novo com a cor correta.
+        DisposableEffect(isLandscape, isDarkTheme, navBarColor) {
+            val window = (view.context as Activity).window
+
+            // Se for retrato (celular em pé), a base da tela é SEMPRE o seu Surface.
+            window.navigationBarColor = if (!isLandscape) navBarColor else transparentColor
+
+            onDispose {
+                // Quando o jogo é cancelado ou finalizado, a barra volta ao normal
+                window.navigationBarColor = transparentColor
+            }
+        }
+    }
 
     // Dismiss bottom sheet when rotating to landscape (inline list replaces it)
     LaunchedEffect(isLandscape) {
@@ -1179,7 +1204,9 @@ fun EmptyStateCard(
                     }
 
                     // Trailing Button: Dropdown menu
-                    Box(modifier = Modifier.width(56.dp).fillMaxHeight()) {
+                    Box(modifier = Modifier
+                        .width(56.dp)
+                        .fillMaxHeight()) {
                         val rotation by animateFloatAsState(
                             targetValue = if (showSecondaryMenu) 180f else 0f,
                             animationSpec = tween(durationMillis = 200),
@@ -1390,7 +1417,9 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                 .heightIn(min = 60.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "${index}º",
                 fontWeight = FontWeight.Bold,

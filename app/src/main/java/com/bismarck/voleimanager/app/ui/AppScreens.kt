@@ -1030,6 +1030,8 @@ fun FAQScreen() {
             .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        Spacer(Modifier.height(16.dp))
+
         Text(
             "Perguntas frequentes (FAQ)",
             style = MaterialTheme.typography.titleLarge,
@@ -1043,20 +1045,38 @@ fun FAQScreen() {
             "O que é Elo e Elo Médio?",
             "O Elo é um sistema de pontuação que avalia o nível de habilidade de cada jogador. Você ganha pontos ao vencer e perde ao ser derrotado, baseado na dificuldade da partida. O Elo médio é simplesmente a soma dos pontos de uma equipe dividida pelo número de jogadores."
         )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
         FAQItem(
             "Como funciona a Prioridade (Estrela)?",
             "Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com 'Prioridade', o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente."
         )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
         FAQItem(
             "O que é Mostrar Atraso?",
             "Quando ativado, mostra quantos jogos fictícios foram somados a quem chegou atrasado, de acordo com o que a quadra já jogou. Isso evita que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa com atraso zero. Só aparecem valores a partir de um."
         )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
         FAQItem(
             "Como criar ou gerenciar Grupos?",
             "No menu lateral, você pode criar diferentes 'Grupos'. Isso é útil se você joga em lugares ou com turmas diferentes (ex: Vôlei de Sábado e Vôlei da Empresa). Cada grupo tem seu próprio histórico e lista de jogadores."
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -1078,10 +1098,6 @@ fun FAQItem(question: String, answer: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
-    HorizontalDivider(
-        modifier = Modifier.padding(top = 8.dp),
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-    )
 }
 
 // --- TELA SOBRE ---
@@ -1095,7 +1111,6 @@ fun AboutScreen() {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Spacer(Modifier.height(8.dp))
 
         // ========== SEÇÃO 1: SOBRE O APLICATIVO ==========
         Card(
@@ -1324,7 +1339,7 @@ fun AboutScreen() {
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier)
     }
 }
 
