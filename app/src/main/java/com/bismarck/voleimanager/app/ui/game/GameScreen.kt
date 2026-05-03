@@ -483,7 +483,6 @@ fun ActiveGameView(
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 8.dp)
             ) {
             Row(
                 modifier = Modifier
