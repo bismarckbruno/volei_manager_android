@@ -133,6 +133,7 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
                     value = newName,
                     onValueChange = { newName = it },
                     label = { Text("Nome") },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
                 )
                 Spacer(Modifier.height(8.dp))

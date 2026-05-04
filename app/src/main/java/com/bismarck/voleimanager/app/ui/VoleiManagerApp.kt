@@ -93,6 +93,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val uiMessage by viewModel.uiMessage.collectAsState()
+
     val currentScreen by viewModel.currentScreen.collectAsState()
     val allPlayers by viewModel.players.collectAsState()
     val showElo by viewModel.showElo.collectAsState()
@@ -155,6 +157,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (selectedGroup == null && uniqueGroups.isNotEmpty()) selectedGroup = uniqueGroups.first()
     }
     LaunchedEffect(selectedGroup) { selectedGroup?.let { viewModel.loadGroupConfig(it) } }
+
+    LaunchedEffect(uiMessage) {
+        uiMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            viewModel.clearUiMessage()
+        }
+    }
 
     BackHandler(enabled = drawerState.isOpen || isSetupMode || currentScreen != Screen.GAME) {
         if (drawerState.isOpen) {

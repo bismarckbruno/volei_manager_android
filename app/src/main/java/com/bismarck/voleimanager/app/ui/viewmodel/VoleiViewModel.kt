@@ -68,6 +68,12 @@ data class GameStateSnapshot(
 class VoleiViewModel(application: Application, private val repository: VoleiRepository) :
     AndroidViewModel(application) {
 
+    private val _uiMessage = MutableStateFlow<String?>(null)
+    val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
+
+    fun clearUiMessage() {
+        _uiMessage.value = null
+    }
     private val _currentScreen = MutableStateFlow(Screen.GAME)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
     fun navigateTo(screen: Screen) {
@@ -445,6 +451,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun addPlayer(n: String, e: Double, g: String, isPriority: Boolean) = viewModelScope.launch {
+        // 1. Usamos 'n' em vez de 'name'
+        val nameAlreadyExists = currentGroupPlayers.value.any {
+            it.name.trim().equals(n.trim(), ignoreCase = true)
+        }
+
+        if (nameAlreadyExists) {
+            _uiMessage.value = "Já existe um jogador com esse nome no grupo"
+            // 2. Usamos return@launch para sair da corrotina sem quebrar o viewModelScope
+            return@launch
+        }
+
         val pToInsert = Player(
             name = n,
             elo = e,
@@ -477,6 +494,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun editPlayer(p: Player, n: String, isPriority: Boolean) = viewModelScope.launch(Dispatchers.IO) {
         val oldName = p.name
+        if (oldName.trim().lowercase() != n.trim().lowercase()) {
+            val nameAlreadyExists = currentGroupPlayers.value.any {
+                it.id != p.id && it.name.trim().equals(n.trim(), ignoreCase = true)
+            }
+            if (nameAlreadyExists) {
+                _uiMessage.value = "Já existe outro jogador com esse nome no grupo"
+                return@launch
+            }
+        }
         val up = p.copy(name = n, isPriority = isPriority)
         repository.updatePlayer(up)
         if (oldName != n) {
