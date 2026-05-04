@@ -20,21 +20,57 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
     suspend fun updatePlayers(players: List<com.bismarck.voleimanager.app.data.model.Player>) = voleiDao.updatePlayers(players)
     suspend fun updatePlayer(player: com.bismarck.voleimanager.app.data.model.Player) = voleiDao.updatePlayer(player)
 
-    suspend fun renamePlayerCascade(oldName: String, newName: String, groupName: String) {
-        val historyToUpdate = voleiDao.getAllHistorySync().filter { 
-            it.groupName == groupName && 
-            (it.teamA.split(", ").contains(oldName) || it.teamB.split(", ").contains(oldName))
+    suspend fun renamePlayerCascade(playerId: Int, oldName: String, newName: String, groupName: String) {
+        val historyToUpdate = voleiDao.getAllHistorySync().filter { match ->
+            val idsA = if (match.teamAIds.isBlank()) emptyList() else match.teamAIds.split(",").map { it.trim() }
+            val idsB = if (match.teamBIds.isBlank()) emptyList() else match.teamBIds.split(",").map { it.trim() }
+            match.groupName == groupName && (
+                idsA.contains(playerId.toString()) ||
+                idsB.contains(playerId.toString()) ||
+                (idsA.isEmpty() && match.teamA.split(", ").contains(oldName)) ||
+                (idsB.isEmpty() && match.teamB.split(", ").contains(oldName))
+            )
         }.map { match ->
-            val newTeamA = match.teamA.split(", ").map { if (it == oldName) newName else it }.sorted().joinToString(", ")
-            val newTeamB = match.teamB.split(", ").map { if (it == oldName) newName else it }.sorted().joinToString(", ")
-            match.copy(teamA = newTeamA, teamB = newTeamB)
+            val namesA = match.teamA.split(", ").toMutableList()
+            val idsA = if (match.teamAIds.isBlank()) emptyList() else match.teamAIds.split(",").map { it.trim() }
+            val mutableIdsA = idsA.toMutableList()
+            
+            if (idsA.contains(playerId.toString())) {
+                val index = idsA.indexOf(playerId.toString())
+                if (index >= 0 && index < namesA.size) namesA[index] = newName
+            } else if (idsA.isEmpty()) {
+                val index = namesA.indexOf(oldName)
+                if (index >= 0) namesA[index] = newName
+            }
+            
+            val pairedA = namesA.zip(if (idsA.isEmpty()) List(namesA.size) { "" } else mutableIdsA).sortedBy { it.first.lowercase() }
+            val newTeamA = pairedA.joinToString(", ") { it.first }
+            val newTeamAIds = pairedA.joinToString(",") { it.second }.takeIf { idsA.isNotEmpty() } ?: ""
+
+            val namesB = match.teamB.split(", ").toMutableList()
+            val idsB = if (match.teamBIds.isBlank()) emptyList() else match.teamBIds.split(",").map { it.trim() }
+            val mutableIdsB = idsB.toMutableList()
+            
+            if (idsB.contains(playerId.toString())) {
+                val index = idsB.indexOf(playerId.toString())
+                if (index >= 0 && index < namesB.size) namesB[index] = newName
+            } else if (idsB.isEmpty()) {
+                val index = namesB.indexOf(oldName)
+                if (index >= 0) namesB[index] = newName
+            }
+
+            val pairedB = namesB.zip(if (idsB.isEmpty()) List(namesB.size) { "" } else mutableIdsB).sortedBy { it.first.lowercase() }
+            val newTeamB = pairedB.joinToString(", ") { it.first }
+            val newTeamBIds = pairedB.joinToString(",") { it.second }.takeIf { idsB.isNotEmpty() } ?: ""
+
+            match.copy(teamA = newTeamA, teamAIds = newTeamAIds, teamB = newTeamB, teamBIds = newTeamBIds)
         }
         if (historyToUpdate.isNotEmpty()) {
             voleiDao.updateMatchHistories(historyToUpdate)
         }
 
         val logsToUpdate = voleiDao.getAllEloLogsSync().filter {
-            it.groupName == groupName && it.playerNameSnapshot == oldName
+            it.groupName == groupName && it.playerId == playerId
         }.map { log ->
             log.copy(playerNameSnapshot = newName)
         }

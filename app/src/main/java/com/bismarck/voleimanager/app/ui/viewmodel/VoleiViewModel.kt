@@ -506,7 +506,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val up = p.copy(name = n, isPriority = isPriority)
         repository.updatePlayer(up)
         if (oldName != n) {
-            repository.renamePlayerCascade(oldName, n, p.groupName)
+            repository.renamePlayerCascade(p.id, oldName, n, p.groupName)
         }
         _teamA.value = sortTeamPlayers(_teamA.value.map { if (it.id == p.id) up else it })
         _teamB.value = sortTeamPlayers(_teamB.value.map { if (it.id == p.id) up else it })
@@ -830,6 +830,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     date = dateDisplay,
                     teamA = cA.sortedBy { it.name.lowercase() }.joinToString(", ") { it.name },
                     teamB = cB.sortedBy { it.name.lowercase() }.joinToString(", ") { it.name },
+                    teamAIds = cA.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
+                    teamBIds = cB.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
                     winner = "Time $winner",
                     eloPoints = delta,
                     groupName = cA.first().groupName,
@@ -1333,6 +1335,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 }
                 if (!match.has("teamAScore")) match.addProperty("teamAScore", 0)
                 if (!match.has("teamBScore")) match.addProperty("teamBScore", 0)
+                if (!match.has("teamAIds")) match.addProperty("teamAIds", "")
+                if (!match.has("teamBIds")) match.addProperty("teamBIds", "")
                 if (!match.has("teamAAverageElo")) match.addProperty("teamAAverageElo", 0.0)
                 if (!match.has("teamBAverageElo")) match.addProperty("teamBAverageElo", 0.0)
                 if (!match.has("startTimestamp")) match.addProperty("startTimestamp", 0L)

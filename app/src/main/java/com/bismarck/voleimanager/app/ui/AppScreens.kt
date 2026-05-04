@@ -150,19 +150,54 @@ fun HistoryScreen(
         if (matchDurationsMinutes.isEmpty()) null else matchDurationsMinutes.values.average().toInt()
     }
 
-    // Unique player names from filtered history
-    val uniquePlayerNames = remember(sortedHistory) {
-        sortedHistory.flatMap { match ->
-            (match.teamA.split(",") + match.teamB.split(","))
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-        }.distinct()
+    // Unique player names and IDs from filtered history
+    // For backwards compatibility, if ID is empty, we keep the name
+    data class PlayerIdentifier(val id: Int?, val name: String)
+    val uniquePlayerIdentifiers = remember(sortedHistory) {
+        val identifiers = mutableSetOf<PlayerIdentifier>()
+        sortedHistory.forEach { match ->
+            val namesA = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val idsA = match.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            
+            namesA.forEachIndexed { index, name ->
+                val id = idsA.getOrNull(index)
+                identifiers.add(PlayerIdentifier(id, name))
+            }
+            
+            val namesB = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val idsB = match.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            
+            namesB.forEachIndexed { index, name ->
+                val id = idsB.getOrNull(index)
+                identifiers.add(PlayerIdentifier(id, name))
+            }
+        }
+        
+        // Remove duplicates resolving names and IDs
+        val deduplicated = mutableListOf<PlayerIdentifier>()
+        identifiers.forEach { identifier ->
+            if (identifier.id != null && deduplicated.any { it.id == identifier.id }) return@forEach
+            
+            val existingByName = deduplicated.find { it.name == identifier.name }
+            if (existingByName != null) {
+                if (existingByName.id == null && identifier.id != null) {
+                    // Upgrade the ID-less entry to the one with ID
+                    deduplicated.remove(existingByName)
+                    deduplicated.add(identifier)
+                }
+                // If it already exists with an ID, and we're adding an ID-less one, we ignore the ID-less one.
+                // If both have different IDs, they are homonyms, they are both kept (since the ID check above didn't return).
+            } else {
+                deduplicated.add(identifier)
+            }
+        }
+        deduplicated.toList()
     }
 
-    val uniquePlayerCount = uniquePlayerNames.size
+    val uniquePlayerCount = uniquePlayerIdentifiers.size
 
     // Build player list with Elo and stats for the selected date
-    val historyPlayerList = remember(uniquePlayerNames, groupPlayers, eloLogs, historyDate, playerSortMode, sortedHistory) {
+    val historyPlayerList = remember(uniquePlayerIdentifiers, groupPlayers, eloLogs, historyDate, playerSortMode, sortedHistory) {
         // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
         val eloDateStr: String? = if (historyDate != null) {
             try {
@@ -171,26 +206,29 @@ fun HistoryScreen(
             } catch (_: Exception) { null }
         } else null
 
-        val playerDataList = uniquePlayerNames.mapNotNull { name ->
-            val player = groupPlayers.find { it.name == name }
+        val playerDataList = uniquePlayerIdentifiers.mapNotNull { identifier ->
+            val player = groupPlayers.find { 
+                if (identifier.id != null) it.id == identifier.id 
+                else it.name == identifier.name 
+            }
             val logsForPlayer = if (eloDateStr != null) {
                 if (player != null) eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
-                else eloLogs.filter { it.playerNameSnapshot == name && it.date == eloDateStr }
+                else eloLogs.filter { it.playerNameSnapshot == identifier.name && it.date == eloDateStr }
             } else {
                 if (player != null) eloLogs.filter { it.playerId == player.id }
-                else eloLogs.filter { it.playerNameSnapshot == name }
+                else eloLogs.filter { it.playerNameSnapshot == identifier.name }
             }
             
             val games = logsForPlayer.size
             val victories = logsForPlayer.count { it.won == true }
             val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
 
-            val effectivePlayer = player ?: Player(name = name, groupName = "", elo = 1200.0)
+            val effectivePlayer = player ?: Player(name = identifier.name, groupName = "", elo = 1200.0)
             
             HistoryPlayerInfo(
                 player = effectivePlayer,
                 displayElo = eloForDisplay,
-                name = name,
+                name = player?.name ?: identifier.name,
                 gamesPlayed = games,
                 victories = victories
             )

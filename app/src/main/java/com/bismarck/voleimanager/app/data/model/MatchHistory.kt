@@ -9,6 +9,8 @@ data class MatchHistory(
     val date: String,
     val teamA: String,
     val teamB: String,
+    val teamAIds: String = "",
+    val teamBIds: String = "",
     val winner: String,
     val eloPoints: Double,
     val groupName: String,
