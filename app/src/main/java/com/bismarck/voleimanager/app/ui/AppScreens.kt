@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.MatchHistory
@@ -311,7 +312,11 @@ fun HistoryScreen(
 
         // --- Date filter dropdown ---
         Box(modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = { expandedDate = true }, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { expandedDate = true },
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
+            ) {
                 Icon(
                     Icons.Default.DateRange,
                     contentDescription = null,
@@ -335,7 +340,11 @@ fun HistoryScreen(
                     modifier = Modifier.rotate(rotation)
                 )
             }
-            DropdownMenu(expanded = expandedDate, onDismissRequest = { expandedDate = false }) {
+            DropdownMenu(
+                expanded = expandedDate,
+                onDismissRequest = { expandedDate = false },
+                offset = DpOffset(x = 38.dp, y = 0.dp)
+            ) {
                 DropdownMenuItem(
                     text = { Text("Todas as datas") },
                     onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false })
