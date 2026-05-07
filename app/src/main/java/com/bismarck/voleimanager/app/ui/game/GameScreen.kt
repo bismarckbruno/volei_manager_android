@@ -73,6 +73,7 @@ import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
 import android.app.Activity
+import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 
 @Composable
 fun GameScreenContent(
@@ -151,7 +152,7 @@ fun GameScreenContent(
     confirmWinTeam?.let { team ->
         AlertDialog(
             onDismissRequest = { confirmWinTeam = null },
-            title = { Text("Vitória do Time $team?") },
+            title = { Text(stringResource(R.string.victorious_team, team)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -163,7 +164,7 @@ fun GameScreenContent(
             dismissButton = {
                 TextButton(onClick = { confirmWinTeam = null }) {
                     Text(
-                        "Cancelar",
+                        stringResource(R.string.cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -275,7 +276,7 @@ fun GameScreenContent(
                                             Arrangement.SpaceBetween,
                                             Alignment.CenterVertically
                                         ) {
-                                            Text("Jogadores", fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.players), fontWeight = FontWeight.Bold)
                                             val all =
                                                 sortedPlayers.all { presentIds.contains(it.id) }
                                             TextButton(
@@ -573,7 +574,7 @@ fun ActiveGameView(
                         .fillMaxHeight()
                 ) {
                     Text(
-                        text = "Na espera (${waitingList.size})",
+                        text = stringResource(R.string.waiting_list, waitingList.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -763,7 +764,7 @@ fun ActiveGameView(
             ) {
                 BottomSheetDefaults.DragHandle()
                 Text(
-                    text = "Na espera (${waitingList.size})",
+                    text = stringResource(R.string.waiting_list, waitingList.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -860,7 +861,7 @@ private fun WaitingListPreviewHeader(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Na espera ($waitingCount)",
+            text = stringResource(R.string.waiting_list, waitingCount),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -1146,10 +1147,15 @@ fun EmptyStateCard(
                     )
                 }
             } else {
-                Text("Grupo $currentGroup", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.selected_group, getDisplayGroupName(currentGroup)), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (selectedCount < minNeeded) "Selecione no mínimo $minNeeded jogadores" else "Clique no botão para iniciar o jogo",
+                    text = if (selectedCount < minNeeded) stringResource(
+                        R.string.select_minimum_players,
+                        minNeeded
+                    ) else stringResource(
+                        R.string.click_to_start_game
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified,
                     textAlign = TextAlign.Center
@@ -1198,7 +1204,9 @@ fun EmptyStateCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (hasPreviousMatch) "Iniciar próximo jogo" else "Iniciar jogo",
+                            if (hasPreviousMatch) stringResource(R.string.start_next_game) else stringResource(
+                                R.string.start_game
+                            ),
                             fontSize = 16.sp,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
@@ -1366,9 +1374,11 @@ fun PlayerCard(
                         player.dailyToll > 0 && (player.tollDate == targetDate || player.tollDate == today)
 
                     val info = if (actualGames == 0 && !hasToll) {
-                        "Nenhum jogo"
+                        stringResource(R.string.no_game)
                     } else {
-                        val gamesStr = if (actualGames == 1) "1 jogo" else "$actualGames jogos"
+                        val gamesStr = if (actualGames == 1) stringResource(R.string.one_game) else stringResource(
+                            R.string.n_games, actualGames
+                        )
                         if (showToll && hasToll) {
                             "$gamesStr (+${player.dailyToll})"
                         } else {
@@ -1389,7 +1399,7 @@ fun PlayerCard(
                 onClick = { showMenu = false; onEdit() },
                 leadingIcon = { Icon(Icons.Default.Edit, null) })
             DropdownMenuItem(
-                text = { Text("Excluir", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                 onClick = { showMenu = false; onDelete() },
                 leadingIcon = {
                     Icon(

@@ -64,15 +64,13 @@ fun ManualSetupScreen(
                     .padding(start = 4.dp, end = 16.dp)
                     .padding(top = 0.dp, bottom = 8.dp)
             ) {
-                // Botão Cancelar ancorado na ESQUERDA
                 IconButton(
                     onClick = onCancel,
                     modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Cancelar")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                 }
 
-                // Título ancorado EXATAMENTE NO CENTRO da tela
                 Text(
                     text = stringResource(R.string.assemble_teams),
                     style = MaterialTheme.typography.titleMedium,
@@ -81,7 +79,6 @@ fun ManualSetupScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
 
-                // Botão Iniciar ancorado na DIREITA
                 Button(
                     onClick = { 
                         if (canStart) {

@@ -340,7 +340,7 @@ internal fun WaitingListContent(
                         modifier = Modifier.padding(8.dp)
                     ) {
                         Text(
-                            "Ausentes (${absentPlayers.size})",
+                            stringResource(R.string.absent, absentPlayers.size),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -353,7 +353,9 @@ internal fun WaitingListContent(
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = if (absentExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
-                            modifier = Modifier.size(20.dp).rotate(absentRotation),
+                            modifier = Modifier
+                                .size(20.dp)
+                                .rotate(absentRotation),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

@@ -326,7 +326,7 @@ fun HistoryScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    historyDate ?: stringResource(com.bismarck.voleimanager.app.R.string.all_dates),
+                    historyDate ?: stringResource(R.string.all_dates),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.weight(1f))
@@ -348,7 +348,7 @@ fun HistoryScreen(
                 offset = DpOffset(x = 38.dp, y = 0.dp)
             ) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.all_dates)) },
+                    text = { Text(stringResource(R.string.all_dates)) },
                     onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false })
                 availableDates.forEach { date ->
                     DropdownMenuItem(
@@ -388,7 +388,7 @@ fun HistoryScreen(
                                 )
                             } else {
                                 Icon(
-                                    painter = painterResource(id = com.bismarck.voleimanager.app.R.drawable.bola_de_v_lei_s_lida_para_variar_a_cor),
+                                    painter = painterResource(id = R.drawable.bola_de_v_lei_s_lida_para_variar_a_cor),
                                     contentDescription = null,
                                     modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
                                 )
@@ -450,7 +450,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.newest_first))
+                                    Text(stringResource(R.string.newest_first))
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false }
@@ -460,7 +460,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.oldest_first))
+                                    Text(stringResource(R.string.oldest_first))
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false }
@@ -470,7 +470,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.by_elo_diff))
+                                    Text(stringResource(R.string.by_elo_diff))
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false }
@@ -480,7 +480,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.by_score_diff))
+                                    Text(stringResource(R.string.by_score_diff))
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false }
@@ -491,7 +491,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.alphabetical))
+                                    Text(stringResource(R.string.alphabetical))
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false }
@@ -501,7 +501,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.by_elo))
+                                    Text(stringResource(R.string.by_elo))
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false }
@@ -511,7 +511,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.by_games))
+                                    Text(stringResource(R.string.by_games))
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false }
@@ -521,7 +521,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.by_victories))
+                                    Text(stringResource(R.string.by_victories))
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false }
@@ -531,7 +531,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(com.bismarck.voleimanager.app.R.string.by_percentage))
+                                    Text(stringResource(R.string.by_percentage))
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false }
@@ -580,7 +580,7 @@ fun HistoryScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    stringResource(com.bismarck.voleimanager.app.R.string.no_matches),
+                                    stringResource(R.string.no_matches),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -603,7 +603,7 @@ fun HistoryScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        stringResource(com.bismarck.voleimanager.app.R.string.no_players),
+                                        stringResource(R.string.no_players),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -723,7 +723,7 @@ fun HistoryPlayerCard(
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = stringResource(com.bismarck.voleimanager.app.R.string.priority),
+                                contentDescription = stringResource(R.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -765,7 +765,7 @@ fun HistoryPlayerCard(
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = stringResource(com.bismarck.voleimanager.app.R.string.priority),
+                                contentDescription = stringResource(R.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -804,7 +804,7 @@ fun HistoryItem(
     showScore: Boolean = true,
     durationMinutes: Int? = null
 ) {
-    val isTeamAWin = match.winner == stringResource(com.bismarck.voleimanager.app.R.string.team_a)
+    val isTeamAWin = match.winner == stringResource(R.string.team_a)
     val teamANames = remember(match.teamA) {
         match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             .sortedBy { it.lowercase() }
@@ -982,7 +982,7 @@ fun HistoryItem(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Text(stringResource(com.bismarck.voleimanager.app.R.string.team_a), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.team_a), fontWeight = FontWeight.Bold)
                     if (showScore && hasScore){
                         Box(
                             modifier = Modifier
@@ -1029,7 +1029,7 @@ fun HistoryItem(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Text(stringResource(com.bismarck.voleimanager.app.R.string.team_b), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.team_b), fontWeight = FontWeight.Bold)
                     if (showScore && hasScore) {
                         Box(
                             modifier = Modifier
@@ -1082,7 +1082,7 @@ fun FAQScreen() {
         Spacer(Modifier.height(16.dp))
 
         Text(
-            stringResource(com.bismarck.voleimanager.app.R.string.faq_title),
+            stringResource(R.string.faq_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -1091,7 +1091,7 @@ fun FAQScreen() {
         Spacer(Modifier.height(16.dp))
 
         FAQItem(
-            "O que é Elo e Elo Médio?",
+            stringResource(R.string.faq_q1),
             stringResource(R.string.faq_a1)
         )
 
@@ -1175,7 +1175,7 @@ fun AboutScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    stringResource(com.bismarck.voleimanager.app.R.string.about_app_title),
+                    stringResource(R.string.about_app_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1183,7 +1183,7 @@ fun AboutScreen() {
                 )
 
                 Text(
-                    "O Vôlei Manager surgiu da necessidade real de organizar as peladas de vôlei de forma justa e dinâmica. Quem nunca passou pelo problema de times desequilibrados ou confusão na hora de saber quem é o próximo a jogar? O app cuida da fila, do nível de habilidade (através do Elo) e da diversão da galera. Se você tiver alguma sugestão ou encontrou algum problema, não hesite em usar o botão abaixo para enviar o seu feedback!",
+                    stringResource(R.string.about_app_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -1198,7 +1198,7 @@ fun AboutScreen() {
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
-                    Text(stringResource(com.bismarck.voleimanager.app.R.string.send_feedback), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.send_feedback), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1217,7 +1217,7 @@ fun AboutScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    stringResource(com.bismarck.voleimanager.app.R.string.about_code),
+                    stringResource(R.string.about_code),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1225,7 +1225,7 @@ fun AboutScreen() {
                 )
 
                 Text(
-                    "Projeto open-source desenvolvido nativamente em Kotlin com Jetpack Compose. A arquitetura segue o padrão MVVM limpo, utilizando Room Database para o armazenamento local e offline de todos os dados. Para se aprofundar na arquitetura ou contribuir com o projeto, acesse a documentação pelo botão abaixo.",
+                    stringResource(R.string.about_code_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -1240,7 +1240,7 @@ fun AboutScreen() {
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
-                    Text(stringResource(com.bismarck.voleimanager.app.R.string.project_docs), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.project_docs), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1260,7 +1260,7 @@ fun AboutScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    stringResource(com.bismarck.voleimanager.app.R.string.about_dev),
+                    stringResource(R.string.about_dev),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1268,7 +1268,7 @@ fun AboutScreen() {
                 )
 
                 Text(
-                    "Olá! Eu sou o Bruno Bismarck, desenvolvedor e UX Designer por trás deste projeto. Criei este aplicativo com dedicação para facilitar a vida de quem organiza jogos com os amigos. Acompanhe meu trabalho, dê um alô e fique por dentro das novidades através do meu Instagram clicando no botão abaixo!",
+                    stringResource(R.string.about_dev_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -1280,7 +1280,7 @@ fun AboutScreen() {
                     // Foto de perfil circular
                     val imageResId = remember {
                         try {
-                            com.bismarck.voleimanager.app.R.drawable.foto_perfil_desenvolvedor
+                            R.drawable.foto_perfil_desenvolvedor
                         } catch (e: Exception) {
                             null
                         }
@@ -1421,14 +1421,14 @@ fun ExportableImageContent(
         ) {
             androidx.compose.foundation.Image(
                 painter = painterResource(
-                    id = if (isDarkTheme) com.bismarck.voleimanager.app.R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
-                    else com.bismarck.voleimanager.app.R.drawable.ic_launcher_foreground
+                    id = if (isDarkTheme) R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
+                    else R.drawable.ic_launcher_foreground
                 ),
                 contentDescription = null,
                 modifier = Modifier.size(56.dp)
             )
             Text(
-                text = "Vôlei Manager",
+                stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (isDarkTheme) MaterialTheme.colorScheme.primary else com.bismarck.voleimanager.app.ui.theme.voleiManagerBlue
@@ -1510,7 +1510,7 @@ fun ExportableImageContent(
 }
 
 fun Modifier.scale(scale: Float): Modifier = composed {
-    val density = LocalDensity.current
+    LocalDensity.current
     this.size((20 * scale).dp)
 }
 
@@ -1518,7 +1518,7 @@ fun Modifier.scale(scale: Float): Modifier = composed {
 @Composable
 fun AboutScreenPreview() {
     com.bismarck.voleimanager.app.ui.theme.AppTheme {
-        androidx.compose.material3.Surface {
+        Surface {
             AboutScreen()
         }
     }
