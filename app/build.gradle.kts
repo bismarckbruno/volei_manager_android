@@ -17,6 +17,7 @@ android {
         versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        resourceConfigurations.addAll(listOf("en", "pt-rBR", "es"))
     }
 
     buildTypes {

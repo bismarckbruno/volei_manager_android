@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.bismarck.voleimanager.app.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +43,7 @@ fun ManualSetupScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val errorMsg = stringResource(R.string.select_equal_number)
 
     // Calcula os times em tempo real baseados na seleção
     val teamA = players.filter { selectionState[it.id] == "A" }
@@ -71,7 +74,7 @@ fun ManualSetupScreen(
 
                 // Título ancorado EXATAMENTE NO CENTRO da tela
                 Text(
-                    text = "Montar times",
+                    text = stringResource(R.string.assemble_teams),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -85,7 +88,7 @@ fun ManualSetupScreen(
                             onConfirm(teamA, teamB, bench, teamA.size) 
                         } else {
                             scope.launch {
-                                snackbarHostState.showSnackbar("Selecione um número igual de pessoas em cada time (mín. 2 e máx. 6)")
+                                snackbarHostState.showSnackbar(errorMsg)
                             }
                         }
                     },
@@ -96,7 +99,7 @@ fun ManualSetupScreen(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                     modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
-                    Text("Iniciar")
+                    Text(stringResource(R.string.start))
                     if (canStart) {
                         Spacer(Modifier.width(4.dp))
                         Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
@@ -114,14 +117,14 @@ fun ManualSetupScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TeamCounter(
-                    "Time A",
+                    stringResource(R.string.team_a),
                     teamA.size,
                     MaterialTheme.colorScheme.primary
                 )
                 Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // Usando a cor estendida importada do Theme.kt gerado pelo Figma
                 TeamCounter(
-                    "Time B",
+                    stringResource(R.string.team_b),
                     teamB.size,
                     LocalExtendedColors.current.anotherPrime.color
                 )

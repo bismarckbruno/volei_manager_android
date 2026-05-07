@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.bismarck.voleimanager.app.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -105,20 +107,20 @@ fun GameScreenContent(
 
     if (showCancel) AlertDialog(
         onDismissRequest = { showCancel = false },
-        title = { Text("Cancelar partida?") },
-        text = { Text("O progresso atual será perdido.") },
+        title = { Text(stringResource(R.string.cancel_match)) },
+        text = { Text(stringResource(R.string.progress_lost)) },
         confirmButton = {
             Button(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 onClick = {
                     viewModel.cancelGame()
                     showCancel = false
-                }) { Text("Sim") }
+                }) { Text(stringResource(R.string.yes)) }
         },
         dismissButton = {
             TextButton(onClick = { showCancel = false }) {
                 Text(
-                    "Não",
+                    stringResource(R.string.no),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -156,7 +158,7 @@ fun GameScreenContent(
                         viewModel.finishGame(team)
                         confirmWinTeam = null
                     }
-                ) { Text("Confirmar") }
+                ) { Text(stringResource(R.string.confirm)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmWinTeam = null }) {
@@ -257,7 +259,7 @@ fun GameScreenContent(
                                 if (sortedPlayers.isEmpty()) {
                                     item {
                                         Text(
-                                            text = "Para começar, adicione jogadores no botão \"+\" no canto superior direito da tela.",
+                                            text = stringResource(R.string.to_start_add_players)+ " no canto superior direito da tela.",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             textAlign = TextAlign.Center,
@@ -282,7 +284,7 @@ fun GameScreenContent(
                                                         sortedPlayers,
                                                         !all
                                                     )
-                                                }) { Text(if (all) "Desmarcar todos" else "Marcar todos") }
+                                                }) { Text(if (all) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all)) }
                                         }
                                     }
                                     items(sortedPlayers) { p ->
@@ -312,7 +314,7 @@ fun GameScreenContent(
                                 val selCount = presentIds.size
                                 val totalCount = sortedPlayers.size
                                 val text = if (selCount == 0) {
-                                    "Nenhum selecionado ($totalCount cadastro${if (totalCount > 1) "s)" else ")"}"
+                                    stringResource(R.string.none_selected, totalCount, if (totalCount > 1) stringResource(R.string.group_s) else stringResource(R.string.group_empty))
                                 } else {
                                     "$selCount selecionado${if (selCount > 1) "s" else ""} de $totalCount cadastro${if (totalCount > 1) "s" else ""}"
                                 }
@@ -419,7 +421,7 @@ fun ActiveGameView(
     val teamsSwapped by viewModel.teamsSwapped.collectAsState()
 
     // Display-order slots: first = top/left, second = bottom/right
-    val firstName = if (teamsSwapped) "Time B" else "Time A"
+    val firstName = if (teamsSwapped) stringResource(R.string.team_b) else stringResource(R.string.team_a)
     val firstPlayers = if (teamsSwapped) teamB else teamA
     val firstCardColor = if (teamsSwapped) cardColorB else cardColorA
     val firstBtnColor = if (teamsSwapped) btnColorB else btnColorA
@@ -431,7 +433,7 @@ fun ActiveGameView(
     val firstOnDecrement: () -> Unit = if (teamsSwapped) { { viewModel.decrementScoreB() } } else { { viewModel.decrementScoreA() } }
     val firstWinId = if (teamsSwapped) "B" else "A"
 
-    val secondName = if (teamsSwapped) "Time A" else "Time B"
+    val secondName = if (teamsSwapped) stringResource(R.string.team_a) else stringResource(R.string.team_b)
     val secondPlayers = if (teamsSwapped) teamA else teamB
     val secondCardColor = if (teamsSwapped) cardColorA else cardColorB
     val secondBtnColor = if (teamsSwapped) btnColorA else btnColorB
@@ -557,7 +559,7 @@ fun ActiveGameView(
                         contentPadding = PaddingValues(horizontal = 16.dp)
                     ) {
                         Text(
-                            "Cancelar partida",
+                            stringResource(R.string.cancel_match_action),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.titleSmall,
                             textDecoration = TextDecoration.Underline
@@ -668,7 +670,7 @@ fun ActiveGameView(
                         .fillMaxWidth()
                 ) {
                     Text(
-                        "Cancelar partida",
+                        stringResource(R.string.cancel_match_action),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.titleSmall,
                         textDecoration = TextDecoration.Underline
@@ -716,7 +718,7 @@ fun ActiveGameView(
                                     onClick = ::openWaitingSheet
                                 ) {
                                     Text(
-                                        text = "Nenhum jogador na fila de espera",
+                                        text = stringResource(R.string.no_player_waiting),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center,
@@ -1019,7 +1021,7 @@ fun ActiveTeamCard(
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = "Prioridade",
+                                contentDescription = stringResource(R.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = contentColor.copy(alpha = 0.7f)
                             )
@@ -1037,7 +1039,7 @@ fun ActiveTeamCard(
                 contentPadding = PaddingValues(0.dp)
             ) {
                 Text(
-                    "VITÓRIA",
+                    stringResource(R.string.victory),
                     fontWeight = FontWeight.Black,
                     fontSize = 12.sp,
                     color = buttonTextColor
@@ -1070,20 +1072,20 @@ fun EmptyStateCard(
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
-            title = { Text("Limpar jogo atual?") },
-            text = { Text("Os dados temporários serão apagados sem afetar o histórico, que será mantido. Todos os jogadores serão desmarcados. Use essa opção ao finalizar o último jogo do dia.") },
+            title = { Text(stringResource(R.string.clear_game_title)) },
+            text = { Text(stringResource(R.string.clear_game_desc)) },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     onClick = {
                         onClearRecent()
                         showClearConfirmation = false
-                    }) { Text("Sim, limpar") }
+                    }) { Text(stringResource(R.string.yes_clear)) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmation = false }) {
                     Text(
-                        "Não",
+                        stringResource(R.string.no),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1127,7 +1129,7 @@ fun EmptyStateCard(
                     )
                 } else {
                     val teamName =
-                        if (streakOwner == "A") "Time A" else if (streakOwner == "B") "Time B" else "Vencedor"
+                        if (streakOwner == "A") stringResource(R.string.team_a) else if (streakOwner == "B") stringResource(R.string.team_b) else "Vencedor"
                     val playerNames = lastWinners.joinToString(", ") { it.name }
                     Text(
                         text = "Vitória do $teamName",
@@ -1256,7 +1258,7 @@ fun EmptyStateCard(
                         ) {
                             // Opção: Montar times manualmente
                             DropdownMenuItem(
-                                text = { Text("Montar times manualmente") },
+                                text = { Text(stringResource(R.string.manual_teams)) },
                                 onClick = {
                                     showSecondaryMenu = false
                                     if (selectedCount >= 4) {
@@ -1275,7 +1277,7 @@ fun EmptyStateCard(
 
                             // Opção: Limpar jogo atual
                             DropdownMenuItem(
-                                text = { Text("Limpar jogo atual")},
+                                text = { Text(stringResource(R.string.clear_game))},
                                 onClick = {
                                     showSecondaryMenu = false
                                     showClearConfirmation = true
@@ -1339,7 +1341,7 @@ fun PlayerCard(
                             Spacer(Modifier.width(4.dp))
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = "Prioridade",
+                                contentDescription = stringResource(R.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -1383,7 +1385,7 @@ fun PlayerCard(
             offset = DpOffset(x = 16.dp, y = 0.dp)
         ) {
             DropdownMenuItem(
-                text = { Text("Editar") },
+                text = { Text(stringResource(R.string.edit)) },
                 onClick = { showMenu = false; onEdit() },
                 leadingIcon = { Icon(Icons.Default.Edit, null) })
             DropdownMenuItem(
@@ -1439,7 +1441,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                         Spacer(Modifier.width(2.dp))
                         Icon(
                             Icons.Default.Star,
-                            contentDescription = "Prioridade",
+                            contentDescription = stringResource(R.string.priority),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.bismarck.voleimanager.app.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -304,58 +306,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        "Última atualização: abril de 2026\n\n" +
-
-                        "O Vôlei Manager é um aplicativo gratuito de código aberto para " +
-                        "organização de partidas recreativas de vôlei.\n\n" +
-
-                        "1. Dados coletados\n" +
-                        "O aplicativo armazena exclusivamente os dados que você fornece " +
-                        "manualmente: nomes dos jogadores, grupos, histórico de partidas e " +
-                        "pontuação Elo. Nenhum dado pessoal sensível (e-mail, telefone, " +
-                        "localização, identificadores de dispositivo) é coletado.\n\n" +
-
-                        "2. Armazenamento local\n" +
-                        "Todos os dados são armazenados localmente no seu dispositivo, " +
-                        "utilizando o banco de dados interno do aplicativo (Room/SQLite). " +
-                        "Nenhum dado é enviado para servidores externos.\n\n" +
-
-                        "3. Compartilhamento de dados\n" +
-                        "O aplicativo não compartilha dados com terceiros. As funções de " +
-                        "exportação (CSV/JSON) e compartilhamento de imagem de resultado " +
-                        "são ações iniciadas exclusivamente por você.\n\n" +
-
-                        "4. Serviços de terceiros\n" +
-                        "O aplicativo não utiliza serviços de análise (analytics), " +
-                        "rastreamento, publicidade ou qualquer outro serviço que colete " +
-                        "dados do usuário.\n\n" +
-
-                        "5. Permissões\n" +
-                        "O aplicativo não solicita permissões especiais do dispositivo " +
-                        "(câmera, microfone, localização, etc.).\n\n" +
-
-                        "6. Exclusão de dados\n" +
-                        "Você pode excluir qualquer dado a qualquer momento diretamente " +
-                        "pelo aplicativo (excluir jogadores, limpar histórico) ou " +
-                        "desinstalando o aplicativo, o que remove todos os dados " +
-                        "armazenados.\n\n" +
-
-                        "7. Crianças\n" +
-                        "O aplicativo não é direcionado a menores de 13 anos e não coleta " +
-                        "intencionalmente dados de crianças.\n\n" +
-
-                        "8. Alterações\n" +
-                        "Esta política pode ser atualizada em versões futuras do aplicativo. " +
-                        "Alterações significativas serão comunicadas nas notas de atualização.\n\n" +
-
-                        "9. Contato\n" +
-                        "Dúvidas sobre esta política podem ser enviadas para o desenvolvedor " +
-                        "através da página do aplicativo na Google Play Store.",
-
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(stringResource(R.string.privacy_policy_text))
                 }
             },
             confirmButton = {
@@ -389,53 +340,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        "Última atualização: abril de 2026\n\n" +
-
-                        "Ao utilizar o Vôlei Manager, você concorda com os seguintes termos:\n\n" +
-
-                        "1. Finalidade\n" +
-                        "O Vôlei Manager é um aplicativo gratuito destinado à organização " +
-                        "de partidas recreativas de vôlei, incluindo sorteio de times, " +
-                        "gerenciamento de fila de espera e registro de histórico.\n\n" +
-
-                        "2. Uso permitido\n" +
-                        "O aplicativo é fornecido para uso pessoal e recreativo. Você é " +
-                        "responsável pelos dados que insere no aplicativo (nomes de " +
-                        "jogadores, grupos, etc.).\n\n" +
-
-                        "3. Sem garantias\n" +
-                        "O aplicativo é fornecido \"como está\", sem garantias de qualquer " +
-                        "tipo. O desenvolvedor não se responsabiliza por perdas de dados " +
-                        "decorrentes de falhas do dispositivo, atualizações do sistema " +
-                        "operacional ou uso indevido do aplicativo.\n\n" +
-
-                        "4. Backup\n" +
-                        "É recomendável utilizar regularmente a função de exportação/backup " +
-                        "para proteger seus dados. O desenvolvedor não se responsabiliza " +
-                        "pela recuperação de dados não salvos.\n\n" +
-
-                        "5. Disponibilidade\n" +
-                        "O aplicativo pode ser atualizado, modificado ou descontinuado a " +
-                        "qualquer momento sem aviso prévio.\n\n" +
-
-                        "6. Propriedade intelectual\n" +
-                        "O código-fonte, design e conteúdo do Vôlei Manager são de " +
-                        "propriedade do desenvolvedor, protegidos pelas leis de direitos " +
-                        "autorais aplicáveis.\n\n" +
-
-                        "7. Alterações nos termos\n" +
-                        "Estes termos podem ser atualizados em versões futuras. O uso " +
-                        "continuado do aplicativo após alterações constitui a aceitação " +
-                        "dos novos termos.\n\n" +
-
-                        "8. Contato\n" +
-                        "Dúvidas sobre estes termos podem ser enviadas para o desenvolvedor " +
-                        "através da página do aplicativo na Google Play Store.",
-
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(stringResource(R.string.terms_of_use_text))
                 }
             },
             confirmButton = {

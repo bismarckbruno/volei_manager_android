@@ -53,6 +53,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -79,6 +80,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.text.style.TextOverflow
+import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.simpleScrollbar
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
@@ -148,11 +150,12 @@ internal fun WaitingListContent(
         undoAction = null
     }
 
+    val undoStr = stringResource(R.string.undo)
     fun showSnackbar(message: String, hasUndo: Boolean) {
         scope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = message,
-                actionLabel = if (hasUndo) "Desfazer" else null,
+                actionLabel = if (hasUndo) undoStr else null,
                 duration = SnackbarDuration.Short
             )
             if (result.toString() == "ActionPerformed" && hasUndo) performUndo() else undoAction =
@@ -261,7 +264,7 @@ internal fun WaitingListContent(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Text(
-                            text = "Nenhum jogador na fila de espera",
+                            text = stringResource(R.string.no_player_waiting),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -349,7 +352,7 @@ internal fun WaitingListContent(
                         )
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (absentExpanded) "Recolher" else "Expandir",
+                            contentDescription = if (absentExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
                             modifier = Modifier.size(20.dp).rotate(absentRotation),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -551,7 +554,7 @@ private fun WaitingListPlayerItem(
                                 Spacer(Modifier.width(2.dp))
                                 Icon(
                                     Icons.Default.Star,
-                                    contentDescription = "Prioridade",
+                                    contentDescription = stringResource(com.bismarck.voleimanager.app.R.string.priority),
                                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -586,7 +589,7 @@ private fun WaitingListPlayerItem(
             offset = DpOffset(x = 16.dp, y = 0.dp)
         ) {
             DropdownMenuItem(
-                text = { Text("Começo da fila") },
+                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.start_of_queue)) },
                 leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
                 onClick = {
                     onMoveToBeginning()
@@ -595,7 +598,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isFirst
             )
             DropdownMenuItem(
-                text = { Text("Subir um") },
+                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.move_up)) },
                 leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
                 onClick = {
                     onMoveUp()
@@ -604,7 +607,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isFirst
             )
             DropdownMenuItem(
-                text = { Text("Descer um") },
+                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.move_down)) },
                 leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
                 onClick = {
                     onMoveDown()
@@ -613,7 +616,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isLast
             )
             DropdownMenuItem(
-                text = { Text("Final da fila") },
+                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.end_of_queue)) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.VerticalAlignBottom,
@@ -627,7 +630,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isLast
             )
             DropdownMenuItem(
-                text = { Text("Remover da fila", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.remove_from_queue), color = MaterialTheme.colorScheme.error) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.Delete,
@@ -706,7 +709,7 @@ private fun InactivePlayerItem(
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = "Prioridade",
+                                contentDescription = stringResource(com.bismarck.voleimanager.app.R.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -722,7 +725,7 @@ private fun InactivePlayerItem(
                 }
                 Icon(
                     Icons.Default.PersonAddAlt1,
-                    contentDescription = "Adicionar à fila",
+                    contentDescription = stringResource(R.string.add_to_queue),
                     modifier = Modifier
                         .size(20.dp)
                         .pointerInput(Unit) {
@@ -748,7 +751,7 @@ private fun InactivePlayerItem(
             offset = DpOffset(x = 16.dp, y = 0.dp)
         ) {
             DropdownMenuItem(
-                text = { Text("Começo da fila") },
+                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.start_of_queue)) },
                 leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
                 onClick = {
                     onMoveToBeginning()
@@ -756,7 +759,7 @@ private fun InactivePlayerItem(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Final da fila") },
+                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.end_of_queue)) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.VerticalAlignBottom,

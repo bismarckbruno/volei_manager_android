@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.bismarck.voleimanager.app.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,18 +47,18 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
     var newName by remember { mutableStateOf(oldName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Renomear grupo") },
+        title = { Text(stringResource(R.string.rename_group)) },
         text = {
             OutlinedTextField(
                 value = newName,
                 onValueChange = { newName = it },
-                label = { Text("Novo nome") },
+                label = { Text(stringResource(R.string.new_name)) },
                 singleLine = true
             )
         },
         confirmButton = {
             Button(onClick = { if (newName.isNotBlank()) onConfirm(newName) }) {
-                Text("Salvar")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
@@ -90,7 +92,7 @@ fun SubstitutionDialog(
         title = { Text("Substituir ${playerOut.name}") },
         text = {
             if (allOptions.isEmpty()) {
-                Text("Não há jogadores disponíveis para troca.")
+                Text(stringResource(R.string.no_players_swap))
             } else {
                 val listState = rememberLazyListState()
                 LazyColumn(state = listState, modifier = Modifier.heightIn(max = 300.dp).simpleScrollbar(listState)) {
@@ -126,13 +128,13 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
     var isPriority by remember { mutableStateOf(player.isPriority) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar cadastro") },
+        title = { Text(stringResource(R.string.edit_registration)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
-                    label = { Text("Nome") },
+                    label = { Text(stringResource(R.string.name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
                 )
@@ -141,7 +143,7 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { isPriority = !isPriority }) {
                     Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
-                    Text("Prioridade")
+                    Text(stringResource(R.string.priority))
                 }
             }
         },
@@ -151,7 +153,7 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
                     newName,
                     isPriority
                 )
-            }) { Text("Salvar") }
+            }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
@@ -165,13 +167,13 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Novo cadastro") },
+        title = { Text(stringResource(R.string.new_registration)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nome") },
+                    label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
                 )
@@ -179,7 +181,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                 OutlinedTextField(
                     value = eloText,
                     onValueChange = { eloText = it },
-                    label = { Text("Elo inicial") },
+                    label = { Text(stringResource(R.string.initial_elo)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
@@ -188,7 +190,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { isPriority = !isPriority }) {
                     Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
-                    Text("Definir como prioridade")
+                    Text(stringResource(R.string.set_priority))
                 }
             }
         },
@@ -199,7 +201,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                     eloText.toDoubleOrNull() ?: 1200.0,
                     isPriority
                 )
-            }) { Text("Adicionar") }
+            }) { Text(stringResource(R.string.add)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
@@ -253,7 +255,7 @@ fun GroupConfigDialog(
                 ) {
                     Switch(checked = priorityEnabled, onCheckedChange = { priorityEnabled = it })
                     Spacer(Modifier.width(16.dp))
-                    Text("Mín. 1 prioridade por time", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.min_priority), style = MaterialTheme.typography.bodySmall)
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -265,7 +267,7 @@ fun GroupConfigDialog(
                 ) {
                     Switch(checked = scoreEnabled, onCheckedChange = { scoreEnabled = it })
                     Spacer(Modifier.width(16.dp))
-                    Text("Usar placar", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.use_score), style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
@@ -277,7 +279,7 @@ fun GroupConfigDialog(
                     priorityEnabled,
                     scoreEnabled
                 )
-            }) { Text("Salvar") }
+            }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
@@ -293,7 +295,7 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("Nome do grupo") },
+                label = { Text(stringResource(R.string.group_name)) },
                 singleLine = true
             )
         },
@@ -301,7 +303,7 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
             Button(
                 onClick = { if (text.isNotBlank()) onConfirm(text) },
                 enabled = text.isNotBlank()
-            ) { Text("Criar") }
+            ) { Text(stringResource(R.string.create)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
