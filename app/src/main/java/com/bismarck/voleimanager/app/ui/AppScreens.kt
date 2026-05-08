@@ -74,6 +74,27 @@ data class HistoryPlayerInfo(
 enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE }
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 
+fun formatLocalizedDate(internalDate: String): String {
+    val language = Locale.getDefault().language
+    if (language != "en") return internalDate
+
+    return try {
+        if (internalDate.contains(":")) {
+            val parser = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.ROOT)
+            val date = parser.parse(internalDate)
+            val formatter = SimpleDateFormat("MMMM d, yyyy 'at' h:mm a", Locale.getDefault())
+            date?.let { formatter.format(it) } ?: internalDate
+        } else {
+            val parser = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT)
+            val date = parser.parse(internalDate)
+            val formatter = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
+            date?.let { formatter.format(it) } ?: internalDate
+        }
+    } catch (e: Exception) {
+        internalDate
+    }
+}
+
 // --- TELA DE HISTÓRICO ---
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -329,7 +350,7 @@ fun HistoryScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    historyDate ?: stringResource(R.string.all_dates),
+                    historyDate?.let { formatLocalizedDate(it) } ?: stringResource(R.string.all_dates),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.weight(1f))
@@ -355,7 +376,7 @@ fun HistoryScreen(
                     onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false })
                 availableDates.forEach { date ->
                     DropdownMenuItem(
-                        text = { Text(date) },
+                        text = { Text(formatLocalizedDate(date)) },
                         onClick = { viewModel.setHistoryDateFilter(date); expandedDate = false })
                 }
             }
@@ -868,7 +889,7 @@ fun HistoryItem(
         Column(modifier = Modifier.padding(12.dp)) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                 val maxWidthPx = with(density) { maxWidth.roundToPx() }
-                val dateWidthPx = textMeasurer.measure(match.date, style = MaterialTheme.typography.labelMedium).size.width
+                val dateWidthPx = textMeasurer.measure(formatLocalizedDate(match.date), style = MaterialTheme.typography.labelMedium).size.width
                 val eloWidthPx = if (showElo) {
                     textMeasurer.measure(
                         "±$formattedDelta",
@@ -894,7 +915,7 @@ fun HistoryItem(
                 ) {
                     if (shouldBreakDurationLine) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(match.date, style = MaterialTheme.typography.labelMedium)
+                            Text(formatLocalizedDate(match.date), style = MaterialTheme.typography.labelMedium)
                             Spacer(Modifier.height(4.dp))
                             Box(
                                 modifier = Modifier
@@ -917,7 +938,7 @@ fun HistoryItem(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(match.date, style = MaterialTheme.typography.labelMedium)
+                            Text(formatLocalizedDate(match.date), style = MaterialTheme.typography.labelMedium)
                             if (durationMinutes != null) {
                                 Spacer(Modifier.width(8.dp))
                                 Box(
@@ -1452,7 +1473,7 @@ fun ExportableImageContent(
             )
         }
 
-        val title = if (matches != null) stringResource(R.string.matches_date, date) else stringResource(R.string.players_date, date)
+        val title = if (matches != null) stringResource(R.string.matches_date, formatLocalizedDate(date)) else stringResource(R.string.players_date, formatLocalizedDate(date))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
