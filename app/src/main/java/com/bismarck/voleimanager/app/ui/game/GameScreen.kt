@@ -205,7 +205,11 @@ fun GameScreenContent(
                 AnimatedContent(
                     targetState = teamA.isNotEmpty() || teamB.isNotEmpty(),
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(150))
+                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(
+                            animationSpec = tween(
+                                150
+                            )
+                        )
                     },
                     label = "GameActiveAnim"
                 ) { active ->
@@ -230,7 +234,12 @@ fun GameScreenContent(
                         Box(modifier = Modifier.fillMaxSize()) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp, top = 0.dp),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    bottom = 80.dp,
+                                    top = 0.dp
+                                ),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 item {
@@ -260,7 +269,7 @@ fun GameScreenContent(
                                 if (sortedPlayers.isEmpty()) {
                                     item {
                                         Text(
-                                            text = stringResource(R.string.to_start_add_players)+ " no canto superior direito da tela.",
+                                            text = stringResource(R.string.to_start_add_players),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             textAlign = TextAlign.Center,
@@ -276,7 +285,10 @@ fun GameScreenContent(
                                             Arrangement.SpaceBetween,
                                             Alignment.CenterVertically
                                         ) {
-                                            Text(stringResource(R.string.players), fontWeight = FontWeight.Bold)
+                                            Text(
+                                                stringResource(R.string.players_word),
+                                                fontWeight = FontWeight.Bold
+                                            )
                                             val all =
                                                 sortedPlayers.all { presentIds.contains(it.id) }
                                             TextButton(
@@ -285,7 +297,13 @@ fun GameScreenContent(
                                                         sortedPlayers,
                                                         !all
                                                     )
-                                                }) { Text(if (all) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all)) }
+                                                }) {
+                                                Text(
+                                                    if (all) stringResource(R.string.uncheck_all) else stringResource(
+                                                        R.string.check_all
+                                                    )
+                                                )
+                                            }
                                         }
                                     }
                                     items(sortedPlayers) { p ->
@@ -315,12 +333,22 @@ fun GameScreenContent(
                                 val selCount = presentIds.size
                                 val totalCount = sortedPlayers.size
                                 val text = if (selCount == 0) {
-                                    stringResource(R.string.none_selected, totalCount, if (totalCount > 1) stringResource(R.string.group_s) else stringResource(R.string.group_empty))
+                                    stringResource(
+                                        R.string.none_selected,
+                                        totalCount,
+                                        if (totalCount > 1) stringResource(R.string.group_s_ies) else stringResource(R.string.group_s_y)
+                                    )
                                 } else {
-                                    "$selCount selecionado${if (selCount > 1) "s" else ""} de $totalCount cadastro${if (totalCount > 1) "s" else ""}"
+                                    stringResource(
+                                        R.string.selected,
+                                        selCount,
+                                        if (selCount > 1) stringResource(R.string.group_s) else "",
+                                        totalCount,
+                                        if (totalCount > 1) stringResource(R.string.group_s_ies) else stringResource(R.string.group_s_y)
+                                    )
                                 }
                                 Text(
-                                    text = if (totalCount == 0) "Nenhum cadastro" else text,
+                                    text = if (totalCount == 0) stringResource(R.string.no_entry) else text,
                                     modifier = Modifier.padding(16.dp),
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -370,7 +398,11 @@ fun ActiveGameView(
             val screenHeightPx = with(LocalDensity.current) {
                 LocalConfiguration.current.screenHeightDp.dp.toPx()
             }
-            val offset = try { waitingSheetState.requireOffset() } catch (_: Exception) { 0f }
+            val offset = try {
+                waitingSheetState.requireOffset()
+            } catch (_: Exception) {
+                0f
+            }
             val sheetTopFraction = (offset / screenHeightPx).coerceIn(0f, 1f)
             val fadeStart = 0.80f
             if (sheetTopFraction >= fadeStart) {
@@ -422,7 +454,8 @@ fun ActiveGameView(
     val teamsSwapped by viewModel.teamsSwapped.collectAsState()
 
     // Display-order slots: first = top/left, second = bottom/right
-    val firstName = if (teamsSwapped) stringResource(R.string.team_b) else stringResource(R.string.team_a)
+    val firstName =
+        if (teamsSwapped) stringResource(R.string.team_b) else stringResource(R.string.team_a)
     val firstPlayers = if (teamsSwapped) teamB else teamA
     val firstCardColor = if (teamsSwapped) cardColorB else cardColorA
     val firstBtnColor = if (teamsSwapped) btnColorB else btnColorA
@@ -430,11 +463,20 @@ fun ActiveGameView(
     val firstStreakColor = if (teamsSwapped) streakColorB else streakColorA
     val firstStreak = if (teamsSwapped) teamBStreak else teamAStreak
     val firstScore = if (teamsSwapped) scoreB else scoreA
-    val firstOnIncrement: () -> Unit = if (teamsSwapped) { { viewModel.incrementScoreB() } } else { { viewModel.incrementScoreA() } }
-    val firstOnDecrement: () -> Unit = if (teamsSwapped) { { viewModel.decrementScoreB() } } else { { viewModel.decrementScoreA() } }
+    val firstOnIncrement: () -> Unit = if (teamsSwapped) {
+        { viewModel.incrementScoreB() }
+    } else {
+        { viewModel.incrementScoreA() }
+    }
+    val firstOnDecrement: () -> Unit = if (teamsSwapped) {
+        { viewModel.decrementScoreB() }
+    } else {
+        { viewModel.decrementScoreA() }
+    }
     val firstWinId = if (teamsSwapped) "B" else "A"
 
-    val secondName = if (teamsSwapped) stringResource(R.string.team_a) else stringResource(R.string.team_b)
+    val secondName =
+        if (teamsSwapped) stringResource(R.string.team_a) else stringResource(R.string.team_b)
     val secondPlayers = if (teamsSwapped) teamA else teamB
     val secondCardColor = if (teamsSwapped) cardColorA else cardColorB
     val secondBtnColor = if (teamsSwapped) btnColorA else btnColorB
@@ -442,8 +484,16 @@ fun ActiveGameView(
     val secondStreakColor = if (teamsSwapped) streakColorA else streakColorB
     val secondStreak = if (teamsSwapped) teamAStreak else teamBStreak
     val secondScore = if (teamsSwapped) scoreA else scoreB
-    val secondOnIncrement: () -> Unit = if (teamsSwapped) { { viewModel.incrementScoreA() } } else { { viewModel.incrementScoreB() } }
-    val secondOnDecrement: () -> Unit = if (teamsSwapped) { { viewModel.decrementScoreA() } } else { { viewModel.decrementScoreB() } }
+    val secondOnIncrement: () -> Unit = if (teamsSwapped) {
+        { viewModel.incrementScoreA() }
+    } else {
+        { viewModel.incrementScoreB() }
+    }
+    val secondOnDecrement: () -> Unit = if (teamsSwapped) {
+        { viewModel.decrementScoreA() }
+    } else {
+        { viewModel.decrementScoreB() }
+    }
     val secondWinId = if (teamsSwapped) "A" else "B"
 
     val configuration = LocalConfiguration.current
@@ -475,89 +525,200 @@ fun ActiveGameView(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        if (isLandscape) {
-            val landscapeSnackbarHostState = remember { SnackbarHostState() }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                Column(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            if (isLandscape) {
+                val landscapeSnackbarHostState = remember { SnackbarHostState() }
+                Box(
                     modifier = Modifier
-                        .weight(0.75f)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        modifier = Modifier
+                            .fillMaxSize()
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 250.dp)
+                                .weight(0.75f)
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            ActiveTeamCard(
-                                firstName,
-                                firstPlayers,
-                                firstCardColor,
-                                firstBtnColor,
-                                firstBtnTextColor,
-                                firstStreakColor,
-                                firstStreak,
-                                showElo,
-                                score = firstScore,
-                                showScore = showScore,
-                                onIncrementScore = firstOnIncrement,
-                                onDecrementScore = firstOnDecrement,
-                                onPlayerClick = onSubRequest
-                            ) { onWinRequest(firstWinId) }
-                        }
-                        Box(
-                            modifier = Modifier
-                                .width(50.dp)
-                                .align(Alignment.CenterVertically)
-                                .clickable { viewModel.toggleTeamsSwapped() },
-                            contentAlignment = Alignment.Center
-                        ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 250.dp)
-                        ) {
-                            ActiveTeamCard(
-                                secondName,
-                                secondPlayers,
-                                secondCardColor,
-                                secondBtnColor,
-                                secondBtnTextColor,
-                                secondStreakColor,
-                                secondStreak,
-                                showElo,
-                                score = secondScore,
-                                showScore = showScore,
-                                onIncrementScore = secondOnIncrement,
-                                onDecrementScore = secondOnDecrement,
-                                onPlayerClick = onSubRequest
-                            ) { onWinRequest(secondWinId) }
-                        }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 250.dp)
+                                ) {
+                                    ActiveTeamCard(
+                                        firstName,
+                                        firstPlayers,
+                                        firstCardColor,
+                                        firstBtnColor,
+                                        firstBtnTextColor,
+                                        firstStreakColor,
+                                        firstStreak,
+                                        showElo,
+                                        score = firstScore,
+                                        showScore = showScore,
+                                        onIncrementScore = firstOnIncrement,
+                                        onDecrementScore = firstOnDecrement,
+                                        onPlayerClick = onSubRequest
+                                    ) { onWinRequest(firstWinId) }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .width(50.dp)
+                                        .align(Alignment.CenterVertically)
+                                        .clickable { viewModel.toggleTeamsSwapped() },
+                                    contentAlignment = Alignment.Center
+                                ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 250.dp)
+                                ) {
+                                    ActiveTeamCard(
+                                        secondName,
+                                        secondPlayers,
+                                        secondCardColor,
+                                        secondBtnColor,
+                                        secondBtnTextColor,
+                                        secondStreakColor,
+                                        secondStreak,
+                                        showElo,
+                                        score = secondScore,
+                                        showScore = showScore,
+                                        onIncrementScore = secondOnIncrement,
+                                        onDecrementScore = secondOnDecrement,
+                                        onPlayerClick = onSubRequest
+                                    ) { onWinRequest(secondWinId) }
+                                }
 
+                            }
+                            TextButton(
+                                onClick = onCancelRequest,
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(top = 4.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp)
+                            ) {
+                                Text(
+                                    stringResource(R.string.cancel_match_action),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    textDecoration = TextDecoration.Underline
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column(
+                            modifier = Modifier
+                                .weight(0.25f)
+                                .fillMaxHeight()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.waiting_list, waitingList.size),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            )
+                            WaitingListContent(
+                                viewModel = viewModel,
+                                waitingList = waitingList,
+                                presentPlayerIds = presentPlayerIds,
+                                allPlayers = allPlayers,
+                                showElo = showElo,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                horizontalPadding = 4.dp,
+                                externalSnackbarHostState = landscapeSnackbarHostState
+                            )
+                        }
+                    } // end Row
+
+                    SnackbarHost(
+                        hostState = landscapeSnackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                    )
+                } // end Box
+            } else {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 250.dp)
+                    ) {
+                        ActiveTeamCard(
+                            firstName,
+                            firstPlayers,
+                            firstCardColor,
+                            firstBtnColor,
+                            firstBtnTextColor,
+                            firstStreakColor,
+                            firstStreak,
+                            showElo,
+                            score = firstScore,
+                            showScore = showScore,
+                            onIncrementScore = firstOnIncrement,
+                            onDecrementScore = firstOnDecrement,
+                            onPlayerClick = onSubRequest
+                        ) { onWinRequest(firstWinId) }
                     }
+                    Box(
+                        modifier = Modifier
+                            .height(40.dp)
+                            .width(50.dp)
+                            .clickable { viewModel.toggleTeamsSwapped() },
+                        contentAlignment = Alignment.Center
+                    ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 250.dp)
+                    ) {
+                        ActiveTeamCard(
+                            secondName,
+                            secondPlayers,
+                            secondCardColor,
+                            secondBtnColor,
+                            secondBtnTextColor,
+                            secondStreakColor,
+                            secondStreak,
+                            showElo,
+                            score = secondScore,
+                            showScore = showScore,
+                            onIncrementScore = secondOnIncrement,
+                            onDecrementScore = secondOnDecrement,
+                            onPlayerClick = onSubRequest
+                        ) { onWinRequest(secondWinId) }
+                    }
+
                     TextButton(
                         onClick = onCancelRequest,
                         modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(top = 4.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp)
+                            .fillMaxWidth()
                     ) {
                         Text(
                             stringResource(R.string.cancel_match_action),
@@ -566,13 +727,92 @@ fun ActiveGameView(
                             textDecoration = TextDecoration.Underline
                         )
                     }
+                    Spacer(Modifier.height(4.dp))
                 }
-                Spacer(Modifier.width(16.dp))
-                Column(
+                Surface(
                     modifier = Modifier
-                        .weight(0.25f)
-                        .fillMaxHeight()
+                        .fillMaxWidth()
+                        .alpha(waitingPreviewAlpha),
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow
                 ) {
+                    Column {
+                        WaitingListPreviewHeader(
+                            waitingCount = waitingList.size,
+                            onOpen = ::openWaitingSheet,
+                            onDragProgress = { waitingPreviewDragProgress = it },
+                            onDragRelease = { shouldOpen ->
+                                if (shouldOpen) {
+                                    openWaitingSheet()
+                                } else {
+                                    waitingPreviewDragProgress = 0f
+                                }
+                            },
+                            interactionEnabled = !showWaitingListSheet,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                                .heightIn(min = 60.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp)
+                        ) {
+                            if (waitingList.isEmpty()) {
+                                item(key = "empty_active") {
+                                    Card(
+                                        modifier = Modifier
+                                            .animateItemPlacement()
+                                            .fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                        onClick = ::openWaitingSheet
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.no_player_waiting),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                itemsIndexed(waitingList) { i, p ->
+                                    WaitingPlayerCard(
+                                        i + 1,
+                                        p,
+                                        showElo,
+                                        onClick = ::openWaitingSheet
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Phantom sheet overlay during drag-to-open (portrait only).
+        // Fades in and rises from the bottom in sync with the preview fading out.
+        if (!isLandscape && !showWaitingListSheet && waitingPreviewDragProgress > 0f) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .alpha(waitingPreviewDragProgress)
+                    .offset(y = 48.dp * (1f - waitingPreviewDragProgress)),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shadowElevation = 1.dp
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    BottomSheetDefaults.DragHandle()
                     Text(
                         text = stringResource(R.string.waiting_list, waitingList.size),
                         style = MaterialTheme.typography.titleMedium,
@@ -583,200 +823,10 @@ fun ActiveGameView(
                             .fillMaxWidth()
                             .padding(bottom = 8.dp)
                     )
-                    WaitingListContent(
-                        viewModel = viewModel,
-                        waitingList = waitingList,
-                        presentPlayerIds = presentPlayerIds,
-                        allPlayers = allPlayers,
-                        showElo = showElo,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        horizontalPadding = 4.dp,
-                        externalSnackbarHostState = landscapeSnackbarHostState
-                    )
-                }
-            } // end Row
-
-                SnackbarHost(
-                    hostState = landscapeSnackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp)
-                )
-            } // end Box
-        } else {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 250.dp)
-                ) {
-                    ActiveTeamCard(
-                        firstName,
-                        firstPlayers,
-                        firstCardColor,
-                        firstBtnColor,
-                        firstBtnTextColor,
-                        firstStreakColor,
-                        firstStreak,
-                        showElo,
-                        score = firstScore,
-                        showScore = showScore,
-                        onIncrementScore = firstOnIncrement,
-                        onDecrementScore = firstOnDecrement,
-                        onPlayerClick = onSubRequest
-                    ) { onWinRequest(firstWinId) }
-                }
-                Box(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .width(50.dp)
-                        .clickable { viewModel.toggleTeamsSwapped() },
-                    contentAlignment = Alignment.Center
-                ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 250.dp)
-                ) {
-                    ActiveTeamCard(
-                        secondName,
-                        secondPlayers,
-                        secondCardColor,
-                        secondBtnColor,
-                        secondBtnTextColor,
-                        secondStreakColor,
-                        secondStreak,
-                        showElo,
-                        score = secondScore,
-                        showScore = showScore,
-                        onIncrementScore = secondOnIncrement,
-                        onDecrementScore = secondOnDecrement,
-                        onPlayerClick = onSubRequest
-                    ) { onWinRequest(secondWinId) }
-                }
-
-                TextButton(
-                    onClick = onCancelRequest,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        stringResource(R.string.cancel_match_action),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.titleSmall,
-                        textDecoration = TextDecoration.Underline
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
-            }
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .alpha(waitingPreviewAlpha),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow
-            ) {
-                Column {
-                    WaitingListPreviewHeader(
-                        waitingCount = waitingList.size,
-                        onOpen = ::openWaitingSheet,
-                        onDragProgress = { waitingPreviewDragProgress = it },
-                        onDragRelease = { shouldOpen ->
-                            if (shouldOpen) {
-                                openWaitingSheet()
-                            } else {
-                                waitingPreviewDragProgress = 0f
-                            }
-                        },
-                        interactionEnabled = !showWaitingListSheet,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                            .heightIn(min = 60.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp)
-                    ) {
-                        if (waitingList.isEmpty()) {
-                            item(key = "empty_active") {
-                                Card(
-                                    modifier = Modifier
-                                        .animateItemPlacement()
-                                        .fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                    onClick = ::openWaitingSheet
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.no_player_waiting),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            itemsIndexed(waitingList) { i, p ->
-                                WaitingPlayerCard(
-                                    i + 1,
-                                    p,
-                                    showElo,
-                                    onClick = ::openWaitingSheet
-                                )
-                            }
-                        }
-                    }
+                    Spacer(Modifier.height(47.dp))
                 }
             }
         }
-    }
-
-    // Phantom sheet overlay during drag-to-open (portrait only).
-    // Fades in and rises from the bottom in sync with the preview fading out.
-    if (!isLandscape && !showWaitingListSheet && waitingPreviewDragProgress > 0f) {
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .alpha(waitingPreviewDragProgress)
-                .offset(y = 48.dp * (1f - waitingPreviewDragProgress)),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shadowElevation = 1.dp
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                BottomSheetDefaults.DragHandle()
-                Text(
-                    text = stringResource(R.string.waiting_list, waitingList.size),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
-                Spacer(Modifier.height(47.dp))
-            }
-        }
-    }
     } // end Box
 
     // Bottom Sheet for waiting list management (portrait only)
@@ -961,7 +1011,7 @@ fun ActiveTeamCard(
                     ) {
                         Icon(
                             Icons.Default.Remove,
-                            contentDescription = "Diminuir Placar",
+                            contentDescription = stringResource(R.string.decrease_score),
                             tint = buttonColor
                         )
                     }
@@ -982,7 +1032,7 @@ fun ActiveTeamCard(
                     ) {
                         Icon(
                             Icons.Default.Add,
-                            contentDescription = "Aumentar Placar",
+                            contentDescription = stringResource(R.string.increase_score),
                             tint = buttonColor
                         )
                     }
@@ -1094,6 +1144,9 @@ fun EmptyStateCard(
     }
 
     val minNeeded = currentTeamSize * 2
+    val select_minimum_players = stringResource(R.string.select_minimum_players, minNeeded)
+    val select_minimum_players_long = stringResource(R.string.select_minimum_players_long, minNeeded)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -1118,22 +1171,28 @@ fun EmptyStateCard(
                 if (limitReached) {
                     val kingTextColor = MaterialTheme.colorScheme.tertiary
                     Text(
-                        text = "👑 Rei da quadra atingiu o limite!",
+                        text = stringResource(R.string.limit_reached_title),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = kingTextColor,
                         textAlign = TextAlign.Center
-                    ); Spacer(modifier = Modifier.height(4.dp)); Text(
-                        text = "O time vencedor venceu $currentStreak seguidas e será redistribuído na próxima rodada.",
+                    );
+                    Spacer(modifier = Modifier.height(4.dp));
+                    Text(
+                        text = stringResource(R.string.limit_reached_text, currentStreak),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
                 } else {
                     val teamName =
-                        if (streakOwner == "A") stringResource(R.string.team_a) else if (streakOwner == "B") stringResource(R.string.team_b) else "Vencedor"
+                        if (streakOwner == "A") stringResource(R.string.team_a) else if (streakOwner == "B") stringResource(
+                            R.string.team_b
+                        ) else stringResource(
+                            R.string.winner
+                        )
                     val playerNames = lastWinners.joinToString(", ") { it.name }
                     Text(
-                        text = "Vitória do $teamName",
+                        text = stringResource(R.string.team_x_wins, teamName),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -1147,7 +1206,11 @@ fun EmptyStateCard(
                     )
                 }
             } else {
-                Text(stringResource(R.string.selected_group, getDisplayGroupName(currentGroup)), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.selected_group, getDisplayGroupName(currentGroup)),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = if (selectedCount < minNeeded) stringResource(
@@ -1176,14 +1239,14 @@ fun EmptyStateCard(
                                 if (selectedCount >= minNeeded) {
                                     onNextRoundClick()
                                 } else {
-                                    onShowSnackbar("Selecione no mínimo $minNeeded jogadores")
+                                    onShowSnackbar(select_minimum_players)
                                 }
                             } else {
                                 val canStartAuto = selectedCount >= minNeeded
                                 if (canStartAuto) {
                                     onStartAutoClick()
                                 } else {
-                                    onShowSnackbar("Selecione no mínimo $minNeeded jogadores ou altere essa configuração em \"Regras do grupo\"")
+                                    onShowSnackbar(select_minimum_players_long)
                                 }
                             }
                         },
@@ -1194,7 +1257,12 @@ fun EmptyStateCard(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        shape = RoundedCornerShape(topEnd = 4.dp, topStart = 56.dp, bottomStart = 56.dp, bottomEnd = 4.dp)
+                        shape = RoundedCornerShape(
+                            topEnd = 4.dp,
+                            topStart = 56.dp,
+                            bottomStart = 56.dp,
+                            bottomEnd = 4.dp
+                        )
                     ) {
                         Icon(
                             Icons.Default.PlayArrow,
@@ -1213,9 +1281,11 @@ fun EmptyStateCard(
                     }
 
                     // Trailing Button: Dropdown menu
-                    Box(modifier = Modifier
-                        .width(56.dp)
-                        .fillMaxHeight()) {
+                    Box(
+                        modifier = Modifier
+                            .width(56.dp)
+                            .fillMaxHeight()
+                    ) {
                         val rotation by animateFloatAsState(
                             targetValue = if (showSecondaryMenu) 180f else 0f,
                             animationSpec = tween(durationMillis = 200),
@@ -1231,8 +1301,10 @@ fun EmptyStateCard(
                             animationSpec = tween(durationMillis = 200),
                             label = "MenuCornerRadius"
                         )
-                        val trailingColor = if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
+                        val trailingColor =
+                            if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
                         val trailingIconColor = MaterialTheme.colorScheme.onPrimary
+                        val select_minimum_players = stringResource(R.string.select_minimum_players)
 
                         Button(
                             onClick = { showSecondaryMenu = !showSecondaryMenu },
@@ -1250,7 +1322,7 @@ fun EmptyStateCard(
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Menu de opções",
+                                contentDescription = stringResource(R.string.options_menu),
                                 modifier = Modifier
                                     .size(26.dp)
                                     .offset(x = iconOffset)
@@ -1258,7 +1330,7 @@ fun EmptyStateCard(
                                 tint = trailingIconColor
                             )
                         }
-                        
+
                         DropdownMenu(
                             expanded = showSecondaryMenu,
                             onDismissRequest = { showSecondaryMenu = false },
@@ -1272,7 +1344,7 @@ fun EmptyStateCard(
                                     if (selectedCount >= 4) {
                                         onStartManualClick()
                                     } else {
-                                        onShowSnackbar("Selecione no mínimo 4 jogadores")
+                                        onShowSnackbar(select_minimum_players)
                                     }
                                 },
                                 leadingIcon = {
@@ -1285,7 +1357,7 @@ fun EmptyStateCard(
 
                             // Opção: Limpar jogo atual
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.clear_game))},
+                                text = { Text(stringResource(R.string.clear_game)) },
                                 onClick = {
                                     showSecondaryMenu = false
                                     showClearConfirmation = true
@@ -1376,9 +1448,10 @@ fun PlayerCard(
                     val info = if (actualGames == 0 && !hasToll) {
                         stringResource(R.string.no_game)
                     } else {
-                        val gamesStr = if (actualGames == 1) stringResource(R.string.one_game) else stringResource(
-                            R.string.n_games, actualGames
-                        )
+                        val gamesStr =
+                            if (actualGames == 1) stringResource(R.string.one_game) else stringResource(
+                                R.string.n_games, actualGames
+                            )
                         if (showToll && hasToll) {
                             "$gamesStr (+${player.dailyToll})"
                         } else {
@@ -1399,7 +1472,12 @@ fun PlayerCard(
                 onClick = { showMenu = false; onEdit() },
                 leadingIcon = { Icon(Icons.Default.Edit, null) })
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
+                text = {
+                    Text(
+                        stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                },
                 onClick = { showMenu = false; onDelete() },
                 leadingIcon = {
                     Icon(
@@ -1428,44 +1506,46 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                 .heightIn(min = 60.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-        Row(modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "${index}º",
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 16.sp
-            )
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        player.name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (player.isPriority) {
-                        Spacer(Modifier.width(2.dp))
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = stringResource(R.string.priority),
-                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp), verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${index}º",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 16.sp
+                )
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            player.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (player.isPriority) {
+                            Spacer(Modifier.width(2.dp))
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = stringResource(R.string.priority),
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (showElo) {
+                        Text(
+                            EloCalculator.formatElo(player.elo),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                if (showElo) {
-                    Text(
-                        EloCalculator.formatElo(player.elo),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
-        }
         }
     }
 }

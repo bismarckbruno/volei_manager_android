@@ -74,28 +74,33 @@ fun SubstitutionDialog(
     onDismiss: () -> Unit,
     onConfirm: (Player) -> Unit
 ) {
+    val waiting_parentheses = stringResource(R.string.waiting_parentheses)
+    val team_a_parentheses = stringResource(R.string.team_a_parentheses)
+    val team_b_parentheses = stringResource(R.string.team_b_parentheses)
     val allOptions = remember(waitingList, teamA, teamB, playerOut) {
         val list = mutableListOf<Pair<Player, String>>()
         val isTeamA = teamA.any { it.id == playerOut.id }
         val isTeamB = teamB.any { it.id == playerOut.id }
-        waitingList.forEach { list.add(it to "(na espera)") }
-        if (isTeamA) teamB.forEach { list.add(it to "(Time B)") }
-        else if (isTeamB) teamA.forEach { list.add(it to "(Time A)") }
+        waitingList.forEach { list.add(it to waiting_parentheses) }
+        if (isTeamA) teamB.forEach { list.add(it to team_b_parentheses) }
+        else if (isTeamB) teamA.forEach { list.add(it to team_a_parentheses) }
         else {
-            teamA.forEach { list.add(it to "(Time A)") }; teamB.forEach { list.add(it to "(Time B)") }
+            teamA.forEach { list.add(it to team_a_parentheses) }; teamB.forEach { list.add(it to team_b_parentheses) }
         }
         list
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Substituir ${playerOut.name}") },
+        title = { Text(stringResource(R.string.replace_player, playerOut.name)) },
         text = {
             if (allOptions.isEmpty()) {
                 Text(stringResource(R.string.no_players_swap))
             } else {
                 val listState = rememberLazyListState()
-                LazyColumn(state = listState, modifier = Modifier.heightIn(max = 300.dp).simpleScrollbar(listState)) {
+                LazyColumn(state = listState, modifier = Modifier
+                    .heightIn(max = 300.dp)
+                    .simpleScrollbar(listState)) {
                     items(allOptions) { (playerIn, label) ->
                         ListItem(
                             headlineContent = { Text(playerIn.name) },
@@ -224,11 +229,11 @@ fun GroupConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Regras do grupo $groupName") },
+        title = { Text(stringResource(R.string.group_rules, groupName)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Spacer(Modifier.height(16.dp))
-                Text("Jogadores por time: ${teamSize.roundToInt()}")
+                Text(stringResource(R.string.players_per_team, teamSize.roundToInt()))
                 Slider(
                     value = teamSize,
                     onValueChange = { teamSize = it },
@@ -237,7 +242,7 @@ fun GroupConfigDialog(
                 )
                 Spacer(Modifier.height(16.dp))
 
-                Text("Limite de vitórias: ${victoryLimit.roundToInt()}")
+                Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()))
                 Slider(
                     value = victoryLimit,
                     onValueChange = { victoryLimit = it },
@@ -290,7 +295,7 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Criar novo grupo") },
+        title = { Text(stringResource(R.string.create_new_group)) },
         text = {
             OutlinedTextField(
                 value = text,

@@ -38,6 +38,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+const val DEFAULT_GROUP_NAME = "Geral"
+
 enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
@@ -82,7 +84,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _currentScreen.value = screen
     }
 
-    private val _currentGroupConfig = MutableStateFlow(GroupConfig("Geral"))
+    private val _currentGroupConfig = MutableStateFlow(GroupConfig(DEFAULT_GROUP_NAME))
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
 
     val players = repository.allPlayers.stateIn(
@@ -178,27 +180,27 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val teamsSwapped: StateFlow<Boolean> = _teamsSwapped.asStateFlow()
     fun toggleTeamsSwapped() { _teamsSwapped.value = !_teamsSwapped.value }
 
-    private val _teamA = MutableStateFlow<List<Player>>(emptyList());
+    private val _teamA = MutableStateFlow<List<Player>>(emptyList())
     val teamA = _teamA.asStateFlow()
-    private val _teamB = MutableStateFlow<List<Player>>(emptyList());
+    private val _teamB = MutableStateFlow<List<Player>>(emptyList())
     val teamB = _teamB.asStateFlow()
-    private val _waitingList = MutableStateFlow<List<Player>>(emptyList());
+    private val _waitingList = MutableStateFlow<List<Player>>(emptyList())
     val waitingList = _waitingList.asStateFlow()
-    private val _presentPlayerIds = MutableStateFlow<Set<Int>>(emptySet());
+    private val _presentPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
     val presentPlayerIds = _presentPlayerIds.asStateFlow()
 
-    private val _scoreA = MutableStateFlow(0);
+    private val _scoreA = MutableStateFlow(0)
     val scoreA = _scoreA.asStateFlow()
-    private val _scoreB = MutableStateFlow(0);
+    private val _scoreB = MutableStateFlow(0)
     val scoreB = _scoreB.asStateFlow()
 
-    private val _hasPreviousMatch = MutableStateFlow(false);
+    private val _hasPreviousMatch = MutableStateFlow(false)
     val hasPreviousMatch = _hasPreviousMatch.asStateFlow()
-    private val _currentStreak = MutableStateFlow(0);
+    private val _currentStreak = MutableStateFlow(0)
     val currentStreak = _currentStreak.asStateFlow()
-    private val _streakOwner = MutableStateFlow<String?>(null);
+    private val _streakOwner = MutableStateFlow<String?>(null)
     val streakOwner = _streakOwner.asStateFlow()
-    private val _lastWinners = MutableStateFlow<List<Player>>(emptyList());
+    private val _lastWinners = MutableStateFlow<List<Player>>(emptyList())
     val lastWinners = _lastWinners.asStateFlow()
     private var lastLosers: List<Player> = emptyList()
     private val _currentMatchStartTimestamp = MutableStateFlow<Long?>(null)
@@ -222,12 +224,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         viewModelScope.launch {
             combine(
                 _teamA, _teamB, _waitingList, _presentPlayerIds, _scoreA
-            ) { _, _, _, _, _ -> Unit }.collect { if (persistenceReady) saveGameState() }
+            ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
         }
         viewModelScope.launch {
             combine(
                 _scoreB, _currentStreak, _hasPreviousMatch, _lastWinners, _streakOwner
-            ) { _, _, _, _, _ -> Unit }.collect { if (persistenceReady) saveGameState() }
+            ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
         }
     }
 
@@ -296,7 +298,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun setThemeMode(m: ThemeMode) {
-        _themeMode.value = m;
+        _themeMode.value = m
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
             .putString("theme", m.name).apply()
     }
@@ -411,7 +413,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun deleteGroup(name: String) = viewModelScope.launch {
         repository.deleteGroup(name); if (_currentGroupConfig.value.groupName == name) loadGroupConfig(
-        "Geral"
+        DEFAULT_GROUP_NAME
     )
     }
 
@@ -459,7 +461,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         if (nameAlreadyExists) {
-            _uiMessage.value = "Já existe um jogador com esse nome no grupo"
+            _uiMessage.value = getApplication<Application>().getString(R.string.players_name_already_exists)
             // 2. Usamos return@launch para sair da corrotina sem quebrar o viewModelScope
             return@launch
         }
@@ -501,7 +503,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 it.id != p.id && it.name.trim().equals(n.trim(), ignoreCase = true)
             }
             if (nameAlreadyExists) {
-                _uiMessage.value = "Já existe outro jogador com esse nome no grupo"
+                _uiMessage.value = getApplication<Application>().getString(R.string.players_name_already_exists)
                 return@launch
             }
         }
@@ -702,7 +704,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     ): Pair<List<Player>, List<Player>> {
         val priorities = players.filter { it.isPriority }.sortedByDescending { it.elo }
         val nonPriorities = players.filter { !it.isPriority }.sortedByDescending { it.elo }
-        val tA = mutableListOf<Player>();
+        val tA = mutableListOf<Player>()
         val tB = mutableListOf<Player>()
 
         priorities.forEachIndexed { i, p ->
@@ -741,13 +743,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val wait = _waitingList.value.toMutableList()
         val nA = _teamA.value.toMutableList()
         val nB = _teamB.value.toMutableList()
-        val idxOutA = nA.indexOfFirst { it.id == out.id };
+        val idxOutA = nA.indexOfFirst { it.id == out.id }
         val idxOutB = nB.indexOfFirst { it.id == out.id }
 
         val inWithToll = applyTollIfNecessary(`in`)
 
-        val idxInA = nA.indexOfFirst { it.id == inWithToll.id };
-        val idxInB = nB.indexOfFirst { it.id == inWithToll.id };
+        val idxInA = nA.indexOfFirst { it.id == inWithToll.id }
+        val idxInB = nB.indexOfFirst { it.id == inWithToll.id }
         val idxInWait = wait.indexOfFirst { it.id == inWithToll.id }
 
         var resetStreak = false
@@ -772,9 +774,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun finishGame(winner: String) {
-        val cA = _teamA.value;
+        val cA = _teamA.value
         val cB = _teamB.value
-        val sA = _scoreA.value;
+        val sA = _scoreA.value
         val sB = _scoreB.value
         if (cA.isEmpty() || cB.isEmpty()) return
 
@@ -797,7 +799,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val startTimestamp = _currentMatchStartTimestamp.value
 
             val updatedPlayers = mutableListOf<Player>()
-            val newWinners = mutableListOf<Player>();
+            val newWinners = mutableListOf<Player>()
             val newLosers = mutableListOf<Player>()
 
             suspend fun process(list: List<Player>, won: Boolean, opponentAvgElo: Double) {
@@ -834,7 +836,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     teamB = cB.sortedBy { it.name.lowercase() }.joinToString(", ") { it.name },
                     teamAIds = cA.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
                     teamBIds = cB.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
-                    winner = "Time $winner",
+                    winner = winner,
                     eloPoints = delta,
                     groupName = cA.first().groupName,
                     teamAAverageElo = avgA,
@@ -1053,7 +1055,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         safeLogs.forEach { repository.insertEloLog(it) }
 
                     } else {
-                        Log.e("Import", "Formato de backup inválido")
+                        Log.e("Import", context.getString(R.string.invalid_backup_format))
                     }
                 } else {
                     val lines =
@@ -1075,7 +1077,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             matchesPlayed = cols[3].toIntOrNull() ?: 0,
                                             victories = cols[4].toIntOrNull() ?: 0,
                                             groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
-                                                ?: "Geral",
+                                                ?: DEFAULT_GROUP_NAME,
                                             isPriority = cols.getOrElse(6) { "false" }
                                                 .toBooleanStrictOrNull() ?: false,
                                             dailyToll = cols.getOrElse(7) { "0" }.toIntOrNull()
@@ -1108,7 +1110,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             winner = cols[3].take(50),
                                             eloPoints = cols[4].toDoubleOrNull() ?: 0.0,
                                             groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
-                                                ?: "Geral",
+                                                ?: DEFAULT_GROUP_NAME,
                                             teamAAverageElo = cols.getOrElse(6) { "" }
                                                 .toDoubleOrNull(),
                                             teamBAverageElo = cols.getOrElse(7) { "" }
@@ -1144,7 +1146,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                                 ).format(Date()),
                                             elo = cols[4].toDoubleOrNull() ?: 1200.0,
                                             groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
-                                                ?: "Geral",
+                                                ?: DEFAULT_GROUP_NAME,
                                             won = cols.getOrElse(6) { "" }.toBooleanStrictOrNull()
                                         )
                                     } else null
@@ -1267,11 +1269,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooser = Intent.createChooser(intent, "Salvar $name")
+            val chooser = Intent.createChooser(intent, context.getString(R.string.save_file, name))
                 .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             context.startActivity(chooser)
         } catch (e: Exception) {
-            Log.e("Export", "Erro: ${e.message}")
+            Log.e("Export", context.getString(R.string.error, e.message))
         }
     }
 
@@ -1279,7 +1281,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val safeDate = date.replace(Regex("[^a-zA-Z0-9]"), "_")
-                val fileName = "historico_$safeDate.png"
+                val fileName = "history_$safeDate.png"
                 val file = File(context.cacheDir, fileName)
                 FileOutputStream(file).use { out ->
                     bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
@@ -1291,7 +1293,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                val chooser = Intent.createChooser(intent, "Compartilhar Histórico").apply {
+                val chooser = Intent.createChooser(intent, "Share history").apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(chooser)
@@ -1303,7 +1305,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun smartSplit(line: String): List<String> {
         val result = mutableListOf<String>()
-        var current = StringBuilder();
+        var current = StringBuilder()
         var inQuotes = false
         for (c in line) {
             when {
@@ -1320,7 +1322,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun standardizeJsonBackupData(jsonString: String): String {
-        val gson = com.google.gson.Gson()
+        val gson = Gson()
         val data = gson.fromJson(jsonString, com.google.gson.JsonObject::class.java)
         data.addProperty("version", 1)
         val historyArray = data.getAsJsonArray("history")
@@ -1357,9 +1359,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun captureHistoryScreenAsImage(
-        context: android.content.Context,
+        context: Context,
         view: android.view.View,
-        matches: List<com.bismarck.voleimanager.app.data.model.MatchHistory>?,
+        matches: List<MatchHistory>?,
         matchSortMode: com.bismarck.voleimanager.app.ui.MatchSortMode?,
         players: List<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo>?,
         playerSortMode: com.bismarck.voleimanager.app.ui.PlayerSortMode?,

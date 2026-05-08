@@ -205,7 +205,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         TextButton(onClick = {
                             viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
                             showExportDialog = false
-                        }) { Text(stringResource(R.string.players)) }
+                        }) { Text(stringResource(R.string.players_word)) }
                         TextButton(onClick = {
                             viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
                             showExportDialog = false
@@ -249,7 +249,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             pendingImportType = CsvType.JOGADORES
                             launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
                             showImportDialog = false
-                        }) { Text(stringResource(R.string.players)) }
+                        }) { Text(stringResource(R.string.players_word)) }
                         TextButton(onClick = {
                             pendingImportType = CsvType.HISTORICO
                             launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
@@ -455,7 +455,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.PlayCircle, null) },
-                                label = { Text(stringResource(R.string.game)) },
+                                label = { Text(stringResource(R.string.game_word)) },
                                 selected = currentScreen == Screen.GAME,
                                 onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } }
                             )

@@ -79,6 +79,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
@@ -115,6 +116,8 @@ internal fun WaitingListContent(
     horizontalPadding: Dp = 16.dp,
     externalSnackbarHostState: SnackbarHostState? = null
 ) {
+    val context = LocalContext.current
+
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
     }
@@ -238,7 +241,8 @@ internal fun WaitingListContent(
         val index = waitingList.indexOfFirst { it.id == player.id }
         undoAction = UndoAction.Remove(player, index)
         viewModel.removePlayerFromWaitingList(player)
-        showSnackbar("${player.name} saiu da fila de espera", true)
+        val off_waitlist = context.getString(R.string.off_waitlist, player.name)
+        showSnackbar(off_waitlist, true)
     }
 
     // Ensure enough end padding so the scrollbar track (drawn at width−8dp, 4dp wide)
@@ -300,14 +304,16 @@ internal fun WaitingListContent(
                         },
                         onMoveToBeginning = {
                             val oldIndex = waitingList.indexOfFirst { it.id == player.id }
+                            val went_to_start_queue = context.getString(R.string.went_to_start_queue, player.name)
                             viewModel.movePlayerToBeginning(player)
                             scrollToAndHighlight(player.id, 0)
                             undoAction =
                                 UndoAction.Move(player, oldIndex, 0, WaitingSection.ACTIVE)
-                            showSnackbar("${player.name} foi para o começo da fila", true)
+                            showSnackbar(went_to_start_queue, true)
                         },
                         onMoveToEnd = {
                             val oldIndex = waitingList.indexOfFirst { it.id == player.id }
+                            val went_to_end_queue = context.getString(R.string.went_to_end_queue, player.name)
                             viewModel.movePlayerToEnd(player)
                             scrollToAndHighlight(player.id, waitingList.size - 1)
                             undoAction = UndoAction.Move(
@@ -316,7 +322,7 @@ internal fun WaitingListContent(
                                 waitingList.size - 1,
                                 WaitingSection.ACTIVE
                             )
-                            showSnackbar("${player.name} foi para o final da fila", true)
+                            showSnackbar(went_to_end_queue, true)
                         },
                         onRemove = {
                             handleRemoveFromWaiting(player)
@@ -366,7 +372,7 @@ internal fun WaitingListContent(
                 if (absentPlayers.isEmpty()) {
                     item(key = "inactive_empty") {
                         Text(
-                            text = "Todos os jogadores cadastrados estão presentes",
+                            text = stringResource(R.string.all_players_present),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
@@ -387,14 +393,16 @@ internal fun WaitingListContent(
                                 val targetIndex = 0
                                 undoAction = UndoAction.Add(player, targetIndex)
                                 viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                showSnackbar("${player.name} entrou no começo da fila", true)
+                                val has_entered_start_queue = context.getString(R.string.has_entered_start_queue, player.name)
+                                showSnackbar(has_entered_start_queue, true)
                                 scope.launch { delay(100); listState.animateScrollToItem(0) }
                             },
                             onMoveToEnd = {
                                 val targetIndex = waitingList.size
                                 undoAction = UndoAction.Add(player, targetIndex)
                                 viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                showSnackbar("${player.name} entrou no final da fila", true)
+                                val has_entered_end_queue = context.getString(R.string.has_entered_end_queue, player.name)
+                                showSnackbar(has_entered_end_queue, true)
                                 scope.launch {
                                     delay(100)
                                     if (waitingList.isNotEmpty()) listState.animateScrollToItem(
@@ -445,7 +453,7 @@ fun WaitingListBottomSheet(
             ) {
                 BottomSheetDefaults.DragHandle()
                 Text(
-                    text = "Na espera (${waitingList.size})",
+                    text = stringResource(R.string.waiting_list, waitingList.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -556,7 +564,7 @@ private fun WaitingListPlayerItem(
                                 Spacer(Modifier.width(2.dp))
                                 Icon(
                                     Icons.Default.Star,
-                                    contentDescription = stringResource(com.bismarck.voleimanager.app.R.string.priority),
+                                    contentDescription = stringResource(R.string.priority),
                                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -591,7 +599,7 @@ private fun WaitingListPlayerItem(
             offset = DpOffset(x = 16.dp, y = 0.dp)
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.start_of_queue)) },
+                text = { Text(stringResource(R.string.start_of_queue)) },
                 leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
                 onClick = {
                     onMoveToBeginning()
@@ -600,7 +608,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isFirst
             )
             DropdownMenuItem(
-                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.move_up)) },
+                text = { Text(stringResource(R.string.move_up)) },
                 leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
                 onClick = {
                     onMoveUp()
@@ -609,7 +617,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isFirst
             )
             DropdownMenuItem(
-                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.move_down)) },
+                text = { Text(stringResource(R.string.move_down)) },
                 leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
                 onClick = {
                     onMoveDown()
@@ -618,7 +626,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isLast
             )
             DropdownMenuItem(
-                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.end_of_queue)) },
+                text = { Text(stringResource(R.string.end_of_queue)) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.VerticalAlignBottom,
@@ -632,7 +640,7 @@ private fun WaitingListPlayerItem(
                 enabled = !isLast
             )
             DropdownMenuItem(
-                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.remove_from_queue), color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.remove_from_queue), color = MaterialTheme.colorScheme.error) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.Delete,
@@ -658,7 +666,7 @@ private fun InactivePlayerItem(
     onMoveToBeginning: () -> Unit,
     onMoveToEnd: () -> Unit
 ) {
-    val density = LocalDensity.current
+    LocalDensity.current
     val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
@@ -711,7 +719,7 @@ private fun InactivePlayerItem(
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = stringResource(com.bismarck.voleimanager.app.R.string.priority),
+                                contentDescription = stringResource(R.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -753,7 +761,7 @@ private fun InactivePlayerItem(
             offset = DpOffset(x = 16.dp, y = 0.dp)
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.start_of_queue)) },
+                text = { Text(stringResource(R.string.start_of_queue)) },
                 leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
                 onClick = {
                     onMoveToBeginning()
@@ -761,7 +769,7 @@ private fun InactivePlayerItem(
                 }
             )
             DropdownMenuItem(
-                text = { Text(stringResource(com.bismarck.voleimanager.app.R.string.end_of_queue)) },
+                text = { Text(stringResource(R.string.end_of_queue)) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.VerticalAlignBottom,

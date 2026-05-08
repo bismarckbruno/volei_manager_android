@@ -278,6 +278,7 @@ fun HistoryScreen(
     // --- Compute layout mode once for all player cards ---
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+    val context = LocalContext.current
     val nameTextStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
     val statsTextStyle = MaterialTheme.typography.bodySmall
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
@@ -286,7 +287,7 @@ fun HistoryScreen(
     val availableContentPx = screenWidthPx - contentOverheadPx
     val minNamePx = with(density) { 80.dp.roundToPx() }
 
-    val playersSideBySide = remember(historyPlayerList, availableContentPx, showElo) {
+    val playersSideBySide = remember(historyPlayerList, availableContentPx, showElo, context) {
         if (historyPlayerList.isEmpty() || availableContentPx <= 0) true
         else historyPlayerList.all { info ->
             // Left column width (name + optional star)
@@ -299,9 +300,11 @@ fun HistoryScreen(
 
             // Right column width (stats line is always the widest)
             val vText = when (info.victories) {
-                0 -> "Nenhuma vitória"; 1 -> "1 vitória"; else -> "${info.victories} vitórias"
+                0 -> context.getString(R.string.no_victory);
+                1 -> context.getString(R.string._1_victory);
+                else -> context.getString(R.string.x_victories, info.victories)
             }
-            val gLabel = if (info.gamesPlayed == 1) "jogo" else "jogos"
+            val gLabel = if (info.gamesPlayed == 1) context.getString(R.string.game) else context.getString(R.string.games)
             val rightW = textMeasurer.measure("$vText / ${info.gamesPlayed} $gLabel", statsTextStyle).size.width
 
             (leftW + rightW <= availableContentPx) && (availableContentPx - rightW >= minNamePx)
@@ -395,7 +398,9 @@ fun HistoryScreen(
                             }
                         }
                         Spacer(Modifier.width(8.dp))
-                        val matchLabel = if (sortedHistory.size == 1) "partida" else "partidas"
+                        val matchLabel = if (sortedHistory.size == 1) stringResource(R.string.match) else stringResource(
+                            R.string.matches
+                        )
                         Text("${sortedHistory.size} $matchLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -428,7 +433,9 @@ fun HistoryScreen(
                             }
                         }
                         Spacer(Modifier.width(8.dp))
-                        val playerLabel = if (uniquePlayerCount == 1) "jogador" else "jogadores"
+                        val playerLabel = if (uniquePlayerCount == 1) stringResource(R.string.player) else stringResource(
+                            R.string.players
+                        )
                         Text("$uniquePlayerCount $playerLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -439,7 +446,7 @@ fun HistoryScreen(
                 IconButton(onClick = { expandedFilter = true }) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = "Ordenar",
+                        contentDescription = stringResource(R.string.sort_word),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -559,7 +566,10 @@ fun HistoryScreen(
                             item {
                                 val avgDurationText = averageMatchDurationMinutes?.let { "$it min" } ?: "--"
                                 HistorySummaryItem(
-                                    text = "Duração média: $avgDurationText"
+                                    text = stringResource(
+                                        R.string.average_duration,
+                                        avgDurationText
+                                    )
                                 )
                             }
                         }
@@ -611,7 +621,10 @@ fun HistoryScreen(
                         } else {
                             item {
                                 HistorySummaryItem(
-                                    text = "Elo médio: ${averagePlayersEloText ?: "--"}"
+                                    text = stringResource(
+                                        R.string.average_elo,
+                                        averagePlayersEloText ?: "--"
+                                    )
                                 )
                             }
                             itemsIndexed(historyPlayerList) { index, info ->
@@ -662,11 +675,11 @@ fun HistoryPlayerCard(
     useSideBySide: Boolean = true
 ) {
     val victoriesText = when (victories) {
-        0 -> "Nenhuma vitória"
-        1 -> "1 vitória"
-        else -> "$victories vitórias"
+        0 -> stringResource(R.string.no_victory)
+        1 -> stringResource(R.string._1_victory)
+        else -> stringResource(R.string.x_victories, victories)
     }
-    val gamesLabel = if (gamesPlayed == 1) "jogo" else "jogos"
+    val gamesLabel = if (gamesPlayed == 1) stringResource(R.string.game) else stringResource(R.string.games)
     val percentage = if (gamesPlayed > 0) {
         victories.toDouble() / gamesPlayed * 100.0
     } else 0.0
@@ -804,7 +817,7 @@ fun HistoryItem(
     showScore: Boolean = true,
     durationMinutes: Int? = null
 ) {
-    val isTeamAWin = match.winner == stringResource(R.string.team_a)
+    val isTeamAWin = match.winner == "A" || match.winner == "Time A"
     val teamANames = remember(match.teamA) {
         match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             .sortedBy { it.lowercase() }
@@ -954,7 +967,7 @@ fun HistoryItem(
                     if (isTeamAWin) {
                         Icon(
                             Icons.Default.WorkspacePremium,
-                            contentDescription = "Vencedor",
+                            contentDescription = stringResource(R.string.winner_word),
                             modifier = Modifier.size(22.dp),
                             tint = starColor
                         )
@@ -968,7 +981,7 @@ fun HistoryItem(
                     if (!isTeamAWin) {
                         Icon(
                             Icons.Default.WorkspacePremium,
-                            contentDescription = "Vencedor",
+                            contentDescription = stringResource(R.string.winner),
                             modifier = Modifier.size(22.dp),
                             tint = starColor
                         )
@@ -1192,7 +1205,9 @@ fun AboutScreen() {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://forms.gle/WkE1Dd7X8emHMid66"))
                         context.startActivity(intent)
                     },
-                    modifier = Modifier.width(IntrinsicSize.Max).align(Alignment.CenterHorizontally),
+                    modifier = Modifier
+                        .width(IntrinsicSize.Max)
+                        .align(Alignment.CenterHorizontally),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -1234,7 +1249,9 @@ fun AboutScreen() {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://bismarckbruno.github.io/volei_manager_android/"))
                         context.startActivity(intent)
                     },
-                    modifier = Modifier.width(IntrinsicSize.Max).align(Alignment.CenterHorizontally),
+                    modifier = Modifier
+                        .width(IntrinsicSize.Max)
+                        .align(Alignment.CenterHorizontally),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -1446,18 +1463,18 @@ fun ExportableImageContent(
         
         val sortLabel = when {
             matches != null -> when (matchSortMode) {
-                MatchSortMode.NEWEST -> "Ordenação: Mais recentes primeiro"
-                MatchSortMode.OLDEST -> "Ordenação: Mais antigos primeiro"
-                MatchSortMode.ELO_DELTA -> "Ordenação: Maior variação de Elo"
-                MatchSortMode.SCORE_DIFF -> "Ordenação: Maior diferença de placar"
+                MatchSortMode.NEWEST -> stringResource(R.string.sort_newest_first)
+                MatchSortMode.OLDEST -> stringResource(R.string.sort_oldest_first)
+                MatchSortMode.ELO_DELTA -> stringResource(R.string.sort_highest_elo_change)
+                MatchSortMode.SCORE_DIFF -> stringResource(R.string.sort_largest_score_difference)
                 else -> ""
             }
             players != null -> when (playerSortMode) {
-                PlayerSortMode.ELO -> "Ordenação: Maior Elo"
-                PlayerSortMode.GAMES -> "Ordenação: Mais jogos"
-                PlayerSortMode.VICTORIES -> "Ordenação: Mais vitórias"
-                PlayerSortMode.PERCENTAGE -> "Ordenação: Maior porcentagem"
-                PlayerSortMode.ALPHABETICAL -> "Ordenação: Ordem Alfabética"
+                PlayerSortMode.ELO -> stringResource(R.string.sort_highest_elo)
+                PlayerSortMode.GAMES -> stringResource(R.string.sort_most_games)
+                PlayerSortMode.VICTORIES -> stringResource(R.string.sort_most_victories)
+                PlayerSortMode.PERCENTAGE -> stringResource(R.string.sort_highest_percentage)
+                PlayerSortMode.ALPHABETICAL -> stringResource(R.string.sort_alphabetical_order)
                 else -> ""
             }
             else -> ""
@@ -1474,7 +1491,7 @@ fun ExportableImageContent(
         
         if (players != null && showElo && averagePlayersEloText != null) {
             Text(
-                text = "Elo médio: $averagePlayersEloText",
+                text = stringResource(R.string.average_elo, averagePlayersEloText),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -1483,7 +1500,7 @@ fun ExportableImageContent(
 
         if (matches != null && averageMatchDurationText != null) {
             Text(
-                text = "Duração média: $averageMatchDurationText",
+                text = stringResource(R.string.average_duration, averageMatchDurationText),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
