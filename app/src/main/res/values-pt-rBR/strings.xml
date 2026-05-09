@@ -137,8 +137,8 @@
     <string name="no_game">Nenhum jogo</string>
     <string name="one_game">1 jogo</string>
     <string name="n_games">%1$d jogos</string>
-    <string name="start_next_game">Iniciar próximo jogo</string>
-    <string name="start_game">Iniciar jogo</string>
+    <string name="start_next_match">Iniciar próximo jogo</string>
+    <string name="start_match">Iniciar jogo</string>
     <string name="click_to_start_game">Clique no botão para iniciar o jogo</string>
     <string name="select_minimum_players">Selecione no mínimo %1$d jogadores</string>
     <string name="selected_group">Grupo %1$s</string>
@@ -195,4 +195,5 @@
     <string name="game">jogo</string>
     <string name="games">jogos</string>
     <string name="sort_word">Ordenar</string>
+    <string name="select_minimum_4_players">Selecione no mínimo 4 jogadores</string>
 </resources>

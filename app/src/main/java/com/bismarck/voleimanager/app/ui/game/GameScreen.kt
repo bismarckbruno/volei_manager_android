@@ -281,7 +281,9 @@ fun GameScreenContent(
                                 } else {
                                     item {
                                         Row(
-                                            Modifier.fillMaxWidth(),
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 6.dp),
                                             Arrangement.SpaceBetween,
                                             Alignment.CenterVertically
                                         ) {
@@ -1272,8 +1274,8 @@ fun EmptyStateCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (hasPreviousMatch) stringResource(R.string.start_next_game) else stringResource(
-                                R.string.start_game
+                            if (hasPreviousMatch) stringResource(R.string.start_next_match) else stringResource(
+                                R.string.start_match
                             ),
                             fontSize = 16.sp,
                             color = MaterialTheme.colorScheme.onPrimary
@@ -1304,7 +1306,7 @@ fun EmptyStateCard(
                         val trailingColor =
                             if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
                         val trailingIconColor = MaterialTheme.colorScheme.onPrimary
-                        val select_minimum_players = stringResource(R.string.select_minimum_players)
+                        val select_minimum_4_players = stringResource(R.string.select_minimum_4_players)
 
                         Button(
                             onClick = { showSecondaryMenu = !showSecondaryMenu },
@@ -1344,7 +1346,7 @@ fun EmptyStateCard(
                                     if (selectedCount >= 4) {
                                         onStartManualClick()
                                     } else {
-                                        onShowSnackbar(select_minimum_players)
+                                        onShowSnackbar(select_minimum_4_players)
                                     }
                                 },
                                 leadingIcon = {

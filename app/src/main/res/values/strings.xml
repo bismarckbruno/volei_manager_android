@@ -137,8 +137,8 @@
     <string name="no_game">No game</string>
     <string name="one_game">1 game</string>
     <string name="n_games">%1$d games</string>
-    <string name="start_next_game">Start next game</string>
-    <string name="start_game">Start game</string>
+    <string name="start_next_match">Start next match</string>
+    <string name="start_match">Start match</string>
     <string name="click_to_start_game">Click the button to start the game</string>
     <string name="select_minimum_players">Select a minimum of %1$d players</string>
     <string name="selected_group">%1$s</string>
@@ -195,4 +195,5 @@
     <string name="game">game</string>
     <string name="games">matches</string>
     <string name="sort_word">Sort</string>
+    <string name="select_minimum_4_players">Select a minimum of 4 players</string>
 </resources>
