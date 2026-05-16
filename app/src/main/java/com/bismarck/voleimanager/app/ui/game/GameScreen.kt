@@ -338,7 +338,7 @@ fun GameScreenContent(
                                     stringResource(
                                         R.string.none_selected,
                                         totalCount,
-                                        if (totalCount > 1) stringResource(R.string.group_s_ies) else stringResource(R.string.group_s_y)
+                                        if (totalCount > 1) stringResource(R.string.group_s) else ""
                                     )
                                 } else {
                                     stringResource(
@@ -346,11 +346,11 @@ fun GameScreenContent(
                                         selCount,
                                         if (selCount > 1) stringResource(R.string.group_s) else "",
                                         totalCount,
-                                        if (totalCount > 1) stringResource(R.string.group_s_ies) else stringResource(R.string.group_s_y)
+                                        if (totalCount > 1) stringResource(R.string.group_s) else ""
                                     )
                                 }
                                 Text(
-                                    text = if (totalCount == 0) stringResource(R.string.no_entry) else text,
+                                    text = if (totalCount == 0) stringResource(R.string.no_entries) else text,
                                     modifier = Modifier.padding(16.dp),
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -1125,8 +1125,8 @@ fun EmptyStateCard(
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
-            title = { Text(stringResource(R.string.clear_game_title)) },
-            text = { Text(stringResource(R.string.clear_game_desc)) },
+            title = { Text(stringResource(R.string.clear_match_title)) },
+            text = { Text(stringResource(R.string.clear_match_desc)) },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -1147,7 +1147,8 @@ fun EmptyStateCard(
 
     val minNeeded = currentTeamSize * 2
     val select_minimum_players = stringResource(R.string.select_minimum_players, minNeeded)
-    val select_minimum_players_long = stringResource(R.string.select_minimum_players_long, minNeeded)
+    val select_minimum_players_long =
+        stringResource(R.string.select_minimum_players_long, minNeeded)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1219,7 +1220,7 @@ fun EmptyStateCard(
                         R.string.select_minimum_players,
                         minNeeded
                     ) else stringResource(
-                        R.string.click_to_start_game
+                        R.string.click_to_start_match
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified,
@@ -1306,7 +1307,8 @@ fun EmptyStateCard(
                         val trailingColor =
                             if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
                         val trailingIconColor = MaterialTheme.colorScheme.onPrimary
-                        val select_minimum_4_players = stringResource(R.string.select_minimum_4_players)
+                        val select_minimum_4_players =
+                            stringResource(R.string.select_minimum_4_players)
 
                         Button(
                             onClick = { showSecondaryMenu = !showSecondaryMenu },
@@ -1359,7 +1361,7 @@ fun EmptyStateCard(
 
                             // Opção: Limpar jogo atual
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.clear_game)) },
+                                text = { Text(stringResource(R.string.clear_match)) },
                                 onClick = {
                                     showSecondaryMenu = false
                                     showClearConfirmation = true
@@ -1447,19 +1449,19 @@ fun PlayerCard(
                     val hasToll =
                         player.dailyToll > 0 && (player.tollDate == targetDate || player.tollDate == today)
 
-                    val info = if (actualGames == 0 && !hasToll) {
-                        stringResource(R.string.no_game)
+                    val gamesStr = if (actualGames == 0) {
+                        stringResource(R.string.no_games)
                     } else {
-                        val gamesStr =
-                            if (actualGames == 1) stringResource(R.string.one_game) else stringResource(
-                                R.string.n_games, actualGames
-                            )
+                        if (actualGames == 1) stringResource(R.string.one_game) else stringResource(
+                            R.string.x_matches, actualGames
+                        )
+                    }
+                    val info =
                         if (showToll && hasToll) {
                             "$gamesStr (+${player.dailyToll})"
                         } else {
                             gamesStr
                         }
-                    }
                     Text(text = info, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -1514,7 +1516,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                     .padding(12.dp), verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "${index}º",
+                    "$index.",
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 16.sp

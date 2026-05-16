@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.bismarck.voleimanager.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
@@ -53,6 +55,7 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
                 value = newName,
                 onValueChange = { newName = it },
                 label = { Text(stringResource(R.string.new_name)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 singleLine = true
             )
         },
@@ -170,6 +173,10 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
     var eloText by remember { mutableStateOf("1200") }
     var isPriority by remember { mutableStateOf(false) }
 
+    // Validação do Elo (mínimo 1100 e máximo 1300)
+    val eloValue = eloText.toIntOrNull()
+    val isEloValid = eloValue != null && eloValue in 1100..1300
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.new_registration)) },
@@ -185,10 +192,21 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = eloText,
-                    onValueChange = { eloText = it },
+                    onValueChange = { newValue ->
+                        // Permite esvaziar o campo e restringe o máximo em 1300
+                        if (newValue.isEmpty()) {
+                            eloText = newValue
+                        } else {
+                            val num = newValue.toIntOrNull()
+                            if (num != null && num <= 1300) {
+                                eloText = newValue
+                            }
+                        }
+                    },
                     label = { Text(stringResource(R.string.initial_elo)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    singleLine = true,
+                    isError = eloText.isNotEmpty() && !isEloValid // Mostra a borda vermelha se o número for inválido
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -200,15 +218,20 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
             }
         },
         confirmButton = {
-            Button(onClick = {
-                if (name.isNotBlank()) onConfirm(
-                    name,
-                    eloText.toDoubleOrNull() ?: 1200.0,
-                    isPriority
-                )
-            }) { Text(stringResource(R.string.add)) }
+            Button(
+                onClick = {
+                    if (name.isNotBlank() && isEloValid) {
+                        onConfirm(name, eloValue!!.toDouble(), isPriority)
+                    }
+                },
+                enabled = name.isNotBlank() && isEloValid // Desabilita o botão se os dados não estiverem válidos
+            ) { Text(stringResource(R.string.add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     )
 }
 
@@ -301,6 +324,7 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
                 value = text,
                 onValueChange = { text = it },
                 label = { Text(stringResource(R.string.group_name)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 singleLine = true
             )
         },

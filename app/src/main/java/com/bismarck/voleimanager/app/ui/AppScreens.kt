@@ -58,10 +58,7 @@ import com.bismarck.voleimanager.app.util.EloCalculator
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
-import kotlin.math.min
-import kotlin.math.roundToInt
 
 data class HistoryPlayerInfo(
     val player: Player,
@@ -321,8 +318,8 @@ fun HistoryScreen(
 
             // Right column width (stats line is always the widest)
             val vText = when (info.victories) {
-                0 -> context.getString(R.string.no_victory);
-                1 -> context.getString(R.string._1_victory);
+                0 -> context.getString(R.string.no_victories);
+                1 -> context.getString(R.string.one_victory);
                 else -> context.getString(R.string.x_victories, info.victories)
             }
             val gLabel = if (info.gamesPlayed == 1) context.getString(R.string.game) else context.getString(R.string.games)
@@ -498,7 +495,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_elo_diff))
+                                    Text(stringResource(R.string.by_elo_change))
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false }
@@ -539,7 +536,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_games))
+                                    Text(stringResource(R.string.by_matches))
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false }
@@ -611,7 +608,7 @@ fun HistoryScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    stringResource(R.string.no_matches),
+                                    stringResource(R.string.no_matches_found),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -696,11 +693,15 @@ fun HistoryPlayerCard(
     useSideBySide: Boolean = true
 ) {
     val victoriesText = when (victories) {
-        0 -> stringResource(R.string.no_victory)
-        1 -> stringResource(R.string._1_victory)
+        0 -> stringResource(R.string.no_victories)
+        1 -> stringResource(R.string.one_victory)
         else -> stringResource(R.string.x_victories, victories)
     }
-    val gamesLabel = if (gamesPlayed == 1) stringResource(R.string.game) else stringResource(R.string.games)
+    val gamesLabel = when (gamesPlayed) {
+        0 -> stringResource(R.string.no_matches)
+        1 -> stringResource(R.string.one_match)
+        else -> stringResource(R.string.x_matches, gamesPlayed)
+    }
     val percentage = if (gamesPlayed > 0) {
         victories.toDouble() / gamesPlayed * 100.0
     } else 0.0
@@ -728,7 +729,7 @@ fun HistoryPlayerCard(
             ) {
                 if (rank != null) {
                     Text(
-                        "${rank}º",
+                        "$rank.",
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp
@@ -774,7 +775,7 @@ fun HistoryPlayerCard(
                 Spacer(Modifier.width(12.dp))
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "$victoriesText / $gamesPlayed $gamesLabel",
+                        "$victoriesText / $gamesLabel",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -813,7 +814,7 @@ fun HistoryPlayerCard(
                         )
                     }
                     Text(
-                        "$victoriesText / $gamesPlayed $gamesLabel",
+                        "$victoriesText / $gamesLabel",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1492,7 +1493,7 @@ fun ExportableImageContent(
             }
             players != null -> when (playerSortMode) {
                 PlayerSortMode.ELO -> stringResource(R.string.sort_highest_elo)
-                PlayerSortMode.GAMES -> stringResource(R.string.sort_most_games)
+                PlayerSortMode.GAMES -> stringResource(R.string.sort_most_matches)
                 PlayerSortMode.VICTORIES -> stringResource(R.string.sort_most_victories)
                 PlayerSortMode.PERCENTAGE -> stringResource(R.string.sort_highest_percentage)
                 PlayerSortMode.ALPHABETICAL -> stringResource(R.string.sort_alphabetical_order)

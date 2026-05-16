@@ -510,10 +510,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.AlarmAdd, null) },
-                                label = { Text(stringResource(R.string.show_toll)) },
+                                label = { Text(stringResource(R.string.show_lateness)) },
                                 selected = false,
                                 badge = { Switch(checked = showToll, onCheckedChange = null) },
-                                tooltipText = stringResource(R.string.show_toll_tooltip),
+                                tooltipText = stringResource(R.string.show_lateness_tooltip),
                                 onClick = { viewModel.setShowToll(!showToll) }
                             )
                             HorizontalDivider(
