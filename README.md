@@ -26,7 +26,6 @@
 
 ### 🎨 Personalização
 - **Tema**: Claro, Escuro ou automático (Sistema).
-- **Cores dos Times**: Esquemas de cores alternativos para os times (funcionalidade de apoiador - ainda em planejamento).
 - **Exibição opcional**: Ative ou desative a exibição do Elo e do Pedágio na interface.
 
 ## 🛠 Tecnologias Utilizadas
