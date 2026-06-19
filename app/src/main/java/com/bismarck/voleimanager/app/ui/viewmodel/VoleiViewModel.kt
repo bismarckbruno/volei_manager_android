@@ -72,6 +72,50 @@ data class GameStateSnapshot(
     val restingPlayers: Map<Int, Int> = emptyMap()
 )
 
+internal data class RestingMarkResult(
+    val restingPlayers: Map<Int, Int>,
+    val waitingList: List<Player>
+)
+
+internal data class ReturningPlayersResolution(
+    val returningIds: Set<Int>,
+    val restingPlayers: Map<Int, Int>,
+    val waitingList: List<Player>
+)
+
+internal fun applyRestingMark(
+    currentResting: Map<Int, Int>,
+    currentWaiting: List<Player>,
+    playersToRest: List<Player>,
+    returnRound: Int
+): RestingMarkResult {
+    if (playersToRest.isEmpty()) return RestingMarkResult(currentResting, currentWaiting)
+    val idsToRest = playersToRest.map { it.id }.toSet()
+    val nextResting = currentResting.toMutableMap()
+    playersToRest.forEach { nextResting[it.id] = returnRound }
+    val waitingWithoutResting = currentWaiting.filterNot { idsToRest.contains(it.id) }
+    val nextWaiting = (waitingWithoutResting + playersToRest).distinctBy { it.id }
+    return RestingMarkResult(nextResting, nextWaiting)
+}
+
+internal fun resolveReturningPlayers(
+    currentResting: Map<Int, Int>,
+    currentWaiting: List<Player>,
+    roundCounter: Int
+): ReturningPlayersResolution {
+    val returningIds = currentResting.filterValues { it <= roundCounter }.keys
+    if (returningIds.isEmpty()) {
+        return ReturningPlayersResolution(
+            returningIds = emptySet(),
+            restingPlayers = currentResting,
+            waitingList = currentWaiting
+        )
+    }
+    val nextResting = currentResting.filterKeys { !returningIds.contains(it) }
+    val nextWaiting = currentWaiting.filterNot { returningIds.contains(it.id) }
+    return ReturningPlayersResolution(returningIds, nextResting, nextWaiting)
+}
+
 class VoleiViewModel(application: Application, private val repository: VoleiRepository) :
     AndroidViewModel(application) {
 
@@ -194,24 +238,27 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun markPlayersResting(players: List<Player>, rounds: Int = 1) {
         if (players.isEmpty()) return
         val returnRound = _roundCounter.value + rounds
-        val map = _restingPlayers.value.toMutableMap()
-        players.forEach { map[it.id] = returnRound }
-        _restingPlayers.value = map
-
-        // Garantir que eles apareçam no final da waitingList (ao final, sem duplicatas)
-        val existing = _waitingList.value.filterNot { p -> players.any { it.id == p.id } }
-        val toAppend = players.map { applyTollIfNecessary(it) }
-        _waitingList.value = existing + toAppend
+        val result = applyRestingMark(
+            currentResting = _restingPlayers.value,
+            currentWaiting = _waitingList.value,
+            playersToRest = players.map { applyTollIfNecessary(it) },
+            returnRound = returnRound
+        )
+        _restingPlayers.value = result.restingPlayers
+        _waitingList.value = result.waitingList
     }
 
     private fun collectAndClearReturningPlayers(): List<Player> {
-        val toReturnIds = _restingPlayers.value.filterValues { it <= _roundCounter.value }.keys
-        if (toReturnIds.isEmpty()) return emptyList()
-        val returning = toReturnIds.mapNotNull { id -> currentGroupPlayers.value.find { it.id == id } }
-        // Remove do mapa de descanso
-        _restingPlayers.value = _restingPlayers.value.filterKeys { !toReturnIds.contains(it) }
-        // Remove da waitingList (eles estavam aparecendo com asterisco)
-        _waitingList.value = _waitingList.value.filterNot { p -> toReturnIds.contains(p.id) }
+        val result = resolveReturningPlayers(
+            currentResting = _restingPlayers.value,
+            currentWaiting = _waitingList.value,
+            roundCounter = _roundCounter.value
+        )
+        if (result.returningIds.isEmpty()) return emptyList()
+        val returning = result.returningIds
+            .mapNotNull { id -> currentGroupPlayers.value.find { it.id == id } }
+        _restingPlayers.value = result.restingPlayers
+        _waitingList.value = result.waitingList
         return returning
     }
 
