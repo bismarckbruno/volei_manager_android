@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -258,7 +259,7 @@ fun GroupConfigDialog(
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.players_per_team, teamSize.roundToInt()))
+                Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
                 Slider(
                     value = teamSize,
                     onValueChange = { teamSize = it },
@@ -267,14 +268,39 @@ fun GroupConfigDialog(
                 )
                 Spacer(Modifier.height(16.dp))
 
-                Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()))
+                Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
                 Slider(
                     value = victoryLimit,
                     onValueChange = { victoryLimit = it },
                     valueRange = 1f..6f,
                     steps = 4
                 )
+
                 Spacer(Modifier.height(16.dp))
+                Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
+                val modes = listOf(
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name to stringResource(R.string.mode_rebalance),
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name to stringResource(R.string.mode_winner_rests),
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name to stringResource(R.string.mode_both_rest)
+                )
+                Spacer(Modifier.height(8.dp))
+                modes.forEach { (value, label) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { balancingMode = value }
+                    ) {
+                        RadioButton(selected = balancingMode == value, onClick = { balancingMode = value })
+                        Spacer(Modifier.width(12.dp))
+                        Text(label, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -298,29 +324,6 @@ fun GroupConfigDialog(
                     Switch(checked = scoreEnabled, onCheckedChange = { scoreEnabled = it })
                     Spacer(Modifier.width(16.dp))
                     Text(stringResource(R.string.use_score), style = MaterialTheme.typography.bodySmall)
-                }
-
-
-
-                Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.balance_mode_title))
-                val modes = listOf(
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name to stringResource(R.string.mode_rebalance),
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name to stringResource(R.string.mode_winner_rests),
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name to stringResource(R.string.mode_both_rest)
-                )
-                modes.forEach { (value, label) ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { balancingMode = value }
-                            .padding(vertical = 8.dp)
-                    ) {
-                        RadioButton(selected = balancingMode == value, onClick = { balancingMode = value })
-                        Spacer(Modifier.width(12.dp))
-                        Text(label)
-                    }
                 }
 
             }
@@ -357,24 +360,24 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
                 )
-                Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.balance_mode_title))
+                Spacer(Modifier.height(24.dp))
+                Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
                 val modes = listOf(
                     com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name to stringResource(R.string.mode_rebalance),
                     com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name to stringResource(R.string.mode_winner_rests),
                     com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name to stringResource(R.string.mode_both_rest)
                 )
+                Spacer(Modifier.height(8.dp))
                 modes.forEach { (value, label) ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { balancingMode = value }
-                            .padding(vertical = 8.dp)
                     ) {
                         RadioButton(selected = balancingMode == value, onClick = { balancingMode = value })
                         Spacer(Modifier.width(12.dp))
-                        Text(label)
+                        Text(label, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }

@@ -196,7 +196,7 @@
     <string name="select_minimum_4_players">Select at least 4 players</string>
     <string name="no_matches">No matches</string>
     <string name="one_match">1 match</string>
-    <string name="balance_mode_title">Balance Mode</string>
+    <string name="balance_mode_title">Balance Mode:</string>
     <string name="mode_rebalance">Rebalance Mode</string>
     <string name="mode_winner_rests">Winner Rests Mode</string>
     <string name="mode_both_rest">Both Rest Mode</string>

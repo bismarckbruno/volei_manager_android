@@ -255,6 +255,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             return false
         }
 
+        // Preserve losers from the previous round in the queue before scheduling this immediate match.
+        val challengerIds = challenger.map { it.id }.toSet()
+        val opponentIds = opponents.map { it.id }.toSet()
+        val previousLosers = lastLosers
+            .filter { _presentPlayerIds.value.contains(it.id) }
+            .filterNot { challengerIds.contains(it.id) || opponentIds.contains(it.id) }
+            .map { applyTollIfNecessary(it) }
+        _waitingList.value = (
+            _waitingList.value.filterNot { challengerIds.contains(it.id) || opponentIds.contains(it.id) } + previousLosers
+        ).distinctBy { it.id }
+
         // Monta a partida: challenger vs opponents
         _teamA.value = sortTeamPlayers(challenger)
         _teamB.value = sortTeamPlayers(opponents)

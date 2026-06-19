@@ -198,7 +198,7 @@
     <string name="select_minimum_4_players">Selecione ao menos 4 jogadores</string>
     <string name="no_matches">Nenhum jogo</string>
     <string name="one_match">1 partida</string>
-    <string name="balance_mode_title">Modo de balanceamento</string>
+    <string name="balance_mode_title">Modo de balanceamento:</string>
     <string name="mode_rebalance">Rebalanceamento</string>
     <string name="mode_winner_rests">Vencedor Descansa</string>
     <string name="mode_both_rest">Ambos Descansam</string>
