@@ -843,6 +843,32 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             null
                                         }
 
+                                        val matchDurationById = filteredMatches.associate { match ->
+                                            val duration = if (
+                                                match.startTimestamp != null &&
+                                                match.endTimestamp != null &&
+                                                match.endTimestamp > match.startTimestamp
+                                            ) {
+                                                ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
+                                            } else {
+                                                0
+                                            }
+                                            match.id to duration
+                                        }
+
+                                        fun playerAppearsInMatch(match: MatchHistory, identifier: PlayerIdentifier): Boolean {
+                                            val namesA = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                            val namesB = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                            val idsA = match.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                            val idsB = match.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                            return if (identifier.id != null) {
+                                                idsA.contains(identifier.id) || idsB.contains(identifier.id) ||
+                                                    ((idsA.isEmpty() && idsB.isEmpty()) && (namesA.contains(identifier.name) || namesB.contains(identifier.name)))
+                                            } else {
+                                                namesA.contains(identifier.name) || namesB.contains(identifier.name)
+                                            }
+                                        }
+
                                         val playerDataList = uniquePlayerIdentifiers.mapNotNull { identifier ->
                                             val player = groupPlayers.find { 
                                                 if (identifier.id != null) it.id == identifier.id 
@@ -859,6 +885,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             val games = logsForPlayer.size
                                             val victories = logsForPlayer.count { it.won == true }
                                             val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
+                                            val playedMinutes = filteredMatches.sumOf { match ->
+                                                if (playerAppearsInMatch(match, identifier)) matchDurationById[match.id] ?: 0 else 0
+                                            }
 
                                             val effectivePlayer = player ?: Player(name = identifier.name, groupName = "", elo = 1200.0)
 
@@ -867,7 +896,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 eloForDisplay,
                                                 player?.name ?: identifier.name,
                                                 games,
-                                                victories
+                                                victories,
+                                                playedMinutes
                                             )
                                         }
 
@@ -892,6 +922,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
                                                 compareByDescending<HistoryPlayerInfo> { it.winRate() }
                                                     .thenBy { it.gamesPlayed }
+                                                    .thenByDescending { it.displayElo }
+                                            )
+                                            PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
+                                                compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
+                                                    .thenByDescending { it.gamesPlayed }
+                                                    .thenByDescending { it.winRate() }
                                                     .thenByDescending { it.displayElo }
                                             )
                                             PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(

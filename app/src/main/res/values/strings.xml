@@ -178,6 +178,7 @@
     <string name="matches">matches</string>
     <string name="average_duration">Average duration: %1$s</string>
     <string name="average_elo">Average Elo: %1$s</string>
+    <string name="time_played">Time: %1$s</string>
     <string name="sort_newest_first">Sort: Newest first</string>
     <string name="sort_oldest_first">Sort: Oldest first</string>
     <string name="sort_highest_elo_change">Sort: Highest Elo change</string>
@@ -186,12 +187,14 @@
     <string name="sort_most_matches">Sort: Most matches</string>
     <string name="sort_most_victories">Sort: Most victories</string>
     <string name="sort_highest_percentage">Sort: Highest percentage</string>
+    <string name="sort_most_played_time">Sort: Most played time</string>
     <string name="sort_alphabetical_order">Sort: Alphabetical order</string>
     <string name="no_victories">No victories</string>
     <string name="one_victory">1 victory</string>
     <string name="x_victories">%1$d victories</string>
     <string name="game">match</string>
     <string name="games">matches</string>
+    <string name="by_played_time">By played time</string>
     <string name="sort_word">Sort</string>
     <string name="select_minimum_4_players">Select at least 4 players</string>
     <string name="no_matches">No matches</string>

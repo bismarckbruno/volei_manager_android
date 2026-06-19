@@ -180,6 +180,7 @@
     <string name="matches">partidas</string>
     <string name="average_duration">Duração média: %1$s</string>
     <string name="average_elo">Elo médio: %1$s</string>
+    <string name="time_played">Tempo: %1$s</string>
     <string name="sort_newest_first">Ordenação: Mais recentes primeiro</string>
     <string name="sort_oldest_first">Ordenação: Mais antigos primeiro</string>
     <string name="sort_highest_elo_change">Ordenação: Maior variação de Elo</string>
@@ -188,12 +189,14 @@
     <string name="sort_most_matches">Ordenação: Mais jogos</string>
     <string name="sort_most_victories">Ordenação: Mais vitórias</string>
     <string name="sort_highest_percentage">Ordenação: Maior porcentagem</string>
+    <string name="sort_most_played_time">Ordenação: Maior tempo jogado</string>
     <string name="sort_alphabetical_order">Ordenação: Ordem Alfabética</string>
     <string name="no_victories">Nenhuma vitória</string>
     <string name="one_victory">1 vitória</string>
     <string name="x_victories">%1$d vitórias</string>
     <string name="game">jogo</string>
     <string name="games">jogos</string>
+    <string name="by_played_time">Por tempo jogado</string>
     <string name="sort_word">Ordenar</string>
     <string name="select_minimum_4_players">Selecione ao menos 4 jogadores</string>
     <string name="no_matches">Nenhum jogo</string>

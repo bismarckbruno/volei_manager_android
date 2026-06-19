@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
@@ -65,10 +66,11 @@ data class HistoryPlayerInfo(
     val displayElo: Double,
     val name: String,
     val gamesPlayed: Int,
-    val victories: Int
+    val victories: Int,
+    val playedMinutes: Int
 )
 
-enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE }
+enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE, PLAYED_TIME }
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 
 fun formatLocalizedDate(internalDate: String): String {
@@ -92,6 +94,18 @@ fun formatLocalizedDate(internalDate: String): String {
     }
 }
 
+private fun formatPlayedDuration(minutes: Int): String {
+    val safeMinutes = minutes.coerceAtLeast(0)
+    val days = safeMinutes / (24 * 60)
+    val hours = (safeMinutes % (24 * 60)) / 60
+    val remainingMinutes = safeMinutes % 60
+    val parts = mutableListOf<String>()
+    if (days > 0) parts.add("${days}d")
+    if (hours > 0) parts.add("${hours}h")
+    if (remainingMinutes > 0 || parts.isEmpty()) parts.add("${remainingMinutes}min")
+    return parts.joinToString(" ")
+}
+
 // --- TELA DE HISTÓRICO ---
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -107,6 +121,7 @@ fun HistoryScreen(
     onMatchSortModeChanged: (MatchSortMode) -> Unit = {},
     onPlayerSortModeChanged: (PlayerSortMode) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates by viewModel.availableHistoryDates.collectAsState()
@@ -218,7 +233,7 @@ fun HistoryScreen(
     val uniquePlayerCount = uniquePlayerIdentifiers.size
 
     // Build player list with Elo and stats for the selected date
-    val historyPlayerList = remember(uniquePlayerIdentifiers, groupPlayers, eloLogs, historyDate, playerSortMode, sortedHistory) {
+    val historyPlayerList = remember(uniquePlayerIdentifiers, groupPlayers, eloLogs, historyDate, playerSortMode, sortedHistory, matchDurationsMinutes) {
         // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
         val eloDateStr: String? = if (historyDate != null) {
             try {
@@ -226,6 +241,19 @@ fun HistoryScreen(
                 if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
             } catch (_: Exception) { null }
         } else null
+
+        fun playerAppearsInMatch(match: MatchHistory, identifier: PlayerIdentifier): Boolean {
+            val namesA = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val namesB = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val idsA = match.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            val idsB = match.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            return if (identifier.id != null) {
+                idsA.contains(identifier.id) || idsB.contains(identifier.id) ||
+                    ((idsA.isEmpty() && idsB.isEmpty()) && (namesA.contains(identifier.name) || namesB.contains(identifier.name)))
+            } else {
+                namesA.contains(identifier.name) || namesB.contains(identifier.name)
+            }
+        }
 
         val playerDataList = uniquePlayerIdentifiers.mapNotNull { identifier ->
             val player = groupPlayers.find { 
@@ -243,6 +271,9 @@ fun HistoryScreen(
             val games = logsForPlayer.size
             val victories = logsForPlayer.count { it.won == true }
             val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
+            val playedMinutes = sortedHistory.sumOf { match ->
+                if (playerAppearsInMatch(match, identifier)) matchDurationsMinutes[match.id] ?: 0 else 0
+            }
 
             val effectivePlayer = player ?: Player(name = identifier.name, groupName = "", elo = 1200.0)
             
@@ -251,7 +282,8 @@ fun HistoryScreen(
                 displayElo = eloForDisplay,
                 name = player?.name ?: identifier.name,
                 gamesPlayed = games,
-                victories = victories
+                victories = victories,
+                playedMinutes = playedMinutes
             )
         }
 
@@ -278,6 +310,12 @@ fun HistoryScreen(
                     .thenBy { it.gamesPlayed }
                     .thenByDescending { it.displayElo }
             )
+            PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
+                compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
+                    .thenByDescending { it.gamesPlayed }
+                    .thenByDescending { it.winRate() }
+                    .thenByDescending { it.displayElo }
+            )
             PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
                 compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
                     .thenByDescending { it.displayElo }
@@ -296,7 +334,6 @@ fun HistoryScreen(
     // --- Compute layout mode once for all player cards ---
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val context = LocalContext.current
     val nameTextStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
     val statsTextStyle = MaterialTheme.typography.bodySmall
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
@@ -314,7 +351,11 @@ fun HistoryScreen(
             val eloW = if (showElo) textMeasurer.measure(
                 "Elo: ${EloCalculator.formatElo(info.displayElo)}", statsTextStyle
             ).size.width else 0
-            val leftW = maxOf(nameW, eloW)
+            val playedTimeW = textMeasurer.measure(
+                formatPlayedDuration(info.playedMinutes),
+                statsTextStyle
+            ).size.width + with(density) { 16.dp.roundToPx() }
+            val leftW = maxOf(nameW, eloW, playedTimeW)
 
             // Right column width (stats line is always the widest)
             val vText = when (info.victories) {
@@ -561,6 +602,16 @@ fun HistoryScreen(
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false }
                         )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.by_played_time))
+                                }
+                            },
+                            onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false }
+                        )
                     }
                 }
             }
@@ -653,6 +704,7 @@ fun HistoryScreen(
                                     showElo = showElo,
                                     gamesPlayed = info.gamesPlayed,
                                     victories = info.victories,
+                                    playedMinutes = info.playedMinutes,
                                     useSideBySide = playersSideBySide
                                 )
                             }
@@ -690,6 +742,7 @@ fun HistoryPlayerCard(
     showElo: Boolean,
     gamesPlayed: Int = 0,
     victories: Int = 0,
+    playedMinutes: Int = 0,
     useSideBySide: Boolean = true
 ) {
     val victoriesText = when (victories) {
@@ -709,6 +762,7 @@ fun HistoryPlayerCard(
         maximumFractionDigits = 2
         minimumFractionDigits = 0
     }.format(percentage)
+    val playedTimeText = formatPlayedDuration(playedMinutes)
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -771,6 +825,20 @@ fun HistoryPlayerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            playedTimeText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(horizontalAlignment = Alignment.End) {
@@ -809,6 +877,20 @@ fun HistoryPlayerCard(
                     if (showElo) {
                         Text(
                             "Elo: ${EloCalculator.formatElo(displayElo)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            playedTimeText,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1496,6 +1578,7 @@ fun ExportableImageContent(
                 PlayerSortMode.GAMES -> stringResource(R.string.sort_most_matches)
                 PlayerSortMode.VICTORIES -> stringResource(R.string.sort_most_victories)
                 PlayerSortMode.PERCENTAGE -> stringResource(R.string.sort_highest_percentage)
+                PlayerSortMode.PLAYED_TIME -> stringResource(R.string.sort_most_played_time)
                 PlayerSortMode.ALPHABETICAL -> stringResource(R.string.sort_alphabetical_order)
                 else -> ""
             }
@@ -1542,7 +1625,8 @@ fun ExportableImageContent(
                 displayElo = info.displayElo,
                 showElo = showElo,
                 gamesPlayed = info.gamesPlayed,
-                victories = info.victories
+                victories = info.victories,
+                playedMinutes = info.playedMinutes
             )
         }
     }
