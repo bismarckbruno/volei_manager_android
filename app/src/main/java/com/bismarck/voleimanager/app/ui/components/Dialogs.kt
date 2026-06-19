@@ -242,13 +242,15 @@ fun GroupConfigDialog(
     initialVictoryLimit: Int,
     initialPriorityEnabled: Boolean,
     initialScoreEnabled: Boolean = true,
+    initialBalancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int, Boolean, Boolean) -> Unit
+    onConfirm: (Int, Int, Boolean, Boolean, String) -> Unit
 ) {
     var teamSize by remember { mutableFloatStateOf(initialTeamSize.toFloat()) }
     var victoryLimit by remember { mutableFloatStateOf(initialVictoryLimit.toFloat()) }
     var priorityEnabled by remember { mutableStateOf(initialPriorityEnabled) }
     var scoreEnabled by remember { mutableStateOf(initialScoreEnabled) }
+    var balancingMode by remember { mutableStateOf(initialBalancingMode) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -297,6 +299,30 @@ fun GroupConfigDialog(
                     Spacer(Modifier.width(16.dp))
                     Text(stringResource(R.string.use_score), style = MaterialTheme.typography.bodySmall)
                 }
+
+
+
+                Spacer(Modifier.height(16.dp))
+                Text(stringResource(R.string.balance_mode_title))
+                val modes = listOf(
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name to stringResource(R.string.mode_rebalance),
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name to stringResource(R.string.mode_winner_rests),
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name to stringResource(R.string.mode_both_rest)
+                )
+                modes.forEach { (value, label) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { balancingMode = value }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        RadioButton(selected = balancingMode == value, onClick = { balancingMode = value })
+                        Spacer(Modifier.width(12.dp))
+                        Text(label)
+                    }
+                }
+
             }
         },
         confirmButton = {
@@ -305,7 +331,8 @@ fun GroupConfigDialog(
                     teamSize.roundToInt(),
                     victoryLimit.roundToInt(),
                     priorityEnabled,
-                    scoreEnabled
+                    scoreEnabled,
+                    balancingMode
                 )
             }) { Text(stringResource(R.string.save)) }
         },
@@ -314,28 +341,50 @@ fun GroupConfigDialog(
 }
 
 @Composable
-fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var text by remember { mutableStateOf("") }
+    var balancingMode by remember { mutableStateOf(com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.create_new_group)) },
         text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text(stringResource(R.string.group_name)) },
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                singleLine = true
-            )
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text(stringResource(R.string.group_name)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(stringResource(R.string.balance_mode_title))
+                val modes = listOf(
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name to stringResource(R.string.mode_rebalance),
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name to stringResource(R.string.mode_winner_rests),
+                    com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name to stringResource(R.string.mode_both_rest)
+                )
+                modes.forEach { (value, label) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { balancingMode = value }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        RadioButton(selected = balancingMode == value, onClick = { balancingMode = value })
+                        Spacer(Modifier.width(12.dp))
+                        Text(label)
+                    }
+                }
+            }
         },
         confirmButton = {
             Button(
-                onClick = { if (text.isNotBlank()) onConfirm(text) },
+                onClick = { if (text.isNotBlank()) onConfirm(text, balancingMode) },
                 enabled = text.isNotBlank()
             ) { Text(stringResource(R.string.create)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
-
-

@@ -148,7 +148,7 @@
     <string name="winner">ganador</string>
     <string name="increase_score">Aumentar marcador</string>
     <string name="limit_reached_title">👑 ¡Rey de la cancha alcanzó el límite!</string>
-    <string name="limit_reached_text">El equipo ganador ha ganado %1$d seguidas y será redistribuido en la próxima ronda</string>
+    <string name="limit_reached_text">¡%1$d victorias seguidas! El equipo ganador será rebalanceado en la próxima ronda.</string>
     <string name="decrease_score">Disminuir marcador</string>
     <string name="select_minimum_players_long">Selecciona al menos %1$d jugadores o cambia esta configuración en \"Reglas del grupo\"</string>
     <string name="selected">%1$d seleccionado%2$s de %3$d registro%4$s</string>
@@ -196,4 +196,10 @@
     <string name="select_minimum_4_players">Selecciona al menos 4 jugadores</string>
     <string name="no_matches">Sin partidos</string>
     <string name="one_match">1 partido</string>
+    <string name="balance_mode_title">Modo de Balance</string>
+    <string name="mode_rebalance">Rebalanceo</string>
+    <string name="mode_winner_rests">Ganador Descansa</string>
+    <string name="mode_both_rest">Ambos Descansan</string>
+    <string name="limit_reached_text_winner_rests">¡%1$d victorias seguidas! El ganador descansa y el perdedor sigue jugando en la próxima ronda si hay al menos un equipo completo en la fila; de lo contrario, el ganador sigue jugando y el perdedor va al final de la fila.</string>
+    <string name="limit_reached_text_both_rest">¡%1$d victorias seguidas! El equipo ganador descansa; el perdedor va al final de la fila si hay al menos 2 equipos completos esperando. Si solo hay 1 equipo, solo el ganador descansa; si no hay equipo completo, siguen jugando.</string>
 </resources>

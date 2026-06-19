@@ -576,17 +576,18 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 initialVictoryLimit = groupConfig.victoryLimit,
                 initialPriorityEnabled = groupConfig.priorityEnabled,
                 initialScoreEnabled = groupConfig.scoreEnabled,
+                initialBalancingMode = groupConfig.balancingMode,
                 onDismiss = { showConfigDialog = false },
-                onConfirm = { size, limit, prior, scoreEn ->
-                    viewModel.updateConfig(size, limit, prior, scoreEn)
+                onConfirm = { size, limit, prior, scoreEn, balancingMode ->
+                    viewModel.updateConfig(size, limit, prior, scoreEn, balancingMode)
                     showConfigDialog = false
                 }
             )
         }
         if (showCreateGroupDialog) CreateGroupDialog(
             { showCreateGroupDialog = false },
-            { newName ->
-                selectedGroup = newName; viewModel.loadGroupConfig(newName); showCreateGroupDialog =
+            { newName, balancingMode ->
+                selectedGroup = newName; viewModel.loadGroupConfig(newName, balancingMode); showCreateGroupDialog =
                 false
             })
         if (showAddPlayerDialog) AddPlayerDialog(

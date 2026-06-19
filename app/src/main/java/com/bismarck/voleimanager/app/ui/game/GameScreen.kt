@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.data.model.BalancingMode
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
@@ -260,6 +261,7 @@ fun GameScreenContent(
                                         owner,
                                         streak,
                                         config.victoryLimit,
+                                        config.balancingMode,
                                         isDarkTheme,
                                         onShowSnackbar = onShowSnackbar,
                                         onClearRecent = { viewModel.clearRecentGameData() }
@@ -439,6 +441,7 @@ fun ActiveGameView(
 
     val scoreA by viewModel.scoreA.collectAsState()
     val scoreB by viewModel.scoreB.collectAsState()
+    val restingMap by viewModel.restingPlayers.collectAsState()
 
     val cardColorA = MaterialTheme.colorScheme.primaryContainer
     val btnColorA = MaterialTheme.colorScheme.primary
@@ -787,6 +790,7 @@ fun ActiveGameView(
                                         i + 1,
                                         p,
                                         showElo,
+                                        restingMap.containsKey(p.id),
                                         onClick = ::openWaitingSheet
                                     )
                                 }
@@ -1115,6 +1119,7 @@ fun EmptyStateCard(
     streakOwner: String? = null,
     currentStreak: Int = 0,
     victoryLimit: Int = 3,
+    balancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
     isDarkTheme: Boolean = false,
     onShowSnackbar: (String) -> Unit,
     onClearRecent: () -> Unit
@@ -1181,12 +1186,18 @@ fun EmptyStateCard(
                         textAlign = TextAlign.Center
                     );
                     Spacer(modifier = Modifier.height(4.dp));
+                    // Adapta a mensagem dependendo do modo de balanceamento
+                    val body = when (try { com.bismarck.voleimanager.app.data.model.BalancingMode.valueOf(balancingMode) } catch (e: Exception) { com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE }) {
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS -> stringResource(R.string.limit_reached_text_winner_rests, currentStreak)
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST -> stringResource(R.string.limit_reached_text_both_rest, currentStreak)
+                    }
                     Text(
-                        text = stringResource(R.string.limit_reached_text, currentStreak),
+                        text = body,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
-                } else {
+                 } else {
                     val teamName =
                         if (streakOwner == "A") stringResource(R.string.team_a) else if (streakOwner == "B") stringResource(
                             R.string.team_b
@@ -1207,7 +1218,7 @@ fun EmptyStateCard(
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     )
-                }
+                 }
             } else {
                 Text(
                     stringResource(R.string.selected_group, getDisplayGroupName(currentGroup)),
@@ -1496,8 +1507,8 @@ fun PlayerCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () -> Unit) {
-    Card(
+fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: Boolean, onClick: () -> Unit)
+{    Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
             .fillMaxWidth()
@@ -1525,7 +1536,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, onClick: () 
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            player.name,
+                            if (isResting) "${player.name}*" else player.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,

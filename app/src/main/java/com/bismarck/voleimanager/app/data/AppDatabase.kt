@@ -13,7 +13,7 @@ import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 
 @Database(
     entities = [com.bismarck.voleimanager.app.data.model.Player::class, com.bismarck.voleimanager.app.data.model.MatchHistory::class, com.bismarck.voleimanager.app.data.model.GroupConfig::class, com.bismarck.voleimanager.app.data.model.PlayerEloLog::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +23,12 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN balancingMode TEXT NOT NULL DEFAULT 'REBALANCE'")
+            }
+        }
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -38,7 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance
