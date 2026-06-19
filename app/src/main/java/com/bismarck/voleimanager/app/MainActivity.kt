@@ -45,7 +45,8 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK -> true
             }
             AppTheme(
-                darkTheme = darkTheme
+                darkTheme = darkTheme,
+                dynamicColor = false
             ) {
                 DisposableEffect(darkTheme) {
                     enableEdgeToEdge(
