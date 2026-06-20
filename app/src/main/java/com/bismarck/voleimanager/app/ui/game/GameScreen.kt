@@ -582,49 +582,6 @@ fun ActiveGameView(
         return "$timeLabel • $ownerLabel (${log.oldStreak} → ${log.newStreak})"
     }
 
-    @Composable
-    fun StreakHistoryCard(modifier: Modifier = Modifier) {
-        if (streakAdjustments.isEmpty()) return
-
-        Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.LocalFireDepartment,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.streak_history_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                streakAdjustments.forEachIndexed { index, log ->
-                    if (index > 0) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
-                    Text(
-                        text = buildStreakHistoryLine(log),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-
     fun substitutionLocationLabel(location: String): String = when (location) {
         "A" -> context.getString(R.string.team_a)
         "B" -> context.getString(R.string.team_b)
@@ -655,9 +612,26 @@ fun ActiveGameView(
         return "$timeLabel • $description"
     }
 
+    data class RecentActivityEntry(
+        val timestamp: Long,
+        val streakLog: ManualStreakAdjustmentLog? = null,
+        val substitutionLog: ManualSubstitutionLog? = null
+    )
+
+    val recentActivityEntries = remember(streakAdjustments, substitutionAdjustments) {
+        (
+            streakAdjustments.map { RecentActivityEntry(timestamp = it.timestamp, streakLog = it) } +
+                substitutionAdjustments.map {
+                    RecentActivityEntry(timestamp = it.timestamp, substitutionLog = it)
+                }
+            )
+            .sortedByDescending { it.timestamp }
+            .take(6)
+    }
+
     @Composable
-    fun SubstitutionHistoryCard(modifier: Modifier = Modifier) {
-        if (substitutionAdjustments.isEmpty()) return
+    fun RecentActivityCard(modifier: Modifier = Modifier) {
+        if (recentActivityEntries.isEmpty()) return
 
         Card(
             modifier = modifier.fillMaxWidth(),
@@ -670,29 +644,48 @@ fun ActiveGameView(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Groups,
+                        Icons.Default.Edit,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = stringResource(R.string.substitution_history_title),
+                        text = stringResource(R.string.recent_activity_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                substitutionAdjustments.forEachIndexed { index, log ->
+                recentActivityEntries.forEachIndexed { index, entry ->
                     if (index > 0) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
-                    Text(
-                        text = buildSubstitutionHistoryLine(log),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (entry.streakLog != null) {
+                                Icons.Default.LocalFireDepartment
+                            } else {
+                                Icons.Default.Groups
+                            },
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .size(16.dp)
+                        )
+                        Text(
+                            text = entry.streakLog?.let { buildStreakHistoryLine(it) }
+                                ?: entry.substitutionLog?.let { buildSubstitutionHistoryLine(it) }
+                                ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -995,8 +988,7 @@ fun ActiveGameView(
                                     textDecoration = TextDecoration.Underline
                                 )
                             }
-                            StreakHistoryCard(modifier = Modifier.padding(top = 8.dp))
-                            SubstitutionHistoryCard(modifier = Modifier.padding(top = 8.dp))
+                            RecentActivityCard(modifier = Modifier.padding(top = 8.dp))
                         }
                         Spacer(Modifier.width(16.dp))
                         Column(
@@ -1103,8 +1095,7 @@ fun ActiveGameView(
                             textDecoration = TextDecoration.Underline
                         )
                     }
-                    StreakHistoryCard(modifier = Modifier.padding(top = 8.dp))
-                    SubstitutionHistoryCard(modifier = Modifier.padding(top = 8.dp))
+                    RecentActivityCard(modifier = Modifier.padding(top = 8.dp))
                     Spacer(Modifier.height(4.dp))
                 }
                 Surface(
