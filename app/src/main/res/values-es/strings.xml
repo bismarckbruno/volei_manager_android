@@ -108,6 +108,11 @@
     <string name="streak_started_snackbar">Racha iniciada para %1$s: %2$d -> %3$d</string>
     <string name="streak_cleared_snackbar">Racha reiniciada para %1$s: %2$d -> %3$d</string>
     <string name="streak_undo_unavailable">Ya no se puede deshacer este cambio de racha.</string>
+    <string name="streak_history_title">Cambios recientes de racha</string>
+    <string name="streak_history_transferred">Transferida de %1$s a %2$s</string>
+    <string name="streak_history_same_team">Ajustada para %1$s</string>
+    <string name="streak_history_started">Iniciada para %1$s</string>
+    <string name="streak_history_cleared">Reiniciada para %1$s</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="create">Crear</string>

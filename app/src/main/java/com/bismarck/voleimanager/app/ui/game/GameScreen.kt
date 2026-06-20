@@ -68,6 +68,7 @@ import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
+import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import kotlinx.coroutines.delay
@@ -105,6 +106,7 @@ fun GameScreenContent(
     val streak by viewModel.currentStreak.collectAsState()
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
+    val manualStreakAdjustments by viewModel.manualStreakAdjustments.collectAsState()
 
     var showCancel by remember { mutableStateOf(false) }
     var subOut by remember { mutableStateOf<Player?>(null) }
@@ -179,6 +181,12 @@ fun GameScreenContent(
 
     val presentPlayers =
         remember(sortedPlayers, presentIds) { sortedPlayers.filter { presentIds.contains(it.id) } }
+    val recentStreakAdjustments = remember(manualStreakAdjustments, selectedGroup) {
+        manualStreakAdjustments
+            .filter { it.groupName == selectedGroup }
+            .takeLast(3)
+            .asReversed()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
@@ -224,6 +232,7 @@ fun GameScreenContent(
                             teamA,
                             teamB,
                             waitingList,
+                            recentStreakAdjustments,
                             owner,
                             streak,
                             config.victoryLimit,
@@ -382,6 +391,7 @@ fun ActiveGameView(
     teamA: List<Player>,
     teamB: List<Player>,
     waitingList: List<Player>,
+    streakAdjustments: List<ManualStreakAdjustmentLog>,
     streakOwner: String?,
     currentStreak: Int,
     victoryLimit: Int,
@@ -515,6 +525,92 @@ fun ActiveGameView(
                     oldStreak,
                     newStreak
                 )
+            }
+        }
+    }
+
+    @Composable
+    fun buildStreakHistoryLine(log: ManualStreakAdjustmentLog): String {
+        val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.timestamp))
+        val teamLabel = when (log.team) {
+            "A" -> stringResource(R.string.team_a)
+            "B" -> stringResource(R.string.team_b)
+            else -> stringResource(R.string.winner)
+        }
+        val ownerLabel: String = when {
+            log.oldOwner != null && log.newOwner != null && log.oldOwner != log.newOwner -> {
+                val fromLabel = when (log.oldOwner) {
+                    "A" -> stringResource(R.string.team_a)
+                    "B" -> stringResource(R.string.team_b)
+                    else -> stringResource(R.string.winner)
+                }
+                val toLabel = when (log.newOwner) {
+                    "A" -> stringResource(R.string.team_a)
+                    "B" -> stringResource(R.string.team_b)
+                    else -> stringResource(R.string.winner)
+                }
+                stringResource(R.string.streak_history_transferred, fromLabel, toLabel)
+            }
+
+            log.newOwner != null && log.oldOwner == log.newOwner -> {
+                stringResource(R.string.streak_history_same_team, teamLabel)
+            }
+
+            log.oldOwner == null && log.newOwner != null -> {
+                stringResource(R.string.streak_history_started, teamLabel)
+            }
+
+            log.oldOwner != null && log.newOwner == null -> {
+                stringResource(R.string.streak_history_cleared, teamLabel)
+            }
+
+            else -> {
+                stringResource(R.string.streak_history_same_team, teamLabel)
+            }
+        }
+
+        return "$timeLabel • $ownerLabel (${log.oldStreak} → ${log.newStreak})"
+    }
+
+    @Composable
+    fun StreakHistoryCard(modifier: Modifier = Modifier) {
+        if (streakAdjustments.isEmpty()) return
+
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.streak_history_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                streakAdjustments.forEachIndexed { index, log ->
+                    if (index > 0) {
+                        Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    Text(
+                        text = buildStreakHistoryLine(log),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -816,6 +912,7 @@ fun ActiveGameView(
                                     textDecoration = TextDecoration.Underline
                                 )
                             }
+                            StreakHistoryCard(modifier = Modifier.padding(top = 8.dp))
                         }
                         Spacer(Modifier.width(16.dp))
                         Column(
@@ -922,6 +1019,7 @@ fun ActiveGameView(
                             textDecoration = TextDecoration.Underline
                         )
                     }
+                    StreakHistoryCard(modifier = Modifier.padding(top = 8.dp))
                     Spacer(Modifier.height(4.dp))
                 }
                 Surface(
