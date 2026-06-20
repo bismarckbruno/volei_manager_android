@@ -113,6 +113,10 @@
     <string name="streak_history_same_team">Ajustada para %1$s</string>
     <string name="streak_history_started">Iniciada para %1$s</string>
     <string name="streak_history_cleared">Reiniciada para %1$s</string>
+    <string name="substitution_history_title">Sustituciones recientes</string>
+    <string name="substitution_history_from_waiting">%1$s entró en %2$s desde la lista de espera; %3$s fue a la cola</string>
+    <string name="substitution_history_team_swap">%1$s entró en %2$s desde %3$s; %4$s fue a %3$s</string>
+    <string name="waiting_list_label">lista de espera</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="create">Crear</string>

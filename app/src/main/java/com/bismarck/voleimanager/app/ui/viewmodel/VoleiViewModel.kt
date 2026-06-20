@@ -83,6 +83,15 @@ data class ManualStreakAdjustmentLog(
     val newStreak: Int
 )
 
+data class ManualSubstitutionLog(
+    val timestamp: Long,
+    val groupName: String,
+    val playerOutName: String,
+    val playerInName: String,
+    val targetTeam: String,
+    val incomingSource: String
+)
+
 internal data class RestingMarkResult(
     val restingPlayers: Map<Int, Int>,
     val waitingList: List<Player>
@@ -370,12 +379,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val lastWinners = _lastWinners.asStateFlow()
     private val _manualStreakAdjustments = MutableStateFlow<List<ManualStreakAdjustmentLog>>(emptyList())
     val manualStreakAdjustments = _manualStreakAdjustments.asStateFlow()
+    private val _manualSubstitutions = MutableStateFlow<List<ManualSubstitutionLog>>(emptyList())
+    val manualSubstitutions = _manualSubstitutions.asStateFlow()
     private var lastLosers: List<Player> = emptyList()
     private val _currentMatchStartTimestamp = MutableStateFlow<Long?>(null)
 
     // Controla quando a persistência do estado de jogo fica ativa (após a primeira carga do grupo)
     private var persistenceReady = false
     private val maxManualStreakLogsInMemory = 50
+    private val maxManualSubstitutionLogsInMemory = 50
 
     init {
         loadPreferences()
@@ -602,6 +614,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _manualStreakAdjustments.value = trimmed + log
     }
 
+    private fun appendManualSubstitutionLog(log: ManualSubstitutionLog) {
+        val trimmed = _manualSubstitutions.value.takeLast(maxManualSubstitutionLogsInMemory - 1)
+        _manualSubstitutions.value = trimmed + log
+    }
+
+    private fun clearManualSubstitutionLogs() {
+        _manualSubstitutions.value = emptyList()
+    }
+
     private fun loadPreferences() {
         val prefs =
             getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
@@ -651,6 +672,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _currentMatchStartTimestamp.value = null
         _roundCounter.value = 0
         _restingPlayers.value = emptyMap()
+        clearManualSubstitutionLogs()
         lastLosers = emptyList()
     }
 
@@ -937,6 +959,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun startNewAutomaticGame(all: List<Player>, size: Int) {
+        clearManualSubstitutionLogs()
         val available = all.filter { _presentPlayerIds.value.contains(it.id) }
         if (available.size < size * 2) return
 
@@ -1002,6 +1025,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun startManualGame(tA: List<Player>, tB: List<Player>, rem: List<Player>) {
+        clearManualSubstitutionLogs()
         val tAWithToll = tA.map { applyTollIfNecessary(it) }
         val tBWithToll = tB.map { applyTollIfNecessary(it) }
         val remWithToll = rem.map { applyTollIfNecessary(it) }
@@ -1014,6 +1038,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun cancelGame() {
+        clearManualSubstitutionLogs()
         _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
         _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
         _scoreA.value = 0; _scoreB.value = 0
@@ -1034,15 +1059,56 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val idxInWait = wait.indexOfFirst { it.id == inWithToll.id }
 
         var resetStreak = false
+        var substitutionLog: ManualSubstitutionLog? = null
 
         if (idxOutA != -1) {
             nA[idxOutA] = inWithToll
             if (_streakOwner.value == "A") resetStreak = true
-            if (idxInWait != -1) wait[idxInWait] = out else if (idxInB != -1) nB[idxInB] = out
+            if (idxInWait != -1) {
+                wait[idxInWait] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = System.currentTimeMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "A",
+                    incomingSource = "WAIT"
+                )
+            } else if (idxInB != -1) {
+                nB[idxInB] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = System.currentTimeMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "A",
+                    incomingSource = "B"
+                )
+            }
         } else if (idxOutB != -1) {
             nB[idxOutB] = inWithToll
             if (_streakOwner.value == "B") resetStreak = true
-            if (idxInWait != -1) wait[idxInWait] = out else if (idxInA != -1) nA[idxInA] = out
+            if (idxInWait != -1) {
+                wait[idxInWait] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = System.currentTimeMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "B",
+                    incomingSource = "WAIT"
+                )
+            } else if (idxInA != -1) {
+                nA[idxInA] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = System.currentTimeMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "B",
+                    incomingSource = "A"
+                )
+            }
         }
 
         if (resetStreak) {
@@ -1050,11 +1116,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _streakOwner.value = null
         }
 
+        substitutionLog?.let(::appendManualSubstitutionLog)
+
         _teamA.value = sortTeamPlayers(nA); _teamB.value = sortTeamPlayers(nB); _waitingList.value =
             wait
     }
 
     fun finishGame(winner: String) {
+        clearManualSubstitutionLogs()
         val cA = _teamA.value
         val cB = _teamB.value
         val sA = _scoreA.value

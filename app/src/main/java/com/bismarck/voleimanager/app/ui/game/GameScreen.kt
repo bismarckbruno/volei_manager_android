@@ -69,6 +69,7 @@ import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
+import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import kotlinx.coroutines.delay
@@ -107,6 +108,7 @@ fun GameScreenContent(
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
     val manualStreakAdjustments by viewModel.manualStreakAdjustments.collectAsState()
+    val manualSubstitutions by viewModel.manualSubstitutions.collectAsState()
 
     var showCancel by remember { mutableStateOf(false) }
     var subOut by remember { mutableStateOf<Player?>(null) }
@@ -187,6 +189,12 @@ fun GameScreenContent(
             .takeLast(3)
             .asReversed()
     }
+    val recentSubstitutions = remember(manualSubstitutions, selectedGroup) {
+        manualSubstitutions
+            .filter { it.groupName == selectedGroup }
+            .takeLast(3)
+            .asReversed()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
@@ -233,6 +241,7 @@ fun GameScreenContent(
                             teamB,
                             waitingList,
                             recentStreakAdjustments,
+                            recentSubstitutions,
                             owner,
                             streak,
                             config.victoryLimit,
@@ -392,6 +401,7 @@ fun ActiveGameView(
     teamB: List<Player>,
     waitingList: List<Player>,
     streakAdjustments: List<ManualStreakAdjustmentLog>,
+    substitutionAdjustments: List<ManualSubstitutionLog>,
     streakOwner: String?,
     currentStreak: Int,
     victoryLimit: Int,
@@ -603,10 +613,83 @@ fun ActiveGameView(
 
                 streakAdjustments.forEachIndexed { index, log ->
                     if (index > 0) {
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                     Text(
                         text = buildStreakHistoryLine(log),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+
+    fun substitutionLocationLabel(location: String): String = when (location) {
+        "A" -> context.getString(R.string.team_a)
+        "B" -> context.getString(R.string.team_b)
+        "WAIT" -> context.getString(R.string.waiting_list_label)
+        else -> context.getString(R.string.waiting_list_label)
+    }
+
+    fun buildSubstitutionHistoryLine(log: ManualSubstitutionLog): String {
+        val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.timestamp))
+        val targetTeamLabel = substitutionLocationLabel(log.targetTeam)
+        val sourceLabel = substitutionLocationLabel(log.incomingSource)
+        val description = if (log.incomingSource == "WAIT") {
+            context.getString(
+                R.string.substitution_history_from_waiting,
+                log.playerInName,
+                targetTeamLabel,
+                log.playerOutName
+            )
+        } else {
+            context.getString(
+                R.string.substitution_history_team_swap,
+                log.playerInName,
+                targetTeamLabel,
+                sourceLabel,
+                log.playerOutName
+            )
+        }
+        return "$timeLabel • $description"
+    }
+
+    @Composable
+    fun SubstitutionHistoryCard(modifier: Modifier = Modifier) {
+        if (substitutionAdjustments.isEmpty()) return
+
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Groups,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.substitution_history_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                substitutionAdjustments.forEachIndexed { index, log ->
+                    if (index > 0) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    Text(
+                        text = buildSubstitutionHistoryLine(log),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -913,6 +996,7 @@ fun ActiveGameView(
                                 )
                             }
                             StreakHistoryCard(modifier = Modifier.padding(top = 8.dp))
+                            SubstitutionHistoryCard(modifier = Modifier.padding(top = 8.dp))
                         }
                         Spacer(Modifier.width(16.dp))
                         Column(
@@ -1020,6 +1104,7 @@ fun ActiveGameView(
                         )
                     }
                     StreakHistoryCard(modifier = Modifier.padding(top = 8.dp))
+                    SubstitutionHistoryCard(modifier = Modifier.padding(top = 8.dp))
                     Spacer(Modifier.height(4.dp))
                 }
                 Surface(
