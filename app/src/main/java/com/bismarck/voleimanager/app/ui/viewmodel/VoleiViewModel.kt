@@ -34,6 +34,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -657,9 +658,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun addPlayer(n: String, e: Double, g: String, isPriority: Boolean) = viewModelScope.launch {
-        // 1. Usamos 'n' em vez de 'name'
+        val normalizedName = normalizePersonName(n)
+        if (normalizedName.isBlank()) return@launch
+
         val nameAlreadyExists = currentGroupPlayers.value.any {
-            it.name.trim().equals(n.trim(), ignoreCase = true)
+            areSameCanonicalName(it.name, normalizedName)
         }
 
         if (nameAlreadyExists) {
@@ -669,7 +672,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         val pToInsert = Player(
-            name = n,
+            name = normalizedName,
             elo = e,
             groupName = g,
             isPriority = isPriority,
@@ -700,19 +703,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun editPlayer(p: Player, n: String, isPriority: Boolean) = viewModelScope.launch(Dispatchers.IO) {
         val oldName = p.name
-        if (oldName.trim().lowercase() != n.trim().lowercase()) {
+        val normalizedName = normalizePersonName(n)
+        if (normalizedName.isBlank()) return@launch
+
+        if (!areSameCanonicalName(oldName, normalizedName)) {
             val nameAlreadyExists = currentGroupPlayers.value.any {
-                it.id != p.id && it.name.trim().equals(n.trim(), ignoreCase = true)
+                it.id != p.id && areSameCanonicalName(it.name, normalizedName)
             }
             if (nameAlreadyExists) {
                 _uiMessage.value = getApplication<Application>().getString(R.string.players_name_already_exists)
                 return@launch
             }
         }
-        val up = p.copy(name = n, isPriority = isPriority)
+        val up = p.copy(name = normalizedName, isPriority = isPriority)
         repository.updatePlayer(up)
-        if (oldName != n) {
-            repository.renamePlayerCascade(p.id, oldName, n, p.groupName)
+        if (oldName != normalizedName) {
+            repository.renamePlayerCascade(p.id, oldName, normalizedName, p.groupName)
         }
         _teamA.value = sortTeamPlayers(_teamA.value.map { if (it.id == p.id) up else it })
         _teamB.value = sortTeamPlayers(_teamB.value.map { if (it.id == p.id) up else it })
@@ -1021,7 +1027,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     repository.insertEloLog(
                         PlayerEloLog(
                             playerId = u.id,
-                            playerNameSnapshot = u.name,
+                            playerNameSnapshot = normalizePersonName(u.name)
+                                .ifBlank { "Desconhecido" },
                             date = dateLog,
                             elo = newElo,
                             groupName = u.groupName,
@@ -1038,8 +1045,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             repository.insertMatch(
                 MatchHistory(
                     date = dateDisplay,
-                    teamA = cA.sortedBy { it.name.lowercase() }.joinToString(", ") { it.name },
-                    teamB = cB.sortedBy { it.name.lowercase() }.joinToString(", ") { it.name },
+                    teamA = cA.map { normalizePersonName(it.name) }
+                        .filter { it.isNotBlank() }
+                        .sortedBy { it.lowercase() }
+                        .joinToString(", "),
+                    teamB = cB.map { normalizePersonName(it.name) }
+                        .filter { it.isNotBlank() }
+                        .sortedBy { it.lowercase() }
+                        .joinToString(", "),
                     teamAIds = cA.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
                     teamBIds = cB.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
                     winner = winner,
@@ -1450,6 +1463,31 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun formatElo(elo: Double): String = String.format(Locale.US, "%.2f", elo)
 
+    private fun normalizePersonName(name: String): String {
+        return name.trim().replace(Regex("\\s+"), " ").take(50)
+    }
+
+    private fun canonicalPersonName(name: String): String {
+        val normalized = normalizePersonName(name)
+        val noAccents = Normalizer.normalize(normalized, Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+        return noAccents.lowercase(Locale.ROOT)
+    }
+
+    private fun areSameCanonicalName(a: String, b: String): Boolean {
+        return canonicalPersonName(a) == canonicalPersonName(b)
+    }
+
+    private fun normalizeTeamNamesSnapshot(raw: String): String {
+        return raw
+            .take(255)
+            .split(",")
+            .map { normalizePersonName(it) }
+            .filter { it.isNotBlank() }
+            .sortedBy { it.lowercase() }
+            .joinToString(", ")
+    }
+
     fun importData(uri: Uri, type: CsvType, context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -1462,14 +1500,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (backup != null) {
 
                         val safePlayers = backup.players.map { p ->
-                            p.copy(name = p.name.take(50), groupName = p.groupName.take(50))
+                            p.copy(
+                                name = normalizePersonName(p.name).ifBlank { "Desconhecido" },
+                                groupName = p.groupName.take(50)
+                            )
                         }
 
                         val safeHistory = backup.history.map { h ->
                             h.copy(
                                 date = h.date.take(20),
-                                teamA = h.teamA.take(255),
-                                teamB = h.teamB.take(255),
+                                teamA = normalizeTeamNamesSnapshot(h.teamA),
+                                teamB = normalizeTeamNamesSnapshot(h.teamB),
                                 winner = h.winner.take(50),
                                 groupName = h.groupName.take(50)
                             )
@@ -1477,7 +1518,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
                         val safeLogs = backup.logs.map { l ->
                             l.copy(
-                                playerNameSnapshot = l.playerNameSnapshot.take(50),
+                                playerNameSnapshot = normalizePersonName(l.playerNameSnapshot)
+                                    .ifBlank { "Desconhecido" },
                                 date = l.date.take(20),
                                 groupName = l.groupName.take(50)
                             )
@@ -1504,7 +1546,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     if (cols.size >= 6) {
                                         Player(
                                             id = cols[0].toIntOrNull() ?: 0,
-                                            name = cols[1].takeIf { it.isNotBlank() }?.take(50)
+                                            name = cols[1].takeIf { it.isNotBlank() }
+                                                ?.let { normalizePersonName(it) }
+                                                ?.ifBlank { "Desconhecido" }
                                                 ?: "Desconhecido",
                                             elo = cols[2].toDoubleOrNull() ?: 1200.0,
                                             matchesPlayed = cols[3].toIntOrNull() ?: 0,
@@ -1536,10 +1580,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                                     "dd/MM/yyyy HH:mm",
                                                     Locale.getDefault()
                                                 ).format(Date()),
-                                            teamA = cols[1].take(255).split(",").map { it.trim() }
-                                                .sortedBy { it.lowercase() }.joinToString(", "),
-                                            teamB = cols[2].take(255).split(",").map { it.trim() }
-                                                .sortedBy { it.lowercase() }.joinToString(", "),
+                                            teamA = normalizeTeamNamesSnapshot(cols[1]),
+                                            teamB = normalizeTeamNamesSnapshot(cols[2]),
                                             winner = cols[3].take(50),
                                             eloPoints = cols[4].toDoubleOrNull() ?: 0.0,
                                             groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
@@ -1571,7 +1613,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                         PlayerEloLog(
                                             id = cols[0].toIntOrNull() ?: 0,
                                             playerId = cols[1].toIntOrNull() ?: 0,
-                                            playerNameSnapshot = cols[2].take(50),
+                                            playerNameSnapshot = normalizePersonName(cols[2])
+                                                .ifBlank { "Desconhecido" },
                                             date = cols[3].takeIf { it.isNotBlank() }?.take(20)
                                                 ?: SimpleDateFormat(
                                                     "yyyy-MM-dd",
@@ -1763,12 +1806,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             for (element in historyArray) {
                 val match = element.asJsonObject
                 if (match.has("teamA")) {
-                    val t = match.get("teamA").asString.split(",").map { it.trim() }.filter { it.isNotEmpty() }.sortedBy { it.lowercase() }.joinToString(", ")
-                    match.addProperty("teamA", t)
+                    match.addProperty("teamA", normalizeTeamNamesSnapshot(match.get("teamA").asString))
                 }
                 if (match.has("teamB")) {
-                    val t = match.get("teamB").asString.split(",").map { it.trim() }.filter { it.isNotEmpty() }.sortedBy { it.lowercase() }.joinToString(", ")
-                    match.addProperty("teamB", t)
+                    match.addProperty("teamB", normalizeTeamNamesSnapshot(match.get("teamB").asString))
                 }
                 if (!match.has("teamAScore")) match.addProperty("teamAScore", 0)
                 if (!match.has("teamBScore")) match.addProperty("teamBScore", 0)
@@ -1786,6 +1827,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             for (element in playersArray) {
                 val p = element.asJsonObject
                 if (!p.has("id") || p.get("id").asInt <= 0) p.addProperty("id", nextId++)
+                if (p.has("name")) {
+                    val normalized = normalizePersonName(p.get("name").asString).ifBlank { "Desconhecido" }
+                    p.addProperty("name", normalized)
+                }
+            }
+        }
+        val logsArray = data.getAsJsonArray("logs")
+        if (logsArray != null) {
+            for (element in logsArray) {
+                val log = element.asJsonObject
+                if (log.has("playerNameSnapshot")) {
+                    val normalized = normalizePersonName(log.get("playerNameSnapshot").asString)
+                        .ifBlank { "Desconhecido" }
+                    log.addProperty("playerNameSnapshot", normalized)
+                }
             }
         }
         return gson.toJson(data)
