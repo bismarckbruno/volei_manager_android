@@ -135,6 +135,7 @@ fun SubstitutionDialog(
 fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, Boolean) -> Unit) {
     var newName by remember { mutableStateOf(player.name) }
     var isPriority by remember { mutableStateOf(player.isPriority) }
+    val normalizedName = newName.trim().replace(Regex("\\s+"), " ")
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.edit_registration)) },
@@ -158,8 +159,8 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
         },
         confirmButton = {
             Button(onClick = {
-                if (newName.isNotBlank()) onConfirm(
-                    newName,
+                if (normalizedName.isNotBlank()) onConfirm(
+                    normalizedName,
                     isPriority
                 )
             }) { Text(stringResource(R.string.save)) }
@@ -173,6 +174,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
     var name by remember { mutableStateOf("") }
     var eloText by remember { mutableStateOf("1200") }
     var isPriority by remember { mutableStateOf(false) }
+    val normalizedName = name.trim().replace(Regex("\\s+"), " ")
 
     // Validação do Elo (mínimo 1100 e máximo 1300)
     val eloValue = eloText.toIntOrNull()
@@ -221,11 +223,11 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
         confirmButton = {
             Button(
                 onClick = {
-                    if (name.isNotBlank() && isEloValid) {
-                        onConfirm(name, eloValue!!.toDouble(), isPriority)
+                    if (normalizedName.isNotBlank() && isEloValid) {
+                        onConfirm(normalizedName, eloValue!!.toDouble(), isPriority)
                     }
                 },
-                enabled = name.isNotBlank() && isEloValid // Desabilita o botão se os dados não estiverem válidos
+                enabled = normalizedName.isNotBlank() && isEloValid // Desabilita o botão se os dados não estiverem válidos
             ) { Text(stringResource(R.string.add)) }
         },
         dismissButton = {

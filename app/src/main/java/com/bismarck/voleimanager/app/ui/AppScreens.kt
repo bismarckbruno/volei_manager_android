@@ -312,9 +312,9 @@ fun HistoryScreen(
             )
             PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
                 compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
-                    .thenByDescending { it.gamesPlayed }
-                    .thenByDescending { it.winRate() }
                     .thenByDescending { it.displayElo }
+                    .thenByDescending { it.victories }
+                    .thenByDescending { it.winRate() }
             )
             PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
                 compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
@@ -792,7 +792,7 @@ fun HistoryPlayerCard(
                     Icon(
                         Icons.Default.Person,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -829,7 +829,7 @@ fun HistoryPlayerCard(
                         Icon(
                             Icons.Default.AccessTime,
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.width(4.dp))
@@ -852,6 +852,11 @@ fun HistoryPlayerCard(
                         "$percentageFormatted%",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -885,7 +890,7 @@ fun HistoryPlayerCard(
                         Icon(
                             Icons.Default.AccessTime,
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.width(4.dp))

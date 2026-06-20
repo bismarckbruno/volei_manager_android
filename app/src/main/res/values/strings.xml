@@ -86,7 +86,7 @@
     <string name="new_registration">New registration</string>
     <string name="group_name">Group name</string>
     <string name="end_of_queue">End of queue</string>
-    <string name="initial_elo">Initial Elo</string>
+    <string name="initial_elo">Initial Elo (1100–1300)</string>
     <string name="use_score">Use score</string>
     <string name="yes_clear">Yes, clear</string>
     <string name="priority">Priority</string>
@@ -100,6 +100,9 @@
     <string name="victory">VICTORY</string>
     <string name="team_a">Team A</string>
     <string name="team_b">Team B</string>
+    <string name="edit_streak_title">Edit streak - %1$s</string>
+    <string name="edit_streak_description">Adjust the current winning streak before continuing.</string>
+    <string name="edit_streak_cd">Streak indicator (long press to edit)</string>
     <string name="save">Save</string>
     <string name="edit">Edit</string>
     <string name="create">Create</string>

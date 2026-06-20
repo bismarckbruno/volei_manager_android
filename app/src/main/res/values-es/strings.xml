@@ -86,7 +86,7 @@
     <string name="new_registration">Nuevo registro</string>
     <string name="group_name">Nombre del grupo</string>
     <string name="end_of_queue">Final de la cola</string>
-    <string name="initial_elo">Elo inicial</string>
+    <string name="initial_elo">Elo inicial (1100–1300)</string>
     <string name="use_score">Usar marcador</string>
     <string name="yes_clear">Sí, limpiar</string>
     <string name="priority">Prioridad</string>
@@ -100,6 +100,9 @@
     <string name="victory">VICTORIA</string>
     <string name="team_a">Equipo A</string>
     <string name="team_b">Equipo B</string>
+    <string name="edit_streak_title">Editar racha - %1$s</string>
+    <string name="edit_streak_description">Ajusta la racha actual de victorias antes de continuar.</string>
+    <string name="edit_streak_cd">Indicador de racha (mantener pulsado para editar)</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="create">Crear</string>

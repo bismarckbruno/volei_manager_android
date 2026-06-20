@@ -516,6 +516,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (_scoreB.value > 0) _scoreB.value--
     }
 
+    fun setStreakForTeam(team: String, streakValue: Int) {
+        if (team != "A" && team != "B") return
+        val normalized = streakValue.coerceAtLeast(0)
+
+        if (normalized == 0) {
+            if (_streakOwner.value == team) {
+                _streakOwner.value = null
+                _currentStreak.value = 0
+            }
+            return
+        }
+
+        _streakOwner.value = team
+        _currentStreak.value = normalized
+    }
+
     private fun loadPreferences() {
         val prefs =
             getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)

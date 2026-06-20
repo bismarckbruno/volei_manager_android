@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.filled.Delete
@@ -33,6 +34,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarDuration
@@ -526,7 +528,8 @@ private fun WaitingListPlayerItem(
                     .fillMaxWidth()
                     .widthIn(min = 120.dp)
                     .heightIn(min = 60.dp)
-                    .padding(12.dp)
+                    .padding(vertical = 12.dp)
+                    .padding(start = 16.dp, end = 6.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {
@@ -576,6 +579,17 @@ private fun WaitingListPlayerItem(
                             )
                         }
                     }
+                }
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.options_menu),
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
                 }
             }
         }
@@ -689,14 +703,11 @@ private fun InactivePlayerItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
-                    .padding(start = 16.dp, end = 12.dp)
+                    .padding(start = 16.dp, end = 6.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMenu = true
-                            },
-                            onTap = {
                                 showMenu = true
                             }
                         )
@@ -731,24 +742,17 @@ private fun InactivePlayerItem(
                         )
                     }
                 }
-                Icon(
-                    Icons.Default.PersonAddAlt1,
-                    contentDescription = stringResource(R.string.add_to_queue),
-                    modifier = Modifier
-                        .size(20.dp)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    showMenu = true
-                                },
-                                onLongPress = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    showMenu = true
-                                }
-                            )
-                        },
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.PersonAddAlt1,
+                        contentDescription = stringResource(R.string.add_to_queue),
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
             }
             }
         }

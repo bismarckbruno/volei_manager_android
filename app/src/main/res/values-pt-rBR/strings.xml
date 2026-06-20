@@ -86,7 +86,7 @@
     <string name="new_registration">Novo cadastro</string>
     <string name="group_name">Nome do grupo</string>
     <string name="end_of_queue">Final da fila</string>
-    <string name="initial_elo">Elo inicial</string>
+    <string name="initial_elo">Elo inicial (1100–1300)</string>
     <string name="use_score">Usar placar</string>
     <string name="yes_clear">Sim, limpar</string>
     <string name="priority">Prioridade</string>
@@ -100,6 +100,9 @@
     <string name="victory">VITÓRIA</string>
     <string name="team_a">Time A</string>
     <string name="team_b">Time B</string>
+    <string name="edit_streak_title">Editar sequência - %1$s</string>
+    <string name="edit_streak_description">Ajuste a sequência atual de vitórias antes de continuar.</string>
+    <string name="edit_streak_cd">Indicador de sequência (toque longo para editar)</string>
     <string name="save">Salvar</string>
     <string name="edit">Editar</string>
     <string name="create">Criar</string>

@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.R
@@ -42,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -305,7 +307,9 @@ fun GameScreenContent(
                                                 Text(
                                                     if (all) stringResource(R.string.uncheck_all) else stringResource(
                                                         R.string.check_all
-                                                    )
+                                                    ),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
                                             }
                                         }
@@ -442,6 +446,92 @@ fun ActiveGameView(
     val scoreA by viewModel.scoreA.collectAsState()
     val scoreB by viewModel.scoreB.collectAsState()
     val restingMap by viewModel.restingPlayers.collectAsState()
+    var streakDialogTeam by remember { mutableStateOf<String?>(null) }
+    var streakDraftValue by remember { mutableIntStateOf(0) }
+
+    fun openStreakDialog(teamId: String) {
+        streakDialogTeam = teamId
+        streakDraftValue = if (streakOwner == teamId) currentStreak else 0
+    }
+
+    streakDialogTeam?.let { teamId ->
+        val teamName = if (teamId == "A") stringResource(R.string.team_a) else stringResource(R.string.team_b)
+        AlertDialog(
+            onDismissRequest = { streakDialogTeam = null },
+            title = { Text(stringResource(R.string.edit_streak_title, teamName)) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = stringResource(R.string.edit_streak_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            RepeatingScoreButton(
+                                onClick = {
+                                    streakDraftValue = (streakDraftValue - 1).coerceAtLeast(0)
+                                },
+                                canRepeat = { streakDraftValue > 0 },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Remove,
+                                    contentDescription = stringResource(R.string.decrease_score),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        Text(
+                            text = streakDraftValue.toString(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp)
+                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            RepeatingScoreButton(
+                                onClick = { streakDraftValue++ },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = stringResource(R.string.increase_score),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setStreakForTeam(teamId, streakDraftValue)
+                        streakDialogTeam = null
+                    }
+                ) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { streakDialogTeam = null }) {
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        )
+    }
 
     val cardColorA = MaterialTheme.colorScheme.primaryContainer
     val btnColorA = MaterialTheme.colorScheme.primary
@@ -479,6 +569,7 @@ fun ActiveGameView(
         { viewModel.decrementScoreA() }
     }
     val firstWinId = if (teamsSwapped) "B" else "A"
+    val firstStreakTeamId = if (teamsSwapped) "B" else "A"
 
     val secondName =
         if (teamsSwapped) stringResource(R.string.team_a) else stringResource(R.string.team_b)
@@ -488,6 +579,7 @@ fun ActiveGameView(
     val secondBtnTextColor = if (teamsSwapped) btnTextColorA else btnTextColorB
     val secondStreakColor = if (teamsSwapped) streakColorA else streakColorB
     val secondStreak = if (teamsSwapped) teamAStreak else teamBStreak
+    val secondStreakTeamId = if (teamsSwapped) "A" else "B"
     val secondScore = if (teamsSwapped) scoreA else scoreB
     val secondOnIncrement: () -> Unit = if (teamsSwapped) {
         { viewModel.incrementScoreA() }
@@ -509,22 +601,16 @@ fun ActiveGameView(
     val transparentColor = Color.Transparent.toArgb()
 
     if (!view.isInEditMode) {
-        // ✅ MUDANÇA AQUI: Adicionamos o 'isDarkTheme' e o 'navBarColor' como chaves!
-        // Agora, se o usuário trocar o tema, o Compose destrói o efeito antigo e roda o novo com a cor correta.
         DisposableEffect(isLandscape, isDarkTheme, navBarColor) {
             val window = (view.context as Activity).window
-
-            // Se for retrato (celular em pé), a base da tela é SEMPRE o seu Surface.
             window.navigationBarColor = if (!isLandscape) navBarColor else transparentColor
 
             onDispose {
-                // Quando o jogo é cancelado ou finalizado, a barra volta ao normal
                 window.navigationBarColor = transparentColor
             }
         }
     }
 
-    // Dismiss bottom sheet when rotating to landscape (inline list replaces it)
     LaunchedEffect(isLandscape) {
         if (isLandscape) showWaitingListSheet = false
     }
@@ -569,11 +655,13 @@ fun ActiveGameView(
                                         firstBtnTextColor,
                                         firstStreakColor,
                                         firstStreak,
+                                        firstStreakTeamId,
                                         showElo,
                                         score = firstScore,
                                         showScore = showScore,
                                         onIncrementScore = firstOnIncrement,
                                         onDecrementScore = firstOnDecrement,
+                                        onStreakLongClick = ::openStreakDialog,
                                         onPlayerClick = onSubRequest
                                     ) { onWinRequest(firstWinId) }
                                 }
@@ -597,11 +685,13 @@ fun ActiveGameView(
                                         secondBtnTextColor,
                                         secondStreakColor,
                                         secondStreak,
+                                        secondStreakTeamId,
                                         showElo,
                                         score = secondScore,
                                         showScore = showScore,
                                         onIncrementScore = secondOnIncrement,
                                         onDecrementScore = secondOnDecrement,
+                                        onStreakLongClick = ::openStreakDialog,
                                         onPlayerClick = onSubRequest
                                     ) { onWinRequest(secondWinId) }
                                 }
@@ -683,11 +773,13 @@ fun ActiveGameView(
                             firstBtnTextColor,
                             firstStreakColor,
                             firstStreak,
+                            firstStreakTeamId,
                             showElo,
                             score = firstScore,
                             showScore = showScore,
                             onIncrementScore = firstOnIncrement,
                             onDecrementScore = firstOnDecrement,
+                            onStreakLongClick = ::openStreakDialog,
                             onPlayerClick = onSubRequest
                         ) { onWinRequest(firstWinId) }
                     }
@@ -711,11 +803,13 @@ fun ActiveGameView(
                             secondBtnTextColor,
                             secondStreakColor,
                             secondStreak,
+                            secondStreakTeamId,
                             showElo,
                             score = secondScore,
                             showScore = showScore,
                             onIncrementScore = secondOnIncrement,
                             onDecrementScore = secondOnDecrement,
+                            onStreakLongClick = ::openStreakDialog,
                             onPlayerClick = onSubRequest
                         ) { onWinRequest(secondWinId) }
                     }
@@ -940,11 +1034,13 @@ fun ActiveTeamCard(
     buttonTextColor: Color,
     streakColor: Color,
     streak: Int,
+    streakTeamId: String,
     showElo: Boolean,
     score: Int,
     showScore: Boolean = true,
     onIncrementScore: () -> Unit,
     onDecrementScore: () -> Unit,
+    onStreakLongClick: (String) -> Unit,
     onPlayerClick: (Player) -> Unit,
     onWin: () -> Unit
 ) {
@@ -979,14 +1075,32 @@ fun ActiveTeamCard(
                         color = buttonColor,
                         modifier = Modifier.align(Alignment.TopCenter)
                     )
-                    if (streak > 0) {
-                        Spacer(Modifier.width(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .clip(RoundedCornerShape(12.dp))
+                            .combinedClickable(
+                                onClick = { },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onStreakLongClick(streakTeamId)
+                                }
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = stringResource(R.string.edit_streak_cd),
+                            tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.38f),
+                            modifier = Modifier.size(16.dp)
+                        )
                         Text(
-                            "🔥$streak",
-                            fontSize = 16.sp,
+                            text = if (streak > 0) streak.toString() else "--",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = streakColor,
-                            modifier = Modifier.align(Alignment.TopEnd)
+                            color = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f)
                         )
                     }
                 }
@@ -1187,10 +1301,10 @@ fun EmptyStateCard(
                     );
                     Spacer(modifier = Modifier.height(4.dp));
                     // Adapta a mensagem dependendo do modo de balanceamento
-                    val body = when (try { com.bismarck.voleimanager.app.data.model.BalancingMode.valueOf(balancingMode) } catch (e: Exception) { com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE }) {
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS -> stringResource(R.string.limit_reached_text_winner_rests, currentStreak)
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST -> stringResource(R.string.limit_reached_text_both_rest, currentStreak)
+                    val body = when (try { BalancingMode.valueOf(balancingMode) } catch (e: Exception) { BalancingMode.REBALANCE }) {
+                        BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
+                        BalancingMode.WINNER_RESTS -> stringResource(R.string.limit_reached_text_winner_rests, currentStreak)
+                        BalancingMode.BOTH_REST -> stringResource(R.string.limit_reached_text_both_rest, currentStreak)
                     }
                     Text(
                         text = body,
@@ -1286,11 +1400,12 @@ fun EmptyStateCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (hasPreviousMatch) stringResource(R.string.start_next_match) else stringResource(
-                                R.string.start_match
-                            ),
+                            if (hasPreviousMatch) stringResource(R.string.start_next_match)
+                            else stringResource(R.string.start_match),
                             fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -1407,28 +1522,32 @@ fun PlayerCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
+    val cardShape = RoundedCornerShape(12.dp)
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Card(
             modifier = Modifier
                 .padding(vertical = 4.dp)
-                .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onTogglePresence,
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showMenu = true
-                    }
-                ),
+                .fillMaxWidth(),
+            shape = cardShape,
             colors = CardDefaults.cardColors(containerColor = if (isPresent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
             border = if (isPresent) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(cardShape)
+                    .combinedClickable(
+                        onClick = onTogglePresence,
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showMenu = true
+                        }
+                    )
+                    .padding(start = 2.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Checkbox(checked = isPresent, onCheckedChange = { onTogglePresence() })
-                Spacer(Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = player.name, fontWeight = FontWeight.Bold)
@@ -1473,7 +1592,11 @@ fun PlayerCard(
                         } else {
                             gamesStr
                         }
-                    Text(text = info, style = MaterialTheme.typography.bodySmall)
+                    Text(text = info,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -1536,7 +1659,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            if (isResting) "${player.name}*" else player.name,
+                            if (isResting) "*${player.name}" else player.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
