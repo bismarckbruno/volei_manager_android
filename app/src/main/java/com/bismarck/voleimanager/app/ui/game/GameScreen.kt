@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
@@ -70,6 +71,7 @@ import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -224,6 +226,7 @@ fun GameScreenContent(
                             waitingList,
                             owner,
                             streak,
+                            config.victoryLimit,
                             isDarkTheme,
                             showElo,
                             showScore,
@@ -381,6 +384,7 @@ fun ActiveGameView(
     waitingList: List<Player>,
     streakOwner: String?,
     currentStreak: Int,
+    victoryLimit: Int,
     isDarkTheme: Boolean,
     showElo: Boolean,
     showScore: Boolean,
@@ -390,6 +394,10 @@ fun ActiveGameView(
     presentPlayerIds: Set<Int>,
     allPlayers: List<Player>
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val undoLabel = stringResource(R.string.undo)
     val waitingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showWaitingListSheet by remember { mutableStateOf(false) }
     var waitingPreviewDragProgress by remember { mutableFloatStateOf(0f) }
@@ -448,10 +456,77 @@ fun ActiveGameView(
     val restingMap by viewModel.restingPlayers.collectAsState()
     var streakDialogTeam by remember { mutableStateOf<String?>(null) }
     var streakDraftValue by remember { mutableIntStateOf(0) }
+    val maxEditableStreak = (victoryLimit - 1).coerceAtLeast(0)
+
+    fun teamName(teamId: String?): String = when (teamId) {
+        "A" -> context.getString(R.string.team_a)
+        "B" -> context.getString(R.string.team_b)
+        else -> context.getString(R.string.winner)
+    }
+
+    fun buildStreakAdjustmentMessage(
+        oldOwner: String?,
+        oldStreak: Int,
+        newOwner: String?,
+        newStreak: Int
+    ): String {
+        return when {
+            oldOwner != null && newOwner != null && oldOwner != newOwner -> {
+                context.getString(
+                    R.string.streak_transferred_snackbar,
+                    teamName(oldOwner),
+                    teamName(newOwner),
+                    oldStreak,
+                    newStreak
+                )
+            }
+
+            newOwner != null && oldOwner == newOwner -> {
+                context.getString(
+                    R.string.streak_adjusted_same_team_snackbar,
+                    teamName(newOwner),
+                    oldStreak,
+                    newStreak
+                )
+            }
+
+            oldOwner == null && newOwner != null -> {
+                context.getString(
+                    R.string.streak_started_snackbar,
+                    teamName(newOwner),
+                    oldStreak,
+                    newStreak
+                )
+            }
+
+            oldOwner != null && newOwner == null -> {
+                context.getString(
+                    R.string.streak_cleared_snackbar,
+                    teamName(oldOwner),
+                    oldStreak,
+                    newStreak
+                )
+            }
+
+            else -> {
+                context.getString(
+                    R.string.streak_adjusted_same_team_snackbar,
+                    teamName(newOwner),
+                    oldStreak,
+                    newStreak
+                )
+            }
+        }
+    }
 
     fun openStreakDialog(teamId: String) {
         streakDialogTeam = teamId
-        streakDraftValue = if (streakOwner == teamId) currentStreak else 0
+    }
+
+    LaunchedEffect(streakDialogTeam, streakOwner, currentStreak, maxEditableStreak) {
+        val selectedTeam = streakDialogTeam ?: return@LaunchedEffect
+        streakDraftValue = if (streakOwner == selectedTeam) currentStreak else 0
+        streakDraftValue = streakDraftValue.coerceIn(0, maxEditableStreak)
     }
 
     streakDialogTeam?.let { teamId ->
@@ -501,7 +576,10 @@ fun ActiveGameView(
                             color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             RepeatingScoreButton(
-                                onClick = { streakDraftValue++ },
+                                onClick = {
+                                    streakDraftValue = (streakDraftValue + 1).coerceAtMost(maxEditableStreak)
+                                },
+                                canRepeat = { streakDraftValue < maxEditableStreak },
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
@@ -517,8 +595,36 @@ fun ActiveGameView(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.setStreakForTeam(teamId, streakDraftValue)
+                        val applied = viewModel.setStreakForTeam(
+                            team = teamId,
+                            streakValue = streakDraftValue.coerceIn(0, maxEditableStreak)
+                        )
                         streakDialogTeam = null
+                        if (applied != null) {
+                            scope.launch {
+                                val message = buildStreakAdjustmentMessage(
+                                    oldOwner = applied.oldOwner,
+                                    oldStreak = applied.oldStreak,
+                                    newOwner = applied.newOwner,
+                                    newStreak = applied.newStreak
+                                )
+                                val result = snackbarHostState.showSnackbar(
+                                    message = message,
+                                    actionLabel = undoLabel,
+                                    withDismissAction = true,
+                                    duration = SnackbarDuration.Short
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    val undone = viewModel.undoLastManualStreakAdjustment()
+                                    if (!undone) {
+                                        snackbarHostState.showSnackbar(
+                                            message = context.getString(R.string.streak_undo_unavailable),
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 ) { Text(stringResource(R.string.save)) }
             },
@@ -621,7 +727,6 @@ fun ActiveGameView(
                 .fillMaxSize()
         ) {
             if (isLandscape) {
-                val landscapeSnackbarHostState = remember { SnackbarHostState() }
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -738,18 +843,10 @@ fun ActiveGameView(
                                     .fillMaxWidth()
                                     .weight(1f),
                                 horizontalPadding = 4.dp,
-                                externalSnackbarHostState = landscapeSnackbarHostState
+                                externalSnackbarHostState = snackbarHostState
                             )
                         }
                     } // end Row
-
-                    SnackbarHost(
-                        hostState = landscapeSnackbarHostState,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp)
-                    )
                 } // end Box
             } else {
                 Column(
@@ -813,7 +910,6 @@ fun ActiveGameView(
                             onPlayerClick = onSubRequest
                         ) { onWinRequest(secondWinId) }
                     }
-
                     TextButton(
                         onClick = onCancelRequest,
                         modifier = Modifier
@@ -894,6 +990,14 @@ fun ActiveGameView(
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        )
 
         // Phantom sheet overlay during drag-to-open (portrait only).
         // Fades in and rises from the bottom in sync with the preview fading out.

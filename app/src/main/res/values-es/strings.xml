@@ -103,6 +103,11 @@
     <string name="edit_streak_title">Editar racha - %1$s</string>
     <string name="edit_streak_description">Ajusta la racha actual de victorias antes de continuar.</string>
     <string name="edit_streak_cd">Indicador de racha (mantener pulsado para editar)</string>
+    <string name="streak_adjusted_same_team_snackbar">Racha de %1$s ajustada: %2$d -> %3$d</string>
+    <string name="streak_transferred_snackbar">Racha transferida de %1$s a %2$s: %3$d -> %4$d</string>
+    <string name="streak_started_snackbar">Racha iniciada para %1$s: %2$d -> %3$d</string>
+    <string name="streak_cleared_snackbar">Racha reiniciada para %1$s: %2$d -> %3$d</string>
+    <string name="streak_undo_unavailable">Ya no se puede deshacer este cambio de racha.</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="create">Crear</string>

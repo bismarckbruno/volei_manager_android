@@ -824,6 +824,7 @@ fun HistoryPlayerCard(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(Modifier.height(2.dp))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -854,11 +855,14 @@ fun HistoryPlayerCard(
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (showElo) {
+                        Text(
+                            "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(2.dp))
+                    }
                 }
             } else {
                 // Narrow layout: everything stacked vertically

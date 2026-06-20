@@ -73,6 +73,16 @@ data class GameStateSnapshot(
     val restingPlayers: Map<Int, Int> = emptyMap()
 )
 
+data class ManualStreakAdjustmentLog(
+    val timestamp: Long,
+    val groupName: String,
+    val team: String,
+    val oldOwner: String?,
+    val oldStreak: Int,
+    val newOwner: String?,
+    val newStreak: Int
+)
+
 internal data class RestingMarkResult(
     val restingPlayers: Map<Int, Int>,
     val waitingList: List<Player>
@@ -346,11 +356,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val streakOwner = _streakOwner.asStateFlow()
     private val _lastWinners = MutableStateFlow<List<Player>>(emptyList())
     val lastWinners = _lastWinners.asStateFlow()
+    private val _manualStreakAdjustments = MutableStateFlow<List<ManualStreakAdjustmentLog>>(emptyList())
+    val manualStreakAdjustments = _manualStreakAdjustments.asStateFlow()
     private var lastLosers: List<Player> = emptyList()
     private val _currentMatchStartTimestamp = MutableStateFlow<Long?>(null)
 
     // Controls when game-state persistence is active (after first group load)
     private var persistenceReady = false
+    private val maxManualStreakLogsInMemory = 50
 
     init {
         loadPreferences()
@@ -517,20 +530,64 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (_scoreB.value > 0) _scoreB.value--
     }
 
-    fun setStreakForTeam(team: String, streakValue: Int) {
-        if (team != "A" && team != "B") return
+    fun setStreakForTeam(team: String, streakValue: Int): ManualStreakAdjustmentLog? {
+        if (team != "A" && team != "B") return null
         val normalized = streakValue.coerceAtLeast(0)
+        val oldOwner = _streakOwner.value
+        val oldStreak = _currentStreak.value
+
+        val newOwner: String?
+        val newStreak: Int
 
         if (normalized == 0) {
             if (_streakOwner.value == team) {
                 _streakOwner.value = null
                 _currentStreak.value = 0
+                newOwner = null
+                newStreak = 0
+            } else {
+                return null
             }
-            return
+        } else {
+            _streakOwner.value = team
+            _currentStreak.value = normalized
+            newOwner = team
+            newStreak = normalized
         }
 
-        _streakOwner.value = team
-        _currentStreak.value = normalized
+        if (oldOwner == newOwner && oldStreak == newStreak) return null
+
+        val log = ManualStreakAdjustmentLog(
+            timestamp = System.currentTimeMillis(),
+            groupName = _currentGroupConfig.value.groupName,
+            team = team,
+            oldOwner = oldOwner,
+            oldStreak = oldStreak,
+            newOwner = newOwner,
+            newStreak = newStreak
+        )
+        appendManualStreakLog(log)
+        return log
+    }
+
+    fun undoLastManualStreakAdjustment(): Boolean {
+        val last = _manualStreakAdjustments.value.lastOrNull() ?: return false
+        if (
+            _currentGroupConfig.value.groupName != last.groupName ||
+            _streakOwner.value != last.newOwner ||
+            _currentStreak.value != last.newStreak
+        ) {
+            return false
+        }
+        _streakOwner.value = last.oldOwner
+        _currentStreak.value = last.oldStreak
+        _manualStreakAdjustments.value = _manualStreakAdjustments.value.dropLast(1)
+        return true
+    }
+
+    private fun appendManualStreakLog(log: ManualStreakAdjustmentLog) {
+        val trimmed = _manualStreakAdjustments.value.takeLast(maxManualStreakLogsInMemory - 1)
+        _manualStreakAdjustments.value = trimmed + log
     }
 
     private fun loadPreferences() {
