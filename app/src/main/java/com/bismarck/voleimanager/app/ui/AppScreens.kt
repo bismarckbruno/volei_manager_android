@@ -1,4 +1,4 @@
-package com.bismarck.voleimanager.app.ui
+﻿package com.bismarck.voleimanager.app.ui
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -407,14 +407,42 @@ fun HistoryScreen(
             DropdownMenu(
                 expanded = expandedDate,
                 onDismissRequest = { expandedDate = false },
-                offset = DpOffset(x = 38.dp, y = 0.dp)
+                offset = DpOffset(x = 42.dp, y = 0.dp)
             ) {
+                val allDatesSelected = historyDate == null
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.all_dates)) },
+                    text = {
+                        Text(
+                            stringResource(R.string.all_dates),
+                            fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    },
+                    colors = MenuDefaults.itemColors(
+                        textColor = if (allDatesSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        leadingIconColor = MaterialTheme.colorScheme.primary
+                    ),
                     onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false })
                 availableDates.forEach { date ->
+                    val isSelected = historyDate == date
                     DropdownMenuItem(
-                        text = { Text(formatLocalizedDate(date)) },
+                        text = {
+                            Text(
+                                formatLocalizedDate(date),
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        },
+                        colors = MenuDefaults.itemColors(
+                            textColor = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            leadingIconColor = MaterialTheme.colorScheme.primary
+                        ),
                         onClick = { viewModel.setHistoryDateFilter(date); expandedDate = false })
                 }
             }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -93,6 +94,10 @@ fun SubstitutionDialog(
         }
         list
     }
+    var selectedPlayerId by remember(playerOut.id, allOptions) { mutableStateOf<Int?>(null) }
+    val selectedOption = remember(selectedPlayerId, allOptions) {
+        allOptions.firstOrNull { it.first.id == selectedPlayerId }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -102,27 +107,85 @@ fun SubstitutionDialog(
                 Text(stringResource(R.string.no_players_swap))
             } else {
                 val listState = rememberLazyListState()
-                LazyColumn(state = listState, modifier = Modifier
-                    .heightIn(max = 300.dp)
-                    .simpleScrollbar(listState)) {
-                    items(allOptions) { (playerIn, label) ->
-                        ListItem(
-                            headlineContent = { Text(playerIn.name) },
-                            supportingContent = {
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.bodySmall
+                Column {
+                    Text(
+                        text = selectedOption?.let {
+                            stringResource(
+                                R.string.substitution_preview,
+                                playerOut.name,
+                                it.first.name
+                            )
+                        } ?: stringResource(R.string.substitution_select_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = 16.dp)
+                        ) {
+                            items(allOptions, key = { (playerIn, _) -> playerIn.id }) { (playerIn, label) ->
+                                val selected = selectedPlayerId == playerIn.id
+                                ListItem(
+                                    headlineContent = {
+                                        Text(
+                                            playerIn.name,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            label,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    },
+                                    leadingContent = { Icon(Icons.Default.Person, null) },
+                                    trailingContent = {
+                                        if (selected) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = if (selected) {
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                        } else {
+                                            MaterialTheme.colorScheme.surface
+                                        }
+                                    ),
+                                    modifier = Modifier.clickable { selectedPlayerId = playerIn.id }
                                 )
-                            },
-                            leadingContent = { Icon(Icons.Default.Person, null) },
-                            modifier = Modifier.clickable { onConfirm(playerIn) }
+                            }
+                        }
+                        LazyListFastScroller(
+                            state = listState,
+                            modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
                 }
             }
         },
-        confirmButton = {},
-        dismissButton = { 
+        confirmButton = {
+            Button(
+                onClick = {
+                    selectedOption?.first?.let(onConfirm)
+                },
+                enabled = selectedOption != null
+            ) {
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.padding(end = 8.dp)

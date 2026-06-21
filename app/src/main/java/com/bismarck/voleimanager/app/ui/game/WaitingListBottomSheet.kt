@@ -83,7 +83,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
-import com.bismarck.voleimanager.app.ui.components.simpleScrollbar
+import com.bismarck.voleimanager.app.ui.components.LazyListFastScroller
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 
@@ -254,7 +254,6 @@ internal fun WaitingListContent(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .simpleScrollbar(listState)
                 .padding(start = horizontalPadding, end = endPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 8.dp)
@@ -415,6 +414,13 @@ internal fun WaitingListContent(
                 }
             }
         } // end LazyColumn
+
+        LazyListFastScroller(
+            state = listState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 4.dp)
+        )
 
         if (externalSnackbarHostState == null) {
             SnackbarHost(

@@ -994,11 +994,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             isSetupMode = isSetupMode,
                             onSetupModeChange = { isSetupMode = it },
                             onDeleteRequest = { playerToDelete = it },
-                            onShowSnackbar = { msg ->
+                            onShowSnackbar = { msg, actionLabel, onAction ->
                                 scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        msg
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = msg,
+                                        actionLabel = actionLabel,
+                                        withDismissAction = actionLabel != null,
+                                        duration = if (actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short
                                     )
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        onAction?.invoke()
+                                    }
                                 }
                             }
                         )

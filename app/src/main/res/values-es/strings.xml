@@ -175,6 +175,9 @@
     <string name="victory_limit">Límite de victorias: %1$d</string>
     <string name="players_per_team">Jugadores por equipo: %1$d</string>
     <string name="replace_player">Sustituir %1$s</string>
+    <string name="substitution_select_hint">Selecciona quién reemplazará a la persona elegida.</string>
+    <string name="substitution_preview">%1$s será sustituido(a) por %2$s</string>
+    <string name="substitution_snackbar">%1$s fue sustituido(a) por %2$s</string>
     <string name="waiting_parentheses">(en espera)</string>
     <string name="team_a_parentheses">(Equipo A)</string>
     <string name="team_b_parentheses">(Equipo B)</string>

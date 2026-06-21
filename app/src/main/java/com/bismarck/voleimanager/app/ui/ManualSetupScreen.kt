@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
+import com.bismarck.voleimanager.app.ui.components.LazyListFastScroller
 import com.bismarck.voleimanager.app.util.EloCalculator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -131,24 +133,38 @@ fun ManualSetupScreen(
                 modifier = Modifier.padding(horizontal = 16.dp))
 
             // --- 3. LISTA DE SELEÇÃO ---
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(players) { player ->
-                    PlayerSelectionRow(
-                        player = player,
-                        currentSelection = selectionState[player.id],
-                        showElo = showElo,
-                        onSelect = { selection ->
-                            val newState = selectionState.toMutableMap()
+            val listState = rememberLazyListState()
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(end = 10.dp)
+                ) {
+                    items(players) { player ->
+                        PlayerSelectionRow(
+                            player = player,
+                            currentSelection = selectionState[player.id],
+                            showElo = showElo,
+                            onSelect = { selection ->
+                                val newState = selectionState.toMutableMap()
 
-                            if (newState[player.id] == selection) {
-                                newState.remove(player.id) // Desmarcar (vai pro banco)
-                            } else {
-                                newState[player.id] = selection // Marca A ou B
+                                if (newState[player.id] == selection) {
+                                    newState.remove(player.id) // Desmarcar (vai pro banco)
+                                } else {
+                                    newState[player.id] = selection // Marca A ou B
+                                }
+                                selectionState = newState
                             }
-                            selectionState = newState
-                        }
-                    )
+                        )
+                    }
                 }
+                LazyListFastScroller(
+                    state = listState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 2.dp)
+                )
             }
         }
     }

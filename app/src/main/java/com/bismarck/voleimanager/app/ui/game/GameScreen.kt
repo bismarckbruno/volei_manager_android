@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -66,6 +67,7 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
+import com.bismarck.voleimanager.app.ui.components.LazyListFastScroller
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
@@ -93,8 +95,10 @@ fun GameScreenContent(
     isSetupMode: Boolean,
     onSetupModeChange: (Boolean) -> Unit,
     onDeleteRequest: (Player) -> Unit,
-    onShowSnackbar: (String) -> Unit
+    onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit
 ) {
+    val context = LocalContext.current
+    val undoLabel = stringResource(R.string.undo)
     val sortedPlayers by viewModel.sortedPlayersForPresence.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
     val targetDate by viewModel.targetDate.collectAsState()
@@ -143,9 +147,16 @@ fun GameScreenContent(
             teamA,
             teamB,
             { subOut = null },
-            {
-                viewModel.substitutePlayer(p, it)
+            { replacement ->
+                viewModel.substitutePlayer(p, replacement)
                 subOut = null
+                val message = context.getString(R.string.substitution_snackbar, p.name, replacement.name)
+                onShowSnackbar(
+                    message,
+                    undoLabel
+                ) {
+                    viewModel.substitutePlayer(replacement, p)
+                }
             })
     }
     editP?.let { p ->
@@ -256,8 +267,12 @@ fun GameScreenContent(
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize()) {
+                            val listState = rememberLazyListState()
                             LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(end = 10.dp),
                                 contentPadding = PaddingValues(
                                     start = 16.dp,
                                     end = 16.dp,
@@ -349,6 +364,13 @@ fun GameScreenContent(
                                     }
                                 }
                             }
+
+                            LazyListFastScroller(
+                                state = listState,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = 2.dp)
+                            )
 
                             Surface(
                                 modifier = Modifier
@@ -1507,7 +1529,7 @@ fun EmptyStateCard(
     victoryLimit: Int = 3,
     balancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
     isDarkTheme: Boolean = false,
-    onShowSnackbar: (String) -> Unit,
+    onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit,
     onClearRecent: () -> Unit
 ) {
     var showClearConfirmation by remember { mutableStateOf(false) }
@@ -1639,14 +1661,14 @@ fun EmptyStateCard(
                                 if (selectedCount >= minNeeded) {
                                     onNextRoundClick()
                                 } else {
-                                    onShowSnackbar(select_minimum_players)
+                                    onShowSnackbar(select_minimum_players, null, null)
                                 }
                             } else {
                                 val canStartAuto = selectedCount >= minNeeded
                                 if (canStartAuto) {
                                     onStartAutoClick()
                                 } else {
-                                    onShowSnackbar(select_minimum_players_long)
+                                    onShowSnackbar(select_minimum_players_long, null, null)
                                 }
                             }
                         },
@@ -1746,7 +1768,7 @@ fun EmptyStateCard(
                                     if (selectedCount >= 4) {
                                         onStartManualClick()
                                     } else {
-                                        onShowSnackbar(select_minimum_4_players)
+                                        onShowSnackbar(select_minimum_4_players, null, null)
                                     }
                                 },
                                 leadingIcon = {

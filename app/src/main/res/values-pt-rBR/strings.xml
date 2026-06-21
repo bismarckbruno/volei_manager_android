@@ -177,6 +177,9 @@
     <string name="victory_limit">Limite de vitórias: %1$d</string>
     <string name="players_per_team">Jogadores por time: %1$d</string>
     <string name="replace_player">Substituir %1$s</string>
+    <string name="substitution_select_hint">Selecione quem vai entrar no lugar da pessoa escolhida.</string>
+    <string name="substitution_preview">%1$s será substituído(a) por %2$s</string>
+    <string name="substitution_snackbar">%1$s foi substituído(a) por %2$s</string>
     <string name="waiting_parentheses">(na espera)</string>
     <string name="team_a_parentheses">(Time A)</string>
     <string name="team_b_parentheses">(Time B)</string>
