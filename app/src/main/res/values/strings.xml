@@ -224,6 +224,10 @@
     <string name="mode_rebalance">Rebalance Mode</string>
     <string name="mode_winner_rests">Winner Rests Mode</string>
     <string name="mode_both_rest">Both Rest Mode</string>
-    <string name="limit_reached_text_winner_rests">%1$d wins in a row! The winner rests and the loser keeps playing next round if there’s at least one full team in the queue; otherwise, the winner keeps playing and the loser goes to the end of the line.</string>
-    <string name="limit_reached_text_both_rest">%1$d wins in a row! The winning team rests; the loser goes to the end of the line if there are at least 2 full teams waiting. If there’s only 1 team, only the winner rests; if there’s no full team, they keep playing.</string>
+    <string name="limit_reached_text_winner_rests_two_teams">%1$d wins in a row! The winner rests, and the next 2 waiting teams play.</string>
+    <string name="limit_reached_text_winner_rests_one_team">%1$d wins in a row! The winner rests, and the next waiting team faces the loser.</string>
+    <string name="limit_reached_text_winner_rests_no_team">%1$d wins in a row! No full team is waiting: the winner keeps playing, and the loser goes to the end of the line.</string>
+    <string name="limit_reached_text_both_rest_two_teams">%1$d wins in a row! The winner rests, the loser goes to the end of the line, and the next 2 teams play.</string>
+    <string name="limit_reached_text_both_rest_one_team">%1$d wins in a row! Only 1 full team is waiting: the winner rests, and the loser faces that team.</string>
+    <string name="limit_reached_text_both_rest_no_team">%1$d wins in a row! No full teams are waiting: the winner keeps playing.</string>
 </resources>

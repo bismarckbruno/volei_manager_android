@@ -300,6 +300,7 @@ fun GameScreenContent(
                                         streak,
                                         config.victoryLimit,
                                         config.balancingMode,
+                                        if (config.teamSize > 0) waitingList.size / config.teamSize else 0,
                                         isDarkTheme,
                                         onShowSnackbar = onShowSnackbar,
                                         onClearRecent = { viewModel.clearRecentGameData() }
@@ -1528,6 +1529,7 @@ fun EmptyStateCard(
     currentStreak: Int = 0,
     victoryLimit: Int = 3,
     balancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
+    fullTeamsInWaitingQueue: Int = 0,
     isDarkTheme: Boolean = false,
     onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit,
     onClearRecent: () -> Unit
@@ -1597,8 +1599,34 @@ fun EmptyStateCard(
                     // Adapta a mensagem dependendo do modo de balanceamento
                     val body = when (try { BalancingMode.valueOf(balancingMode) } catch (e: Exception) { BalancingMode.REBALANCE }) {
                         BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
-                        BalancingMode.WINNER_RESTS -> stringResource(R.string.limit_reached_text_winner_rests, currentStreak)
-                        BalancingMode.BOTH_REST -> stringResource(R.string.limit_reached_text_both_rest, currentStreak)
+                        BalancingMode.WINNER_RESTS -> when {
+                            fullTeamsInWaitingQueue >= 2 -> stringResource(
+                                R.string.limit_reached_text_winner_rests_two_teams,
+                                currentStreak
+                            )
+                            fullTeamsInWaitingQueue == 1 -> stringResource(
+                                R.string.limit_reached_text_winner_rests_one_team,
+                                currentStreak
+                            )
+                            else -> stringResource(
+                                R.string.limit_reached_text_winner_rests_no_team,
+                                currentStreak
+                            )
+                        }
+                        BalancingMode.BOTH_REST -> when {
+                            fullTeamsInWaitingQueue >= 2 -> stringResource(
+                                R.string.limit_reached_text_both_rest_two_teams,
+                                currentStreak
+                            )
+                            fullTeamsInWaitingQueue == 1 -> stringResource(
+                                R.string.limit_reached_text_both_rest_one_team,
+                                currentStreak
+                            )
+                            else -> stringResource(
+                                R.string.limit_reached_text_both_rest_no_team,
+                                currentStreak
+                            )
+                        }
                     }
                     Text(
                         text = body,

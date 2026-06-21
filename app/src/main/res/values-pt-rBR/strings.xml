@@ -165,8 +165,12 @@
     <string name="team_x_wins">Vitória do %1$s</string>
     <string name="winner">vencedor</string>
     <string name="limit_reached_text">%1$d vitórias seguidas! O time vencedor será rebalanceado na próxima rodada.</string>
-    <string name="limit_reached_text_winner_rests">%1$d vitórias seguidas! O vencedor descansa e o perdedor segue jogando na próxima rodada se houver ao menos um time completo na fila de espera; caso contrário, o vencedor segue jogando e o perdedor vai pro final da fila.</string>
-    <string name="limit_reached_text_both_rest">%1$d vitórias seguidas! O time vencedor descansa; o perdedor vai para o final da fila se houver ao menos 2 times completos na fila de espera. Se houver só 1 time, só o vencedor descansa; se não houver nenhum, segue jogando.</string>
+    <string name="limit_reached_text_winner_rests_two_teams">%1$d vitórias seguidas! O vencedor descansa e os 2 próximos times da fila se enfrentam.</string>
+    <string name="limit_reached_text_winner_rests_one_team">%1$d vitórias seguidas! O vencedor descansa e o próximo time da fila enfrenta o perdedor.</string>
+    <string name="limit_reached_text_winner_rests_no_team">%1$d vitórias seguidas! Sem time completo na fila: o vencedor segue jogando e o perdedor vai para o fim da fila.</string>
+    <string name="limit_reached_text_both_rest_two_teams">%1$d vitórias seguidas! O vencedor descansa, o perdedor vai para o fim da fila e os 2 próximos times jogam.</string>
+    <string name="limit_reached_text_both_rest_one_team">%1$d vitórias seguidas! Só 1 time completo na fila: o vencedor descansa e o perdedor encara esse time.</string>
+    <string name="limit_reached_text_both_rest_no_team">%1$d vitórias seguidas! Sem times completos na fila: o vencedor segue jogando.</string>
     <string name="limit_reached_title">👑 Rei da quadra atingiu o limite!</string>
     <string name="increase_score">Aumentar placar</string>
     <string name="decrease_score">Diminuir placar</string>

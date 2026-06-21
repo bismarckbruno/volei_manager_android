@@ -1221,6 +1221,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun startNextRound() {
         val conf = _currentGroupConfig.value
+        if (conf.teamSize <= 0) {
+            startNextRoundRebalance(conf.copy(teamSize = 6))
+            return
+        }
         val mode = try { BalancingMode.valueOf(conf.balancingMode) } catch (e: Exception) { BalancingMode.REBALANCE }
         when (mode) {
             BalancingMode.REBALANCE -> startNextRoundRebalance(conf)
@@ -1231,7 +1235,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
 
     private fun startNextRoundRebalance(conf: GroupConfig) {
-        val conf = _currentGroupConfig.value
+        if (conf.teamSize <= 0) return
         val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
         val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
 
@@ -1252,7 +1256,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
-        fun getEffectiveGames(p: Player): Int = TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
+        fun getEffectiveGames(p: Player): Int =
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
 
         val sortedLosers = TeamBalancer.groupAndInterleave(losers) { getEffectiveGames(it) }
 
@@ -1263,54 +1268,122 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val winnersToKeep = sortedWinners.take(conf.teamSize * 2)
             val winnersToDrop = sortedWinners.drop(conf.teamSize * 2)
 
-            // Quantidade de times completos na fila
-            val fullTeamsInWait = (waitlist.size) / conf.teamSize
+            val fullPool = (winnersToDrop + waitlist + sortedLosers).toMutableList()
 
-            if (fullTeamsInWait >= 1) {
-                // Apenas 1 time completo do topo entra para substituir (descanso simples)
-                val teamFromWait = waitlist.take(conf.teamSize)
-                val newWait = waitlist.drop(conf.teamSize).toMutableList()
-                // Os perdedores formam o time adversário (completa com newWait se necessário)
-                val teamLosers = sortedLosers.take(conf.teamSize).toMutableList()
-                if (teamLosers.size < conf.teamSize) {
-                    val needed = conf.teamSize - teamLosers.size
-                    val picked = newWait.take(needed)
-                    teamLosers.addAll(picked)
-                    newWait.removeAll(picked)
-                }
-                // Os vencedores vão descansar (winnersToDrop + winnersToKeep ficam fora desta partida)
-                // Monta os times: teamFromWait vs teamLosers
-                if (teamFromWait.size == conf.teamSize && teamLosers.size == conf.teamSize) {
-                    _teamA.value = sortTeamPlayers(teamFromWait)
-                    _teamB.value = sortTeamPlayers(teamLosers)
-                    // Marca os vencedores como descansando e adiciona à espera (com asterisco)
-                    val allResting = winnersToKeep + winnersToDrop
-                    val returnRound = _roundCounter.value + 1
-                    val restMap = _restingPlayers.value.toMutableMap()
-                    allResting.forEach { restMap[it.id] = returnRound }
-                    _restingPlayers.value = restMap
-                    // A waitingList deve conter: jogadores descansando + newWait
-                    val restingWithToll = allResting.map { applyTollIfNecessary(it) }.distinctBy { it.id }
-                    val dedupWait = (restingWithToll + newWait).distinctBy { it.id }
-                    _waitingList.value = dedupWait
+            val cA = mutableListOf<Player>()
+            val cB = mutableListOf<Player>()
+
+            if (conf.priorityEnabled) {
+                val priorityWinners = winnersToKeep.filter { it.isPriority }.toMutableList()
+                val nonPriorityWinners = winnersToKeep.filter { !it.isPriority }.toMutableList()
+
+                if (priorityWinners.isNotEmpty()) {
+                    cA.add(priorityWinners.removeAt(0))
                 } else {
-                    // Fallback: se não há jogadores suficientes, mantém a lógica clássica
-                    startNextRoundRebalance(conf)
+                    val p = fullPool.firstOrNull { it.isPriority }
+                    if (p != null) {
+                        cA.add(p); fullPool.remove(p)
+                    }
+                }
+
+                if (priorityWinners.isNotEmpty()) {
+                    cB.add(priorityWinners.removeAt(0))
+                } else {
+                    val p = fullPool.firstOrNull { it.isPriority }
+                    if (p != null) {
+                        cB.add(p); fullPool.remove(p)
+                    }
+                }
+
+                nonPriorityWinners.addAll(priorityWinners)
+                nonPriorityWinners.sortedByDescending { it.elo }.forEach { p ->
+                    if (cA.size < conf.teamSize && cB.size < conf.teamSize) {
+                        if (cA.sumOf { it.elo } <= cB.sumOf { it.elo }) cA.add(p) else cB.add(p)
+                    } else if (cA.size < conf.teamSize) {
+                        cA.add(p)
+                    } else if (cB.size < conf.teamSize) {
+                        cB.add(p)
+                    }
                 }
             } else {
-                // Menos que 1 time completo: o vencedor continua jogando
-                val currentWinners = winnersToKeep
-                if (currentWinners.size >= conf.teamSize * 2) {
-                    val (a, b) = balanceTeamsWithPriority(currentWinners, conf.teamSize)
-                    _teamA.value = sortTeamPlayers(a); _teamB.value = sortTeamPlayers(b)
-                    _waitingList.value = waitlist + sortedLosers
-                } else {
-                    startNextRoundRebalance(conf)
+                winnersToKeep.sortedByDescending { it.elo }.forEach { p ->
+                    if (cA.size < conf.teamSize && cB.size < conf.teamSize) {
+                        if (cA.sumOf { it.elo } <= cB.sumOf { it.elo }) cA.add(p) else cB.add(p)
+                    } else if (cA.size < conf.teamSize) {
+                        cA.add(p)
+                    } else if (cB.size < conf.teamSize) {
+                        cB.add(p)
+                    }
                 }
             }
+
+            val totalNeeded = (conf.teamSize - cA.size) + (conf.teamSize - cB.size)
+            if (totalNeeded > 0) {
+                val playersToAdd = fullPool.take(totalNeeded).sortedByDescending { it.elo }
+                if (fullPool.size >= totalNeeded) {
+                    fullPool.subList(0, totalNeeded).clear()
+                } else {
+                    fullPool.clear()
+                }
+
+                playersToAdd.forEach { p ->
+                    if (cA.size < conf.teamSize && cB.size < conf.teamSize) {
+                        if (cA.sumOf { it.elo } <= cB.sumOf { it.elo }) cA.add(p) else cB.add(p)
+                    } else if (cA.size < conf.teamSize) {
+                        cA.add(p)
+                    } else {
+                        cB.add(p)
+                    }
+                }
+            }
+
+            _teamA.value = sortTeamPlayers(cA)
+            _teamB.value = sortTeamPlayers(cB)
+            _waitingList.value = fullPool
         } else {
-            // Ainda não atingiu o limite: usa o comportamento padrão (rebalanceamento) para a rotatividade
-            startNextRoundRebalance(conf)
+            var teamWin = activeWinners.toMutableList()
+            var remainingPool = (waitlist + sortedLosers).toMutableList()
+
+            if (teamWin.size > conf.teamSize) {
+                val sorted = TeamBalancer.groupAndInterleave(teamWin.toList()) { getEffectiveGames(it) }
+                teamWin = sorted.take(conf.teamSize).toMutableList()
+                val droppedWinners = TeamBalancer.interleaveByElo(sorted.drop(conf.teamSize))
+                remainingPool.addAll(0, droppedWinners)
+            } else if (teamWin.size < conf.teamSize) {
+                val needed = conf.teamSize - teamWin.size
+                if (remainingPool.size >= needed) {
+                    val picked = remainingPool.take(needed)
+                    teamWin.addAll(picked)
+                    remainingPool.removeAll(picked)
+                } else {
+                    teamWin.addAll(remainingPool)
+                    remainingPool.clear()
+                }
+            }
+
+            val teamChal = mutableListOf<Player>()
+
+            if (conf.priorityEnabled) {
+                val priorityPlayer = remainingPool.firstOrNull { it.isPriority }
+                if (priorityPlayer != null) {
+                    teamChal.add(priorityPlayer); remainingPool.remove(priorityPlayer)
+                }
+            }
+
+            val slotsNeeded = conf.teamSize - teamChal.size
+            if (slotsNeeded > 0) {
+                val picked = remainingPool.take(slotsNeeded)
+                teamChal.addAll(picked)
+                remainingPool.removeAll(picked)
+            }
+
+            _waitingList.value = remainingPool
+            if (_streakOwner.value == "B") {
+                _teamB.value = sortTeamPlayers(teamWin); _teamA.value = sortTeamPlayers(teamChal)
+            } else {
+                _teamA.value = sortTeamPlayers(teamWin); _teamB.value = sortTeamPlayers(teamChal)
+                _streakOwner.value = "A"
+            }
         }
 
         _hasPreviousMatch.value = false
@@ -1326,6 +1399,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * - Se não houver time completo na fila, o vencedor continua jogando.
      */
     private fun startNextRoundWinnerRests(conf: GroupConfig) {
+        if (conf.teamSize <= 0) return
         // Avança a rodada e tenta reativar quem terminou o descanso
         _roundCounter.value += 1
         // Se houver um time retornante e for possível montar a partida, agenda e encerra aqui
@@ -1447,6 +1521,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *   - Se não houver times completos suficientes: vencedor continua.
      */
      private fun startNextRoundBothRest(conf: GroupConfig) {
+        if (conf.teamSize <= 0) return
         // Avança a rodada e tenta reativar quem terminou o descanso
          _roundCounter.value += 1
         // Se houver um time retornante e for possível montar a partida, agenda e encerra aqui

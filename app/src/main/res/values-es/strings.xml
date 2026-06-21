@@ -224,6 +224,10 @@
     <string name="mode_rebalance">Rebalanceo</string>
     <string name="mode_winner_rests">Ganador Descansa</string>
     <string name="mode_both_rest">Ambos Descansan</string>
-    <string name="limit_reached_text_winner_rests">¡%1$d victorias seguidas! El ganador descansa y el perdedor sigue jugando en la próxima ronda si hay al menos un equipo completo en la fila; de lo contrario, el ganador sigue jugando y el perdedor va al final de la fila.</string>
-    <string name="limit_reached_text_both_rest">¡%1$d victorias seguidas! El equipo ganador descansa; el perdedor va al final de la fila si hay al menos 2 equipos completos esperando. Si solo hay 1 equipo, solo el ganador descansa; si no hay equipo completo, siguen jugando.</string>
+    <string name="limit_reached_text_winner_rests_two_teams">¡%1$d victorias seguidas! El ganador descansa y juegan los siguientes 2 equipos de la fila.</string>
+    <string name="limit_reached_text_winner_rests_one_team">¡%1$d victorias seguidas! El ganador descansa y el siguiente equipo de la fila enfrenta al perdedor.</string>
+    <string name="limit_reached_text_winner_rests_no_team">¡%1$d victorias seguidas! No hay equipo completo en la fila: el ganador sigue jugando y el perdedor va al final.</string>
+    <string name="limit_reached_text_both_rest_two_teams">¡%1$d victorias seguidas! El ganador descansa, el perdedor va al final de la fila y juegan los siguientes 2 equipos.</string>
+    <string name="limit_reached_text_both_rest_one_team">¡%1$d victorias seguidas! Solo hay 1 equipo completo en la fila: el ganador descansa y el perdedor enfrenta a ese equipo.</string>
+    <string name="limit_reached_text_both_rest_no_team">¡%1$d victorias seguidas! No hay equipos completos en la fila: el ganador sigue jugando.</string>
 </resources>
