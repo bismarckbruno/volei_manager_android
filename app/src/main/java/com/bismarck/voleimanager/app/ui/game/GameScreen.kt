@@ -186,13 +186,13 @@ fun GameScreenContent(
     val recentStreakAdjustments = remember(manualStreakAdjustments, selectedGroup) {
         manualStreakAdjustments
             .filter { it.groupName == selectedGroup }
-            .takeLast(3)
+            .takeLast(6)
             .asReversed()
     }
     val recentSubstitutions = remember(manualSubstitutions, selectedGroup) {
         manualSubstitutions
             .filter { it.groupName == selectedGroup }
-            .takeLast(3)
+            .takeLast(6)
             .asReversed()
     }
 
@@ -643,13 +643,6 @@ fun ActiveGameView(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.recent_activity_title),
                         style = MaterialTheme.typography.titleSmall,
@@ -989,6 +982,7 @@ fun ActiveGameView(
                                 )
                             }
                             RecentActivityCard(modifier = Modifier.padding(top = 8.dp))
+                            Spacer(Modifier.height(4.dp))
                         }
                         Spacer(Modifier.width(16.dp))
                         Column(
