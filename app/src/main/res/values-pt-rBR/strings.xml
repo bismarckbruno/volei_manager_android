@@ -126,6 +126,16 @@
     <string name="yes">Sim</string>
     <string name="faq_q4">Como criar ou gerenciar Grupos?</string>
     <string name="faq_a4">No menu lateral, você pode criar diferentes \"Grupos\". Isso é útil se você joga em lugares ou com turmas diferentes (ex: Vôlei de Sábado e Vôlei da Empresa). Cada grupo tem seu próprio histórico e lista de jogadores.</string>
+    <string name="faq_q5">Como o app escolhe quem joga a próxima partida?</string>
+    <string name="faq_a5">Ao tocar em \"Iniciar próximo jogo\", o app segue o modo de balanceamento do grupo. Em geral, ele respeita a fila de espera e os jogadores presentes para manter a rotação justa.</string>
+    <string name="faq_q6">Qual é a diferença entre os modos de balanceamento?</string>
+    <string name="faq_a6">Rebalanceamento recompõe os times para equilibrar força. Vencedor Descansa coloca o vencedor para descansar ao atingir o limite. Ambos Descansam dá mais renovação da quadra quando há fila suficiente.</string>
+    <string name="faq_q7">O que acontece quando o limite de vitórias é atingido?</string>
+    <string name="faq_a7">Quando um time atinge o limite configurado, a próxima rodada muda conforme o modo escolhido e a quantidade de times completos na fila de espera.</string>
+    <string name="faq_q8">Como funcionam substituições durante o jogo?</string>
+    <string name="faq_a8">Você escolhe quem sai, seleciona quem entra e confirma. Em seguida, aparece uma mensagem com opção de desfazer para voltar ao estado anterior.</string>
+    <string name="faq_q9">Quando vale usar montagem manual de times?</string>
+    <string name="faq_a9">Use quando quiser controlar situações específicas da quadra (lesão, adaptação de nível, treino por posição). Para rodadas normais, o modo automático costuma ser mais rápido e consistente.</string>
     <string name="faq_q2">Como funciona a Prioridade (Estrela)?</string>
     <string name="faq_a2">Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com \"Prioridade\", o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente.</string>
     <string name="faq_q3">O que é Mostrar Atraso?</string>
@@ -230,4 +240,8 @@
     <string name="mode_rebalance">Rebalanceamento</string>
     <string name="mode_winner_rests">Vencedor Descansa</string>
     <string name="mode_both_rest">Ambos Descansam</string>
+    <string name="balance_mode_long_press_hint">Toque e segure em um modo para ver uma dica rápida.</string>
+    <string name="mode_rebalance_tooltip">Reorganiza os times na próxima rodada para manter o equilíbrio entre Elo e prioridade.</string>
+    <string name="mode_winner_rests_tooltip">Ao atingir o limite de vitórias seguidas, o vencedor descansa e a fila define a próxima formação.</string>
+    <string name="mode_both_rest_tooltip">Ao atingir o limite, o vencedor descansa e a rotação usa mais a fila quando houver times completos suficientes.</string>
 </resources>

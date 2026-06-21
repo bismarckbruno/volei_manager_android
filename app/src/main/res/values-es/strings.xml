@@ -126,6 +126,16 @@
     <string name="yes">Sí</string>
     <string name="faq_q4">¿Cómo crear o administrar Grupos?</string>
     <string name="faq_a4">Desde el menú lateral puedes organizar varios grupos. Es ideal para separar tus partidos en diferentes lugares (por ejemplo: \"Vóley con amigos\" o \"Vóley del trabajo\"). Cada grupo cuenta con su lista de jugadores e historial propio.</string>
+    <string name="faq_q5">¿Cómo elige la app quién juega el próximo partido?</string>
+    <string name="faq_a5">Cuando tocas \"Próximo partido\", la app sigue el modo de balance del grupo. En general, respeta la cola de espera y los jugadores presentes para mantener una rotación justa.</string>
+    <string name="faq_q6">¿Cuál es la diferencia entre los modos de balance?</string>
+    <string name="faq_a6">Rebalanceo recompone los equipos para equilibrar fuerzas. Ganador Descansa hace que el ganador descanse al alcanzar el límite. Ambos Descansan da más rotación cuando la cola tiene equipos completos suficientes.</string>
+    <string name="faq_q7">¿Qué pasa cuando se alcanza el límite de victorias?</string>
+    <string name="faq_a7">Cuando un equipo llega al límite configurado, la siguiente ronda cambia según el modo elegido y la cantidad de equipos completos que haya en la cola.</string>
+    <string name="faq_q8">¿Cómo funcionan las sustituciones durante el partido?</string>
+    <string name="faq_a8">Eliges quién sale, seleccionas quién entra y confirmas. Después aparece un mensaje con opción de deshacer para volver al estado anterior.</string>
+    <string name="faq_q9">¿Cuándo conviene usar la formación manual de equipos?</string>
+    <string name="faq_a9">Úsala cuando necesites ajustes específicos en la cancha (lesión, adaptación de nivel, práctica por posición). Para rondas normales, el modo automático suele ser más rápido y consistente.</string>
     <string name="faq_q2">¿Cómo funciona la Prioridad (Estrella)?</string>
     <string name="faq_a2">Sirve para distribuir mejor los niveles o posiciones en la cancha. Por ejemplo, si etiquetas a los levantadores con \"Prioridad\", el sistema intentará colocar a uno en cada lado para que los equipos queden equilibrados al generarlos automáticamente.</string>
     <string name="faq_q3">¿Qué es Mostrar Retraso?</string>
@@ -224,6 +234,10 @@
     <string name="mode_rebalance">Rebalanceo</string>
     <string name="mode_winner_rests">Ganador Descansa</string>
     <string name="mode_both_rest">Ambos Descansan</string>
+    <string name="balance_mode_long_press_hint">Mantén pulsado un modo para ver una ayuda rápida.</string>
+    <string name="mode_rebalance_tooltip">Reorganiza los equipos en la siguiente ronda para mantener equilibrados el Elo y la prioridad.</string>
+    <string name="mode_winner_rests_tooltip">Al alcanzar el límite de racha, el ganador descansa y la cola define la próxima formación.</string>
+    <string name="mode_both_rest_tooltip">Al alcanzar el límite de racha, el ganador descansa y la rotación usa más la cola cuando hay suficientes equipos completos.</string>
     <string name="limit_reached_text_winner_rests_two_teams">¡%1$d victorias seguidas! El ganador descansa y juegan los siguientes 2 equipos de la fila.</string>
     <string name="limit_reached_text_winner_rests_one_team">¡%1$d victorias seguidas! El ganador descansa y el siguiente equipo de la fila enfrenta al perdedor.</string>
     <string name="limit_reached_text_winner_rests_no_team">¡%1$d victorias seguidas! No hay equipo completo en la fila: el ganador sigue jugando y el perdedor va al final.</string>

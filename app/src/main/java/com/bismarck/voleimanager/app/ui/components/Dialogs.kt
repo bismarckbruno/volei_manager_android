@@ -1,6 +1,8 @@
 package com.bismarck.voleimanager.app.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,6 +28,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bismarck.voleimanager.app.data.model.Player
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -344,22 +348,36 @@ fun GroupConfigDialog(
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
                 val modes = listOf(
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name to stringResource(R.string.mode_rebalance),
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name to stringResource(R.string.mode_winner_rests),
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name to stringResource(R.string.mode_both_rest)
+                    Triple(
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
+                        stringResource(R.string.mode_rebalance),
+                        stringResource(R.string.mode_rebalance_tooltip)
+                    ),
+                    Triple(
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name,
+                        stringResource(R.string.mode_winner_rests),
+                        stringResource(R.string.mode_winner_rests_tooltip)
+                    ),
+                    Triple(
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name,
+                        stringResource(R.string.mode_both_rest),
+                        stringResource(R.string.mode_both_rest_tooltip)
+                    )
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.balance_mode_long_press_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(8.dp))
-                modes.forEach { (value, label) ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { balancingMode = value }
-                    ) {
-                        RadioButton(selected = balancingMode == value, onClick = { balancingMode = value })
-                        Spacer(Modifier.width(12.dp))
-                        Text(label, style = MaterialTheme.typography.bodySmall)
-                    }
+                modes.forEach { (value, label, tooltip) ->
+                    BalancingModeOptionRow(
+                        label = label,
+                        tooltip = tooltip,
+                        selected = balancingMode == value,
+                        onSelect = { balancingMode = value }
+                    )
                 }
 
                 HorizontalDivider(
@@ -408,6 +426,51 @@ fun GroupConfigDialog(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun BalancingModeOptionRow(
+    label: String,
+    tooltip: String,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val tooltipState = rememberTooltipState(isPersistent = true)
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = {
+            PlainTooltip {
+                Text(
+                    text = tooltip,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        state = tooltipState
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onSelect,
+                    onLongClick = {
+                        scope.launch {
+                            tooltipState.show()
+                            delay(3600)
+                            tooltipState.dismiss()
+                        }
+                    }
+                )
+        ) {
+            RadioButton(selected = selected, onClick = onSelect)
+            Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
 @Composable
 fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var text by remember { mutableStateOf("") }
@@ -428,22 +491,36 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                 Spacer(Modifier.height(24.dp))
                 Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
                 val modes = listOf(
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name to stringResource(R.string.mode_rebalance),
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name to stringResource(R.string.mode_winner_rests),
-                    com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name to stringResource(R.string.mode_both_rest)
+                    Triple(
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
+                        stringResource(R.string.mode_rebalance),
+                        stringResource(R.string.mode_rebalance_tooltip)
+                    ),
+                    Triple(
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name,
+                        stringResource(R.string.mode_winner_rests),
+                        stringResource(R.string.mode_winner_rests_tooltip)
+                    ),
+                    Triple(
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name,
+                        stringResource(R.string.mode_both_rest),
+                        stringResource(R.string.mode_both_rest_tooltip)
+                    )
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.balance_mode_long_press_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(8.dp))
-                modes.forEach { (value, label) ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { balancingMode = value }
-                    ) {
-                        RadioButton(selected = balancingMode == value, onClick = { balancingMode = value })
-                        Spacer(Modifier.width(12.dp))
-                        Text(label, style = MaterialTheme.typography.bodySmall)
-                    }
+                modes.forEach { (value, label, tooltip) ->
+                    BalancingModeOptionRow(
+                        label = label,
+                        tooltip = tooltip,
+                        selected = balancingMode == value,
+                        onSelect = { balancingMode = value }
+                    )
                 }
             }
         },

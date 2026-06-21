@@ -1279,6 +1279,56 @@ fun FAQScreen() {
             stringResource(R.string.faq_a4)
         )
 
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
+        FAQItem(
+            stringResource(R.string.faq_q5),
+            stringResource(R.string.faq_a5)
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
+        FAQItem(
+            stringResource(R.string.faq_q6),
+            stringResource(R.string.faq_a6)
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
+        FAQItem(
+            stringResource(R.string.faq_q7),
+            stringResource(R.string.faq_a7)
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
+        FAQItem(
+            stringResource(R.string.faq_q8),
+            stringResource(R.string.faq_a8)
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
+        FAQItem(
+            stringResource(R.string.faq_q9),
+            stringResource(R.string.faq_a9)
+        )
+
         Spacer(Modifier.height(8.dp))
     }
 }
@@ -1683,9 +1733,5 @@ fun AboutScreenPreview() {
         }
     }
 }
-
-
-
-
 
 
