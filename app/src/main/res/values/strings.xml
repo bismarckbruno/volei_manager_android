@@ -175,7 +175,7 @@
     <string name="team_x_wins">%1$s wins</string>
     <string name="winner">The winner</string>
     <string name="increase_score">Increase score</string>
-    <string name="limit_reached_title">👑 King of the court has reached the limit!</string>
+    <string name="limit_reached_title">King of the court has reached the limit!</string>
     <string name="limit_reached_text">The winning team has won %1$d in a row and will be redistributed in the next round</string>
     <string name="decrease_score">Decrease score</string>
     <string name="select_minimum_players_long">Select at least %1$d players or change this setting in \"Group rules\"</string>

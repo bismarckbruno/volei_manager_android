@@ -181,7 +181,7 @@
     <string name="limit_reached_text_both_rest_two_teams">%1$d vitórias seguidas! O vencedor descansa, o perdedor vai para o fim da fila e os 2 próximos times jogam.</string>
     <string name="limit_reached_text_both_rest_one_team">%1$d vitórias seguidas! Só 1 time completo na fila: o vencedor descansa e o perdedor encara esse time.</string>
     <string name="limit_reached_text_both_rest_no_team">%1$d vitórias seguidas! Sem times completos na fila: o vencedor segue jogando.</string>
-    <string name="limit_reached_title">👑 Rei da quadra atingiu o limite!</string>
+    <string name="limit_reached_title">Rei da quadra atingiu o limite!</string>
     <string name="increase_score">Aumentar placar</string>
     <string name="decrease_score">Diminuir placar</string>
     <string name="select_minimum_players_long">Selecione ao menos %1$d jogadores ou altere essa configuração em \"Regras do grupo\"</string>

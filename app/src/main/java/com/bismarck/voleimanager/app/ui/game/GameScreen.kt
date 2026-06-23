@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.R
@@ -271,8 +273,7 @@ fun GameScreenContent(
                             LazyColumn(
                                 state = listState,
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(end = 10.dp),
+                                    .fillMaxSize(),
                                 contentPadding = PaddingValues(
                                     start = 16.dp,
                                     end = 16.dp,
@@ -370,7 +371,7 @@ fun GameScreenContent(
                                 state = listState,
                                 modifier = Modifier
                                     .align(Alignment.CenterEnd)
-                                    .padding(end = 2.dp)
+                                    .padding(end = 4.dp)
                             )
 
                             Surface(
@@ -1588,13 +1589,26 @@ fun EmptyStateCard(
                 val limitReached = currentStreak >= victoryLimit
                 if (limitReached) {
                     val kingTextColor = MaterialTheme.colorScheme.tertiary
-                    Text(
-                        text = stringResource(R.string.limit_reached_title),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = kingTextColor,
-                        textAlign = TextAlign.Center
-                    );
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WorkspacePremium,
+                            contentDescription = null,
+                            tint = kingTextColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.limit_reached_title),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = kingTextColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp));
                     // Adapta a mensagem dependendo do modo de balanceamento
                     val body = when (try { BalancingMode.valueOf(balancingMode) } catch (e: Exception) { BalancingMode.REBALANCE }) {
@@ -1980,8 +1994,17 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                 Spacer(Modifier.width(8.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isResting) {
+                            Icon(
+                                imageVector = Icons.Default.PauseCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                            )
+                            Spacer(Modifier.width(4.dp))
+                        }
                         Text(
-                            if (isResting) "*${player.name}" else player.name,
+                            player.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
