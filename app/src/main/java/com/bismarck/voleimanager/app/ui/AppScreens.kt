@@ -3,12 +3,19 @@
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,6 +39,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.bismarck.voleimanager.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
@@ -1228,6 +1236,19 @@ fun HistoryItem(
 // --- TELA DE FAQ / AJUDA ---
 @Composable
 fun FAQScreen() {
+    val faqItems = listOf(
+        stringResource(R.string.faq_q1) to stringResource(R.string.faq_a1),
+        stringResource(R.string.faq_q2) to stringResource(R.string.faq_a2),
+        stringResource(R.string.faq_q3) to stringResource(R.string.faq_a3),
+        stringResource(R.string.faq_q4) to stringResource(R.string.faq_a4),
+        stringResource(R.string.faq_q5) to stringResource(R.string.faq_a5),
+        stringResource(R.string.faq_q6) to stringResource(R.string.faq_a6),
+        stringResource(R.string.faq_q7) to stringResource(R.string.faq_a7),
+        stringResource(R.string.faq_q8) to stringResource(R.string.faq_a8),
+        stringResource(R.string.faq_q9) to stringResource(R.string.faq_a9)
+    )
+    var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1245,112 +1266,78 @@ fun FAQScreen() {
         )
         Spacer(Modifier.height(16.dp))
 
-        FAQItem(
-            stringResource(R.string.faq_q1),
-            stringResource(R.string.faq_a1)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q2),
-            stringResource(R.string.faq_a2)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q3),
-            stringResource(R.string.faq_a3)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q4),
-            stringResource(R.string.faq_a4)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q5),
-            stringResource(R.string.faq_a5)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q6),
-            stringResource(R.string.faq_a6)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q7),
-            stringResource(R.string.faq_a7)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q8),
-            stringResource(R.string.faq_a8)
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-        )
-
-        FAQItem(
-            stringResource(R.string.faq_q9),
-            stringResource(R.string.faq_a9)
-        )
+        faqItems.forEachIndexed { index, (question, answer) ->
+            FAQItem(
+                question = question,
+                answer = answer,
+                isExpanded = expandedIndex == index,
+                onClick = {
+                    expandedIndex = if (expandedIndex == index) null else index
+                }
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+            )
+        }
 
         Spacer(Modifier.height(8.dp))
     }
 }
 
 @Composable
-fun FAQItem(question: String, answer: String) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 8.dp)) {
-        Text(
-            text = question,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = answer,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+fun FAQItem(
+    question: String,
+    answer: String,
+    isExpanded: Boolean,
+    onClick: () -> Unit
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "FaqArrowRotation"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = question,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.rotate(rotation)
+            )
+        }
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
+            exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
+        ) {
+            Text(
+                text = answer,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
     }
 }
 
@@ -1736,5 +1723,3 @@ fun AboutScreenPreview() {
         }
     }
 }
-
-

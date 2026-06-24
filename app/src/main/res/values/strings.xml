@@ -54,7 +54,7 @@
     <string name="about_app_desc">Volley Manager arose from the real need to organize volleyball matches fairly and dynamically. Who has never experienced the problem of unbalanced teams or confusion when knowing who is next to play? The app takes care of the queue, skill level (through Elo) and everyone\'s fun. If you have any suggestions or found a problem, do not hesitate to use the button below to send your feedback!</string>
     <string name="about_code_desc">Open-source project developed natively in Kotlin with Jetpack Compose. The architecture follows the clean MVVM pattern, using Room Database for local and offline storage of all data. To delve into the architecture or contribute to the project, access the documentation via the button below.</string>
     <string name="about_dev_desc">Hello! I am Bruno Bismarck, developer and UX Designer behind this project. I created this application with dedication to make life easier for those who organize games with friends. Follow my work, say hello and stay up to date with the news through my Instagram by clicking the button below!</string>
-    <string name="clear_match_desc">Temporary data will be cleared without affecting history, which will be kept. All players will be unchecked. Use this option when finishing the last match of the day.</string>
+    <string name="clear_match_desc">Temporary data will be cleared without affecting history, which will be kept. All players will be unchecked.</string>
     <string name="no_players_swap">No players available to swap.</string>
     <string name="progress_lost">Current progress will be lost.</string>
     <string name="no_matches_found">No matches found</string>
