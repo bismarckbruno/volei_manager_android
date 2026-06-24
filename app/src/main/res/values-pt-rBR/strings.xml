@@ -246,4 +246,5 @@
     <string name="mode_rebalance_tooltip">Reorganiza os times na próxima rodada para manter o equilíbrio entre Elo e prioridade.</string>
     <string name="mode_winner_rests_tooltip">Ao atingir o limite de vitórias seguidas, o vencedor descansa e a fila define a próxima formação.</string>
     <string name="mode_both_rest_tooltip">Ao atingir o limite, o vencedor descansa e a rotação usa mais a fila quando houver times completos suficientes.</string>
+    <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_PT_BR</string>
 </resources>

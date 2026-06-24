@@ -246,4 +246,5 @@
     <string name="limit_reached_text_both_rest_two_teams">¡%1$d victorias seguidas! El ganador descansa, el perdedor va al final de la fila y juegan los siguientes 2 equipos.</string>
     <string name="limit_reached_text_both_rest_one_team">¡%1$d victorias seguidas! Solo hay 1 equipo completo en la fila: el ganador descansa y el perdedor enfrenta a ese equipo.</string>
     <string name="limit_reached_text_both_rest_no_team">¡%1$d victorias seguidas! No hay equipos completos en la fila: el ganador sigue jugando.</string>
+    <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_ES_419</string>
 </resources>

@@ -246,4 +246,5 @@
     <string name="limit_reached_text_both_rest_two_teams">%1$d wins in a row! The winner rests, the loser goes to the end of the line, and the next 2 teams play.</string>
     <string name="limit_reached_text_both_rest_one_team">%1$d wins in a row! Only 1 full team is waiting: the winner rests, and the loser faces that team.</string>
     <string name="limit_reached_text_both_rest_no_team">%1$d wins in a row! No full teams are waiting: the winner keeps playing.</string>
+    <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README</string>
 </resources>

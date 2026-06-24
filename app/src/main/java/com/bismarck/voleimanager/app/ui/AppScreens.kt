@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
@@ -1435,9 +1436,11 @@ fun AboutScreen() {
                     style = MaterialTheme.typography.bodyMedium
                 )
 
+                val readmeUrl = stringResource(R.string.readme_url)
+
                 Button(
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://bismarckbruno.github.io/volei_manager_android/"))
+                        val intent = Intent(Intent.ACTION_VIEW, readmeUrl.toUri())
                         context.startActivity(intent)
                     },
                     modifier = Modifier
