@@ -1,46 +1,46 @@
-# Política de Privacidade
+# Privacy Policy
 
-**Última atualização:** Abril de 2026
+**Last updated:** April 2026
 
-O **Vôlei Manager** é um aplicativo gratuito de código aberto destinado à organização de partidas recreativas de vôlei. Esta política descreve como os dados são tratados no aplicativo.
+**Volley Manager** is a free and open-source app for organizing recreational volleyball matches. This policy explains how data is handled in the app.
 
 ---
 
-### 1. Dados Coletados
-O aplicativo armazena exclusivamente os dados que você fornece manualmente:
-* Nomes dos jogadores;
-* Grupos;
-* Histórico de partidas;
-* Pontuação Elo.
+### 1. Data Collected
+The app stores only data you manually provide:
+* Player names;
+* Groups;
+* Match history;
+* Elo ratings.
 
-**Nenhum** dado pessoal sensível (como e-mail, telefone, localização ou identificadores de dispositivo) é coletado automaticamente.
+**No** sensitive personal data (such as email, phone, location, or device identifiers) is collected automatically.
 
-### 2. Armazenamento Local
-Todos os dados são armazenados exclusivamente no seu dispositivo, utilizando o banco de dados interno do aplicativo (**Room/SQLite**). Nenhum dado é enviado para servidores externos ou armazenado na nuvem.
+### 2. Local Storage
+All data is stored only on your device using the app's internal database (**Room/SQLite**). No data is sent to external servers or stored in the cloud.
 
-### 3. Compartilhamento de Dados
-O aplicativo não compartilha dados com terceiros. As funções de exportação (CSV/JSON) e o compartilhamento de imagens de resultados são ações iniciadas **exclusivamente por você**.
+### 3. Data Sharing
+The app does not share data with third parties. Export features (CSV/JSON) and result image sharing are actions started **only by you**.
 
-### 4. Serviços de Terceiros
-O aplicativo não utiliza:
-* Serviços de análise (*analytics*);
-* Rastreamento de comportamento;
-* Publicidade (anúncios);
-* Qualquer outro serviço de coleta de dados.
+### 4. Third-Party Services
+The app does not use:
+* Analytics services;
+* Behavioral tracking;
+* Advertising;
+* Any other user-data collection service.
 
-### 5. Permissões
-O aplicativo não solicita permissões especiais do dispositivo, tais como câmera, microfone ou localização.
+### 5. Permissions
+The app does not request special device permissions such as camera, microphone, or location.
 
-### 6. Exclusão de Dados
-Você tem controle total sobre suas informações:
-* É possível excluir jogadores ou limpar o histórico diretamente no app.
-* A desinstalação do aplicativo remove permanentemente todos os dados armazenados localmente.
+### 6. Data Deletion
+You have full control over your data:
+* You can delete players or clear match history directly in the app.
+* Uninstalling the app permanently removes all locally stored data.
 
-### 7. Crianças
-O aplicativo não é direcionado a menores de 13 anos e não coleta intencionalmente quaisquer dados de crianças.
+### 7. Children
+The app is not directed to children under 13 and does not knowingly collect children's data.
 
-### 8. Alterações
-Esta política pode ser atualizada em versões futuras. Alterações significativas serão comunicadas nas notas de atualização da versão.
+### 8. Changes
+This policy may be updated in future versions. Significant changes will be communicated in release notes.
 
-### 9. Contato
-Dúvidas sobre esta política podem ser enviadas para o desenvolvedor através da página do aplicativo na **Google Play Store**.
+### 9. Contact
+Questions about this policy can be sent to the developer through the app page on the **Google Play Store**.

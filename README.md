@@ -1,85 +1,89 @@
-# Vôlei Manager 🏐
+# Volley Manager 🏐
 
-**Vôlei Manager** é um aplicativo Android desenvolvido com **Jetpack Compose** e **Room Database** para gerenciar partidas de vôlei recreativo, automatizar o sorteio de times, acompanhar o desempenho dos jogadores (Ranking Elo) e garantir uma rotação justa de participantes.
+**Volley Manager** is an Android app built with **Jetpack Compose** and **Room Database** to manage recreational volleyball matches, automate team balancing, track player performance (Elo rating), and keep player rotation fair.
 
-## ✨ Funcionalidades
+## ✨ Features
 
-### 🎮 Gerenciamento de Partidas
-- **Sorteio Automático Inteligente**: O app seleciona as pessoas e equilibra os grupos da forma mais justa possível, misturando participantes com diferentes níveis de habilidade (utilizando o sistema de pontuação Elo) e distribuindo uniformemente os jogadores prioritários.
-- **Rotação Justa**: Sistema de fila de prioridade inteligente para garantir que todos aproveitem o jogo.
-  - **Prioridade por Partidas**: Na hora de decidir quem entra na quadra ou quem fica entre os perdedores para jogar mais, **o app dá prioridade para quem jogou menos vezes**. Isso equilibra a frequência de jogo para que ninguém fique parado!
-  - **Divisão de Vencedores**: Times que vencem muitas seguidas são divididos para evitar domínio e garantir rotatividade ("Rei da Quadra").
-- **Montagem Manual**: Tela dedicada para selecionar ou ajustar manualmente a composição dos times.
-- **Placar em Tempo Real**: Contagem de pontos de cada time durante a partida.
+### 🎮 Match Management
+- **Smart Automatic Team Draw**: The app selects players and balances teams as fairly as possible, mixing participants with different skill levels (using Elo rating) and evenly distributing priority players.
+- **Fair Rotation**: Smart waiting queue logic to make sure everyone gets play time.
+  - **Match-Based Priority**: When deciding who enters the court or who stays after a loss, **the app prioritizes players who have played fewer matches**.
+  - **Winner Split Rule**: Teams on long winning streaks are split to avoid dominance and keep matches dynamic ("King of the Court").
+- **Manual Setup**: Dedicated screen to manually choose or adjust team composition.
+- **Live Scoreboard**: Real-time score tracking during matches.
 
-### 📊 Ranking e Estatísticas
-- **Sistema Elo**: Pontuação dinâmica calculada após cada partida com base na força do oponente (K=32, Elo inicial 1200).
-- **Histórico de Partidas**: Registro completo de todos os jogos, com times, placar final, variação de Elo e médias de Elo por time.
-- **Compartilhamento**: Exporte o histórico de partidas como imagem para compartilhar nas redes sociais.
+### 📊 Ranking and Stats
+- **Elo System**: Dynamic rating calculated after every match based on opponent strength (K=32, initial Elo 1200).
+- **Match History**: Full game log with teams, final score, Elo deltas, and team Elo averages.
+- **Sharing**: Export match history as an image for social sharing.
 
-### 👥 Gerenciamento de Jogadores e Grupos
-- **Múltiplos Grupos**: Crie e gerencie grupos independentes (ex: "Vôlei de Terça", "Vôlei de Praia"), cada um com seus próprios jogadores, histórico e configurações.
-- **Perfil de Jogador**: Nome, Elo e marcação de prioridade.
-- **Jogador Prioritário (`isPriority`)**: Flag genérica para distribuição equilibrada — pode representar levantadores, garantia de equilíbrio de gênero ou qualquer critério definido pelo grupo.
-- **Pedágio (Chegada Tardia)**: Jogadores que chegam atrasados recebem jogos extras de "pedágio" para compensar o atraso dos demais, calculado com base na média de partidas já jogadas no dia.
-- **Backup e Restauração**: Exportação e importação de dados completos (JSON) ou tabelas específicas (CSV) para salvar ou transferir o progresso.
+### 👥 Players and Group Management
+- **Multiple Groups**: Create and manage independent groups (e.g., "Tuesday Volleyball", "Beach Volleyball"), each with its own players, history, and settings.
+- **Player Profile**: Name, Elo, and priority flag.
+- **Priority Player (`isPriority`)**: Generic balancing flag that can represent setters, gender balance, skill-tier distribution, or any group-defined criterion.
+- **Late Arrival Toll (`dailyToll`)**: Players who arrive late receive extra virtual games calculated from the average games played by present players.
+- **Backup and Restore**: Export/import complete data (JSON) or specific tables (CSV).
 
-### 🎨 Personalização
-- **Tema**: Claro, Escuro ou automático (Sistema).
-- **Exibição opcional**: Ative ou desative a exibição do Elo e do Pedágio na interface.
+### 🎨 Customization
+- **Theme**: Light, Dark, or System.
+- **Optional Display**: Toggle Elo and Late Arrival Toll visibility in UI.
 
-## 🛠 Tecnologias Utilizadas
-- **Linguagem**: Kotlin
-- **Interface (UI)**: Jetpack Compose (Material Design 3)
-- **Arquitetura**: MVVM — toda a lógica de negócio está em `VoleiViewModel`; DI manual via `ViewModelFactory`, sem Hilt/Dagger
-- **Navegação**: Enum-based customizado (`Screen.GAME`, `HISTORY`, `FAQ`, `ABOUT`) com `AnimatedContent`
-- **Banco de Dados Local**: Room (SQLite) — versão 10, com migrações incrementais
-- **Assincronismo**: Coroutines & Flow (`viewModelScope`, `Dispatchers.IO`)
-- **Serialização JSON**: Gson 2.10.1 (backup completo)
-- **Processamento de Anotações**: KSP (Kotlin Symbol Processing)
+## 🛠 Tech Stack
+- **Language**: Kotlin
+- **UI**: Jetpack Compose (Material Design 3)
+- **Architecture**: MVVM — all business logic in `VoleiViewModel`; manual DI via `ViewModelFactory` (no Hilt/Dagger)
+- **Navigation**: Custom enum-based navigation (`Screen.GAME`, `HISTORY`, `FAQ`, `ABOUT`) with `AnimatedContent`
+- **Local Database**: Room (SQLite) with incremental migrations
+- **Async**: Coroutines & Flow (`viewModelScope`, `Dispatchers.IO`)
+- **JSON Serialization**: Gson 2.10.1
+- **Annotation Processing**: KSP (Kotlin Symbol Processing)
 
-## 🚀 Como Rodar o Projeto
-1. Clone o repositório:
+## 🚀 Running the Project
+1. Clone the repository:
    ```bash
    git clone https://github.com/bismarckbruno/volei_manager_android.git
    ```
-2. Abra o projeto no **Android Studio**.
-3. Sincronize o Gradle e execute o app em um Emulador ou Dispositivo Físico (Android 7.0+ / API 24+).
+2. Open the project in **Android Studio**.
+3. Sync Gradle and run the app on an emulator or physical device (Android 7.0+ / API 24+).
 
-## ⚙️ Regras Configuráveis por Grupo
-- **Tamanho do Time**: De 2 a 6 jogadores por lado.
-- **Limite de Vitórias**: Máximo de vitórias consecutivas antes do time vencedor ser dividido.
-- **Ativar Prioridade**: Garante ao menos um jogador prioritário por time no sorteio automático (se houver disponibilidade).
+## ⚙️ Group-Level Rules
+- **Team Size**: From 2 to 6 players per side.
+- **Victory Limit**: Max consecutive wins before the winning team is split.
+- **Priority Distribution**: Ensures at least one priority player per team in automatic balancing (when available).
 
-## 🤝 Contribuição e Feedback
-Contribuições são bem-vindas! Sinta-se à vontade para enviar um *pull request*.
+## 🤝 Contributing and Feedback
+Contributions are welcome! Feel free to open a pull request.
 
-Encontrou um problema ou tem uma ideia? Abra uma [Issue aqui](https://github.com/bismarckbruno/volei_manager_android/issues/new/choose).
+Found an issue or have an idea? Open an [Issue here](https://github.com/bismarckbruno/volei_manager_android/issues/new/choose).
 
-## ⚖️ Documentação Legal
-- [Política de Privacidade](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY)
-- [Termos de Uso](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE)
-- [Licença MIT](LICENSE)
+## ⚖️ Legal Documentation
+- [Privacy Policy (EN-US)](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY)
+- [Terms of Use (EN-US)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE)
+- [Privacy Policy (PT-BR)](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY_PT_BR)
+- [Terms of Use (PT-BR)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE_PT_BR)
+- [Privacy Policy (ES-419)](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY_ES_419)
+- [Terms of Use (ES-419)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE_ES_419)
+- [MIT License](LICENSE)
 
-## ☕ Apoie o Projeto
+## ☕ Support the Project
 
-O **Vôlei Manager** é um projeto independente e gratuito. Se o app te ajudou a organizar melhor suas partidas e você quiser incentivar o desenvolvimento de novas funcionalidades, considere me pagar um café!
+**Volley Manager** is a free independent project. If the app helps you organize better matches and you want to support future development, consider buying me a coffee.
 
-### Formas de apoiar:
+### Ways to support:
 
-* **GitHub Sponsors:** [Clique aqui para apoiar via GitHub](https://github.com/sponsors/bismarckbruno)
-* **PIX:** Veja as opções abaixo:
+* **GitHub Sponsors:** [Support via GitHub](https://github.com/sponsors/bismarckbruno)
+* **PIX:** See options below:
 
 <details>
-  <summary><b>Clique para exibir o QR Code e Chave PIX</b></summary>
+  <summary><b>Click to show PIX QR code and key</b></summary>
   <br>
   <div align="center">
-    <img src="apoio/qr_code_pix.png" width="200" alt="QR Code PIX"><br>
-    <sub>Escaneie o QR Code acima ou use o código Copia e Cola abaixo:</sub>
+    <img src="apoio/qr_code_pix.png" width="200" alt="PIX QR Code"><br>
+    <sub>Scan the QR code above or use the copy-paste code below:</sub>
     <br><br>
     <p><code>00020126650014br.gov.bcb.pix0136d143999e-2f7a-4ce4-84c3-b3b03b41536e0203Pix5204000053039865802BR5925BRUNO_BISMARCK_DA_SILVA_M6006CAXIAS62210517ApoioVoleiManager63044F13</code></p>
   </div>
 </details>
 
 ---
-*Qualquer valor é bem-vindo e ajuda a manter o café (e o código) fluindo!* 🏐
+*Any amount helps keep both coffee and code flowing!* 🏐

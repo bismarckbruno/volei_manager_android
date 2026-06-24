@@ -36,6 +36,8 @@
     <string name="privacy">Privacidade</string>
     <string name="close">Fechar</string>
     <string name="view_in_browser">Ver no navegador</string>
+    <string name="privacy_policy_url">https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY_PT_BR</string>
+    <string name="terms_of_use_url">https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE_PT_BR</string>
     <string name="theme_system">Sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Escuro</string>

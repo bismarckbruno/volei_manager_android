@@ -1,34 +1,34 @@
-# Termos de Uso
+# Terms of Use
 
-**Última atualização:** Abril de 2026
+**Last updated:** April 2026
 
-Ao utilizar o **Vôlei Manager**, você concorda com os seguintes termos e condições descritos abaixo.
+By using **Volley Manager**, you agree to the following terms and conditions.
 
 ---
 
-### 1. Finalidade
-O **Vôlei Manager** é um aplicativo gratuito destinado exclusivamente à organização de partidas recreativas de vôlei, incluindo funcionalidades de sorteio de times, gerenciamento de fila de espera e registro de histórico de partidas.
+### 1. Purpose
+**Volley Manager** is a free app intended exclusively for organizing recreational volleyball matches, including team drawing, waiting list management, and match history logging.
 
-### 2. Uso Permitido
-O aplicativo é fornecido para uso pessoal e recreativo. Você é integralmente responsável por todos os dados que insere manualmente no aplicativo, tais como nomes de jogadores, grupos e pontuações.
+### 2. Permitted Use
+The app is provided for personal and recreational use. You are fully responsible for all data you manually enter in the app, such as player names, groups, and scores.
 
-### 3. Isenção de Garantias
-O aplicativo é fornecido **"como está" (as is)**, sem garantias de qualquer tipo, expressas ou implícitas. O desenvolvedor não se responsabiliza por:
-* Perda de dados decorrente de falhas no dispositivo;
-* Atualizações do sistema operacional que possam afetar o funcionamento;
-* Uso indevido das funcionalidades do aplicativo.
+### 3. Disclaimer of Warranties
+The app is provided **"as is"**, without warranties of any kind, express or implied. The developer is not responsible for:
+* Data loss caused by device failures;
+* Operating system updates that may affect app behavior;
+* Misuse of app features.
 
-### 4. Backup e Segurança dos Dados
-Como o armazenamento é estritamente local, é recomendável utilizar regularmente a função de **exportação/backup** (CSV/JSON) para proteger suas informações. O desenvolvedor não possui acesso aos seus dados e não se responsabiliza pela recuperação de informações não salvas ou perdidas por exclusão acidental.
+### 4. Backup and Data Security
+Since storage is strictly local, regular use of the **export/backup** feature (CSV/JSON) is recommended. The developer does not have access to your data and is not responsible for recovery of unsaved or accidentally deleted information.
 
-### 5. Disponibilidade
-O aplicativo pode ser atualizado, modificado ou descontinuado a qualquer momento, sem necessidade de aviso prévio.
+### 5. Availability
+The app may be updated, modified, or discontinued at any time without prior notice.
 
-### 6. Propriedade Intelectual
-O código-fonte, design e conteúdo do **Vôlei Manager** são de propriedade do desenvolvedor e estão protegidos pelas leis de direitos autorais e propriedade intelectual aplicáveis. Por ser um projeto de código aberto, o uso do código deve respeitar a licença especificada no repositório.
+### 6. Intellectual Property
+The source code, design, and content of **Volley Manager** belong to the developer and are protected by applicable copyright and intellectual property laws. As an open-source project, code usage must follow the license specified in the repository.
 
-### 7. Alterações nos Termos
-Estes termos podem ser atualizados em versões futuras do aplicativo. O uso continuado do **Vôlei Manager** após qualquer alteração constitui a sua aceitação dos novos termos.
+### 7. Changes to These Terms
+These terms may be updated in future app versions. Continued use of **Volley Manager** after changes means you accept the updated terms.
 
-### 8. Contato
-Dúvidas ou esclarecimentos sobre estes termos podem ser enviados para o desenvolvedor através da página oficial do aplicativo na **Google Play Store**.
+### 8. Contact
+Questions about these terms can be sent to the developer through the official app page on the **Google Play Store**.

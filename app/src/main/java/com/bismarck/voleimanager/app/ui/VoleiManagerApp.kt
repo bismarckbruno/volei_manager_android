@@ -272,6 +272,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     if (showPrivacyPolicyDialog) {
+        val privacyPolicyUrl = stringResource(R.string.privacy_policy_url)
         AlertDialog(
             onDismissRequest = { showPrivacyPolicyDialog = false },
             title = {
@@ -296,7 +297,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, "https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY".toUri())
+                    val intent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        privacyPolicyUrl.toUri()
+                    )
                     context.startActivity(intent)
                 }) {
                     Text(stringResource(R.string.view_in_browser))
@@ -306,6 +310,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     if (showTermsOfUseDialog) {
+        val termsOfUseUrl = stringResource(R.string.terms_of_use_url)
         AlertDialog(
             onDismissRequest = { showTermsOfUseDialog = false },
             title = {
@@ -330,7 +335,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, "https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE".toUri())
+                    val intent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        termsOfUseUrl.toUri()
+                    )
                     context.startActivity(intent)
                 }) {
                     Text(stringResource(R.string.view_in_browser))
@@ -1145,6 +1153,4 @@ private fun FlexibleTopAppBar(
         }
     }
 }
-
-
 
