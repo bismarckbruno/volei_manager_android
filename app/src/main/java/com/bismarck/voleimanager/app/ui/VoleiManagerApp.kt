@@ -45,6 +45,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -156,7 +157,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     LaunchedEffect(uniqueGroups) {
         if (selectedGroup == null && uniqueGroups.isNotEmpty()) selectedGroup = uniqueGroups.first()
     }
-    LaunchedEffect(selectedGroup) { selectedGroup?.let { viewModel.loadGroupConfig(it) } }
+    LaunchedEffect(selectedGroup, groupConfig.onboardingStep) {
+        val targetGroup = selectedGroup ?: return@LaunchedEffect
+        if (groupConfig.onboardingStep < ONBOARDING_STEP_COMPLETE) return@LaunchedEffect
+        if (targetGroup != groupConfig.groupName) {
+            viewModel.loadGroupConfig(targetGroup)
+        }
+    }
 
     LaunchedEffect(uiMessage) {
         uiMessage?.let { message ->
@@ -734,7 +741,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             Text(stringResource(R.string.app_name))
                             selectedGroup?.let {
                                 Text(
-                                    getDisplayGroupWithMode(selectedGroup, groupConfig.balancingMode),
+                                    getDisplayGroupWithMode(groupConfig.groupName, groupConfig.balancingMode),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -1015,6 +1022,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         Screen.GAME -> GameScreenContent(
                             viewModel = viewModel,
                             selectedGroup = selectedGroup ?: DEFAULT_GROUP_NAME,
+                            onSelectedGroupChange = { selectedGroup = it },
                             isDarkTheme = isDarkTheme,
                             showElo = showElo,
                             showToll = showToll,

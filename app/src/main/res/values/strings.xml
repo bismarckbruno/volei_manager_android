@@ -160,8 +160,12 @@
     <string name="onboarding_team_size_question">How many people will play on each team?</string>
     <string name="onboarding_team_size_hint">You can change this setting later in the side menu under \"Group rules\".</string>
     <string name="onboarding_add_players_instruction">Add at least %1$d people with the \"+\" button or import them from \"Import data\".</string>
+    <string name="onboarding_group_name_question">What will the group name be?</string>
+    <string name="onboarding_group_name_hint">You can edit it later in the side panel > \"Current group\" > by clicking the pencil icon next to the group name.</string>
+    <string name="onboarding_balance_mode_question">Which balance mode will the group use?</string>
+    <string name="onboarding_balance_mode_hint">You can change it later in \"Group rules\".</string>
     <string name="onboarding_name_title">Name</string>
-    <string name="onboarding_name_description">• Use a short name or nickname.\n• Full first and last names are not required.</string>
+    <string name="onboarding_name_description">• Use a short name or nickname.</string>
     <string name="onboarding_elo_title">Initial Elo</string>
     <string name="onboarding_elo_description">• Change it only if you already know the player’s level well.\n• If unsure, keep 1200.</string>
     <string name="onboarding_priority_title">Set as priority</string>

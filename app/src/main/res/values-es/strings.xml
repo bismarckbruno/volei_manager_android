@@ -160,8 +160,12 @@
     <string name="onboarding_team_size_question">¿Cuántas personas jugarán en cada equipo?</string>
     <string name="onboarding_team_size_hint">Puedes cambiar esta configuración más tarde en el menú lateral en \"Reglas del grupo\".</string>
     <string name="onboarding_add_players_instruction">Agrega al menos %1$d personas con el botón \"+\" o impórtalas desde \"Importar datos\".</string>
+    <string name="onboarding_group_name_question">¿Cómo se llamará el grupo?</string>
+    <string name="onboarding_group_name_hint">Puedes editarlo después en el panel lateral > \"Grupo actual\" > haciendo clic en el ícono de lápiz junto al nombre del grupo.</string>
+    <string name="onboarding_balance_mode_question">¿Qué modo de balance usará el grupo?</string>
+    <string name="onboarding_balance_mode_hint">Puedes cambiarlo más tarde en \"Reglas del grupo\".</string>
     <string name="onboarding_name_title">Nombre</string>
-    <string name="onboarding_name_description">• Usa un nombre corto o apodo.\n• No hace falta nombre y apellido completos.</string>
+    <string name="onboarding_name_description">• Usa un nombre corto o apodo.</string>
     <string name="onboarding_elo_title">Elo inicial</string>
     <string name="onboarding_elo_description">• Cámbialo solo si ya conoces bien el nivel de la persona.\n• Si tienes dudas, deja 1200.</string>
     <string name="onboarding_priority_title">Definir como prioridad</string>

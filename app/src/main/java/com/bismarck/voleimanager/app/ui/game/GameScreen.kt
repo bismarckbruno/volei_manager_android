@@ -62,7 +62,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,7 +74,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.BalancingMode
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_BALANCING_MODE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
@@ -97,6 +103,7 @@ import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 fun GameScreenContent(
     viewModel: VoleiViewModel,
     selectedGroup: String,
+    onSelectedGroupChange: (String) -> Unit,
     isDarkTheme: Boolean,
     showElo: Boolean,
     showToll: Boolean,
@@ -218,10 +225,26 @@ fun GameScreenContent(
     val onboardingStep = config.onboardingStep
     val minimumPlayersNeeded = config.teamSize * 2
     val isOnboardingComplete = onboardingStep >= ONBOARDING_STEP_COMPLETE
+    var onboardingGroupName by rememberSaveable {
+        mutableStateOf(config.groupName)
+    }
+    var onboardingGroupNameSource by rememberSaveable { mutableStateOf<String?>(null) }
+    var onboardingBalanceMode by rememberSaveable(selectedGroup) {
+        mutableStateOf(config.balancingMode)
+    }
+    var wentThroughBalanceMode by rememberSaveable(selectedGroup) {
+        mutableStateOf(false)
+    }
     var onboardingTeamSizeSelection: Int? by rememberSaveable(selectedGroup) {
         mutableStateOf(
             if (onboardingStep == ONBOARDING_STEP_TEAM_SIZE) null else config.teamSize.coerceIn(2, 6)
         )
+    }
+    LaunchedEffect(onboardingStep, config.groupName) {
+        if (onboardingStep == ONBOARDING_STEP_GROUP_NAME && onboardingGroupNameSource != config.groupName) {
+            onboardingGroupName = config.groupName
+            onboardingGroupNameSource = config.groupName
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -298,11 +321,48 @@ fun GameScreenContent(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 when (onboardingStep) {
+                                    ONBOARDING_STEP_GROUP_NAME -> {
+                                        item {
+                                            GroupOnboardingNameCard(
+                                                groupName = onboardingGroupName,
+                                                onGroupNameChange = { newValue ->
+                                                    if (newValue.length <= MAX_GROUP_NAME_LENGTH) onboardingGroupName = newValue
+                                                },
+                                                onContinue = {
+                                                    val normalizedName = onboardingGroupName.trim()
+                                                        .replace(Regex("\\s+"), " ")
+                                                        .take(MAX_GROUP_NAME_LENGTH)
+                                                    if (normalizedName.isNotBlank()) {
+                                                        onboardingGroupName = normalizedName
+                                                        onSelectedGroupChange(normalizedName)
+                                                        viewModel.continueCurrentGroupOnboardingWithGroupName(normalizedName)
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+
+                                    ONBOARDING_STEP_BALANCING_MODE -> {
+                                        item {
+                                            GroupOnboardingBalanceModeCard(
+                                                selectedMode = onboardingBalanceMode,
+                                                onModeSelected = { onboardingBalanceMode = it },
+                                                onBack = { viewModel.returnCurrentGroupOnboardingToGroupNameStep() },
+                                                onContinue = {
+                                                    wentThroughBalanceMode = true
+                                                    viewModel.continueCurrentGroupOnboardingWithBalancingMode(onboardingBalanceMode)
+                                                }
+                                            )
+                                        }
+                                    }
+
                                     ONBOARDING_STEP_TEAM_SIZE -> {
                                         item {
                                             GroupOnboardingTeamSizeCard(
                                                 selectedTeamSize = onboardingTeamSizeSelection,
                                                 onTeamSizeSelected = { onboardingTeamSizeSelection = it },
+                                                showBack = wentThroughBalanceMode,
+                                                onBack = { viewModel.returnCurrentGroupOnboardingToBalancingModeStep() },
                                                 onContinue = {
                                                     val chosenTeamSize = onboardingTeamSizeSelection
                                                     if (chosenTeamSize != null) {
@@ -1613,9 +1673,211 @@ fun ActiveTeamCard(
 }
 
 @Composable
+private fun GroupOnboardingNameCard(
+    groupName: String,
+    onGroupNameChange: (String) -> Unit,
+    onContinue: () -> Unit
+) {
+    var didSetInitialCursor by remember(groupName) { mutableStateOf(false) }
+    var textFieldValue by rememberSaveable(groupName, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(
+            TextFieldValue(
+                text = groupName,
+                selection = TextRange(groupName.length)
+            )
+        )
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_group_name_question),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            OutlinedTextField(
+                value = textFieldValue,
+                onValueChange = {
+                    textFieldValue = it
+                    onGroupNameChange(it.text)
+                },
+                label = { Text(stringResource(R.string.group_name)) },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused && !didSetInitialCursor) {
+                            didSetInitialCursor = true
+                            textFieldValue = textFieldValue.copy(selection = TextRange(textFieldValue.text.length))
+                        }
+                    }
+            )
+            Text(
+                text = stringResource(R.string.onboarding_group_name_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Button(
+                    onClick = onContinue,
+                    enabled = groupName.trim().isNotBlank()
+                ) {
+                    Text(stringResource(R.string.continue_word))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupOnboardingBalanceModeCard(
+    selectedMode: String,
+    onModeSelected: (String) -> Unit,
+    onBack: () -> Unit,
+    onContinue: () -> Unit
+) {
+    val modes = remember {
+        listOf(
+            Triple(
+                com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
+                R.string.mode_rebalance,
+                R.string.mode_rebalance_tooltip
+            ),
+            Triple(
+                com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name,
+                R.string.mode_winner_rests,
+                R.string.mode_winner_rests_tooltip
+            ),
+            Triple(
+                com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name,
+                R.string.mode_both_rest,
+                R.string.mode_both_rest_tooltip
+            )
+        )
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_balance_mode_question),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.balance_mode_long_press_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+            modes.forEach { (value, labelRes, tooltipRes) ->
+                OnboardingBalanceModeRow(
+                    label = stringResource(labelRes),
+                    tooltip = stringResource(tooltipRes),
+                    selected = selectedMode == value,
+                    onSelect = { onModeSelected(value) }
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.onboarding_balance_mode_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
+                    )
+                }
+                Button(onClick = onContinue) {
+                    Text(stringResource(R.string.continue_word))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun OnboardingBalanceModeRow(
+    label: String,
+    tooltip: String,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val haptic = LocalHapticFeedback.current
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = {
+            PlainTooltip {
+                Text(text = tooltip, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        state = tooltipState
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .combinedClickable(
+                    onClick = {
+                        tooltipState.dismiss()
+                        onSelect()
+                    },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch { tooltipState.show() }
+                    }
+                )
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = {
+                    tooltipState.dismiss()
+                    onSelect()
+                }
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
 private fun GroupOnboardingTeamSizeCard(
     selectedTeamSize: Int?,
     onTeamSizeSelected: (Int) -> Unit,
+    showBack: Boolean,
+    onBack: () -> Unit,
     onContinue: () -> Unit
 ) {
     val options = remember { (2..6).toList() }
@@ -1668,8 +1930,19 @@ private fun GroupOnboardingTeamSizeCard(
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                if (showBack) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.size(48.dp))
+                }
                 Button(
                     onClick = onContinue,
                     enabled = selectedTeamSize != null
@@ -1713,6 +1986,10 @@ private fun GroupOnboardingMinimumPlayersCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+            )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(imageVector = Icons.Default.Person, contentDescription = null)
                 Text(
@@ -1721,11 +1998,14 @@ private fun GroupOnboardingMinimumPlayersCard(
                     fontWeight = FontWeight.Bold
                 )
             }
-            Text(
-                text = stringResource(R.string.onboarding_name_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_name_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(imageVector = Icons.Default.WorkspacePremium, contentDescription = null)
                 Text(
@@ -1734,11 +2014,14 @@ private fun GroupOnboardingMinimumPlayersCard(
                     fontWeight = FontWeight.Bold
                 )
             }
-            Text(
-                text = stringResource(R.string.onboarding_elo_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_elo_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(imageVector = Icons.Default.Star, contentDescription = null)
                 Text(
@@ -1747,10 +2030,17 @@ private fun GroupOnboardingMinimumPlayersCard(
                     fontWeight = FontWeight.Bold
                 )
             }
-            Text(
-                text = stringResource(R.string.onboarding_priority_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_priority_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(bottom = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),

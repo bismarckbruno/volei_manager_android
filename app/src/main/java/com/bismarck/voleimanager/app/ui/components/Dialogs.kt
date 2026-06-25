@@ -3,6 +3,7 @@ package com.bismarck.voleimanager.app.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +15,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -25,9 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
@@ -260,9 +265,10 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                     onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) name = it },
                     label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = eloText,
                     onValueChange = { newValue ->
@@ -276,19 +282,37 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                             }
                         }
                     },
-                    label = { Text(stringResource(R.string.initial_elo)) },
+                    label = { Text(text = stringResource(R.string.initial_elo), maxLines = 1, overflow = TextOverflow.Ellipsis)},
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.WorkspacePremium, contentDescription = null) },
                     isError = eloText.isNotEmpty() && !isEloValid // Mostra a borda vermelha se o número for inválido
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(24.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 40.dp)
+                        .border(
+                            width = 1.dp,
+                            color = if (isPriority) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            shape = RoundedCornerShape(40.dp)
+                        )
+                        .clip(RoundedCornerShape(40.dp))
                         .clickable { isPriority = !isPriority }) {
-                    Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
-                    Text(stringResource(R.string.set_priority))
+                    val priorityColor = if (isPriority) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    Spacer(Modifier.width(12.dp))
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = null,
+                        tint = priorityColor
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.set_priority),
+                        color = priorityColor
+                    )
                 }
             }
         },

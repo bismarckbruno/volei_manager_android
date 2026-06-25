@@ -5,9 +5,11 @@ import androidx.room.PrimaryKey
 
 enum class BalancingMode { REBALANCE, WINNER_RESTS, BOTH_REST }
 
-const val ONBOARDING_STEP_TEAM_SIZE = 0
-const val ONBOARDING_STEP_MIN_PLAYERS = 1
-const val ONBOARDING_STEP_COMPLETE = 2
+const val ONBOARDING_STEP_GROUP_NAME = 0
+const val ONBOARDING_STEP_BALANCING_MODE = 1
+const val ONBOARDING_STEP_TEAM_SIZE = 2
+const val ONBOARDING_STEP_MIN_PLAYERS = 3
+const val ONBOARDING_STEP_COMPLETE = 4
 
 @Entity(tableName = "group_configs")
 data class GroupConfig(
@@ -17,5 +19,5 @@ data class GroupConfig(
     val priorityEnabled: Boolean = true,
     val scoreEnabled: Boolean = true, // Exibir e registrar placar nas partidas
     val balancingMode: String = BalancingMode.REBALANCE.name, // "REBALANCE" | "WINNER_RESTS" | "BOTH_REST"
-    val onboardingStep: Int = ONBOARDING_STEP_TEAM_SIZE
+    val onboardingStep: Int = ONBOARDING_STEP_GROUP_NAME
 )

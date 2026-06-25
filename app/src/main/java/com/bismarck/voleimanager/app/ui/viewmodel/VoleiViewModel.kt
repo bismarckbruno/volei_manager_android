@@ -21,6 +21,8 @@ import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.data.model.MatchHistory
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_BALANCING_MODE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
@@ -156,7 +158,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _currentScreen.value = screen
     }
 
-    private val _currentGroupConfig = MutableStateFlow(GroupConfig(DEFAULT_GROUP_NAME))
+    private val _currentGroupConfig = MutableStateFlow(
+        GroupConfig(DEFAULT_GROUP_NAME, onboardingStep = ONBOARDING_STEP_GROUP_NAME)
+    )
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
 
     val players = repository.allPlayers.stateIn(
@@ -664,7 +668,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 ?: GroupConfig(
                     groupName = name,
                     balancingMode = balancingMode ?: BalancingMode.REBALANCE.name,
-                    onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+                    onboardingStep = ONBOARDING_STEP_GROUP_NAME
                 ).also { repository.saveGroupConfig(it) }
             if (!same) {
                 // Switching groups: reset current state, then try to restore saved state for new group
@@ -718,6 +722,44 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun returnCurrentGroupOnboardingToTeamSizeStep() {
         _currentGroupConfig.value = _currentGroupConfig.value.copy(
             onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun continueCurrentGroupOnboardingWithGroupName(newName: String) = viewModelScope.launch(Dispatchers.IO) {
+        val normalizedName = normalizeGroupName(newName)
+        if (normalizedName.isBlank()) return@launch
+
+        val current = _currentGroupConfig.value
+        val oldName = current.groupName
+        if (normalizedName != oldName) {
+            repository.renameGroup(oldName, normalizedName)
+        }
+        _currentGroupConfig.value = current.copy(
+            groupName = normalizedName,
+            onboardingStep = ONBOARDING_STEP_BALANCING_MODE
+        )
+        repository.saveGroupConfig(_currentGroupConfig.value)
+    }
+
+    fun continueCurrentGroupOnboardingWithBalancingMode(balancingMode: String) {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            balancingMode = balancingMode,
+            onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToGroupNameStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_GROUP_NAME
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToBalancingModeStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_BALANCING_MODE
         )
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
     }
