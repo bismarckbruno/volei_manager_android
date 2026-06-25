@@ -27,10 +27,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Groups
@@ -42,6 +45,7 @@ import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.R
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +71,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.BalancingMode
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
 import com.bismarck.voleimanager.app.ui.components.LazyListFastScroller
@@ -208,6 +215,14 @@ fun GameScreenContent(
             .takeLast(6)
             .asReversed()
     }
+    val onboardingStep = config.onboardingStep
+    val minimumPlayersNeeded = config.teamSize * 2
+    val isOnboardingComplete = onboardingStep >= ONBOARDING_STEP_COMPLETE
+    var onboardingTeamSizeSelection: Int? by rememberSaveable(selectedGroup) {
+        mutableStateOf(
+            if (onboardingStep == ONBOARDING_STEP_TEAM_SIZE) null else config.teamSize.coerceIn(2, 6)
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
@@ -282,132 +297,213 @@ fun GameScreenContent(
                                 ),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                item {
-                                    EmptyStateCard(
-                                        presentIds.size,
-                                        selectedGroup,
-                                        config.teamSize,
-                                        { onSetupModeChange(true) },
-                                        {
-                                            if (presentIds.size >= config.teamSize * 2) viewModel.startNewAutomaticGame(
-                                                sortedPlayers,
-                                                config.teamSize
+                                when (onboardingStep) {
+                                    ONBOARDING_STEP_TEAM_SIZE -> {
+                                        item {
+                                            GroupOnboardingTeamSizeCard(
+                                                selectedTeamSize = onboardingTeamSizeSelection,
+                                                onTeamSizeSelected = { onboardingTeamSizeSelection = it },
+                                                onContinue = {
+                                                    val chosenTeamSize = onboardingTeamSizeSelection
+                                                    if (chosenTeamSize != null) {
+                                                        viewModel.continueCurrentGroupOnboardingWithTeamSize(chosenTeamSize)
+                                                    }
+                                                }
                                             )
-                                        },
-                                        hasPrev,
-                                        { viewModel.startNextRound() },
-                                        winners,
-                                        owner,
-                                        streak,
-                                        config.victoryLimit,
-                                        config.balancingMode,
-                                        if (config.teamSize > 0) waitingList.size / config.teamSize else 0,
-                                        isDarkTheme,
-                                        onShowSnackbar = onShowSnackbar,
-                                        onClearRecent = { viewModel.clearRecentGameData() }
-                                    )
-                                }
-
-                                if (sortedPlayers.isEmpty()) {
-                                    item {
-                                        Text(
-                                            text = stringResource(R.string.to_start_add_players),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = TextAlign.Center,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(32.dp)
-                                        )
+                                        }
                                     }
-                                } else {
-                                    item {
-                                        Row(
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 6.dp),
-                                            Arrangement.SpaceBetween,
-                                            Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                stringResource(R.string.players_word),
-                                                fontWeight = FontWeight.Bold
+
+                                    ONBOARDING_STEP_MIN_PLAYERS -> {
+                                        item {
+                                            GroupOnboardingMinimumPlayersCard(
+                                                minimumPlayers = minimumPlayersNeeded,
+                                                currentPlayers = sortedPlayers.size,
+                                                onBack = {
+                                                    onboardingTeamSizeSelection = config.teamSize.coerceIn(2, 6)
+                                                    viewModel.returnCurrentGroupOnboardingToTeamSizeStep()
+                                                },
+                                                onContinue = { viewModel.completeCurrentGroupOnboarding() }
                                             )
-                                            val all =
-                                                sortedPlayers.all { presentIds.contains(it.id) }
-                                            TextButton(
-                                                onClick = {
-                                                    viewModel.setAllPlayersPresence(
-                                                        sortedPlayers,
-                                                        !all
+                                        }
+
+                                        if (sortedPlayers.isNotEmpty()) {
+                                            item {
+                                                Row(
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 6.dp),
+                                                    Arrangement.SpaceBetween,
+                                                    Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        stringResource(R.string.players_word),
+                                                        fontWeight = FontWeight.Bold
                                                     )
-                                                }) {
-                                                Text(
-                                                    if (all) stringResource(R.string.uncheck_all) else stringResource(
-                                                        R.string.check_all
-                                                    ),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
+                                                    val all =
+                                                        sortedPlayers.all { presentIds.contains(it.id) }
+                                                    TextButton(
+                                                        onClick = {
+                                                            viewModel.setAllPlayersPresence(
+                                                                sortedPlayers,
+                                                                !all
+                                                            )
+                                                        }) {
+                                                        Text(
+                                                            if (all) stringResource(R.string.uncheck_all) else stringResource(
+                                                                R.string.check_all
+                                                            ),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            items(sortedPlayers) { p ->
+                                                PlayerCard(
+                                                    p,
+                                                    presentIds.contains(p.id),
+                                                    gamesPlayedMap[p.id],
+                                                    targetDate,
+                                                    showElo,
+                                                    showToll,
+                                                    { viewModel.togglePlayerPresence(p) },
+                                                    { onDeleteRequest(p) },
+                                                    { editP = p })
                                             }
                                         }
                                     }
-                                    items(sortedPlayers) { p ->
-                                        PlayerCard(
-                                            p,
-                                            presentIds.contains(p.id),
-                                            gamesPlayedMap[p.id],
-                                            targetDate,
-                                            showElo,
-                                            showToll,
-                                            { viewModel.togglePlayerPresence(p) },
-                                            { onDeleteRequest(p) },
-                                            { editP = p })
+
+                                    else -> {
+                                        item {
+                                            EmptyStateCard(
+                                                presentIds.size,
+                                                selectedGroup,
+                                                config.teamSize,
+                                                { onSetupModeChange(true) },
+                                                {
+                                                    if (presentIds.size >= config.teamSize * 2) viewModel.startNewAutomaticGame(
+                                                        sortedPlayers,
+                                                        config.teamSize
+                                                    )
+                                                },
+                                                hasPrev,
+                                                { viewModel.startNextRound() },
+                                                winners,
+                                                owner,
+                                                streak,
+                                                config.victoryLimit,
+                                                config.balancingMode,
+                                                if (config.teamSize > 0) waitingList.size / config.teamSize else 0,
+                                                isDarkTheme,
+                                                onShowSnackbar = onShowSnackbar,
+                                                onClearRecent = { viewModel.clearRecentGameData() }
+                                            )
+                                        }
+
+                                        if (sortedPlayers.isEmpty()) {
+                                            item {
+                                                Text(
+                                                    text = stringResource(R.string.to_start_add_players),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(32.dp)
+                                                )
+                                            }
+                                        } else {
+                                            item {
+                                                Row(
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 6.dp),
+                                                    Arrangement.SpaceBetween,
+                                                    Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        stringResource(R.string.players_word),
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    val all =
+                                                        sortedPlayers.all { presentIds.contains(it.id) }
+                                                    TextButton(
+                                                        onClick = {
+                                                            viewModel.setAllPlayersPresence(
+                                                                sortedPlayers,
+                                                                !all
+                                                            )
+                                                        }) {
+                                                        Text(
+                                                            if (all) stringResource(R.string.uncheck_all) else stringResource(
+                                                                R.string.check_all
+                                                            ),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            items(sortedPlayers) { p ->
+                                                PlayerCard(
+                                                    p,
+                                                    presentIds.contains(p.id),
+                                                    gamesPlayedMap[p.id],
+                                                    targetDate,
+                                                    showElo,
+                                                    showToll,
+                                                    { viewModel.togglePlayerPresence(p) },
+                                                    { onDeleteRequest(p) },
+                                                    { editP = p })
+                                            }
+                                        }
                                     }
                                 }
                             }
 
-                            LazyListFastScroller(
-                                state = listState,
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .padding(end = 4.dp)
-                            )
+                            if (isOnboardingComplete || onboardingStep == ONBOARDING_STEP_MIN_PLAYERS) {
+                                LazyListFastScroller(
+                                    state = listState,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .padding(end = 4.dp)
+                                )
 
-                            Surface(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .width(IntrinsicSize.Max)
-                                    .padding(start = 22.dp, end = 22.dp, bottom = 8.dp),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                shadowElevation = 4.dp
-                            ) {
-                                val selCount = presentIds.size
-                                val totalCount = sortedPlayers.size
-                                val text = if (selCount == 0) {
-                                    stringResource(
-                                        R.string.none_selected,
-                                        totalCount,
-                                        if (totalCount > 1) stringResource(R.string.group_s) else ""
-                                    )
-                                } else {
-                                    stringResource(
-                                        R.string.selected,
-                                        selCount,
-                                        if (selCount > 1) stringResource(R.string.group_s) else "",
-                                        totalCount,
-                                        if (totalCount > 1) stringResource(R.string.group_s) else ""
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .width(IntrinsicSize.Max)
+                                        .padding(start = 22.dp, end = 22.dp, bottom = 8.dp),
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    val selCount = presentIds.size
+                                    val totalCount = sortedPlayers.size
+                                    val text = if (selCount == 0) {
+                                        stringResource(
+                                            R.string.none_selected,
+                                            totalCount,
+                                            if (totalCount > 1) stringResource(R.string.group_s) else ""
+                                        )
+                                    } else {
+                                        stringResource(
+                                            R.string.selected,
+                                            selCount,
+                                            if (selCount > 1) stringResource(R.string.group_s) else "",
+                                            totalCount,
+                                            if (totalCount > 1) stringResource(R.string.group_s) else ""
+                                        )
+                                    }
+                                    Text(
+                                        text = if (totalCount == 0) stringResource(R.string.no_entries) else text,
+                                        modifier = Modifier.padding(16.dp),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
                                 }
-                                Text(
-                                    text = if (totalCount == 0) stringResource(R.string.no_entries) else text,
-                                    modifier = Modifier.padding(16.dp),
-                                    textAlign = TextAlign.Center,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
                             }
                         }
                     }
@@ -1511,6 +1607,168 @@ fun ActiveTeamCard(
                     fontSize = 12.sp,
                     color = buttonTextColor
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupOnboardingTeamSizeCard(
+    selectedTeamSize: Int?,
+    onTeamSizeSelected: (Int) -> Unit,
+    onContinue: () -> Unit
+) {
+    val options = remember { (2..6).toList() }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_team_size_question),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                options.forEach { teamSize ->
+                    val isSelected = selectedTeamSize == teamSize
+                    Card(
+                        onClick = { onTeamSizeSelected(teamSize) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ),
+                        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(teamSize.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+            Text(
+                text = stringResource(R.string.onboarding_team_size_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Button(
+                    onClick = onContinue,
+                    enabled = selectedTeamSize != null
+                ) {
+                    Text(stringResource(R.string.continue_word))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupOnboardingMinimumPlayersCard(
+    minimumPlayers: Int,
+    currentPlayers: Int,
+    onBack: () -> Unit,
+    onContinue: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowUpward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                text = stringResource(R.string.onboarding_add_players_instruction, minimumPlayers),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(imageVector = Icons.Default.Person, contentDescription = null)
+                Text(
+                    text = stringResource(R.string.onboarding_name_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = stringResource(R.string.onboarding_name_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(imageVector = Icons.Default.WorkspacePremium, contentDescription = null)
+                Text(
+                    text = stringResource(R.string.onboarding_elo_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = stringResource(R.string.onboarding_elo_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(imageVector = Icons.Default.Star, contentDescription = null)
+                Text(
+                    text = stringResource(R.string.onboarding_priority_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = stringResource(R.string.onboarding_priority_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
+                    )
+                }
+                Button(
+                    onClick = onContinue,
+                    enabled = currentPlayers >= minimumPlayers
+                ) {
+                    Text(stringResource(R.string.continue_word))
+                }
             }
         }
     }

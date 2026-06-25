@@ -61,6 +61,7 @@
     <string name="faq_title">Perguntas frequentes (FAQ)</string>
     <string name="no_players">Nenhum jogador encontrado.</string>
     <string name="min_priority">Mín. 1 prioridade por time</string>
+    <string name="min_priority_tooltip">Ative se o grupo precisar distribuir essa prioridade entre os dois times.</string>
     <string name="manual_teams">Montar times manualmente</string>
     <string name="project_docs">Documentação do projeto</string>
     <string name="by_score_diff">Por diferença de placar</string>
@@ -90,6 +91,7 @@
     <string name="end_of_queue">Final da fila</string>
     <string name="initial_elo">Elo inicial (1100–1300)</string>
     <string name="use_score">Usar placar</string>
+    <string name="use_score_tooltip">Ative para registrar e exibir o placar da partida; desative se o grupo não for jogar com pontuação.</string>
     <string name="yes_clear">Sim, limpar</string>
     <string name="priority">Prioridade</string>
     <string name="add">Adicionar</string>
@@ -155,6 +157,17 @@
     <string name="assemble_teams">Montar times</string>
     <string name="select_equal_number">Selecione um número igual de pessoas em cada time (mín. 2 e máx. 6)</string>
     <string name="to_start_add_players">Para começar, adicione jogadores no botão \"+\" no canto superior direito da tela</string>
+    <string name="onboarding_team_size_question">Quantas pessoas vão jogar em cada time?</string>
+    <string name="onboarding_team_size_hint">Você pode alterar essa configuração depois na aba lateral em \"Regras do grupo\".</string>
+    <string name="onboarding_add_players_instruction">Adicione no mínimo %1$d pessoas no botão \"+\" ou importe em \"Importar dados\".</string>
+    <string name="onboarding_name_title">Nome</string>
+    <string name="onboarding_name_description">• Use nome curto ou apelido.\n• Não precisa nome e sobrenome completos.</string>
+    <string name="onboarding_elo_title">Elo inicial</string>
+    <string name="onboarding_elo_description">• Ajuste só se já conhecer bem o nível da pessoa.\n• Se houver dúvida, mantenha 1200.</string>
+    <string name="onboarding_priority_title">Definir como prioridade</string>
+    <string name="onboarding_priority_description">• Use para perfis que precisam ser distribuídos entre os times (ex.: levantadores).\n• Se seu grupo não precisa disso, deixe desmarcado.</string>
+    <string name="continue_word">Continuar</string>
+    <string name="back">Voltar</string>
     <string name="uncheck_all">Desmarcar todos</string>
     <string name="check_all">Marcar todos</string>
     <string name="none_selected">Nenhum selecionado (%1$d cadastro%2$s)</string>

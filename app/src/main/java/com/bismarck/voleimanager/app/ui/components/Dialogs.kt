@@ -23,12 +23,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bismarck.voleimanager.app.data.model.Player
-import kotlinx.coroutines.delay
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -59,7 +62,7 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
         text = {
             OutlinedTextField(
                 value = newName,
-                onValueChange = { newName = it },
+                onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) newName = it },
                 label = { Text(stringResource(R.string.new_name)) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 singleLine = true
@@ -210,7 +213,7 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
             Column {
                 OutlinedTextField(
                     value = newName,
-                    onValueChange = { newName = it },
+                    onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) newName = it },
                     label = { Text(stringResource(R.string.name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
@@ -254,7 +257,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
             Column {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) name = it },
                     label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
@@ -281,7 +284,9 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                 Spacer(Modifier.height(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { isPriority = !isPriority }) {
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isPriority = !isPriority }) {
                     Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
                     Text(stringResource(R.string.set_priority))
                 }
@@ -385,29 +390,19 @@ fun GroupConfigDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
                 )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(32.dp))
-                        .clickable { priorityEnabled = !priorityEnabled }
-                ) {
-                    Switch(checked = priorityEnabled, onCheckedChange = { priorityEnabled = it })
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.min_priority), style = MaterialTheme.typography.bodySmall)
-                }
+                TooltipToggleRow(
+                    label = stringResource(R.string.min_priority),
+                    tooltip = stringResource(R.string.min_priority_tooltip),
+                    checked = priorityEnabled,
+                    onCheckedChange = { priorityEnabled = it }
+                )
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(32.dp))
-                        .clickable { scoreEnabled = !scoreEnabled }
-                ) {
-                    Switch(checked = scoreEnabled, onCheckedChange = { scoreEnabled = it })
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.use_score), style = MaterialTheme.typography.bodySmall)
-                }
+                TooltipToggleRow(
+                    label = stringResource(R.string.use_score),
+                    tooltip = stringResource(R.string.use_score_tooltip),
+                    checked = scoreEnabled,
+                    onCheckedChange = { scoreEnabled = it }
+                )
 
             }
         },
@@ -436,6 +431,7 @@ private fun BalancingModeOptionRow(
 ) {
     val scope = rememberCoroutineScope()
     val tooltipState = rememberTooltipState(isPersistent = true)
+    val haptic = LocalHapticFeedback.current
 
     TooltipBox(
         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -453,19 +449,77 @@ private fun BalancingModeOptionRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
                 .combinedClickable(
-                    onClick = onSelect,
+                    onClick = {
+                        tooltipState.dismiss()
+                        onSelect()
+                    },
                     onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         scope.launch {
                             tooltipState.show()
-                            delay(3600)
-                            tooltipState.dismiss()
                         }
                     }
                 )
         ) {
-            RadioButton(selected = selected, onClick = onSelect)
+            RadioButton(selected = selected, onClick = {
+                tooltipState.dismiss()
+                onSelect()
+            })
             Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun TooltipToggleRow(
+    label: String,
+    tooltip: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val haptic = LocalHapticFeedback.current
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = {
+            PlainTooltip {
+                Text(
+                    text = tooltip,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        state = tooltipState
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .combinedClickable(
+                    onClick = {
+                        tooltipState.dismiss()
+                        onCheckedChange(!checked)
+                    },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            tooltipState.show()
+                        }
+                    }
+                )
+        ) {
+            Switch(checked = checked, onCheckedChange = {
+                tooltipState.dismiss()
+                onCheckedChange(it)
+            })
+            Spacer(Modifier.width(16.dp))
             Text(label, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -483,7 +537,7 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
             Column {
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it },
+                    onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) text = it },
                     label = { Text(stringResource(R.string.group_name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true

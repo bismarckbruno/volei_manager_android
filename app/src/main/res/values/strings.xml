@@ -61,6 +61,7 @@
     <string name="faq_title">FAQ</string>
     <string name="no_players">No players found.</string>
     <string name="min_priority">Min. 1 priority per team</string>
+    <string name="min_priority_tooltip">Enable this if your group needs to spread this priority across both teams.</string>
     <string name="manual_teams">Assemble teams manually</string>
     <string name="project_docs">Project documentation</string>
     <string name="by_score_diff">By score difference</string>
@@ -90,6 +91,7 @@
     <string name="end_of_queue">End of queue</string>
     <string name="initial_elo">Initial Elo (1100–1300)</string>
     <string name="use_score">Use score</string>
+    <string name="use_score_tooltip">Enable this to record and display the match score; disable it if your group does not play with points.</string>
     <string name="yes_clear">Yes, clear</string>
     <string name="priority">Priority</string>
     <string name="add">Add</string>
@@ -155,6 +157,17 @@
     <string name="assemble_teams">Assemble teams</string>
     <string name="select_equal_number">Select an equal number of people on each team (min. 2 and max. 6)</string>
     <string name="to_start_add_players">To get started, add players using the \"+\" button in the top‑right corner of the screen</string>
+    <string name="onboarding_team_size_question">How many people will play on each team?</string>
+    <string name="onboarding_team_size_hint">You can change this setting later in the side menu under \"Group rules\".</string>
+    <string name="onboarding_add_players_instruction">Add at least %1$d people with the \"+\" button or import them from \"Import data\".</string>
+    <string name="onboarding_name_title">Name</string>
+    <string name="onboarding_name_description">• Use a short name or nickname.\n• Full first and last names are not required.</string>
+    <string name="onboarding_elo_title">Initial Elo</string>
+    <string name="onboarding_elo_description">• Change it only if you already know the player’s level well.\n• If unsure, keep 1200.</string>
+    <string name="onboarding_priority_title">Set as priority</string>
+    <string name="onboarding_priority_description">• Use it for profiles that should be spread between teams (e.g., setters).\n• If your group does not need this, leave it unchecked.</string>
+    <string name="continue_word">Continue</string>
+    <string name="back">Back</string>
     <string name="uncheck_all">Uncheck all</string>
     <string name="check_all">Check all</string>
     <string name="none_selected">None selected (%1$d registered)</string>

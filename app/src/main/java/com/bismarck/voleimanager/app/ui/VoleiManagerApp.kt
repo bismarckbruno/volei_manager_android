@@ -40,6 +40,7 @@ import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.*
 import com.bismarck.voleimanager.app.ui.game.GameScreenContent
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
@@ -61,6 +62,23 @@ fun getDisplayGroupName(groupName: String?): String {
         else -> groupName // Mostra o nome que o usuário digitou (ex: "Amigos")
     }
 }
+
+@Composable
+private fun getDisplayBalancingModeName(balancingMode: String): String {
+    return when (balancingMode) {
+        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name ->
+            stringResource(R.string.mode_winner_rests)
+        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name ->
+            stringResource(R.string.mode_both_rest)
+        else -> stringResource(R.string.mode_rebalance)
+    }
+}
+
+@Composable
+private fun getDisplayGroupWithMode(groupName: String?, balancingMode: String): String {
+    return "${getDisplayGroupName(groupName)} (${getDisplayBalancingModeName(balancingMode)})"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
@@ -509,7 +527,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 }
                             )
                             FlexibleDrawerItem(
-                                icon = { Icon(Icons.AutoMirrored.Outlined.TrendingUp, null) },
+                                icon = { Icon(Icons.Default.WorkspacePremium, null) },
                                 label = { Text(stringResource(R.string.show_elo)) },
                                 selected = false,
                                 badge = { Switch(checked = showElo, onCheckedChange = null) },
@@ -595,8 +613,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (showCreateGroupDialog) CreateGroupDialog(
             { showCreateGroupDialog = false },
             { newName, balancingMode ->
-                selectedGroup = newName; viewModel.loadGroupConfig(newName, balancingMode); showCreateGroupDialog =
-                false
+                val normalizedGroupName = newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
+                selectedGroup = normalizedGroupName
+                viewModel.createGroup(normalizedGroupName, balancingMode)
+                showCreateGroupDialog = false
             })
         if (showAddPlayerDialog) AddPlayerDialog(
             { showAddPlayerDialog = false },
@@ -679,7 +699,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 { showRenameGroupDialog = null },
                 { newName ->
                     viewModel.renameGroup(group, newName)
-                    selectedGroup = newName
+                    selectedGroup = newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
                     showRenameGroupDialog = null
                 })
         }
@@ -714,7 +734,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             Text(stringResource(R.string.app_name))
                             selectedGroup?.let {
                                 Text(
-                                    getDisplayGroupName(selectedGroup),
+                                    getDisplayGroupWithMode(selectedGroup, groupConfig.balancingMode),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -1054,17 +1074,22 @@ private fun FlexibleDrawerItem(
         if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val tooltipState = rememberTooltipState(isPersistent = false)
+    val tooltipState = rememberTooltipState(isPersistent = true)
 
     val itemContent: @Composable () -> Unit = {
         Row(
             modifier = Modifier
                 .combinedClickable(
-                    onClick = onClick,
+                    onClick = {
+                        tooltipState.dismiss()
+                        onClick()
+                    },
                     onLongClick = {
                         if (!tooltipText.isNullOrBlank()) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            scope.launch { tooltipState.show() }
+                            scope.launch {
+                                tooltipState.show()
+                            }
                         }
                     }
                 )
@@ -1153,4 +1178,3 @@ private fun FlexibleTopAppBar(
         }
     }
 }
-

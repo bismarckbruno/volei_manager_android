@@ -61,6 +61,7 @@
     <string name="faq_title">Preguntas frecuentes (FAQ)</string>
     <string name="no_players">No se encontraron jugadores.</string>
     <string name="min_priority">Mín. 1 prioridad por equipo</string>
+    <string name="min_priority_tooltip">Actívalo si el grupo necesita repartir esa prioridad entre ambos equipos.</string>
     <string name="manual_teams">Formar equipos manualmente</string>
     <string name="project_docs">Documentación del proyecto</string>
     <string name="by_score_diff">Por diferencia de puntuación</string>
@@ -90,6 +91,7 @@
     <string name="end_of_queue">Final de la cola</string>
     <string name="initial_elo">Elo inicial (1100–1300)</string>
     <string name="use_score">Usar marcador</string>
+    <string name="use_score_tooltip">Actívalo para registrar y mostrar el marcador del partido; desactívalo si el grupo no juega con puntos.</string>
     <string name="yes_clear">Sí, limpiar</string>
     <string name="priority">Prioridad</string>
     <string name="add">Añadir</string>
@@ -155,6 +157,17 @@
     <string name="assemble_teams">Formar equipos</string>
     <string name="select_equal_number">Seleccione un número igual de personas en cada equipo (mín. 2 y máx. 6)</string>
     <string name="to_start_add_players">Para comenzar, agrega jugadores con el botón \"+\" en la esquina superior derecha de la pantalla</string>
+    <string name="onboarding_team_size_question">¿Cuántas personas jugarán en cada equipo?</string>
+    <string name="onboarding_team_size_hint">Puedes cambiar esta configuración más tarde en el menú lateral en \"Reglas del grupo\".</string>
+    <string name="onboarding_add_players_instruction">Agrega al menos %1$d personas con el botón \"+\" o impórtalas desde \"Importar datos\".</string>
+    <string name="onboarding_name_title">Nombre</string>
+    <string name="onboarding_name_description">• Usa un nombre corto o apodo.\n• No hace falta nombre y apellido completos.</string>
+    <string name="onboarding_elo_title">Elo inicial</string>
+    <string name="onboarding_elo_description">• Cámbialo solo si ya conoces bien el nivel de la persona.\n• Si tienes dudas, deja 1200.</string>
+    <string name="onboarding_priority_title">Definir como prioridad</string>
+    <string name="onboarding_priority_description">• Úsalo para perfiles que deben repartirse entre los equipos (por ejemplo, armadores).\n• Si tu grupo no lo necesita, déjalo desmarcado.</string>
+    <string name="continue_word">Continuar</string>
+    <string name="back">Volver</string>
     <string name="uncheck_all">Desmarcar todos</string>
     <string name="check_all">Marcar todos</string>
     <string name="none_selected">Ninguno seleccionado (%1$d registro%2$s)</string>

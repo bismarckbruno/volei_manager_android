@@ -21,6 +21,9 @@ import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.data.model.MatchHistory
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 import com.bismarck.voleimanager.app.util.EloCalculator
@@ -41,6 +44,8 @@ import java.util.Locale
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 
 const val DEFAULT_GROUP_NAME = "Geral"
+const val MAX_GROUP_NAME_LENGTH = 20
+const val MAX_PLAYER_NAME_LENGTH = 24
 
 enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -658,7 +663,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _currentGroupConfig.value = repository.getGroupConfig(name)
                 ?: GroupConfig(
                     groupName = name,
-                    balancingMode = balancingMode ?: BalancingMode.REBALANCE.name
+                    balancingMode = balancingMode ?: BalancingMode.REBALANCE.name,
+                    onboardingStep = ONBOARDING_STEP_TEAM_SIZE
                 ).also { repository.saveGroupConfig(it) }
             if (!same) {
                 // Switching groups: reset current state, then try to restore saved state for new group
@@ -700,11 +706,34 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
     }
 
+    fun continueCurrentGroupOnboardingWithTeamSize(teamSize: Int) {
+        val clampedTeamSize = teamSize.coerceIn(2, 6)
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            teamSize = clampedTeamSize,
+            onboardingStep = ONBOARDING_STEP_MIN_PLAYERS
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToTeamSizeStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun completeCurrentGroupOnboarding() {
+        if (_currentGroupConfig.value.onboardingStep >= ONBOARDING_STEP_COMPLETE) return
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(onboardingStep = ONBOARDING_STEP_COMPLETE)
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
     fun renameGroup(old: String, new: String) = viewModelScope.launch {
+        val normalizedNew = normalizeGroupName(new)
         repository.renameGroup(
             old,
-            new
-        ); if (_currentGroupConfig.value.groupName == old) loadGroupConfig(new)
+            normalizedNew
+        ); if (_currentGroupConfig.value.groupName == old) loadGroupConfig(normalizedNew)
     }
 
     fun deleteGroup(name: String) = viewModelScope.launch {
@@ -714,10 +743,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun createGroup(name: String, balancingMode: String = BalancingMode.REBALANCE.name) = viewModelScope.launch(Dispatchers.IO) {
-        val cfg = GroupConfig(groupName = name, balancingMode = balancingMode)
+        val normalizedName = normalizeGroupName(name)
+        if (normalizedName.isBlank()) return@launch
+
+        val existingConfig = repository.getGroupConfig(normalizedName)
+        if (existingConfig != null) {
+            loadGroupConfig(normalizedName)
+            return@launch
+        }
+        val cfg = GroupConfig(
+            groupName = normalizedName,
+            balancingMode = balancingMode,
+            onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+        )
         repository.saveGroupConfig(cfg)
         // Garantir que o load use o cfg salvo (faz reset e tentativa de restauração)
-        loadGroupConfig(name)
+        loadGroupConfig(normalizedName)
     }
 
     private fun getUsageCountMap(date: String): Map<Int, Int> {
@@ -1635,7 +1676,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun formatElo(elo: Double): String = String.format(Locale.US, "%.2f", elo)
 
     private fun normalizePersonName(name: String): String {
-        return name.trim().replace(Regex("\\s+"), " ").take(50)
+        return name.trim().replace(Regex("\\s+"), " ").take(MAX_PLAYER_NAME_LENGTH)
+    }
+
+    private fun normalizeGroupName(name: String): String {
+        return name.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
     }
 
     private fun canonicalPersonName(name: String): String {
