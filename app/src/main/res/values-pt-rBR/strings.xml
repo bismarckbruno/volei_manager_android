@@ -89,7 +89,7 @@
     <string name="new_registration">Novo cadastro</string>
     <string name="group_name">Nome do grupo</string>
     <string name="end_of_queue">Final da fila</string>
-    <string name="initial_elo">Elo inicial (1100–1300)</string>
+    <string name="initial_elo">Elo inicial</string>
     <string name="use_score">Usar placar</string>
     <string name="use_score_tooltip">Ative para registrar e exibir o placar da partida; desative se o grupo não for jogar com pontuação.</string>
     <string name="yes_clear">Sim, limpar</string>
@@ -170,6 +170,11 @@
     <string name="onboarding_elo_description">• Ajuste só se já conhecer bem o nível da pessoa.\n• Se houver dúvida, mantenha 1200.</string>
     <string name="onboarding_priority_title">Definir como prioridade</string>
     <string name="onboarding_priority_description">• Use para perfis que precisam ser distribuídos entre os times (ex.: levantadores).\n• Se seu grupo não precisa disso, deixe desmarcado.</string>
+    <string name="elo_level_1100_desc">iniciante</string>
+    <string name="elo_level_1150_desc">em evolução</string>
+    <string name="elo_level_1200_desc">padrão</string>
+    <string name="elo_level_1250_desc">forte</string>
+    <string name="elo_level_1300_desc">avançado</string>
     <string name="continue_word">Continuar</string>
     <string name="back">Voltar</string>
     <string name="uncheck_all">Desmarcar todos</string>

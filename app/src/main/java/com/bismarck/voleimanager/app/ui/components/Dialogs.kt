@@ -22,18 +22,23 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.bismarck.voleimanager.app.R
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
@@ -247,47 +252,84 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
 @Composable
 fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) -> Unit) {
     var name by remember { mutableStateOf("") }
-    var eloText by remember { mutableStateOf("1200") }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val nameFocusRequester = remember { FocusRequester() }
+    val eloLevels = remember { listOf(1100, 1150, 1200, 1250, 1300) }
+    val scrollState = rememberScrollState()
+    var eloIndex by rememberSaveable { mutableIntStateOf(2) }
     var isPriority by remember { mutableStateOf(false) }
     val normalizedName = name.trim().replace(Regex("\\s+"), " ")
+    val eloValue = eloLevels[eloIndex]
 
-    // Validação do Elo (mínimo 1100 e máximo 1300)
-    val eloValue = eloText.toIntOrNull()
-    val isEloValid = eloValue != null && eloValue in 1100..1300
+    LaunchedEffect(Unit) {
+        nameFocusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.new_registration)) },
         text = {
-            Column {
+            Column(
+                modifier = Modifier.verticalScroll(scrollState)
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) name = it },
                     label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    modifier = Modifier.focusRequester(nameFocusRequester)
                 )
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = eloText,
-                    onValueChange = { newValue ->
-                        // Permite esvaziar o campo e restringe o máximo em 1300
-                        if (newValue.isEmpty()) {
-                            eloText = newValue
-                        } else {
-                            val num = newValue.toIntOrNull()
-                            if (num != null && num <= 1300) {
-                                eloText = newValue
-                            }
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.initial_elo),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(8.dp))
+                Slider(
+                    value = eloIndex.toFloat(),
+                    onValueChange = { eloIndex = it.roundToInt().coerceIn(0, eloLevels.lastIndex) },
+                    valueRange = 0f..eloLevels.lastIndex.toFloat(),
+                    steps = eloLevels.size - 2
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    eloLevels.forEachIndexed { index, elo ->
+                        val descriptionRes = when (elo) {
+                            1100 -> R.string.elo_level_1100_desc
+                            1150 -> R.string.elo_level_1150_desc
+                            1200 -> R.string.elo_level_1200_desc
+                            1250 -> R.string.elo_level_1250_desc
+                            else -> R.string.elo_level_1300_desc
                         }
-                    },
-                    label = { Text(text = stringResource(R.string.initial_elo), maxLines = 1, overflow = TextOverflow.Ellipsis)},
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.WorkspacePremium, contentDescription = null) },
-                    isError = eloText.isNotEmpty() && !isEloValid // Mostra a borda vermelha se o número for inválido
-                )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            val isSelected = index == eloIndex
+                            Text(
+                                text = elo.toString(),
+                                textAlign = TextAlign.Center,
+                                fontSize = 11.sp,
+                                lineHeight = 13.sp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                            Text(
+                                text = stringResource(descriptionRes),
+                                textAlign = TextAlign.Center,
+                                fontSize = 11.sp,
+                                lineHeight = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(24.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -319,11 +361,12 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
         confirmButton = {
             Button(
                 onClick = {
-                    if (normalizedName.isNotBlank() && isEloValid) {
-                        onConfirm(normalizedName, eloValue!!.toDouble(), isPriority)
+                    if (normalizedName.isNotBlank()) {
+                        keyboardController?.hide()
+                        onConfirm(normalizedName, eloValue.toDouble(), isPriority)
                     }
                 },
-                enabled = normalizedName.isNotBlank() && isEloValid // Desabilita o botão se os dados não estiverem válidos
+                enabled = normalizedName.isNotBlank()
             ) { Text(stringResource(R.string.add)) }
         },
         dismissButton = {

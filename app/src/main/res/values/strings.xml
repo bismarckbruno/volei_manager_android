@@ -89,7 +89,7 @@
     <string name="new_registration">New registration</string>
     <string name="group_name">Group name</string>
     <string name="end_of_queue">End of queue</string>
-    <string name="initial_elo">Initial Elo (1100–1300)</string>
+    <string name="initial_elo">Initial Elo</string>
     <string name="use_score">Use score</string>
     <string name="use_score_tooltip">Enable this to record and display the match score; disable it if your group does not play with points.</string>
     <string name="yes_clear">Yes, clear</string>
@@ -170,6 +170,11 @@
     <string name="onboarding_elo_description">• Change it only if you already know the player’s level well.\n• If unsure, keep 1200.</string>
     <string name="onboarding_priority_title">Set as priority</string>
     <string name="onboarding_priority_description">• Use it for profiles that should be spread between teams (e.g., setters).\n• If your group does not need this, leave it unchecked.</string>
+    <string name="elo_level_1100_desc">Beginner</string>
+    <string name="elo_level_1150_desc">Developing</string>
+    <string name="elo_level_1200_desc">Default</string>
+    <string name="elo_level_1250_desc">Strong</string>
+    <string name="elo_level_1300_desc">Advanced</string>
     <string name="continue_word">Continue</string>
     <string name="back">Back</string>
     <string name="uncheck_all">Uncheck all</string>

@@ -89,7 +89,7 @@
     <string name="new_registration">Nuevo registro</string>
     <string name="group_name">Nombre del grupo</string>
     <string name="end_of_queue">Final de la cola</string>
-    <string name="initial_elo">Elo inicial (1100–1300)</string>
+    <string name="initial_elo">Elo inicial</string>
     <string name="use_score">Usar marcador</string>
     <string name="use_score_tooltip">Actívalo para registrar y mostrar el marcador del partido; desactívalo si el grupo no juega con puntos.</string>
     <string name="yes_clear">Sí, limpiar</string>
@@ -170,6 +170,11 @@
     <string name="onboarding_elo_description">• Cámbialo solo si ya conoces bien el nivel de la persona.\n• Si tienes dudas, deja 1200.</string>
     <string name="onboarding_priority_title">Definir como prioridad</string>
     <string name="onboarding_priority_description">• Úsalo para perfiles que deben repartirse entre los equipos (por ejemplo, armadores).\n• Si tu grupo no lo necesita, déjalo desmarcado.</string>
+    <string name="elo_level_1100_desc">principiante</string>
+    <string name="elo_level_1150_desc">en desarrollo</string>
+    <string name="elo_level_1200_desc">predeterminado</string>
+    <string name="elo_level_1250_desc">fuerte</string>
+    <string name="elo_level_1300_desc">avanzado</string>
     <string name="continue_word">Continuar</string>
     <string name="back">Volver</string>
     <string name="uncheck_all">Desmarcar todos</string>

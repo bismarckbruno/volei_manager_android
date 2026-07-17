@@ -159,8 +159,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
     LaunchedEffect(selectedGroup, groupConfig.onboardingStep) {
         val targetGroup = selectedGroup ?: return@LaunchedEffect
-        if (groupConfig.onboardingStep < ONBOARDING_STEP_COMPLETE) return@LaunchedEffect
-        if (targetGroup != groupConfig.groupName) {
+        val isPlaceholderConfig = groupConfig.groupName == DEFAULT_GROUP_NAME
+        val isOnboardingInProgress =
+            groupConfig.onboardingStep < ONBOARDING_STEP_COMPLETE && !isPlaceholderConfig
+        if (targetGroup != groupConfig.groupName && !isOnboardingInProgress) {
             viewModel.loadGroupConfig(targetGroup)
         }
     }
@@ -624,6 +626,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 selectedGroup = normalizedGroupName
                 viewModel.createGroup(normalizedGroupName, balancingMode)
                 showCreateGroupDialog = false
+                scope.launch { drawerState.close() }
             })
         if (showAddPlayerDialog) AddPlayerDialog(
             { showAddPlayerDialog = false },
@@ -705,9 +708,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 group,
                 { showRenameGroupDialog = null },
                 { newName ->
-                    viewModel.renameGroup(group, newName)
-                    selectedGroup = newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
-                    showRenameGroupDialog = null
+                    val normalizedName = newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
+                    scope.launch {
+                        viewModel.renameGroup(group, normalizedName)
+                        selectedGroup = normalizedName
+                        showRenameGroupDialog = null
+                    }
                 })
         }
         showDeleteGroupDialog?.let { group ->

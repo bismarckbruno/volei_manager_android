@@ -770,12 +770,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
     }
 
-    fun renameGroup(old: String, new: String) = viewModelScope.launch {
+    suspend fun renameGroup(old: String, new: String) {
         val normalizedNew = normalizeGroupName(new)
-        repository.renameGroup(
-            old,
-            normalizedNew
-        ); if (_currentGroupConfig.value.groupName == old) loadGroupConfig(normalizedNew)
+        if (normalizedNew.isBlank() || normalizedNew == old) return
+        repository.renameGroup(old, normalizedNew)
+        if (_currentGroupConfig.value.groupName == old) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(groupName = normalizedNew)
+        }
     }
 
     fun deleteGroup(name: String) = viewModelScope.launch {
