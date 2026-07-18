@@ -210,7 +210,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             onDismissRequest = { showExportDialog = false },
             title = { Text(stringResource(R.string.export_data)) },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
                     OutlinedTextField(
                         value = exportFileName,
                         onValueChange = { exportFileName = it },
@@ -257,7 +259,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             onDismissRequest = { showImportDialog = false },
             title = { Text(stringResource(R.string.import_data)) },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
@@ -645,7 +649,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 onDismissRequest = { showThemeDialog = false },
                 title = { Text(stringResource(R.string.theme)) },
                 text = {
-                    Column {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState())
+                    ) {
                         ThemeOption(
                             stringResource(R.string.theme_system),
                             mode == ThemeMode.SYSTEM

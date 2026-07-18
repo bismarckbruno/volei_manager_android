@@ -51,7 +51,7 @@ fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(vertical = 12.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(
@@ -70,13 +70,15 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rename_group)) },
         text = {
-            OutlinedTextField(
-                value = newName,
-                onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) newName = it },
-                label = { Text(stringResource(R.string.new_name)) },
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                singleLine = true
-            )
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) newName = it },
+                    label = { Text(stringResource(R.string.new_name)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    singleLine = true
+                )
+            }
         },
         confirmButton = {
             Button(onClick = { if (newName.isNotBlank()) onConfirm(newName) }) {
@@ -220,7 +222,7 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.edit_registration)) },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) newName = it },
@@ -601,7 +603,7 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.create_new_group)) },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) text = it },
