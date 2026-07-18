@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -357,9 +358,10 @@ fun HistoryScreen(
             // Left column width (name + optional star)
             val nameW = textMeasurer.measure(info.player.name, nameTextStyle).size.width +
                     (if (info.player.isPriority) with(density) { 14.dp.roundToPx() } else 0)
-            val eloW = if (showElo) textMeasurer.measure(
-                "Elo: ${EloCalculator.formatElo(info.displayElo)}", statsTextStyle
-            ).size.width else 0
+            val eloW = if (showElo) {
+                textMeasurer.measure(EloCalculator.formatElo(info.displayElo), statsTextStyle).size.width +
+                        with(density) { 16.dp.roundToPx() }
+            } else 0
             val playedTimeW = textMeasurer.measure(
                 formatPlayedDuration(info.playedMinutes),
                 statsTextStyle
@@ -675,7 +677,8 @@ fun HistoryScreen(
                                     text = stringResource(
                                         R.string.average_duration,
                                         avgDurationText
-                                    )
+                                    ),
+                                    leadingIcon = Icons.Default.AccessTime
                                 )
                             }
                         }
@@ -730,7 +733,8 @@ fun HistoryScreen(
                                     text = stringResource(
                                         R.string.average_elo,
                                         averagePlayersEloText ?: "--"
-                                    )
+                                    ),
+                                    leadingIcon = Icons.Default.WorkspacePremium
                                 )
                             }
                             itemsIndexed(historyPlayerList) { index, info ->
@@ -755,19 +759,32 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun HistorySummaryItem(text: String) {
+private fun HistorySummaryItem(text: String, leadingIcon: ImageVector? = null) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         shape = RoundedCornerShape(10.dp)
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .width(IntrinsicSize.Max)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-        )
+        ) {
+            if (leadingIcon != null) {
+                Icon(
+                    imageVector = leadingIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(4.dp))
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -856,11 +873,20 @@ fun HistoryPlayerCard(
                         }
                     }
                     if (showElo) {
-                        Text(
-                            "Elo: ${EloCalculator.formatElo(displayElo)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                EloCalculator.formatElo(displayElo),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Spacer(Modifier.height(2.dp))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -921,11 +947,20 @@ fun HistoryPlayerCard(
                         }
                     }
                     if (showElo) {
-                        Text(
-                            "Elo: ${EloCalculator.formatElo(displayElo)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                EloCalculator.formatElo(displayElo),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -1027,7 +1062,7 @@ fun HistoryItem(
                 } else 0
                 val durationWidthPx = if (durationMinutes != null) {
                     textMeasurer.measure(
-                        "$durationMinutes min",
+                        "${durationMinutes}min",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
                     ).size.width + with(density) { 16.dp.roundToPx() }
                 } else 0
@@ -1054,12 +1089,21 @@ fun HistoryItem(
                                     )
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
-                                Text(
-                                    text = "$durationMinutes min",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = contentColor
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccessTime,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = contentColor
+                                    )
+                                    Spacer(Modifier.width(2.dp))
+                                    Text(
+                                        text = "${durationMinutes}min",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = contentColor
+                                    )
+                                }
                             }
                         }
                     } else {
@@ -1078,12 +1122,21 @@ fun HistoryItem(
                                         )
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Text(
-                                        text = "$durationMinutes min",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = contentColor
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.AccessTime,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = contentColor
+                                        )
+                                        Spacer(Modifier.width(2.dp))
+                                        Text(
+                                            text = "${durationMinutes}min",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = contentColor
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1116,9 +1169,9 @@ fun HistoryItem(
                 ) {
                     if (isTeamAWin) {
                         Icon(
-                            Icons.Default.WorkspacePremium,
+                            painter = painterResource(R.drawable.coroa_th35),
                             contentDescription = stringResource(R.string.winner_word),
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                             tint = starColor
                         )
                     }
@@ -1130,9 +1183,9 @@ fun HistoryItem(
                 ) {
                     if (!isTeamAWin) {
                         Icon(
-                            Icons.Default.WorkspacePremium,
+                            painter = painterResource(R.drawable.coroa_th35),
                             contentDescription = stringResource(R.string.winner),
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                             tint = starColor
                         )
                     }
@@ -1167,12 +1220,23 @@ fun HistoryItem(
 
                     if (showElo && match.teamAAverageElo != null) {
                         Spacer(Modifier.height(2.dp))
-                        Text(
-                            "(Elo: ${EloCalculator.formatElo(match.teamAAverageElo)})",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = contentColor.copy(alpha = 0.8f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = contentColor.copy(alpha = 0.8f)
+                            )
+                            Text(
+                                EloCalculator.formatElo(match.teamAAverageElo),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = contentColor.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                     Spacer(Modifier.height(2.dp))
                     Text(
@@ -1214,12 +1278,23 @@ fun HistoryItem(
 
                     if (showElo && match.teamBAverageElo != null) {
                         Spacer(Modifier.height(2.dp))
-                        Text(
-                            "(Elo: ${EloCalculator.formatElo(match.teamBAverageElo)})",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = contentColor.copy(alpha = 0.8f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = contentColor.copy(alpha = 0.8f)
+                            )
+                            Text(
+                                EloCalculator.formatElo(match.teamBAverageElo),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = contentColor.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                     Spacer(Modifier.height(2.dp))
                     Text(
@@ -1672,21 +1747,43 @@ fun ExportableImageContent(
         }
         
         if (players != null && showElo && averagePlayersEloText != null) {
-            Text(
-                text = stringResource(R.string.average_elo, averagePlayersEloText),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 8.dp)
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.WorkspacePremium,
+                    contentDescription = null,
+                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.average_elo, averagePlayersEloText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         if (matches != null && averageMatchDurationText != null) {
-            Text(
-                text = stringResource(R.string.average_duration, averageMatchDurationText),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 8.dp)
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccessTime,
+                    contentDescription = null,
+                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.average_duration, averageMatchDurationText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         matches?.forEach { match ->

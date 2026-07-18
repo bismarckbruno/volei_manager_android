@@ -39,7 +39,6 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -61,6 +60,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
@@ -433,6 +433,18 @@ fun GameScreenContent(
                                     }
 
                                     else -> {
+                                        val dynamicFullTeamsInWaitingQueue = if (config.teamSize <= 0) {
+                                            0
+                                        } else {
+                                            val winnerIds = winners.map { it.id }.toSet()
+                                            val waitingIds = waitingList.map { it.id }.toSet()
+                                            val waitingWithoutWinners =
+                                                waitingList.count { !winnerIds.contains(it.id) }
+                                            val newlyPresentOutsideWaiting = presentIds.count { id ->
+                                                !winnerIds.contains(id) && !waitingIds.contains(id)
+                                            }
+                                            (waitingWithoutWinners + newlyPresentOutsideWaiting) / config.teamSize
+                                        }
                                         item {
                                             EmptyStateCard(
                                                 presentIds.size,
@@ -452,7 +464,7 @@ fun GameScreenContent(
                                                 streak,
                                                 config.victoryLimit,
                                                 config.balancingMode,
-                                                if (config.teamSize > 0) waitingList.size / config.teamSize else 0,
+                                                dynamicFullTeamsInWaitingQueue,
                                                 isDarkTheme,
                                                 onShowSnackbar = onShowSnackbar,
                                                 onClearRecent = { viewModel.clearRecentGameData() }
@@ -1117,6 +1129,7 @@ fun ActiveGameView(
                                 Box(
                                     modifier = Modifier
                                         .width(50.dp)
+                                        .height(50.dp)
                                         .align(Alignment.CenterVertically)
                                         .clip(CircleShape)
                                         .clickable { viewModel.toggleTeamsSwapped() },
@@ -1229,7 +1242,7 @@ fun ActiveGameView(
                     }
                     Box(
                         modifier = Modifier
-                            .height(40.dp)
+                            .height(50.dp)
                             .width(50.dp)
                             .clip(CircleShape)
                             .clickable { viewModel.toggleTeamsSwapped() },
@@ -1558,12 +1571,21 @@ fun ActiveTeamCard(
                     }
                 }
                 if (showElo) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.WorkspacePremium,
+                            contentDescription = null,
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                            tint = contentColor.copy(alpha = 0.7f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            EloCalculator.formatElo(avgElo),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = contentColor.copy(alpha = 0.7f)
+                        )
+                    }
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        "(${EloCalculator.formatElo(avgElo)})",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = contentColor
-                    )
                 }
             }
 
@@ -1638,7 +1660,7 @@ fun ActiveTeamCard(
                             )
                     ) {
                         Text(
-                            text = if (showElo) "${p.name} (${EloCalculator.formatElo(p.elo)})" else p.name,
+                            text = if (showElo) "${p.name} ⎯  ${EloCalculator.formatElo(p.elo)}" else p.name,
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis, color = contentColor
                         )
@@ -2118,37 +2140,38 @@ fun EmptyStateCard(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                Icons.Default.Star,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            val limitReached = hasPreviousMatch && currentStreak >= victoryLimit
+            val kingTextColor = MaterialTheme.colorScheme.tertiary
+            val mainLogo = if (isDarkTheme) {
+                R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
+            } else {
+                R.drawable.logo_volei_manager
+            }
+            if (limitReached) {
+                Icon(
+                    painter = painterResource(mainLogo),
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp),
+                    tint = kingTextColor
+                )
+            } else {
+                Icon(
+                    painter = painterResource(mainLogo),
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp),
+                    tint = Color.Unspecified
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             if (hasPreviousMatch) {
-                val limitReached = currentStreak >= victoryLimit
                 if (limitReached) {
-                    val kingTextColor = MaterialTheme.colorScheme.tertiary
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.WorkspacePremium,
-                            contentDescription = null,
-                            tint = kingTextColor,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(R.string.limit_reached_title),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = kingTextColor,
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.limit_reached_title),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = kingTextColor,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(modifier = Modifier.height(4.dp));
                     // Adapta a mensagem dependendo do modo de balanceamento
                     val body = when (try { BalancingMode.valueOf(balancingMode) } catch (e: Exception) { BalancingMode.REBALANCE }) {
@@ -2438,10 +2461,18 @@ fun PlayerCard(
                         }
                     }
                     if (showElo) {
-                        Text(
-                            text = "Elo: ${EloCalculator.formatElo(player.elo)}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = EloCalculator.formatElo(player.elo),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
                 Column(horizontalAlignment = Alignment.End) {
@@ -2534,15 +2565,6 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                 Spacer(Modifier.width(8.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isResting) {
-                            Icon(
-                                imageVector = Icons.Default.PauseCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
-                            )
-                            Spacer(Modifier.width(4.dp))
-                        }
                         Text(
                             player.name,
                             style = MaterialTheme.typography.bodyMedium,
@@ -2559,13 +2581,31 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        if (isResting) {
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                painter = painterResource(R.drawable.text35_4),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                            )
+                        }
                     }
                     if (showElo) {
-                        Text(
-                            EloCalculator.formatElo(player.elo),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                EloCalculator.formatElo(player.elo),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

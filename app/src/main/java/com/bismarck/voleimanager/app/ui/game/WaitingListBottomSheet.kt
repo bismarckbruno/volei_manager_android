@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +57,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
@@ -77,8 +80,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import com.bismarck.voleimanager.app.R
@@ -117,6 +122,7 @@ internal fun WaitingListContent(
     externalSnackbarHostState: SnackbarHostState? = null
 ) {
     val context = LocalContext.current
+    val restingMap by viewModel.restingPlayers.collectAsState()
 
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
@@ -287,6 +293,7 @@ internal fun WaitingListContent(
                         isFirst = index == 0,
                         isLast = index == waitingList.lastIndex,
                         player = player,
+                        isResting = restingMap.containsKey(player.id),
                         showElo = showElo,
                         highlightPulse = if (highlightedPlayerId == player.id) highlightPulse else 0,
                         onMoveUp = {
@@ -335,6 +342,7 @@ internal fun WaitingListContent(
                     modifier = Modifier
                         .animateItemPlacement()
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { absentExpanded = !absentExpanded },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -503,6 +511,7 @@ private fun WaitingListPlayerItem(
     isFirst: Boolean,
     isLast: Boolean,
     player: Player,
+    isResting: Boolean,
     showElo: Boolean,
     highlightPulse: Int,
     onMoveUp: () -> Unit,
@@ -576,13 +585,31 @@ private fun WaitingListPlayerItem(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                            if (isResting) {
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    painter = painterResource(R.drawable.text35_4),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                                )
+                            }
                         }
                         if (showElo) {
-                            Text(
-                                EloCalculator.formatElo(player.elo),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.WorkspacePremium,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    EloCalculator.formatElo(player.elo),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -741,11 +768,20 @@ private fun InactivePlayerItem(
                         }
                     }
                     if (showElo) {
-                        Text(
-                            EloCalculator.formatElo(player.elo),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                EloCalculator.formatElo(player.elo),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
                 IconButton(
@@ -792,5 +828,3 @@ private fun InactivePlayerItem(
         }
     }
 }
-
-

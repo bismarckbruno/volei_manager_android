@@ -211,7 +211,7 @@ fun SubstitutionDialog(
                         }
                         LazyListFastScroller(
                             state = listState,
-                            modifier = Modifier.align(Alignment.CenterEnd)
+                            modifier = Modifier.align(Alignment.CenterEnd).offset(x = 14.dp)
                         )
                     }
                 }

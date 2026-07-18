@@ -11,12 +11,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,6 +31,7 @@ import com.bismarck.voleimanager.app.util.EloCalculator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -139,7 +143,6 @@ fun ManualSetupScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(end = 10.dp)
                 ) {
                     items(players) { player ->
                         PlayerSelectionRow(
@@ -163,7 +166,7 @@ fun ManualSetupScreen(
                     state = listState,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .padding(end = 2.dp)
+                        .padding(end = 4.dp)
                 )
             }
         }
@@ -191,11 +194,43 @@ fun PlayerSelectionRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Nome e Elo
-        Column(modifier = Modifier.weight(1f)) {
-            Text(player.name, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-            if (showElo) {
-                Text("Elo: ${EloCalculator.formatElo(player.elo)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Ícone à esquerda + bloco de nome/elo à direita
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    player.name,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (showElo) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WorkspacePremium,
+                            contentDescription = null,
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            EloCalculator.formatElo(player.elo),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
 
@@ -239,6 +274,7 @@ fun SelectionButton(
     Box(
         modifier = Modifier
             .size(40.dp)
+            .clip(CircleShape)
             .background(
                 color = if (isSelected) activeColor else Color.Transparent,
                 shape = CircleShape
@@ -253,5 +289,3 @@ fun SelectionButton(
         )
     }
 }
-
-
