@@ -1119,6 +1119,7 @@ fun ActiveGameView(
                                     modifier = Modifier
                                         .width(50.dp)
                                         .align(Alignment.CenterVertically)
+                                        .clip(CircleShape)
                                         .clickable { viewModel.toggleTeamsSwapped() },
                                     contentAlignment = Alignment.Center
                                 ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
@@ -1231,6 +1232,7 @@ fun ActiveGameView(
                         modifier = Modifier
                             .height(40.dp)
                             .width(50.dp)
+                            .clip(CircleShape)
                             .clickable { viewModel.toggleTeamsSwapped() },
                         contentAlignment = Alignment.Center
                     ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
@@ -1971,16 +1973,6 @@ private fun GroupOnboardingMinimumPlayersCard(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowUpward,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
             Text(
                 text = stringResource(R.string.onboarding_add_players_instruction, minimumPlayers),
                 style = MaterialTheme.typography.titleMedium,

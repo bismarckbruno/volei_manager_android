@@ -66,6 +66,14 @@ fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var newName by remember { mutableStateOf(oldName) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+    
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
+    
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rename_group)) },
@@ -76,7 +84,8 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
                     onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) newName = it },
                     label = { Text(stringResource(R.string.new_name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                    singleLine = true
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester)
                 )
             }
         },
@@ -217,7 +226,15 @@ fun SubstitutionDialog(
 fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, Boolean) -> Unit) {
     var newName by remember { mutableStateOf(player.name) }
     var isPriority by remember { mutableStateOf(player.isPriority) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
     val normalizedName = newName.trim().replace(Regex("\\s+"), " ")
+    
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
+    
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.edit_registration)) },
@@ -228,7 +245,8 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
                     onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) newName = it },
                     label = { Text(stringResource(R.string.name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                    singleLine = true
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester)
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -598,6 +616,13 @@ private fun TooltipToggleRow(
 fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var text by remember { mutableStateOf("") }
     var balancingMode by remember { mutableStateOf(com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+    
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -609,7 +634,8 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                     onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) text = it },
                     label = { Text(stringResource(R.string.group_name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                    singleLine = true
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester)
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)

@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,10 +30,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,6 +50,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -76,8 +81,8 @@ private fun getDisplayBalancingModeName(balancingMode: String): String {
 }
 
 @Composable
-private fun getDisplayGroupWithMode(groupName: String?, balancingMode: String): String {
-    return "${getDisplayGroupName(groupName)} (${getDisplayBalancingModeName(balancingMode)})"
+private fun getDisplayGroupWithMode(groupName: String?, balancingMode: String, teamSize: Int): String {
+    return "${getDisplayGroupName(groupName)} - ${getDisplayBalancingModeName(balancingMode)} - ${teamSize}x${teamSize}"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -753,7 +758,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             Text(stringResource(R.string.app_name))
                             selectedGroup?.let {
                                 Text(
-                                    getDisplayGroupWithMode(groupConfig.groupName, groupConfig.balancingMode),
+                                    getDisplayGroupWithMode(groupConfig.groupName, groupConfig.balancingMode, groupConfig.teamSize),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -766,7 +771,25 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     },
                     actions = {
                         if (currentScreen == Screen.GAME) {
-                            IconButton(onClick = { showAddPlayerDialog = true }) {
+                            val groupConfig by viewModel.currentGroupConfig.collectAsState()
+                            val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
+                            val showAddPulse = groupConfig.onboardingStep == ONBOARDING_STEP_MIN_PLAYERS && groupPlayers.isEmpty()
+                            
+                            val scale by animateFloatAsState(
+                                targetValue = if (showAddPulse) 1.15f else 1f,
+                                animationSpec = if (showAddPulse) 
+                                    infiniteRepeatable(
+                                        animation = tween(1000),
+                                        repeatMode = RepeatMode.Reverse
+                                    )
+                                else tween(200),
+                                label = "AddButtonPulse"
+                            )
+                            
+                            IconButton(
+                                onClick = { showAddPlayerDialog = true },
+                                modifier = Modifier.scale(scale)
+                            ) {
                                 Icon(Icons.Default.Add, stringResource(R.string.add_new_player))
                             }
                         } else if (currentScreen == Screen.HISTORY) {
