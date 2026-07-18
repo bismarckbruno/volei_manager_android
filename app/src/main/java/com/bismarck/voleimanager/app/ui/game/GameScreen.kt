@@ -2143,13 +2143,13 @@ fun EmptyStateCard(
             val limitReached = hasPreviousMatch && currentStreak >= victoryLimit
             val kingTextColor = MaterialTheme.colorScheme.tertiary
             val mainLogo = if (isDarkTheme) {
-                R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
+                R.drawable.bola_volei_fundo_escuro
             } else {
                 R.drawable.logo_volei_manager
             }
             if (limitReached) {
                 Icon(
-                    painter = painterResource(mainLogo),
+                    painter = painterResource(R.drawable.coroa_th35),
                     contentDescription = null,
                     modifier = Modifier.size(52.dp),
                     tint = kingTextColor

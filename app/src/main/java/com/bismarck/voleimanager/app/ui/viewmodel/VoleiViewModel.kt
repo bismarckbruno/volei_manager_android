@@ -2129,7 +2129,20 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             setContent {
                 com.bismarck.voleimanager.app.ui.theme.AppTheme(darkTheme = isDarkTheme, dynamicColor = false) {
                     androidx.compose.material3.Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
-                        com.bismarck.voleimanager.app.ui.ExportableImageContent(matches, matchSortMode, players, playerSortMode, date, isDarkTheme, showElo, showScore, matchDurationsMinutes, averagePlayersEloText, averageMatchDurationText)
+                        com.bismarck.voleimanager.app.ui.ExportableImageContent(
+                            matches = matches,
+                            matchSortMode = matchSortMode,
+                            players = players,
+                            playerSortMode = playerSortMode,
+                            groupName = _currentGroupConfig.value.groupName,
+                            date = date,
+                            isDarkTheme = isDarkTheme,
+                            showElo = showElo,
+                            showScore = showScore,
+                            matchDurationsMinutes = matchDurationsMinutes,
+                            averagePlayersEloText = averagePlayersEloText,
+                            averageMatchDurationText = averageMatchDurationText
+                        )
                     }
                 }
             }

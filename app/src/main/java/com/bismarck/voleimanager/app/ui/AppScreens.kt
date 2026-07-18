@@ -774,7 +774,7 @@ private fun HistorySummaryItem(text: String, leadingIcon: ImageVector? = null) {
                 Icon(
                     imageVector = leadingIcon,
                     contentDescription = null,
-                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
+                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.width(4.dp))
@@ -890,6 +890,7 @@ fun HistoryPlayerCard(
                         Spacer(Modifier.height(2.dp))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(1.dp))
                         Icon(
                             Icons.Default.AccessTime,
                             contentDescription = null,
@@ -1026,7 +1027,7 @@ fun HistoryItem(
         LocalExtendedColors.current.anotherPrime.onColorContainer
     }
 
-    val starColor = if (isTeamAWin) {
+    val crownColor = if (isTeamAWin) {
         MaterialTheme.colorScheme.primary
     } else {
         LocalExtendedColors.current.anotherPrime.color
@@ -1172,7 +1173,7 @@ fun HistoryItem(
                             painter = painterResource(R.drawable.coroa_th35),
                             contentDescription = stringResource(R.string.winner_word),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
-                            tint = starColor
+                            tint = crownColor
                         )
                     }
                 }
@@ -1186,7 +1187,7 @@ fun HistoryItem(
                             painter = painterResource(R.drawable.coroa_th35),
                             contentDescription = stringResource(R.string.winner),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
-                            tint = starColor
+                            tint = crownColor
                         )
                     }
                 }
@@ -1671,6 +1672,7 @@ fun ExportableImageContent(
     matchSortMode: MatchSortMode?,
     players: List<HistoryPlayerInfo>?,
     playerSortMode: PlayerSortMode?,
+    groupName: String,
     date: String,
     isDarkTheme: Boolean,
     showElo: Boolean,
@@ -1683,7 +1685,7 @@ fun ExportableImageContent(
         modifier = Modifier
             .width(400.dp)
             .padding(horizontal = 16.dp)
-            .padding(top = 32.dp, bottom = 16.dp),
+            .padding(top = 40.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -1692,14 +1694,18 @@ fun ExportableImageContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
+            val exportLogoRes = if (isDarkTheme) {
+                R.drawable.bola_volei_fundo_escuro
+            } else {
+                R.drawable.logo_volei_manager
+            }
             androidx.compose.foundation.Image(
-                painter = painterResource(
-                    id = if (isDarkTheme) R.drawable.bola_de_v_lei_mais_clara_para_fundo_escuro
-                    else R.drawable.ic_launcher_foreground
-                ),
+                painter = painterResource(id = exportLogoRes),
                 contentDescription = null,
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(28.dp),
+                contentScale = ContentScale.Fit
             )
+            Spacer(Modifier.width(12.dp))
             Text(
                 stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineMedium,
@@ -1708,7 +1714,7 @@ fun ExportableImageContent(
             )
         }
 
-        val title = if (matches != null) stringResource(R.string.matches_date, formatLocalizedDate(date)) else stringResource(R.string.players_date, formatLocalizedDate(date))
+        val title = "$groupName - ${formatLocalizedDate(date)}"
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
