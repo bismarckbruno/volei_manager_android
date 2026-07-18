@@ -459,14 +459,9 @@ fun GroupConfigDialog(
                         stringResource(R.string.mode_rebalance_tooltip)
                     ),
                     Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name,
-                        stringResource(R.string.mode_winner_rests),
-                        stringResource(R.string.mode_winner_rests_tooltip)
-                    ),
-                    Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name,
-                        stringResource(R.string.mode_both_rest),
-                        stringResource(R.string.mode_both_rest_tooltip)
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name,
+                        stringResource(R.string.mode_rest),
+                        stringResource(R.string.mode_rest_tooltip)
                     )
                 )
                 Spacer(Modifier.height(4.dp))
@@ -659,14 +654,9 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                         stringResource(R.string.mode_rebalance_tooltip)
                     ),
                     Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name,
-                        stringResource(R.string.mode_winner_rests),
-                        stringResource(R.string.mode_winner_rests_tooltip)
-                    ),
-                    Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name,
-                        stringResource(R.string.mode_both_rest),
-                        stringResource(R.string.mode_both_rest_tooltip)
+                        com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name,
+                        stringResource(R.string.mode_rest),
+                        stringResource(R.string.mode_rest_tooltip)
                     )
                 )
                 Spacer(Modifier.height(4.dp))

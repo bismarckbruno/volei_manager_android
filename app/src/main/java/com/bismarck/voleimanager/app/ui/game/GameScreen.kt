@@ -465,6 +465,7 @@ fun GameScreenContent(
                                                 config.victoryLimit,
                                                 config.balancingMode,
                                                 dynamicFullTeamsInWaitingQueue,
+                                                waitingList.size,
                                                 isDarkTheme,
                                                 onShowSnackbar = onShowSnackbar,
                                                 onClearRecent = { viewModel.clearRecentGameData() }
@@ -1793,14 +1794,9 @@ private fun GroupOnboardingBalanceModeCard(
                 R.string.mode_rebalance_tooltip
             ),
             Triple(
-                com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name,
-                R.string.mode_winner_rests,
-                R.string.mode_winner_rests_tooltip
-            ),
-            Triple(
-                com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name,
-                R.string.mode_both_rest,
-                R.string.mode_both_rest_tooltip
+                com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name,
+                R.string.mode_rest,
+                R.string.mode_rest_tooltip
             )
         )
     }
@@ -2107,6 +2103,7 @@ fun EmptyStateCard(
     victoryLimit: Int = 3,
     balancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
     fullTeamsInWaitingQueue: Int = 0,
+    waitingCount: Int = 0,
     isDarkTheme: Boolean = false,
     onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit,
     onClearRecent: () -> Unit
@@ -2188,33 +2185,23 @@ fun EmptyStateCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp));
                     // Adapta a mensagem dependendo do modo de balanceamento
-                    val body = when (try { BalancingMode.valueOf(balancingMode) } catch (e: Exception) { BalancingMode.REBALANCE }) {
+                    val body = when (BalancingMode.fromStoredValue(balancingMode)) {
                         BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
-                        BalancingMode.WINNER_RESTS -> when {
+                        BalancingMode.REST -> when {
                             fullTeamsInWaitingQueue >= 2 -> stringResource(
-                                R.string.limit_reached_text_winner_rests_two_teams,
+                                R.string.limit_reached_text_rest_two_teams,
                                 currentStreak
                             )
                             fullTeamsInWaitingQueue == 1 -> stringResource(
-                                R.string.limit_reached_text_winner_rests_one_team,
+                                R.string.limit_reached_text_rest_one_team,
+                                currentStreak
+                            )
+                            waitingCount == 0 -> stringResource(
+                                R.string.limit_reached_text_rest_no_queue,
                                 currentStreak
                             )
                             else -> stringResource(
-                                R.string.limit_reached_text_winner_rests_no_team,
-                                currentStreak
-                            )
-                        }
-                        BalancingMode.BOTH_REST -> when {
-                            fullTeamsInWaitingQueue >= 2 -> stringResource(
-                                R.string.limit_reached_text_both_rest_two_teams,
-                                currentStreak
-                            )
-                            fullTeamsInWaitingQueue == 1 -> stringResource(
-                                R.string.limit_reached_text_both_rest_one_team,
-                                currentStreak
-                            )
-                            else -> stringResource(
-                                R.string.limit_reached_text_both_rest_no_team,
+                                R.string.limit_reached_text_rest_no_team,
                                 currentStreak
                             )
                         }

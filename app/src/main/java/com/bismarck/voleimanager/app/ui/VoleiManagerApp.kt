@@ -73,10 +73,8 @@ fun getDisplayGroupName(groupName: String?): String {
 @Composable
 private fun getDisplayBalancingModeName(balancingMode: String): String {
     return when (balancingMode) {
-        com.bismarck.voleimanager.app.data.model.BalancingMode.WINNER_RESTS.name ->
-            stringResource(R.string.mode_winner_rests)
-        com.bismarck.voleimanager.app.data.model.BalancingMode.BOTH_REST.name ->
-            stringResource(R.string.mode_both_rest)
+        com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name ->
+            stringResource(R.string.mode_rest)
         else -> stringResource(R.string.mode_rebalance)
     }
 }

@@ -133,7 +133,7 @@
     <string name="faq_q5">Como o app escolhe quem joga a próxima partida?</string>
     <string name="faq_a5">Ao tocar em \"Iniciar próximo jogo\", o app segue o modo de balanceamento do grupo. Em geral, ele respeita a fila de espera e os jogadores presentes para manter a rotação justa.</string>
     <string name="faq_q6">Qual é a diferença entre os modos de balanceamento?</string>
-    <string name="faq_a6">Rebalanceamento recompõe os times para equilibrar força. Vencedor Descansa coloca o vencedor para descansar ao atingir o limite. Ambos Descansam dá mais renovação da quadra quando há fila suficiente.</string>
+    <string name="faq_a6">Rebalanceamento recompõe os times para equilibrar força. Descanso muda a próxima rodada conforme a fila: com 2 ou mais times completos, o vencedor atual descansa; com 1 time completo, esse time entra; com menos, os jogadores da espera completam o lado perdedor.</string>
     <string name="faq_q7">O que acontece quando o limite de vitórias é atingido?</string>
     <string name="faq_a7">Quando um time atinge o limite configurado, a próxima rodada muda conforme o modo escolhido e a quantidade de times completos na fila de espera.</string>
     <string name="faq_q8">Como funcionam substituições durante o jogo?</string>
@@ -199,12 +199,10 @@
     <string name="team_x_wins">Vitória do %1$s</string>
     <string name="winner">vencedor</string>
     <string name="limit_reached_text">%1$d vitórias seguidas! O time vencedor será rebalanceado na próxima rodada.</string>
-    <string name="limit_reached_text_winner_rests_two_teams">%1$d vitórias seguidas! O vencedor descansa e os 2 próximos times da fila se enfrentam.</string>
-    <string name="limit_reached_text_winner_rests_one_team">%1$d vitórias seguidas! O vencedor descansa e o próximo time da fila enfrenta o perdedor.</string>
-    <string name="limit_reached_text_winner_rests_no_team">%1$d vitórias seguidas! Sem time completo na fila: o vencedor segue jogando e o perdedor vai para o fim da fila.</string>
-    <string name="limit_reached_text_both_rest_two_teams">%1$d vitórias seguidas! O vencedor descansa, o perdedor vai para o fim da fila e os 2 próximos times jogam.</string>
-    <string name="limit_reached_text_both_rest_one_team">%1$d vitórias seguidas! Só 1 time completo na fila: o vencedor descansa e o perdedor encara esse time.</string>
-    <string name="limit_reached_text_both_rest_no_team">%1$d vitórias seguidas! Sem times completos na fila: o vencedor segue jogando.</string>
+    <string name="limit_reached_text_rest_two_teams">%1$d vitórias seguidas! O vencedor descansa no topo da fila de espera e os 2 próximos times da fila jogam.</string>
+    <string name="limit_reached_text_rest_one_team">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time da fila entra.</string>
+    <string name="limit_reached_text_rest_no_queue">%1$d vitórias seguidas! Nenhum time está na fila: os dois times atuais seguem jogando.</string>
+    <string name="limit_reached_text_rest_no_team">%1$d vitórias seguidas! Sem time completo na fila: o vencedor segue jogando e o lado perdedor é completado por jogadores da espera.</string>
     <string name="limit_reached_title">Rei da quadra atingiu o limite!</string>
     <string name="increase_score">Aumentar placar</string>
     <string name="decrease_score">Diminuir placar</string>
@@ -262,11 +260,9 @@
     <string name="one_match">1 partida</string>
     <string name="balance_mode_title">Modo de balanceamento:</string>
     <string name="mode_rebalance">Rebalanceamento</string>
-    <string name="mode_winner_rests">Vencedor Descansa</string>
-    <string name="mode_both_rest">Ambos Descansam</string>
+    <string name="mode_rest">Descanso</string>
     <string name="balance_mode_long_press_hint">Toque e segure em um modo para ver uma dica rápida.</string>
     <string name="mode_rebalance_tooltip">Reorganiza os times na próxima rodada para manter o equilíbrio entre Elo e prioridade.</string>
-    <string name="mode_winner_rests_tooltip">Ao atingir o limite de vitórias seguidas, o vencedor descansa e a fila define a próxima formação.</string>
-    <string name="mode_both_rest_tooltip">Ao atingir o limite, o vencedor descansa e a rotação usa mais a fila quando houver times completos suficientes.</string>
+    <string name="mode_rest_tooltip">Ao atingir o limite, a fila define a próxima rodada: com 2 ou mais times completos, o vencedor vai para o topo da fila de espera; com 1 time completo, ele entra; com menos, a fila é completada pelo time perdedor.</string>
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_PT_BR</string>
 </resources>

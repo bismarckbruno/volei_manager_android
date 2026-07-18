@@ -47,8 +47,8 @@ class VoleiViewModelRestingIntegrationTest {
     }
 
     @Test
-    fun finishGame_thenStartNextRound_winnerRests_loserFromIntermediateMatchReturnsToWaitingList() = runBlocking {
-        val env = createViewModel(BalancingMode.WINNER_RESTS)
+    fun finishGame_thenStartNextRound_rest_withOneFullTeamInQueue_winnerContinuesAndQueueTeamStepsIn() = runBlocking {
+        val env = createViewModel(BalancingMode.REST)
         val vm = env.vm
 
         val allPlayers = listOf(
@@ -68,33 +68,30 @@ class VoleiViewModelRestingIntegrationTest {
         awaitFinishGamePersistence(vm)
 
         vm.startNextRound()
-        assertEquals(queue.map { it.id }.toSet(), vm.teamA.value.map { it.id }.toSet())
-        assertEquals(losers.map { it.id }.toSet(), vm.teamB.value.map { it.id }.toSet())
-
-        vm.finishGame("A") // intermediate match winner is queue-team; losers should go to waitingList
-        awaitFinishGamePersistence(vm)
-
-        vm.startNextRound() // rested champions return and should challenge current winners
+        assertEquals(champs.map { it.id }.toSet(), vm.teamA.value.map { it.id }.toSet())
+        assertEquals(queue.map { it.id }.toSet(), vm.teamB.value.map { it.id }.toSet())
 
         val waitingIds = vm.waitingList.value.map { it.id }.toSet()
-        assertTrue("Losers from intermediate match must return to waiting list", waitingIds.containsAll(losers.map { it.id }))
+        assertTrue("Losers must move to the waiting list", waitingIds.containsAll(losers.map { it.id }))
     }
 
     @Test
-    fun finishGame_thenStartNextRound_bothRest_loserFromIntermediateMatchReturnsToWaitingList() = runBlocking {
-        val env = createViewModel(BalancingMode.BOTH_REST)
+    fun finishGame_thenStartNextRound_rest_withTwoFullTeamsInQueue_winnerRestAndTopTeamsPlay() = runBlocking {
+        val env = createViewModel(BalancingMode.REST)
         val vm = env.vm
 
         val allPlayers = listOf(
             player(11, "A1"), player(12, "A2"),
             player(13, "B1"), player(14, "B2"),
-            player(15, "C1"), player(16, "C2")
+            player(15, "C1"), player(16, "C2"),
+            player(17, "D1"), player(18, "D2")
         )
 
         val byName = insertPlayers(env, allPlayers)
         val champs = listOf(byName.getValue("A1"), byName.getValue("A2"))
         val losers = listOf(byName.getValue("B1"), byName.getValue("B2"))
         val queue = listOf(byName.getValue("C1"), byName.getValue("C2"))
+        val queue2 = listOf(byName.getValue("D1"), byName.getValue("D2"))
         vm.setAllPlayersPresence(byName.values.toList(), present = true)
 
         vm.startManualGame(champs, losers, queue)
@@ -102,17 +99,37 @@ class VoleiViewModelRestingIntegrationTest {
         awaitFinishGamePersistence(vm)
 
         vm.startNextRound()
-        // In BOTH_REST with only one full team in queue, behavior falls back to simple rest round.
         assertEquals(queue.map { it.id }.toSet(), vm.teamA.value.map { it.id }.toSet())
-        assertEquals(losers.map { it.id }.toSet(), vm.teamB.value.map { it.id }.toSet())
+        assertEquals(queue2.map { it.id }.toSet(), vm.teamB.value.map { it.id }.toSet())
 
+        val waitingIds = vm.waitingList.value.map { it.id }.toSet()
+        assertTrue("Winning team must rest", waitingIds.containsAll(champs.map { it.id }))
+        assertTrue("Losers must go to the waiting list", waitingIds.containsAll(losers.map { it.id }))
+    }
+
+    @Test
+    fun finishGame_thenStartNextRound_rest_withNoWaitingTeams_keepsCurrentMatch() = runBlocking {
+        val env = createViewModel(BalancingMode.REST)
+        val vm = env.vm
+
+        val allPlayers = listOf(
+            player(21, "A1"), player(22, "A2"),
+            player(23, "B1"), player(24, "B2")
+        )
+
+        val byName = insertPlayers(env, allPlayers)
+        val champs = listOf(byName.getValue("A1"), byName.getValue("A2"))
+        val losers = listOf(byName.getValue("B1"), byName.getValue("B2"))
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startManualGame(champs, losers, emptyList())
         vm.finishGame("A")
         awaitFinishGamePersistence(vm)
 
         vm.startNextRound()
-
-        val waitingIds = vm.waitingList.value.map { it.id }.toSet()
-        assertTrue("Losers from intermediate match must return to waiting list", waitingIds.containsAll(losers.map { it.id }))
+        assertEquals(champs.map { it.id }.toSet(), vm.teamA.value.map { it.id }.toSet())
+        assertEquals(losers.map { it.id }.toSet(), vm.teamB.value.map { it.id }.toSet())
+        assertTrue(vm.waitingList.value.isEmpty())
     }
 
     private suspend fun insertPlayers(env: TestEnv, players: List<Player>): Map<String, Player> {
@@ -301,7 +318,6 @@ private class FakeVoleiDao : VoleiDao {
         playersFlow.value = players.sortedByDescending { it.elo }
     }
 }
-
 
 
 

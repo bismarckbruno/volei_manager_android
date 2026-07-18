@@ -664,12 +664,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun loadGroupConfig(name: String, balancingMode: String? = null) {
         val same = _currentGroupConfig.value.groupName == name
         viewModelScope.launch {
-            _currentGroupConfig.value = repository.getGroupConfig(name)
-                ?: GroupConfig(
-                    groupName = name,
-                    balancingMode = balancingMode ?: BalancingMode.REBALANCE.name,
-                    onboardingStep = ONBOARDING_STEP_GROUP_NAME
-                ).also { repository.saveGroupConfig(it) }
+            val loaded = repository.getGroupConfig(name)
+            val normalized = loaded?.copy(
+                balancingMode = BalancingMode.fromStoredValue(loaded.balancingMode).name
+            ) ?: GroupConfig(
+                groupName = name,
+                balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
+                onboardingStep = ONBOARDING_STEP_GROUP_NAME
+            )
+            if (loaded == null || normalized.balancingMode != loaded.balancingMode) {
+                repository.saveGroupConfig(normalized)
+            }
+            _currentGroupConfig.value = normalized
             if (!same) {
                 // Switching groups: reset current state, then try to restore saved state for new group
                 resetGameState()
@@ -705,7 +711,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             victoryLimit = l,
             priorityEnabled = priorityP,
             scoreEnabled = scoreEnabled,
-            balancingMode = balancingMode
+            balancingMode = BalancingMode.fromStoredValue(balancingMode).name
         )
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
     }
@@ -744,7 +750,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun continueCurrentGroupOnboardingWithBalancingMode(balancingMode: String) {
         _currentGroupConfig.value = _currentGroupConfig.value.copy(
-            balancingMode = balancingMode,
+            balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
             onboardingStep = ONBOARDING_STEP_TEAM_SIZE
         )
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
@@ -796,7 +802,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         val cfg = GroupConfig(
             groupName = normalizedName,
-            balancingMode = balancingMode,
+            balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
             onboardingStep = ONBOARDING_STEP_TEAM_SIZE
         )
         repository.saveGroupConfig(cfg)
@@ -1309,11 +1315,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             startNextRoundRebalance(conf.copy(teamSize = 6))
             return
         }
-        val mode = try { BalancingMode.valueOf(conf.balancingMode) } catch (e: Exception) { BalancingMode.REBALANCE }
+        val mode = BalancingMode.fromStoredValue(conf.balancingMode)
         when (mode) {
             BalancingMode.REBALANCE -> startNextRoundRebalance(conf)
-            BalancingMode.WINNER_RESTS -> startNextRoundWinnerRests(conf)
-            BalancingMode.BOTH_REST -> startNextRoundBothRest(conf)
+            BalancingMode.REST -> startNextRoundRest(conf)
         }
     }
 
@@ -1475,6 +1480,123 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _scoreB.value = 0
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
     }
+
+    private fun startNextRoundRest(conf: GroupConfig) {
+        if (conf.teamSize <= 0) return
+        _roundCounter.value += 1
+        if (tryScheduleReturningTeamMatchIfAny(conf)) return
+
+        val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
+        val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
+
+        val activeWinnerIds = activeWinners.map { it.id }.toSet()
+        val loserIds = losers.map { it.id }.toSet()
+        val existingWaitlistIds = _waitingList.value.map { it.id }.toSet()
+
+        val newPresentPlayerIds = _presentPlayerIds.value.filter { id ->
+            !activeWinnerIds.contains(id) && !loserIds.contains(id) && !existingWaitlistIds.contains(id)
+        }
+
+        val newPlayersWithToll = newPresentPlayerIds.mapNotNull { id ->
+            currentGroupPlayers.value.find { it.id == id }?.let { applyTollIfNecessary(it) }
+        }
+
+        val waitlist = (
+            _waitingList.value.filter { p -> !activeWinnerIds.contains(p.id) && !loserIds.contains(p.id) } +
+                newPlayersWithToll
+            ).distinctBy { it.id }
+
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val usageMap = getUsageCountMap(today)
+        fun getEffectiveGames(p: Player): Int =
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
+
+        val sortedLosers = TeamBalancer.groupAndInterleave(losers) { getEffectiveGames(it) }
+        val fullTeamsInWait = waitlist.size / conf.teamSize
+        val winnerSide = _streakOwner.value
+
+        fun buildChallengerTeam(
+            basePlayers: List<Player>,
+            fillPool: List<Player>
+        ): Pair<List<Player>, List<Player>> {
+            val team = basePlayers.take(conf.teamSize).toMutableList()
+            val remaining = fillPool.toMutableList()
+            if (team.size < conf.teamSize) {
+                if (conf.priorityEnabled) {
+                    val priorityPlayer = remaining.firstOrNull { it.isPriority }
+                    if (priorityPlayer != null) {
+                        team.add(priorityPlayer)
+                        remaining.remove(priorityPlayer)
+                    }
+                }
+                while (team.size < conf.teamSize && remaining.isNotEmpty()) {
+                    team.add(remaining.removeAt(0))
+                }
+            }
+            return team to remaining
+        }
+
+        if (_currentStreak.value < conf.victoryLimit) {
+            startNextRoundRebalance(conf)
+            return
+        }
+
+        _currentStreak.value = 0
+        _streakOwner.value = null
+
+        when {
+            fullTeamsInWait >= 2 -> {
+                val team1 = waitlist.take(conf.teamSize)
+                val team2 = waitlist.drop(conf.teamSize).take(conf.teamSize)
+                val remainingWait = waitlist.drop(conf.teamSize * 2)
+                val restedWinners = activeWinners.map { applyTollIfNecessary(it) }
+
+                _teamA.value = sortTeamPlayers(team1)
+                _teamB.value = sortTeamPlayers(team2)
+
+                val returnRound = _roundCounter.value + 1
+                val restMap = _restingPlayers.value.toMutableMap()
+                restedWinners.forEach { restMap[it.id] = returnRound }
+                _restingPlayers.value = restMap
+                _waitingList.value = (restedWinners + remainingWait + sortedLosers).distinctBy { it.id }
+            }
+
+            fullTeamsInWait == 1 -> {
+                val teamFromWait = waitlist.take(conf.teamSize)
+                val remainingAfterTeam = waitlist.drop(conf.teamSize)
+
+                if (winnerSide == "B") {
+                    _teamA.value = sortTeamPlayers(teamFromWait)
+                    _teamB.value = sortTeamPlayers(activeWinners)
+                } else {
+                    _teamA.value = sortTeamPlayers(activeWinners)
+                    _teamB.value = sortTeamPlayers(teamFromWait)
+                }
+
+                _waitingList.value = (remainingAfterTeam + sortedLosers).distinctBy { it.id }
+            }
+
+            else -> {
+                val (challengerTeam, remainingWait) = buildChallengerTeam(waitlist, sortedLosers)
+
+                if (winnerSide == "B") {
+                    _teamA.value = sortTeamPlayers(challengerTeam)
+                    _teamB.value = sortTeamPlayers(activeWinners)
+                } else {
+                    _teamA.value = sortTeamPlayers(activeWinners)
+                    _teamB.value = sortTeamPlayers(challengerTeam)
+                }
+
+                _waitingList.value = remainingWait.distinctBy { it.id }
+            }
+        }
+
+        _hasPreviousMatch.value = false
+        _scoreA.value = 0
+        _scoreB.value = 0
+        _currentMatchStartTimestamp.value = System.currentTimeMillis()
+    }
+
 
     /**
      * Descanso Simples:
