@@ -302,13 +302,12 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     modifier = Modifier.focusRequester(nameFocusRequester)
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(40.dp))
                 Text(
                     text = stringResource(R.string.initial_elo),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium
                 )
-                Spacer(Modifier.height(8.dp))
                 Slider(
                     value = eloIndex.toFloat(),
                     onValueChange = { eloIndex = it.roundToInt().coerceIn(0, eloLevels.lastIndex) },
@@ -350,7 +349,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                         }
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(40.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

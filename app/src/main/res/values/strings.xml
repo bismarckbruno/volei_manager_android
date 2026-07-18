@@ -159,21 +159,20 @@
     <string name="to_start_add_players">To get started, add players using the \"+\" button in the top‑right corner of the screen</string>
     <string name="onboarding_team_size_question">How many people will play on each team?</string>
     <string name="onboarding_team_size_hint">You can change this setting later in the side menu under \"Group rules\".</string>
-    <string name="onboarding_add_players_instruction">Add at least %1$d people with the \"+\" button or import them from \"Import data\".</string>
+    <string name="onboarding_add_players_instruction">Add at least %1$d people with the \"+\" button or import them from Data > Import</string>
     <string name="onboarding_group_name_question">What will the group name be?</string>
     <string name="onboarding_group_name_hint">You can edit it later in the side panel > \"Current group\" > by clicking the pencil icon next to the group name.</string>
     <string name="onboarding_balance_mode_question">Which balance mode will the group use?</string>
     <string name="onboarding_balance_mode_hint">You can change it later in \"Group rules\".</string>
     <string name="onboarding_name_title">Name</string>
-    <string name="onboarding_name_description">• Use a short name or nickname.</string>
+    <string name="onboarding_name_description">- Use a short name or nickname.</string>
     <string name="onboarding_elo_title">Initial Elo</string>
-    <string name="onboarding_elo_description">• Change it only if you already know the player’s level well.\n• If unsure, keep 1200.</string>
+    <string name="onboarding_elo_description">- Change it only if you already know the player’s level well.\n- If unsure, keep 1200.</string>
     <string name="onboarding_priority_title">Set as priority</string>
-    <string name="onboarding_priority_description">• Use it for profiles that should be spread between teams (e.g., setters).\n• If your group does not need this, leave it unchecked.</string>
+    <string name="onboarding_priority_description">- Use it for profiles that should be spread between teams (e.g., setters).\n- If your group does not need this, leave it unchecked.</string>
     <string name="elo_level_1100_desc">Beginner</string>
-    <string name="elo_level_1150_desc">Developing</string>
     <string name="elo_level_1200_desc">Default</string>
-    <string name="elo_level_1250_desc">Strong</string>
+    <string name="elo_level_1250_desc">" "</string>
     <string name="elo_level_1300_desc">Advanced</string>
     <string name="continue_word">Continue</string>
     <string name="back">Back</string>
@@ -269,4 +268,5 @@
     <string name="limit_reached_text_both_rest_one_team">%1$d wins in a row! Only 1 full team is waiting: the winner rests, and the loser faces that team.</string>
     <string name="limit_reached_text_both_rest_no_team">%1$d wins in a row! No full teams are waiting: the winner keeps playing.</string>
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README</string>
+    <string name="elo_level_1150_desc">" "</string>
 </resources>

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
@@ -786,11 +787,22 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 label = "AddButtonPulse"
                             )
                             
+                            val iconColor by animateColorAsState(
+                                targetValue = if (showAddPulse) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                animationSpec = if (showAddPulse)
+                                    infiniteRepeatable(
+                                        animation = tween(1000),
+                                        repeatMode = RepeatMode.Reverse
+                                    )
+                                else tween(200),
+                                label = "AddButtonColor"
+                            )
+                            
                             IconButton(
                                 onClick = { showAddPlayerDialog = true },
                                 modifier = Modifier.scale(scale)
                             ) {
-                                Icon(Icons.Default.Add, stringResource(R.string.add_new_player))
+                                Icon(Icons.Default.Add, stringResource(R.string.add_new_player), tint = iconColor)
                             }
                         } else if (currentScreen == Screen.HISTORY) {
                             val view = LocalView.current
