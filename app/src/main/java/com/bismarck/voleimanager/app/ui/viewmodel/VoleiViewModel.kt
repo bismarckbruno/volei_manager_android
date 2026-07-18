@@ -548,7 +548,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun incrementScoreA() {
-        _scoreA.value++
+        if (_scoreA.value < 99) _scoreA.value++
     }
 
     fun decrementScoreA() {
@@ -556,7 +556,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun incrementScoreB() {
-        _scoreB.value++
+        if (_scoreB.value < 99) _scoreB.value++
     }
 
     fun decrementScoreB() {

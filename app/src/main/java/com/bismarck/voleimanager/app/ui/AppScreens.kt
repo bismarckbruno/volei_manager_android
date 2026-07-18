@@ -672,7 +672,7 @@ fun HistoryScreen(
                     ) {
                         if (sortedHistory.isNotEmpty()) {
                             item {
-                                val avgDurationText = averageMatchDurationMinutes?.let { "$it min" } ?: "--"
+                                val avgDurationText = averageMatchDurationMinutes?.let { "${it}min" } ?: "--"
                                 HistorySummaryItem(
                                     text = stringResource(
                                         R.string.average_duration,
@@ -771,10 +771,18 @@ private fun HistorySummaryItem(text: String, leadingIcon: ImageVector? = null) {
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             if (leadingIcon != null) {
+                // Define o estilo de tipografia com base no ícone
+                val textStyle = if (leadingIcon == Icons.Default.WorkspacePremium) {
+                    MaterialTheme.typography.bodyLarge
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                }
                 Icon(
                     imageVector = leadingIcon,
                     contentDescription = null,
-                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                    modifier = Modifier.size(
+                        with(LocalDensity.current) { textStyle.fontSize.toDp()}
+                    ),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.width(4.dp))

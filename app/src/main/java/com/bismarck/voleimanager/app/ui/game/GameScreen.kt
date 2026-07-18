@@ -1570,23 +1570,21 @@ fun ActiveTeamCard(
                         )
                     }
                 }
-                if (showElo) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.WorkspacePremium,
-                            contentDescription = null,
-                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                            tint = contentColor.copy(alpha = 0.7f)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            EloCalculator.formatElo(avgElo),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = contentColor.copy(alpha = 0.7f)
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.WorkspacePremium,
+                        contentDescription = null,
+                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
+                        tint = contentColor.copy(alpha = 0.7f)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        EloCalculator.formatElo(avgElo),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor.copy(alpha = 0.7f)
+                    )
                 }
+                Spacer(Modifier.height(4.dp))
             }
 
             // Score Counter
@@ -1660,10 +1658,26 @@ fun ActiveTeamCard(
                             )
                     ) {
                         Text(
-                            text = if (showElo) "${p.name} ⎯  ${EloCalculator.formatElo(p.elo)}" else p.name,
+                            text = p.name,
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis, color = contentColor
                         )
+                        if (showElo) {
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                tint = contentColor.copy(alpha = 0.7f)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = EloCalculator.formatElo(p.elo),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = contentColor.copy(alpha = 0.7f),
+                                maxLines = 1
+                            )
+                        }
                         if (p.isPriority) {
                             Spacer(Modifier.width(2.dp))
                             Icon(
