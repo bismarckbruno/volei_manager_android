@@ -205,7 +205,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }.reversed()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val targetDate = combine(currentGroupEloLogs, availableHistoryDates) { logs, dates ->
+    val targetDate = combine(currentGroupEloLogs, availableHistoryDates) { logs, _dates ->
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val hasToday = logs.any { it.date == today }
         if (hasToday) today else logs.map { it.date }.maxOrNull() ?: today
@@ -2121,6 +2121,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         averagePlayersEloText: String? = null,
         averageMatchDurationText: String? = null
     ) {
+        val groupName = _currentGroupConfig.value.groupName
         val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
             setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
             setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
@@ -2134,7 +2135,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             matchSortMode = matchSortMode,
                             players = players,
                             playerSortMode = playerSortMode,
-                            groupName = _currentGroupConfig.value.groupName,
+                            groupName = groupName,
                             date = date,
                             isDarkTheme = isDarkTheme,
                             showElo = showElo,

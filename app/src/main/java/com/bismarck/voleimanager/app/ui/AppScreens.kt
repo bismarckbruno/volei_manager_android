@@ -1102,7 +1102,7 @@ fun HistoryItem(
                                     Icon(
                                         imageVector = Icons.Default.AccessTime,
                                         contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
+                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
                                         tint = contentColor
                                     )
                                     Spacer(Modifier.width(2.dp))
@@ -1135,7 +1135,7 @@ fun HistoryItem(
                                         Icon(
                                             imageVector = Icons.Default.AccessTime,
                                             contentDescription = null,
-                                            modifier = Modifier.size(12.dp),
+                                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
                                             tint = contentColor
                                         )
                                         Spacer(Modifier.width(2.dp))
