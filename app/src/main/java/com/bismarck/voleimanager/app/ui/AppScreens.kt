@@ -489,7 +489,7 @@ fun HistoryScreen(
                                 )
                             } else {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.bola_de_v_lei_s_lida_para_variar_a_cor),
+                                    painter = painterResource(id = R.drawable.bola_de_volei_solida_para_variar_a_cor),
                                     contentDescription = null,
                                     modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
                                 )
@@ -1170,7 +1170,7 @@ fun HistoryItem(
                 ) {
                     if (isTeamAWin) {
                         Icon(
-                            painter = painterResource(R.drawable.coroa_th35),
+                            painter = painterResource(R.drawable.coroa_icon),
                             contentDescription = stringResource(R.string.winner_word),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                             tint = crownColor
@@ -1184,7 +1184,7 @@ fun HistoryItem(
                 ) {
                     if (!isTeamAWin) {
                         Icon(
-                            painter = painterResource(R.drawable.coroa_th35),
+                            painter = painterResource(R.drawable.coroa_icon),
                             contentDescription = stringResource(R.string.winner),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                             tint = crownColor

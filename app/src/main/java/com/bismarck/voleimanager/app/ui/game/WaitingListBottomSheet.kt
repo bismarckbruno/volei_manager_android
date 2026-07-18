@@ -588,7 +588,7 @@ private fun WaitingListPlayerItem(
                             if (isResting) {
                                 Spacer(Modifier.width(4.dp))
                                 Icon(
-                                    painter = painterResource(R.drawable.text35_4),
+                                    painter = painterResource(R.drawable.text_zzz),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })

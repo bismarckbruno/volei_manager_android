@@ -2149,7 +2149,7 @@ fun EmptyStateCard(
             }
             if (limitReached) {
                 Icon(
-                    painter = painterResource(R.drawable.coroa_th35),
+                    painter = painterResource(R.drawable.coroa_icon),
                     contentDescription = null,
                     modifier = Modifier.size(52.dp),
                     tint = kingTextColor
@@ -2584,7 +2584,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                         if (isResting) {
                             Spacer(Modifier.width(4.dp))
                             Icon(
-                                painter = painterResource(R.drawable.text35_4),
+                                painter = painterResource(R.drawable.text_zzz),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
