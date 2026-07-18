@@ -777,7 +777,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             val showAddPulse = groupConfig.onboardingStep == ONBOARDING_STEP_MIN_PLAYERS && groupPlayers.isEmpty()
                             
                             val scale by animateFloatAsState(
-                                targetValue = if (showAddPulse) 1.15f else 1f,
+                                targetValue = if (showAddPulse) 1.25f else 1f,
                                 animationSpec = if (showAddPulse) 
                                     infiniteRepeatable(
                                         animation = tween(1000),

@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +34,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,15 +52,16 @@ fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(56.dp))
             .clickable { onClick() }
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(
             selected = selected,
             onClick = onClick
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(4.dp))
         Text(text)
     }
 }
@@ -135,6 +138,7 @@ fun SubstitutionDialog(
                 Text(stringResource(R.string.no_players_swap))
             } else {
                 val listState = rememberLazyListState()
+                val itemShape = RoundedCornerShape(12.dp)
                 Column {
                     Text(
                         text = selectedOption?.let {
@@ -157,42 +161,52 @@ fun SubstitutionDialog(
                             state = listState,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(end = 16.dp)
                         ) {
                             items(allOptions, key = { (playerIn, _) -> playerIn.id }) { (playerIn, label) ->
                                 val selected = selectedPlayerId == playerIn.id
-                                ListItem(
-                                    headlineContent = {
-                                        Text(
-                                            playerIn.name,
-                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 2.dp)
+                                        .clip(itemShape)
+                                        .background(
+                                            if (selected) {
+                                                MaterialTheme.colorScheme.surfaceVariant
+                                            } else {
+                                                Color.Transparent
+                                            }
                                         )
-                                    },
-                                    supportingContent = {
-                                        Text(
-                                            label,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    },
-                                    leadingContent = { Icon(Icons.Default.Person, null) },
-                                    trailingContent = {
-                                        if (selected) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
+                                        .clickable { selectedPlayerId = playerIn.id }
+                                ) {
+                                    ListItem(
+                                        headlineContent = {
+                                            Text(
+                                                playerIn.name,
+                                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
                                             )
-                                        }
-                                    },
-                                    colors = ListItemDefaults.colors(
-                                        containerColor = if (selected) {
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-                                        } else {
-                                            MaterialTheme.colorScheme.surface
-                                        }
-                                    ),
-                                    modifier = Modifier.clickable { selectedPlayerId = playerIn.id }
-                                )
+                                        },
+                                        supportingContent = {
+                                            Text(
+                                                label,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        },
+                                        leadingContent = { Icon(Icons.Default.Person, null, modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() })) },
+                                        trailingContent = {
+                                            if (selected) {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        },
+                                        colors = ListItemDefaults.colors(
+                                            containerColor = Color.Transparent
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                         }
                         LazyListFastScroller(
@@ -248,10 +262,10 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(24.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { isPriority = !isPriority }) {
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(40.dp)).clickable { isPriority = !isPriority }) {
                     Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
                     Text(stringResource(R.string.priority))
                 }

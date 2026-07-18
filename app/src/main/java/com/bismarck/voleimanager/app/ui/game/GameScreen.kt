@@ -29,7 +29,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
@@ -48,7 +47,6 @@ import com.bismarck.voleimanager.app.R
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -97,6 +95,7 @@ import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
 import android.app.Activity
+import androidx.compose.ui.Modifier
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 
 @Composable
@@ -849,7 +848,7 @@ fun ActiveGameView(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .padding(top = 2.dp)
-                                .size(16.dp)
+                                .size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() })
                         )
                         Text(
                             text = entry.streakLog?.let { buildStreakHistoryLine(it) }
@@ -1163,7 +1162,7 @@ fun ActiveGameView(
                                 )
                             }
                             RecentActivityCard(modifier = Modifier.padding(top = 8.dp))
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(8.dp))
                         }
                         Spacer(Modifier.width(16.dp))
                         Column(
@@ -1272,7 +1271,7 @@ fun ActiveGameView(
                         )
                     }
                     RecentActivityCard(modifier = Modifier.padding(top = 8.dp))
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(8.dp))
                 }
                 Surface(
                     modifier = Modifier
@@ -1534,7 +1533,7 @@ fun ActiveTeamCard(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(30.dp))
                             .combinedClickable(
                                 onClick = { },
                                 onLongClick = {
@@ -1548,7 +1547,7 @@ fun ActiveTeamCard(
                             imageVector = Icons.Default.LocalFireDepartment,
                             contentDescription = stringResource(R.string.edit_streak_cd),
                             tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.38f),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() })
                         )
                         Text(
                             text = if (streak > 0) streak.toString() else "--",
@@ -1629,6 +1628,7 @@ fun ActiveTeamCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .defaultMinSize(minHeight = 30.dp)
+                            .clip(RoundedCornerShape(30.dp))
                             .combinedClickable(
                                 onClick = { },
                                 onLongClick = {
