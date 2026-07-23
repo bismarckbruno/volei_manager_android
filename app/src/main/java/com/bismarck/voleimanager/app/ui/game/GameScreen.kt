@@ -2135,8 +2135,8 @@ fun EmptyStateCard(
     }
 
     val minNeeded = currentTeamSize * 2
-    val select_minimum_players = stringResource(R.string.select_minimum_players, minNeeded)
-    val select_minimum_players_long =
+    val selectMinimumPlayers = stringResource(R.string.select_minimum_players, minNeeded)
+    val selectMinimumPlayersLong =
         stringResource(R.string.select_minimum_players_long, minNeeded)
 
     Card(
@@ -2147,7 +2147,7 @@ fun EmptyStateCard(
         Column(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
-                .padding(top = 12.dp, bottom = 24.dp)
+                .padding(top = 16.dp, bottom = 24.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -2162,7 +2162,7 @@ fun EmptyStateCard(
                 Icon(
                     painter = painterResource(R.drawable.coroa_icon),
                     contentDescription = null,
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(48.dp),
                     tint = kingTextColor
                 )
             } else {
@@ -2267,14 +2267,14 @@ fun EmptyStateCard(
                                 if (selectedCount >= minNeeded) {
                                     onNextRoundClick()
                                 } else {
-                                    onShowSnackbar(select_minimum_players, null, null)
+                                    onShowSnackbar(selectMinimumPlayers, null, null)
                                 }
                             } else {
                                 val canStartAuto = selectedCount >= minNeeded
                                 if (canStartAuto) {
                                     onStartAutoClick()
                                 } else {
-                                    onShowSnackbar(select_minimum_players_long, null, null)
+                                    onShowSnackbar(selectMinimumPlayersLong, null, null)
                                 }
                             }
                         },
