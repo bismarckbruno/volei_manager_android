@@ -1581,33 +1581,47 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _waitingList.value = (restedWinners + remainingWait + sortedLosers).distinctBy { it.id }
             }
 
-            fullTeamsInWait == 1 -> {
-                val teamFromWait = waitlist.take(conf.teamSize)
-                val remainingAfterTeam = waitlist.drop(conf.teamSize)
-
-                if (winnerSide == "B") {
-                    _teamA.value = sortTeamPlayers(teamFromWait)
-                    _teamB.value = sortTeamPlayers(activeWinners)
-                } else {
-                    _teamA.value = sortTeamPlayers(activeWinners)
-                    _teamB.value = sortTeamPlayers(teamFromWait)
-                }
-
-                _waitingList.value = (remainingAfterTeam + sortedLosers).distinctBy { it.id }
-            }
-
             else -> {
-                val (challengerTeam, remainingWait) = buildChallengerTeam(waitlist, sortedLosers)
-
-                if (winnerSide == "B") {
-                    _teamA.value = sortTeamPlayers(challengerTeam)
-                    _teamB.value = sortTeamPlayers(activeWinners)
-                } else {
-                    _teamA.value = sortTeamPlayers(activeWinners)
-                    _teamB.value = sortTeamPlayers(challengerTeam)
+                val reigningTeam = activeWinners.toMutableList()
+                val queueForNextTeams = waitlist.toMutableList()
+                if (reigningTeam.size < conf.teamSize) {
+                    val needed = conf.teamSize - reigningTeam.size
+                    val picks = queueForNextTeams.take(needed)
+                    reigningTeam.addAll(picks)
+                    queueForNextTeams.subList(0, picks.size).clear()
                 }
 
-                _waitingList.value = remainingWait.distinctBy { it.id }
+                if (reigningTeam.size < conf.teamSize) {
+                    startNextRoundRebalance(conf)
+                    return
+                }
+
+                if (queueForNextTeams.size >= conf.teamSize) {
+                    val teamFromWait = queueForNextTeams.take(conf.teamSize)
+                    val remainingAfterTeam = queueForNextTeams.drop(conf.teamSize)
+
+                    if (winnerSide == "B") {
+                        _teamA.value = sortTeamPlayers(teamFromWait)
+                        _teamB.value = sortTeamPlayers(reigningTeam)
+                    } else {
+                        _teamA.value = sortTeamPlayers(reigningTeam)
+                        _teamB.value = sortTeamPlayers(teamFromWait)
+                    }
+
+                    _waitingList.value = (remainingAfterTeam + sortedLosers).distinctBy { it.id }
+                } else {
+                    val (challengerTeam, remainingWait) = buildChallengerTeam(queueForNextTeams, sortedLosers)
+
+                    if (winnerSide == "B") {
+                        _teamA.value = sortTeamPlayers(challengerTeam)
+                        _teamB.value = sortTeamPlayers(reigningTeam)
+                    } else {
+                        _teamA.value = sortTeamPlayers(reigningTeam)
+                        _teamB.value = sortTeamPlayers(challengerTeam)
+                    }
+
+                    _waitingList.value = remainingWait.distinctBy { it.id }
+                }
             }
         }
 

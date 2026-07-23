@@ -2187,23 +2187,34 @@ fun EmptyStateCard(
                     // Adapta a mensagem dependendo do modo de balanceamento
                     val body = when (BalancingMode.fromStoredValue(balancingMode)) {
                         BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
-                        BalancingMode.REST -> when {
-                            fullTeamsInWaitingQueue >= 2 -> stringResource(
-                                R.string.limit_reached_text_rest_two_teams,
-                                currentStreak
-                            )
-                            fullTeamsInWaitingQueue == 1 -> stringResource(
-                                R.string.limit_reached_text_rest_one_team,
-                                currentStreak
-                            )
-                            waitingCount == 0 -> stringResource(
-                                R.string.limit_reached_text_rest_no_queue,
-                                currentStreak
-                            )
-                            else -> stringResource(
-                                R.string.limit_reached_text_rest_no_team,
-                                currentStreak
-                            )
+                        BalancingMode.REST -> {
+                            when {
+                                selectedCount >= currentTeamSize * 4 -> stringResource(
+                                    R.string.limit_reached_text_rest_selected_gte_four_teams,
+                                    currentStreak
+                                )
+                                selectedCount >= currentTeamSize * 3 -> stringResource(
+                                    R.string.limit_reached_text_rest_selected_gte_three_teams,
+                                    currentStreak
+                                )
+                                selectedCount == (currentTeamSize * 3) - 1 -> stringResource(
+                                    R.string.limit_reached_text_rest_selected_eq_two_teams_plus_one,
+                                    currentStreak
+                                )
+                                selectedCount > currentTeamSize * 2 -> stringResource(
+                                    R.string.limit_reached_text_rest_selected_gt_two_teams_plus_one,
+                                    currentStreak
+                                )
+                                selectedCount == currentTeamSize * 2 -> stringResource(
+                                    R.string.limit_reached_text_rest_selected_eq_two_teams,
+                                    currentStreak
+                                )
+                                else -> stringResource(
+                                    R.string.limit_reached_text_rest_selected_lt_two_teams,
+                                    currentStreak,
+                                    currentTeamSize * 2
+                                )
+                            }
                         }
                     }
                     Text(

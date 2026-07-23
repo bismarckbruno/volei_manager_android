@@ -203,6 +203,12 @@
     <string name="limit_reached_text_rest_one_team">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time da fila entra.</string>
     <string name="limit_reached_text_rest_no_queue">%1$d vitórias seguidas! Nenhum time está na fila: os dois times atuais seguem jogando.</string>
     <string name="limit_reached_text_rest_no_team">%1$d vitórias seguidas! Sem time completo na fila: o vencedor segue jogando e o lado perdedor é completado por jogadores da espera.</string>
+    <string name="limit_reached_text_rest_selected_gte_four_teams">%1$d vitórias seguidas! O vencedor descansa no topo da fila de espera e os 2 próximos times da fila jogam.</string>
+    <string name="limit_reached_text_rest_selected_gte_three_teams">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time da fila entra.</string>
+    <string name="limit_reached_text_rest_selected_gt_two_teams_plus_one">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time será fila + alguns dos perdedores.</string>
+    <string name="limit_reached_text_rest_selected_eq_two_teams_plus_one">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time será fila + um dos perdedores.</string>
+    <string name="limit_reached_text_rest_selected_eq_two_teams">%1$d vitórias seguidas! Nenhum time está na fila: os dois times atuais seguem jogando.</string>
+    <string name="limit_reached_text_rest_selected_lt_two_teams">%1$d vitórias seguidas! Selecione ao menos %2$d jogadores.</string>
     <string name="limit_reached_title">Rei da quadra atingiu o limite!</string>
     <string name="increase_score">Aumentar placar</string>
     <string name="decrease_score">Diminuir placar</string>
