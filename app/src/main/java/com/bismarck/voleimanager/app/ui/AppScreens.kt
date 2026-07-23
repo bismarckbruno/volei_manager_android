@@ -57,7 +57,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -339,8 +338,6 @@ fun HistoryScreen(
             .format(historyPlayerList.map { it.displayElo }.average().toInt())
     }
 
-    var expandedDate by remember { mutableStateOf(false) }
-
     // --- Compute layout mode once for all player cards ---
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -370,8 +367,8 @@ fun HistoryScreen(
 
             // Right column width (stats line is always the widest)
             val vText = when (info.victories) {
-                0 -> context.getString(R.string.no_victories);
-                1 -> context.getString(R.string.one_victory);
+                0 -> context.getString(R.string.no_victories)
+                1 -> context.getString(R.string.one_victory)
                 else -> context.getString(R.string.x_victories, info.victories)
             }
             val gLabel = if (info.gamesPlayed == 1) context.getString(R.string.game) else context.getString(R.string.games)
@@ -386,10 +383,17 @@ fun HistoryScreen(
         .padding(horizontal = 16.dp)) {
 
         // --- Date filter dropdown ---
-        Box(modifier = Modifier.fillMaxWidth()) {
+        var dateExpanded by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(
+            expanded = dateExpanded,
+            onExpandedChange = { dateExpanded = !dateExpanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             OutlinedButton(
-                onClick = { expandedDate = true },
-                modifier = Modifier.fillMaxWidth(),
+                onClick = { dateExpanded = true },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
                 contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
             ) {
                 Icon(
@@ -404,7 +408,7 @@ fun HistoryScreen(
                 )
                 Spacer(Modifier.weight(1f))
                 val rotation by animateFloatAsState(
-                    targetValue = if (expandedDate) 180f else 0f,
+                    targetValue = if (dateExpanded) 180f else 0f,
                     animationSpec = tween(durationMillis = 200),
                     label = "HistoryDateRotation"
                 )
@@ -415,55 +419,43 @@ fun HistoryScreen(
                     modifier = Modifier.rotate(rotation)
                 )
             }
-            
-            if (expandedDate) {
-                AlertDialog(
-                    onDismissRequest = { expandedDate = false },
-                    title = { Text(stringResource(R.string.select_specific_date)) },
+            ExposedDropdownMenu(
+                expanded = dateExpanded,
+                modifier = Modifier.width(IntrinsicSize.Min),
+                onDismissRequest = { dateExpanded = false }
+            ) {
+                val allDatesSelected = historyDate == null
+                DropdownMenuItem(
                     text = {
-                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                            val allDatesSelected = historyDate == null
-                            item {
-                                TextButton(
-                                    onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        stringResource(R.string.all_dates),
-                                        fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (allDatesSelected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        }
-                                    )
-                                }
+                        Text(
+                            stringResource(R.string.all_dates),
+                            fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (allDatesSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
                             }
-                            items(availableDates) { date ->
-                                val isSelected = historyDate == date
-                                TextButton(
-                                    onClick = { viewModel.setHistoryDateFilter(date); expandedDate = false },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        formatLocalizedDate(date),
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (isSelected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                        )
                     },
-                    confirmButton = {
-                        TextButton(onClick = { expandedDate = false }) {
-                            Text(stringResource(R.string.close))
-                        }
-                    }
+                    onClick = { viewModel.setHistoryDateFilter(null); dateExpanded = false }
                 )
+                availableDates.forEach { date ->
+                    val isSelected = historyDate == date
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                formatLocalizedDate(date),
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        },
+                        onClick = { viewModel.setHistoryDateFilter(date); dateExpanded = false }
+                    )
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
