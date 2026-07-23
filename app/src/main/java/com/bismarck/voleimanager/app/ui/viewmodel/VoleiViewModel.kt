@@ -191,6 +191,25 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         list.filter { it.groupName == config.groupName }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val groupsSortedByRecentHistory = _allHistory.map { history ->
+        val groupsWithDates = mutableMapOf<String, Long>()
+        
+        history.forEach { match ->
+            val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+            try {
+                val matchTime = sdf.parse(match.date)?.time ?: 0L
+                val currentMax = groupsWithDates[match.groupName] ?: 0L
+                if (matchTime > currentMax) {
+                    groupsWithDates[match.groupName] = matchTime
+                }
+            } catch (e: Exception) {
+                // Ignore parse errors
+            }
+        }
+        
+        groupsWithDates.toList().sortedByDescending { it.second }.map { it.first }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _historyDateFilter = MutableStateFlow<String?>(null)
     val historyDateFilter = _historyDateFilter.asStateFlow()
 
@@ -400,6 +419,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     init {
         loadPreferences()
+        loadGroupConfig(DEFAULT_GROUP_NAME)
         observeAndPersistGameState()
         viewModelScope.launch {
             availableHistoryDates.collect { dates ->

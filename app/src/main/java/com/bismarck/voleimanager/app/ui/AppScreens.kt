@@ -415,47 +415,55 @@ fun HistoryScreen(
                     modifier = Modifier.rotate(rotation)
                 )
             }
-            DropdownMenu(
-                expanded = expandedDate,
-                onDismissRequest = { expandedDate = false },
-                offset = DpOffset(x = 42.dp, y = 0.dp)
-            ) {
-                val allDatesSelected = historyDate == null
-                DropdownMenuItem(
+            
+            if (expandedDate) {
+                AlertDialog(
+                    onDismissRequest = { expandedDate = false },
+                    title = { Text(stringResource(R.string.select_specific_date)) },
                     text = {
-                        Text(
-                            stringResource(R.string.all_dates),
-                            fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal
-                        )
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            val allDatesSelected = historyDate == null
+                            item {
+                                TextButton(
+                                    onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        stringResource(R.string.all_dates),
+                                        fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (allDatesSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        }
+                                    )
+                                }
+                            }
+                            items(availableDates) { date ->
+                                val isSelected = historyDate == date
+                                TextButton(
+                                    onClick = { viewModel.setHistoryDateFilter(date); expandedDate = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        formatLocalizedDate(date),
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     },
-                    colors = MenuDefaults.itemColors(
-                        textColor = if (allDatesSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                        leadingIconColor = MaterialTheme.colorScheme.primary
-                    ),
-                    onClick = { viewModel.setHistoryDateFilter(null); expandedDate = false })
-                availableDates.forEach { date ->
-                    val isSelected = historyDate == date
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                formatLocalizedDate(date),
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                            )
-                        },
-                        colors = MenuDefaults.itemColors(
-                            textColor = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                            leadingIconColor = MaterialTheme.colorScheme.primary
-                        ),
-                        onClick = { viewModel.setHistoryDateFilter(date); expandedDate = false })
-                }
+                    confirmButton = {
+                        TextButton(onClick = { expandedDate = false }) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
+                )
             }
         }
         Spacer(Modifier.height(12.dp))

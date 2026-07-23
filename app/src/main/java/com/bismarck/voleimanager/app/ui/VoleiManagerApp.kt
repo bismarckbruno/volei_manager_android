@@ -106,6 +106,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val showToll by viewModel.showToll.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val showScore = groupConfig.scoreEnabled
+    val groupsSortedByRecent by viewModel.groupsSortedByRecentHistory.collectAsState()
     val uniqueGroups = remember(allPlayers) { allPlayers.map { it.groupName }.distinct().sorted() }
     var selectedGroup by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -158,14 +159,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             }
         }
 
-    LaunchedEffect(uniqueGroups) {
-        if (selectedGroup == null && uniqueGroups.isNotEmpty()) selectedGroup = uniqueGroups.first()
+    LaunchedEffect(groupsSortedByRecent) {
+        if (selectedGroup == null && groupsSortedByRecent.isNotEmpty()) {
+            selectedGroup = groupsSortedByRecent.first()
+        }
     }
     LaunchedEffect(selectedGroup, groupConfig.onboardingStep) {
         val targetGroup = selectedGroup ?: return@LaunchedEffect
-        val isPlaceholderConfig = groupConfig.groupName == DEFAULT_GROUP_NAME
-        val isOnboardingInProgress =
-            groupConfig.onboardingStep < ONBOARDING_STEP_COMPLETE && !isPlaceholderConfig
+        val isOnboardingInProgress = groupConfig.onboardingStep < ONBOARDING_STEP_COMPLETE
         if (targetGroup != groupConfig.groupName && !isOnboardingInProgress) {
             viewModel.loadGroupConfig(targetGroup)
         }
@@ -435,14 +436,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 ExposedDropdownMenu(
                                     expanded = groupExpanded,
                                     onDismissRequest = { groupExpanded = false }) {
-                                    uniqueGroups.forEach { group ->
+                                    groupsSortedByRecent.forEach { group ->
+                                        val isSelected = selectedGroup == group
                                         DropdownMenuItem(
                                             text = {
                                                 Row(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     modifier = Modifier.fillMaxWidth()
                                                 ) {
-                                                    Text(getDisplayGroupName(group), modifier = Modifier.weight(1f))
+                                                    Text(
+                                                        getDisplayGroupName(group),
+                                                        modifier = Modifier.weight(1f),
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                    )
                                                     IconButton(onClick = {
                                                         showRenameGroupDialog = group
                                                         groupExpanded = false

@@ -67,6 +67,9 @@ interface VoleiDao {
     @Query("SELECT * FROM group_configs WHERE groupName = :groupName LIMIT 1")
     suspend fun getGroupConfig(groupName: String): com.bismarck.voleimanager.app.data.model.GroupConfig?
 
+    @Query("SELECT * FROM group_configs")
+    suspend fun getAllGroupConfigs(): List<com.bismarck.voleimanager.app.data.model.GroupConfig>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveGroupConfig(config: com.bismarck.voleimanager.app.data.model.GroupConfig)
 

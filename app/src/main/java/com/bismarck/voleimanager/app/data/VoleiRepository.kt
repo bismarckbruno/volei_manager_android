@@ -90,6 +90,7 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
     // --- Configs ---
     suspend fun getGroupConfig(groupName: String) = voleiDao.getGroupConfig(groupName)
     suspend fun saveGroupConfig(config: com.bismarck.voleimanager.app.data.model.GroupConfig) = voleiDao.saveGroupConfig(config)
+    suspend fun getAllGroupConfigs() = voleiDao.getAllGroupConfigs()
 
     // --- Group Management ---
     suspend fun renameGroup(oldName: String, newName: String) {
