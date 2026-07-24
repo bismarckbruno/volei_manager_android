@@ -5,15 +5,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -1073,17 +1071,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                      AnimatedContent(
                          targetState = currentScreen,
                          transitionSpec = {
-                             val forward = targetState.ordinal > initialState.ordinal
-                             val offsetSign = if (forward) 1 else -1
-                             slideInHorizontally(
-                                 animationSpec = spring(
-                                     stiffness = Spring.StiffnessMediumLow,
-                                     dampingRatio = Spring.DampingRatioNoBouncy
-                                 ),
-                                 initialOffsetX = { fullWidth -> fullWidth * offsetSign }
-                             ) togetherWith slideOutHorizontally(
-                                 animationSpec = tween(180)
-                             ) { fullWidth -> -fullWidth * offsetSign }
+                             EnterTransition.None togetherWith ExitTransition.None
                          },
                          label = "ScreenAnim"
                      ) { screen ->

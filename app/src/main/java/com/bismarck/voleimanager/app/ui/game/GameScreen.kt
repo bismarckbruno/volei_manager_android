@@ -1055,6 +1055,7 @@ fun ActiveGameView(
         { viewModel.decrementScoreB() }
     }
     val secondWinId = if (teamsSwapped) "A" else "B"
+    val useCompactTeamCards = !showScore && firstPlayers.size <= 2 && secondPlayers.size <= 2
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -1107,7 +1108,9 @@ fun ActiveGameView(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .heightIn(min = 250.dp)
+                                        .then(
+                                            if (useCompactTeamCards) Modifier else Modifier.heightIn(min = 250.dp)
+                                        )
                                 ) {
                                     ActiveTeamCard(
                                         firstName,
@@ -1139,7 +1142,9 @@ fun ActiveGameView(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .heightIn(min = 250.dp)
+                                        .then(
+                                            if (useCompactTeamCards) Modifier else Modifier.heightIn(min = 250.dp)
+                                        )
                                 ) {
                                     ActiveTeamCard(
                                         secondName,
@@ -1221,7 +1226,9 @@ fun ActiveGameView(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 250.dp)
+                            .then(
+                                if (useCompactTeamCards) Modifier else Modifier.heightIn(min = 250.dp)
+                            )
                     ) {
                         ActiveTeamCard(
                             firstName,
@@ -1252,7 +1259,9 @@ fun ActiveGameView(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 250.dp)
+                            .then(
+                                if (useCompactTeamCards) Modifier else Modifier.heightIn(min = 250.dp)
+                            )
                     ) {
                         ActiveTeamCard(
                             secondName,
@@ -1525,7 +1534,7 @@ fun ActiveTeamCard(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
