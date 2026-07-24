@@ -33,6 +33,7 @@ import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TollCalculator
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -143,6 +144,7 @@ internal fun resolveReturningPlayers(
     return ReturningPlayersResolution(returningIds, nextResting, nextWaiting)
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class VoleiViewModel(application: Application, private val repository: VoleiRepository) :
     AndroidViewModel(application) {
     private val screenDataSharing = SharingStarted.Eagerly
@@ -183,17 +185,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         emptyList()
     )
 
-    val currentGroupPlayers = combine(players, _currentGroupConfig) { list, config ->
-        list.filter { it.groupName == config.groupName }
-    }.stateIn(viewModelScope, screenDataSharing, emptyList())
+    private val currentGroupName = _currentGroupConfig
+        .map { it.groupName }
+        .distinctUntilChanged()
 
-    val currentGroupHistory = combine(_allHistory, _currentGroupConfig) { list, config ->
-        list.filter { it.groupName == config.groupName }
-    }.stateIn(viewModelScope, screenDataSharing, emptyList())
+    val currentGroupPlayers = currentGroupName
+        .flatMapLatest { repository.playersByGroup(it) }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
 
-    val currentGroupEloLogs = combine(_allEloLogs, _currentGroupConfig) { list, config ->
-        list.filter { it.groupName == config.groupName }
-    }.stateIn(viewModelScope, screenDataSharing, emptyList())
+    val currentGroupHistory = currentGroupName
+        .flatMapLatest { repository.historyByGroup(it) }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    val currentGroupEloLogs = currentGroupName
+        .flatMapLatest { repository.eloLogsByGroup(it) }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
 
     val groupsSortedByRecentHistory = _allHistory.map { history ->
         val groupsWithDates = mutableMapOf<String, Long>()

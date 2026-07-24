@@ -6,7 +6,11 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "elo_logs",
-    indices = [Index(value = ["playerId"])]
+    indices = [
+        Index(value = ["playerId"]),
+        Index(value = ["groupName", "date"]),
+        Index(value = ["groupName", "playerId", "date"])
+    ]
 )
 data class PlayerEloLog(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,

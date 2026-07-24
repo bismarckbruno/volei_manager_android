@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -197,6 +198,8 @@ private class FakeVoleiDao : VoleiDao {
     private var nextLogId = 1
 
     override fun getAllPlayers(): Flow<List<Player>> = playersFlow.asStateFlow()
+    override fun getPlayersByGroup(groupName: String): Flow<List<Player>> =
+        playersFlow.asStateFlow().map { list -> list.filter { it.groupName == groupName } }
 
     override suspend fun insertPlayer(player: Player): Long {
         val id = if (player.id == 0) nextPlayerId++ else player.id
@@ -232,6 +235,8 @@ private class FakeVoleiDao : VoleiDao {
     }
 
     override fun getHistory(): Flow<List<MatchHistory>> = historyFlow.asStateFlow()
+    override fun getHistoryByGroup(groupName: String): Flow<List<MatchHistory>> =
+        historyFlow.asStateFlow().map { list -> list.filter { it.groupName == groupName } }
 
     override suspend fun insertMatch(match: MatchHistory) {
         val id = if (match.id == 0) nextMatchId++ else match.id
@@ -259,6 +264,8 @@ private class FakeVoleiDao : VoleiDao {
     }
 
     override fun getAllEloLogs(): Flow<List<PlayerEloLog>> = eloLogsFlow.asStateFlow()
+    override fun getEloLogsByGroup(groupName: String): Flow<List<PlayerEloLog>> =
+        eloLogsFlow.asStateFlow().map { list -> list.filter { it.groupName == groupName } }
 
     override suspend fun getAllEloLogsSync(): List<PlayerEloLog> = eloLogs.toList()
 
@@ -320,8 +327,6 @@ private class FakeVoleiDao : VoleiDao {
         playersFlow.value = players.sortedByDescending { it.elo }
     }
 }
-
-
 
 
 

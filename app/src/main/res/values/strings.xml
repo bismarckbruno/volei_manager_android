@@ -259,16 +259,13 @@
     <string name="balance_mode_long_press_hint">Long press a mode to see a quick tip.</string>
     <string name="mode_rebalance_tooltip">Once the limit is reached, the winning team is split evenly and filled out with the top players in the queue.</string>
     <string name="mode_rest_tooltip">Once the limit is reached, the winning team either rests for a round or keeps playing, depending on how many people are in the queue.</string>
-    <string name="limit_reached_text_rest_two_teams">%1$d wins in a row! The winner rests at the top of the waiting list and the next 2 waiting teams play.</string>
-    <string name="limit_reached_text_rest_one_team">%1$d wins in a row! The winner keeps playing and the next waiting team steps in.</string>
-    <string name="limit_reached_text_rest_no_queue">%1$d wins in a row! No team is waiting: both current teams keep playing.</string>
-    <string name="limit_reached_text_rest_no_team">%1$d wins in a row! No full team is waiting: the winner keeps playing and the losing side is completed by waiting players.</string>
     <string name="limit_reached_text_rest_selected_gte_four_teams">%1$d wins in a row! The winner rests at the top of the waiting list and the next 2 waiting teams play.</string>
     <string name="limit_reached_text_rest_selected_gte_three_teams">%1$d wins in a row! The winner keeps playing and the next waiting team steps in.</string>
-    <string name="limit_reached_text_rest_selected_gt_two_teams_plus_one">%1$d wins in a row! The winner keeps playing and the next team will be queue + some losing players.</string>
-    <string name="limit_reached_text_rest_selected_eq_two_teams_plus_one">%1$d wins in a row! The winner keeps playing and the next team will be queue + one losing player.</string>
+    <string name="limit_reached_text_rest_selected_gt_two_teams_plus_one">%1$d wins in a row! The winner keeps playing and the next team will be the queue + some losing players.</string>
+    <string name="limit_reached_text_rest_selected_eq_two_teams_plus_one">%1$d wins in a row! The winner keeps playing and the next team will be the queue + one losing player.</string>
     <string name="limit_reached_text_rest_selected_eq_two_teams">%1$d wins in a row! No team is waiting: both current teams keep playing.</string>
     <string name="limit_reached_text_rest_selected_lt_two_teams">%1$d wins in a row! Select at least %2$d players.</string>
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README</string>
     <string name="elo_level_1150_desc">" "</string>
+    <string name="group_title">Group</string>
 </resources>

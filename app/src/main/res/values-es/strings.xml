@@ -260,15 +260,12 @@
     <string name="balance_mode_long_press_hint">Mantén pulsado un modo para ver una ayuda rápida.</string>
     <string name="mode_rebalance_tooltip">Reorganiza los equipos en la siguiente ronda para mantener equilibrados el Elo y la prioridad.</string>
     <string name="mode_rest_tooltip">Al alcanzar el límite, el equipo ganador descansa una ronda o sigue jugando, dependiendo de cuántas personas haya en la fila de espera.</string>
-    <string name="limit_reached_text_rest_two_teams">¡%1$d victorias seguidas! El ganador descansa al inicio de la lista de espera y juegan los siguientes 2 equipos de la fila.</string>
-    <string name="limit_reached_text_rest_one_team">¡%1$d victorias seguidas! El ganador sigue jugando y entra el siguiente equipo de la fila.</string>
-    <string name="limit_reached_text_rest_no_queue">¡%1$d victorias seguidas! No hay ningún equipo en la fila: los dos equipos actuales siguen jugando.</string>
-    <string name="limit_reached_text_rest_no_team">¡%1$d victorias seguidas! No hay equipo completo en la fila: el ganador sigue jugando y el lado perdedor se completa con jugadores de espera.</string>
     <string name="limit_reached_text_rest_selected_gte_four_teams">¡%1$d victorias seguidas! El ganador descansa al inicio de la lista de espera y juegan los siguientes 2 equipos de la fila.</string>
     <string name="limit_reached_text_rest_selected_gte_three_teams">¡%1$d victorias seguidas! El ganador sigue jugando y entra el siguiente equipo de la fila.</string>
-    <string name="limit_reached_text_rest_selected_gt_two_teams_plus_one">¡%1$d victorias seguidas! El ganador sigue jugando y el próximo equipo será cola + algunos perdedores.</string>
-    <string name="limit_reached_text_rest_selected_eq_two_teams_plus_one">¡%1$d victorias seguidas! El ganador sigue jugando y el próximo equipo será cola + un perdedor.</string>
+    <string name="limit_reached_text_rest_selected_gt_two_teams_plus_one">¡%1$d victorias seguidas! El ganador sigue jugando y el próximo equipo será la cola + algunos perdedores.</string>
+    <string name="limit_reached_text_rest_selected_eq_two_teams_plus_one">¡%1$d victorias seguidas! El ganador sigue jugando y el próximo equipo será la cola + un perdedor.</string>
     <string name="limit_reached_text_rest_selected_eq_two_teams">¡%1$d victorias seguidas! No hay equipo en espera: los dos equipos actuales siguen jugando.</string>
     <string name="limit_reached_text_rest_selected_lt_two_teams">¡%1$d victorias seguidas! Selecciona al menos %2$d jugadores.</string>
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_ES_419</string>
+    <string name="group_title">Grupo</string>
 </resources>

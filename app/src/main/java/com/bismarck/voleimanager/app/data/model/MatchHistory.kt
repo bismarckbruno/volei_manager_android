@@ -1,9 +1,13 @@
 package com.bismarck.voleimanager.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "match_history")
+@Entity(
+    tableName = "match_history",
+    indices = [Index(value = ["groupName", "id"])]
+)
 data class MatchHistory(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val date: String,
@@ -21,4 +25,3 @@ data class MatchHistory(
     val startTimestamp: Long? = null,
     val endTimestamp: Long? = null
 )
-

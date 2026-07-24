@@ -65,7 +65,9 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -81,6 +83,174 @@ data class HistoryPlayerInfo(
 
 enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE, PLAYED_TIME }
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
+
+private data class PlayerIdentifier(val id: Int?, val name: String)
+
+private data class HistoryComputationResult(
+    val sortedHistory: List<MatchHistory>,
+    val matchDurationsMinutes: Map<Int, Int>,
+    val averageMatchDurationMinutes: Int?,
+    val uniquePlayerCount: Int,
+    val historyPlayerList: List<HistoryPlayerInfo>,
+    val averagePlayersEloText: String?
+)
+
+private fun computeHistoryComputation(
+    groupHistory: List<MatchHistory>,
+    historyDate: String?,
+    matchSortMode: MatchSortMode,
+    groupPlayers: List<Player>,
+    eloLogs: List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>,
+    playerSortMode: PlayerSortMode
+): HistoryComputationResult {
+    val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    val filteredHistory = groupHistory.filter { historyDate == null || it.date.startsWith(historyDate) }
+    val sortedHistory = when (matchSortMode) {
+        MatchSortMode.NEWEST -> filteredHistory.sortedWith(
+            compareByDescending<MatchHistory> {
+                try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
+            }.thenByDescending { it.id }
+        )
+        MatchSortMode.OLDEST -> filteredHistory.sortedWith(
+            compareBy<MatchHistory> {
+                try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
+            }.thenByDescending { it.id }
+        )
+        MatchSortMode.ELO_DELTA -> filteredHistory.sortedWith(
+            compareByDescending<MatchHistory> { it.eloPoints }.thenByDescending { it.id }
+        )
+        MatchSortMode.SCORE_DIFF -> filteredHistory.sortedWith(
+            compareByDescending<MatchHistory> {
+                kotlin.math.abs((it.teamAScore ?: 0) - (it.teamBScore ?: 0))
+            }.thenByDescending { it.id }
+        )
+    }
+
+    val matchDurationsMinutes = buildMap {
+        sortedHistory.forEach { match ->
+            if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
+                put(match.id, ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1))
+            }
+        }
+    }
+    val averageMatchDurationMinutes = if (matchDurationsMinutes.isEmpty()) null else matchDurationsMinutes.values.average().toInt()
+
+    fun parseTeam(teamNamesRaw: String, teamIdsRaw: String): List<PlayerIdentifier> {
+        val names = teamNamesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        val ids = teamIdsRaw.split(",").mapNotNull { it.trim().toIntOrNull() }
+        return names.mapIndexed { index, name -> PlayerIdentifier(ids.getOrNull(index), name) }
+    }
+
+    val allIdentifiers = buildList {
+        sortedHistory.forEach { match ->
+            addAll(parseTeam(match.teamA, match.teamAIds))
+            addAll(parseTeam(match.teamB, match.teamBIds))
+        }
+    }
+
+    val uniquePlayerIdentifiers = mutableListOf<PlayerIdentifier>()
+    allIdentifiers.forEach { identifier ->
+        if (identifier.id != null && uniquePlayerIdentifiers.any { it.id == identifier.id }) return@forEach
+        val existingByName = uniquePlayerIdentifiers.find { it.name == identifier.name }
+        if (existingByName == null) {
+            uniquePlayerIdentifiers.add(identifier)
+        } else if (existingByName.id == null && identifier.id != null) {
+            uniquePlayerIdentifiers.remove(existingByName)
+            uniquePlayerIdentifiers.add(identifier)
+        }
+    }
+
+    val playedMinutesByIdentifier = mutableMapOf<PlayerIdentifier, Int>()
+    sortedHistory.forEach { match ->
+        val duration = matchDurationsMinutes[match.id] ?: 0
+        if (duration <= 0) return@forEach
+        val matchIdentifiers = (parseTeam(match.teamA, match.teamAIds) + parseTeam(match.teamB, match.teamBIds)).toSet()
+        matchIdentifiers.forEach { identifier ->
+            playedMinutesByIdentifier[identifier] = (playedMinutesByIdentifier[identifier] ?: 0) + duration
+        }
+    }
+
+    val playersById = groupPlayers.associateBy { it.id }
+    val playersByName = groupPlayers.associateBy { it.name }
+    val eloDateStr = if (historyDate != null) {
+        try {
+            val parts = historyDate.split("/")
+            if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
+        } catch (_: Exception) {
+            null
+        }
+    } else null
+    val filteredLogs = if (eloDateStr != null) eloLogs.filter { it.date == eloDateStr } else eloLogs
+    val logsByPlayerId = filteredLogs.groupBy { it.playerId }
+    val logsByName = filteredLogs.groupBy { it.playerNameSnapshot }
+
+    val playerDataList = uniquePlayerIdentifiers.map { identifier ->
+        val player = if (identifier.id != null) playersById[identifier.id] else playersByName[identifier.name]
+        val logsForPlayer = when {
+            player != null -> logsByPlayerId[player.id].orEmpty()
+            else -> logsByName[identifier.name].orEmpty()
+        }
+        val games = logsForPlayer.size
+        val victories = logsForPlayer.count { it.won == true }
+        val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
+        val effectivePlayer = player ?: Player(name = identifier.name, groupName = "", elo = 1200.0)
+
+        HistoryPlayerInfo(
+            player = effectivePlayer,
+            displayElo = eloForDisplay,
+            name = player?.name ?: identifier.name,
+            gamesPlayed = games,
+            victories = victories,
+            playedMinutes = playedMinutesByIdentifier[identifier] ?: 0
+        )
+    }
+
+    fun HistoryPlayerInfo.winRate(): Double = if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
+
+    val sortedPlayers = when (playerSortMode) {
+        PlayerSortMode.ELO -> playerDataList.sortedWith(
+            compareByDescending<HistoryPlayerInfo> { it.displayElo }
+                .thenByDescending { it.winRate() }
+        )
+        PlayerSortMode.GAMES -> playerDataList.sortedWith(
+            compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
+                .thenByDescending { it.winRate() }
+                .thenByDescending { it.displayElo }
+        )
+        PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
+            compareByDescending<HistoryPlayerInfo> { it.victories }
+                .thenByDescending { it.winRate() }
+                .thenByDescending { it.displayElo }
+        )
+        PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
+            compareByDescending<HistoryPlayerInfo> { it.winRate() }
+                .thenBy { it.gamesPlayed }
+                .thenByDescending { it.displayElo }
+        )
+        PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
+            compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
+                .thenByDescending { it.displayElo }
+                .thenByDescending { it.victories }
+                .thenByDescending { it.winRate() }
+        )
+        PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
+            compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
+                .thenByDescending { it.displayElo }
+        )
+    }
+
+    val averagePlayersEloText = if (sortedPlayers.isEmpty()) null
+    else NumberFormat.getIntegerInstance(Locale.getDefault()).format(sortedPlayers.map { it.displayElo }.average().toInt())
+
+    return HistoryComputationResult(
+        sortedHistory = sortedHistory,
+        matchDurationsMinutes = matchDurationsMinutes,
+        averageMatchDurationMinutes = averageMatchDurationMinutes,
+        uniquePlayerCount = uniquePlayerIdentifiers.size,
+        historyPlayerList = sortedPlayers,
+        averagePlayersEloText = averagePlayersEloText
+    )
+}
 
 fun formatLocalizedDate(internalDate: String): String {
     val language = Locale.getDefault().language
@@ -128,7 +298,8 @@ fun HistoryScreen(
     playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL,
     matchSortMode: MatchSortMode = MatchSortMode.NEWEST,
     onMatchSortModeChanged: (MatchSortMode) -> Unit = {},
-    onPlayerSortModeChanged: (PlayerSortMode) -> Unit = {}
+    onPlayerSortModeChanged: (PlayerSortMode) -> Unit = {},
+    onContentReady: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
@@ -151,192 +322,30 @@ fun HistoryScreen(
     // removed matchSortMode local state
     var expandedFilter by remember { mutableStateOf(false) }
 
-    val sortedHistory = remember(groupHistory, historyDate, matchSortMode) {
-        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        val filtered = groupHistory.filter {
-            (historyDate == null || it.date.startsWith(historyDate!!))
-        }
-        when (matchSortMode) {
-            MatchSortMode.NEWEST -> filtered.sortedWith(
-                compareByDescending<MatchHistory> {
-                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
-                }.thenByDescending { it.id }
-            )
-            MatchSortMode.OLDEST -> filtered.sortedWith(
-                compareBy<MatchHistory> {
-                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
-                }.thenByDescending { it.id }
-            )
-            MatchSortMode.ELO_DELTA -> filtered.sortedWith(
-                compareByDescending<MatchHistory> { it.eloPoints }
-                    .thenByDescending { it.id }
-            )
-            MatchSortMode.SCORE_DIFF -> filtered.sortedWith(
-                compareByDescending<MatchHistory> {
-                    val sa = it.teamAScore ?: 0
-                    val sb = it.teamBScore ?: 0
-                    kotlin.math.abs(sa - sb)
-                }.thenByDescending { it.id }
+    var historyComputation by remember { mutableStateOf<HistoryComputationResult?>(null) }
+    LaunchedEffect(groupHistory, historyDate, matchSortMode, groupPlayers, eloLogs, playerSortMode) {
+        historyComputation = null
+        historyComputation = withContext(Dispatchers.Default) {
+            computeHistoryComputation(
+                groupHistory = groupHistory,
+                historyDate = historyDate,
+                matchSortMode = matchSortMode,
+                groupPlayers = groupPlayers,
+                eloLogs = eloLogs,
+                playerSortMode = playerSortMode
             )
         }
     }
-
-    val matchDurationsMinutes = remember(sortedHistory) {
-        val result = mutableMapOf<Int, Int>()
-        sortedHistory.forEach { match ->
-            if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
-                result[match.id] = ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
-            }
-        }
-        result
+    LaunchedEffect(historyComputation) {
+        if (historyComputation != null) onContentReady()
     }
 
-    val averageMatchDurationMinutes = remember(matchDurationsMinutes) {
-        if (matchDurationsMinutes.isEmpty()) null else matchDurationsMinutes.values.average().toInt()
-    }
-
-    // Unique player names and IDs from filtered history
-    // For backwards compatibility, if ID is empty, we keep the name
-    data class PlayerIdentifier(val id: Int?, val name: String)
-    val uniquePlayerIdentifiers = remember(sortedHistory) {
-        val identifiers = mutableSetOf<PlayerIdentifier>()
-        sortedHistory.forEach { match ->
-            val namesA = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            val idsA = match.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-            
-            namesA.forEachIndexed { index, name ->
-                val id = idsA.getOrNull(index)
-                identifiers.add(PlayerIdentifier(id, name))
-            }
-            
-            val namesB = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            val idsB = match.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-            
-            namesB.forEachIndexed { index, name ->
-                val id = idsB.getOrNull(index)
-                identifiers.add(PlayerIdentifier(id, name))
-            }
-        }
-        
-        // Remove duplicates resolving names and IDs
-        val deduplicated = mutableListOf<PlayerIdentifier>()
-        identifiers.forEach { identifier ->
-            if (identifier.id != null && deduplicated.any { it.id == identifier.id }) return@forEach
-            
-            val existingByName = deduplicated.find { it.name == identifier.name }
-            if (existingByName != null) {
-                if (existingByName.id == null && identifier.id != null) {
-                    // Upgrade the ID-less entry to the one with ID
-                    deduplicated.remove(existingByName)
-                    deduplicated.add(identifier)
-                }
-                // If it already exists with an ID, and we're adding an ID-less one, we ignore the ID-less one.
-                // If both have different IDs, they are homonyms, they are both kept (since the ID check above didn't return).
-            } else {
-                deduplicated.add(identifier)
-            }
-        }
-        deduplicated.toList()
-    }
-
-    val uniquePlayerCount = uniquePlayerIdentifiers.size
-
-    // Build player list with Elo and stats for the selected date
-    val historyPlayerList = remember(uniquePlayerIdentifiers, groupPlayers, eloLogs, historyDate, playerSortMode, sortedHistory, matchDurationsMinutes) {
-        // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
-        val eloDateStr: String? = if (historyDate != null) {
-            try {
-                val parts = historyDate!!.split("/")
-                if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
-            } catch (_: Exception) { null }
-        } else null
-
-        fun playerAppearsInMatch(match: MatchHistory, identifier: PlayerIdentifier): Boolean {
-            val namesA = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            val namesB = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            val idsA = match.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-            val idsB = match.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-            return if (identifier.id != null) {
-                idsA.contains(identifier.id) || idsB.contains(identifier.id) ||
-                    ((idsA.isEmpty() && idsB.isEmpty()) && (namesA.contains(identifier.name) || namesB.contains(identifier.name)))
-            } else {
-                namesA.contains(identifier.name) || namesB.contains(identifier.name)
-            }
-        }
-
-        val playerDataList = uniquePlayerIdentifiers.mapNotNull { identifier ->
-            val player = groupPlayers.find { 
-                if (identifier.id != null) it.id == identifier.id 
-                else it.name == identifier.name 
-            }
-            val logsForPlayer = if (eloDateStr != null) {
-                if (player != null) eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
-                else eloLogs.filter { it.playerNameSnapshot == identifier.name && it.date == eloDateStr }
-            } else {
-                if (player != null) eloLogs.filter { it.playerId == player.id }
-                else eloLogs.filter { it.playerNameSnapshot == identifier.name }
-            }
-            
-            val games = logsForPlayer.size
-            val victories = logsForPlayer.count { it.won == true }
-            val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
-            val playedMinutes = sortedHistory.sumOf { match ->
-                if (playerAppearsInMatch(match, identifier)) matchDurationsMinutes[match.id] ?: 0 else 0
-            }
-
-            val effectivePlayer = player ?: Player(name = identifier.name, groupName = "", elo = 1200.0)
-            
-            HistoryPlayerInfo(
-                player = effectivePlayer,
-                displayElo = eloForDisplay,
-                name = player?.name ?: identifier.name,
-                gamesPlayed = games,
-                victories = victories,
-                playedMinutes = playedMinutes
-            )
-        }
-
-        fun HistoryPlayerInfo.winRate(): Double =
-            if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
-
-        when (playerSortMode) {
-            PlayerSortMode.ELO -> playerDataList.sortedWith(
-                compareByDescending<HistoryPlayerInfo> { it.displayElo }
-                    .thenByDescending { it.winRate() }
-            )
-            PlayerSortMode.GAMES -> playerDataList.sortedWith(
-                compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
-                    .thenByDescending { it.winRate() }
-                    .thenByDescending { it.displayElo }
-            )
-            PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
-                compareByDescending<HistoryPlayerInfo> { it.victories }
-                    .thenByDescending { it.winRate() }
-                    .thenByDescending { it.displayElo }
-            )
-            PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
-                compareByDescending<HistoryPlayerInfo> { it.winRate() }
-                    .thenBy { it.gamesPlayed }
-                    .thenByDescending { it.displayElo }
-            )
-            PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
-                compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
-                    .thenByDescending { it.displayElo }
-                    .thenByDescending { it.victories }
-                    .thenByDescending { it.winRate() }
-            )
-            PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
-                compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
-                    .thenByDescending { it.displayElo }
-            )
-        }
-    }
-
-    val averagePlayersEloText = remember(historyPlayerList) {
-        if (historyPlayerList.isEmpty()) null
-        else NumberFormat.getIntegerInstance(Locale.getDefault())
-            .format(historyPlayerList.map { it.displayElo }.average().toInt())
-    }
+    val sortedHistory = historyComputation?.sortedHistory.orEmpty()
+    val matchDurationsMinutes = historyComputation?.matchDurationsMinutes.orEmpty()
+    val averageMatchDurationMinutes = historyComputation?.averageMatchDurationMinutes
+    val uniquePlayerCount = historyComputation?.uniquePlayerCount ?: 0
+    val historyPlayerList = historyComputation?.historyPlayerList.orEmpty()
+    val averagePlayersEloText = historyComputation?.averagePlayersEloText
 
     // --- Compute layout mode once for all player cards ---
     val textMeasurer = rememberTextMeasurer()
@@ -658,12 +667,20 @@ fun HistoryScreen(
         Spacer(Modifier.height(12.dp))
 
         // --- HorizontalPager for swipe between matches and players ---
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            pageSpacing = 16.dp
-        ) { page ->
-            when (page) {
+        if (historyComputation == null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                pageSpacing = 16.dp
+            ) { page ->
+                when (page) {
                 0 -> {
                     // --- Matches view ---
                     LazyColumn(
@@ -682,7 +699,7 @@ fun HistoryScreen(
                                 )
                             }
                         }
-                        items(sortedHistory) { match ->
+                        items(sortedHistory, key = { it.id }) { match ->
                             HistoryItem(
                                 match = match,
                                 isDarkTheme = isDarkTheme,
@@ -737,7 +754,10 @@ fun HistoryScreen(
                                     leadingIcon = Icons.Default.WorkspacePremium
                                 )
                             }
-                            itemsIndexed(historyPlayerList) { index, info ->
+                            itemsIndexed(
+                                items = historyPlayerList,
+                                key = { _, info -> "${info.player.id}_${info.name}" }
+                            ) { index, info ->
                                 HistoryPlayerCard(
                                     rank = if (playerSortMode != PlayerSortMode.ALPHABETICAL) index + 1 else null,
                                     player = info.player,
@@ -751,6 +771,7 @@ fun HistoryScreen(
                             }
                         }
                         item {  }
+                        }
                     }
                 }
             }
@@ -1722,7 +1743,8 @@ fun ExportableImageContent(
             )
         }
 
-        val title = "$groupName - ${formatLocalizedDate(date)}"
+        val groupTitle = stringResource(R.string.group_title)
+        val title = "$groupTitle $groupName - ${formatLocalizedDate(date)}"
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,

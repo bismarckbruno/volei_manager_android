@@ -1,9 +1,13 @@
 package com.bismarck.voleimanager.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "players")
+@Entity(
+    tableName = "players",
+    indices = [Index(value = ["groupName", "elo"])]
+)
 data class Player(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,

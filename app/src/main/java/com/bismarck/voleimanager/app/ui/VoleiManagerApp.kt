@@ -132,6 +132,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showTermsOfUseDialog by remember { mutableStateOf(false) }
     var exportFileName by remember { mutableStateOf("volei_data") }
     var pendingImportType by remember { mutableStateOf(CsvType.JOGADORES) }
+    var pendingDrawerCloseScreen by remember { mutableStateOf<Screen?>(null) }
 
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -177,6 +178,26 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         uiMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             viewModel.clearUiMessage()
+        }
+    }
+
+    fun requestScreenSwitch(screen: Screen) {
+        if (currentScreen == screen) {
+            scope.launch { drawerState.close() }
+            return
+        }
+        pendingDrawerCloseScreen = screen
+        viewModel.navigateTo(screen)
+    }
+
+    LaunchedEffect(currentScreen, pendingDrawerCloseScreen, isGroupDataLoading) {
+        val shouldCloseNow = pendingDrawerCloseScreen == currentScreen &&
+            currentScreen != Screen.HISTORY &&
+            !isGroupDataLoading &&
+            drawerState.isOpen
+        if (shouldCloseNow) {
+            drawerState.close()
+            pendingDrawerCloseScreen = null
         }
     }
 
@@ -508,25 +529,25 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 icon = { Icon(Icons.Outlined.PlayCircle, null) },
                                 label = { Text(stringResource(R.string.game_word)) },
                                 selected = currentScreen == Screen.GAME,
-                                onClick = { viewModel.navigateTo(Screen.GAME); scope.launch { drawerState.close() } }
+                                onClick = { requestScreenSwitch(Screen.GAME) }
                             )
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.DateRange, null) },
                                 label = { Text(stringResource(R.string.history)) },
                                 selected = currentScreen == Screen.HISTORY,
-                                onClick = { viewModel.navigateTo(Screen.HISTORY); scope.launch { drawerState.close() } }
+                                onClick = { requestScreenSwitch(Screen.HISTORY) }
                             )
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
                                 label = { Text(stringResource(R.string.faq)) },
                                 selected = currentScreen == Screen.FAQ,
-                                onClick = { viewModel.navigateTo(Screen.FAQ); scope.launch { drawerState.close() } }
+                                onClick = { requestScreenSwitch(Screen.FAQ) }
                             )
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.Info, null) },
                                 label = { Text(stringResource(R.string.about_app)) },
                                 selected = currentScreen == Screen.ABOUT,
-                                onClick = { viewModel.navigateTo(Screen.ABOUT); scope.launch { drawerState.close() } }
+                                onClick = { requestScreenSwitch(Screen.ABOUT) }
                             )
 
                             HorizontalDivider(
@@ -780,7 +801,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         if (currentScreen == Screen.GAME) {
                             val groupConfig by viewModel.currentGroupConfig.collectAsState()
                             val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
-                            val showAddPulse = groupConfig.onboardingStep == ONBOARDING_STEP_MIN_PLAYERS && groupPlayers.isEmpty()
+                            val minimumPlayersNeeded = groupConfig.teamSize * 2
+                            val showAddPulse = groupConfig.onboardingStep == ONBOARDING_STEP_MIN_PLAYERS &&
+                                groupPlayers.size < minimumPlayersNeeded
                             
                             val scale by animateFloatAsState(
                                 targetValue = if (showAddPulse) 1.25f else 1f,
@@ -803,12 +826,27 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 else tween(200),
                                 label = "AddButtonColor"
                             )
+                            val iconRotation by animateFloatAsState(
+                                targetValue = if (showAddPulse) 90f else 0f,
+                                animationSpec = if (showAddPulse)
+                                    infiniteRepeatable(
+                                        animation = tween(2000),
+                                        repeatMode = RepeatMode.Restart
+                                    )
+                                else tween(200),
+                                label = "AddButtonRotation"
+                            )
                             
                             IconButton(
                                 onClick = { showAddPlayerDialog = true },
                                 modifier = Modifier.scale(scale)
                             ) {
-                                Icon(Icons.Default.Add, stringResource(R.string.add_new_player), tint = iconColor)
+                                Icon(
+                                    Icons.Default.Add,
+                                    stringResource(R.string.add_new_player),
+                                    tint = iconColor,
+                                    modifier = Modifier.rotate(iconRotation)
+                                )
                             }
                         } else if (currentScreen == Screen.HISTORY) {
                             val view = LocalView.current
@@ -1112,7 +1150,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 selectedTab = historySelectedTab,
                                 onTabChanged = { historySelectedTab = it },
                                 playerSortMode = historyPlayerSortMode,
-                                onPlayerSortModeChanged = { historyPlayerSortMode = it }
+                                onPlayerSortModeChanged = { historyPlayerSortMode = it },
+                                onContentReady = {
+                                    if (pendingDrawerCloseScreen == Screen.HISTORY && drawerState.isOpen) {
+                                        scope.launch {
+                                            drawerState.close()
+                                            pendingDrawerCloseScreen = null
+                                        }
+                                    }
+                                }
                             )
                             Screen.FAQ -> FAQScreen()
                             Screen.ABOUT -> AboutScreen()

@@ -19,6 +19,9 @@ interface VoleiDao {
     @Query("SELECT * FROM players ORDER BY elo DESC")
     fun getAllPlayers(): Flow<List<com.bismarck.voleimanager.app.data.model.Player>>
 
+    @Query("SELECT * FROM players WHERE groupName = :groupName ORDER BY elo DESC")
+    fun getPlayersByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.Player>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlayer(player: com.bismarck.voleimanager.app.data.model.Player): Long
 
@@ -38,6 +41,9 @@ interface VoleiDao {
     @Query("SELECT * FROM match_history ORDER BY id DESC")
     fun getHistory(): Flow<List<com.bismarck.voleimanager.app.data.model.MatchHistory>>
 
+    @Query("SELECT * FROM match_history WHERE groupName = :groupName ORDER BY id DESC")
+    fun getHistoryByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.MatchHistory>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMatch(match: com.bismarck.voleimanager.app.data.model.MatchHistory)
 
@@ -56,6 +62,9 @@ interface VoleiDao {
 
     @Query("SELECT * FROM elo_logs ORDER BY date ASC")
     fun getAllEloLogs(): Flow<List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>>
+
+    @Query("SELECT * FROM elo_logs WHERE groupName = :groupName ORDER BY date ASC, id ASC")
+    fun getEloLogsByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>>
 
     @Query("SELECT * FROM elo_logs")
     suspend fun getAllEloLogsSync(): List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>
@@ -98,5 +107,4 @@ interface VoleiDao {
     @Query("DELETE FROM elo_logs WHERE groupName = :groupName")
     suspend fun deleteEloLogsByGroup(groupName: String)
 }
-
 

@@ -13,6 +13,14 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
 
     // --- ESTA LINHA CORRIGE O ERRO 'eloLogs' ---
     val eloLogs: Flow<List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>> = voleiDao.getAllEloLogs()
+    fun playersByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.Player>> =
+        voleiDao.getPlayersByGroup(groupName)
+
+    fun historyByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.MatchHistory>> =
+        voleiDao.getHistoryByGroup(groupName)
+
+    fun eloLogsByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>> =
+        voleiDao.getEloLogsByGroup(groupName)
 
     // --- Players ---
     suspend fun insertPlayer(player: com.bismarck.voleimanager.app.data.model.Player): Long = voleiDao.insertPlayer(player)
@@ -109,5 +117,4 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
         voleiDao.deleteEloLogsByGroup(groupName)
     }
 }
-
 
