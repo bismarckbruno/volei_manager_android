@@ -29,7 +29,7 @@
     <string name="show_elo">Mostrar Elo</string>
     <string name="show_elo_tooltip">Mostra a pontuação de habilidade de cada jogador e média do time.</string>
     <string name="show_lateness">Mostrar atraso</string>
-    <string name="show_lateness_tooltip">Mostra a média do número de jogos de quando a pessoa atrasada chegou.</string>
+    <string name="show_lateness_tooltip">Exibe a média de partidas que o grupo já tinha jogado até a chegada do jogador atrasado.</string>
     <string name="data">Dados</string>
     <string name="export">Exportar</string>
     <string name="import_text">Importar</string>
@@ -131,15 +131,15 @@
     <string name="faq_q4">Como criar ou gerenciar Grupos?</string>
     <string name="faq_a4">No menu lateral, você pode criar diferentes \"Grupos\". Isso é útil se você joga em lugares ou com turmas diferentes (ex: Vôlei de Sábado e Vôlei da Empresa). Cada grupo tem seu próprio histórico e lista de jogadores.</string>
     <string name="faq_q5">Como o app escolhe quem joga a próxima partida?</string>
-    <string name="faq_a5">Ao tocar em \"Iniciar próximo jogo\", o app segue o modo de balanceamento do grupo. Em geral, ele respeita a fila de espera e os jogadores presentes para manter a rotação justa.</string>
+    <string name="faq_a5">O app seleciona os primeiros jogadores da fila de espera, organizados de forma alternada por nível de habilidade. Isso garante times equilibrados, mesclando diferentes níveis de jogo. Se precisar, você pode reorganizar a fila manualmente.</string>
     <string name="faq_q6">Qual é a diferença entre os modos de balanceamento?</string>
-    <string name="faq_a6">Rebalanceamento recompõe os times para equilibrar força. Descanso muda a próxima rodada conforme a fila: com 2 ou mais times completos, o vencedor atual descansa; com 1 time completo, esse time entra; com menos, os jogadores da espera completam o lado perdedor.</string>
+    <string name="faq_a6">O Modo Rebalanceamento divide o time vencedor em dois e os completa com os primeiros da fila de espera para reequilibrar o nível dos times. Já o Modo Descanso faz o time vencedor descansar por uma rodada se houver dois ou mais times completos na fila; caso contrário, o time vencedor continua jogando.</string>
     <string name="faq_q7">O que acontece quando o limite de vitórias é atingido?</string>
-    <string name="faq_a7">Quando um time atinge o limite configurado, a próxima rodada muda conforme o modo escolhido e a quantidade de times completos na fila de espera.</string>
+    <string name="faq_a7">Ao atingir o limite configurado, o time se torna o \"Rei da Quadra\" e será dividido, descansará ou continuará jogando, dependendo do modo de balanceamento e do tamanho da fila de espera.</string>
     <string name="faq_q8">Como funcionam substituições durante o jogo?</string>
-    <string name="faq_a8">Você escolhe quem sai, seleciona quem entra e confirma. Em seguida, aparece uma mensagem com opção de desfazer para voltar ao estado anterior.</string>
+    <string name="faq_a8">Basta pressionar o nome de quem vai sair, selecionar quem vai entrar e confirmar.</string>
     <string name="faq_q9">Quando vale usar montagem manual de times?</string>
-    <string name="faq_a9">Use quando quiser controlar situações específicas da quadra (lesão, adaptação de nível, treino por posição). Para rodadas normais, o modo automático costuma ser mais rápido e consistente.</string>
+    <string name="faq_a9">Use apenas em situações atípicas, como quando uma partida já estiver em andamento ao abrir o app. No geral, o modo automático é mais rápido e consistente.</string>
     <string name="faq_q2">Como funciona a Prioridade (Estrela)?</string>
     <string name="faq_a2">Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com \"Prioridade\", o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente.</string>
     <string name="faq_q3">O que é Mostrar Atraso?</string>
@@ -198,12 +198,12 @@
     <string name="absent">Ausentes (%1$d)</string>
     <string name="team_x_wins">Vitória do %1$s</string>
     <string name="winner">vencedor</string>
-    <string name="limit_reached_text">%1$d vitórias seguidas! O time vencedor será rebalanceado na próxima rodada.</string>
+    <string name="limit_reached_text">%1$d vitórias seguidas! O time vencedor será dividido em dois na próxima rodada.</string>
     <string name="limit_reached_text_rest_two_teams">%1$d vitórias seguidas! O vencedor descansa no topo da fila de espera e os 2 próximos times da fila jogam.</string>
     <string name="limit_reached_text_rest_one_team">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time da fila entra.</string>
     <string name="limit_reached_text_rest_no_queue">%1$d vitórias seguidas! Nenhum time está na fila: os dois times atuais seguem jogando.</string>
     <string name="limit_reached_text_rest_no_team">%1$d vitórias seguidas! Sem time completo na fila: o vencedor segue jogando e o lado perdedor é completado por jogadores da espera.</string>
-    <string name="limit_reached_text_rest_selected_gte_four_teams">%1$d vitórias seguidas! O vencedor descansa no topo da fila de espera e os 2 próximos times da fila jogam.</string>
+    <string name="limit_reached_text_rest_selected_gte_four_teams">Rei da Quadra atingiu o limite!</string>
     <string name="limit_reached_text_rest_selected_gte_three_teams">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time da fila entra.</string>
     <string name="limit_reached_text_rest_selected_gt_two_teams_plus_one">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time será fila + alguns dos perdedores.</string>
     <string name="limit_reached_text_rest_selected_eq_two_teams_plus_one">%1$d vitórias seguidas! O vencedor segue jogando e o próximo time será fila + um dos perdedores.</string>
@@ -268,7 +268,7 @@
     <string name="mode_rebalance">Rebalanceamento</string>
     <string name="mode_rest">Descanso</string>
     <string name="balance_mode_long_press_hint">Toque e segure em um modo para ver uma dica rápida.</string>
-    <string name="mode_rebalance_tooltip">Reorganiza os times na próxima rodada para manter o equilíbrio entre Elo e prioridade.</string>
-    <string name="mode_rest_tooltip">Ao atingir o limite, a fila define a próxima rodada: com 2 ou mais times completos, o vencedor vai para o topo da fila de espera; com 1 time completo, ele entra; com menos, a fila é completada pelo time perdedor.</string>
+    <string name="mode_rebalance_tooltip">Ao atingir o limite, o time vencedor é dividido em duas partes equilibradas, que são completadas com quem estiver no topo da fila de espera.</string>
+    <string name="mode_rest_tooltip">Ao atingir o limite, o time vencedor descansa uma rodada ou segue jogando, dependendo de quantas pessoas estão na fila de espera.</string>
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_PT_BR</string>
 </resources>

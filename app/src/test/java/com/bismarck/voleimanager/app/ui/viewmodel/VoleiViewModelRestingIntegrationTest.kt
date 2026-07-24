@@ -271,6 +271,8 @@ private class FakeVoleiDao : VoleiDao {
 
     override suspend fun getGroupConfig(groupName: String): GroupConfig? = configs[groupName]
 
+    override suspend fun getAllGroupConfigs(): List<GroupConfig> = configs.values.toList()
+
     override suspend fun saveGroupConfig(config: GroupConfig) {
         configs[config.groupName] = config
     }
@@ -318,7 +320,6 @@ private class FakeVoleiDao : VoleiDao {
         playersFlow.value = players.sortedByDescending { it.elo }
     }
 }
-
 
 
 

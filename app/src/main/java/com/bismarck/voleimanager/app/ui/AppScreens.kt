@@ -1326,8 +1326,8 @@ fun FAQScreen() {
         stringResource(R.string.faq_q3) to stringResource(R.string.faq_a3),
         stringResource(R.string.faq_q4) to stringResource(R.string.faq_a4),
         stringResource(R.string.faq_q5) to stringResource(R.string.faq_a5),
-        stringResource(R.string.faq_q6) to stringResource(R.string.faq_a6),
         stringResource(R.string.faq_q7) to stringResource(R.string.faq_a7),
+        stringResource(R.string.faq_q6) to stringResource(R.string.faq_a6),
         stringResource(R.string.faq_q8) to stringResource(R.string.faq_a8),
         stringResource(R.string.faq_q9) to stringResource(R.string.faq_a9)
     )
