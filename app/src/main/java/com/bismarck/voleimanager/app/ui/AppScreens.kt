@@ -323,17 +323,22 @@ fun HistoryScreen(
     var expandedFilter by remember { mutableStateOf(false) }
 
     var historyComputation by remember { mutableStateOf<HistoryComputationResult?>(null) }
+    var isComputingHistory by remember { mutableStateOf(false) }
     LaunchedEffect(groupHistory, historyDate, matchSortMode, groupPlayers, eloLogs, playerSortMode) {
-        historyComputation = null
-        historyComputation = withContext(Dispatchers.Default) {
-            computeHistoryComputation(
-                groupHistory = groupHistory,
-                historyDate = historyDate,
-                matchSortMode = matchSortMode,
-                groupPlayers = groupPlayers,
-                eloLogs = eloLogs,
-                playerSortMode = playerSortMode
-            )
+        isComputingHistory = true
+        try {
+            historyComputation = withContext(Dispatchers.Default) {
+                computeHistoryComputation(
+                    groupHistory = groupHistory,
+                    historyDate = historyDate,
+                    matchSortMode = matchSortMode,
+                    groupPlayers = groupPlayers,
+                    eloLogs = eloLogs,
+                    playerSortMode = playerSortMode
+                )
+            }
+        } finally {
+            isComputingHistory = false
         }
     }
     LaunchedEffect(historyComputation) {
@@ -675,63 +680,41 @@ fun HistoryScreen(
                 CircularProgressIndicator()
             }
         } else {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                pageSpacing = 16.dp
-            ) { page ->
-                when (page) {
-                0 -> {
-                    // --- Matches view ---
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        if (sortedHistory.isNotEmpty()) {
-                            item {
-                                val avgDurationText = averageMatchDurationMinutes?.let { "${it}min" } ?: "--"
-                                HistorySummaryItem(
-                                    text = stringResource(
-                                        R.string.average_duration,
-                                        avgDurationText
-                                    ),
-                                    leadingIcon = Icons.Default.AccessTime
+            Box(modifier = Modifier.fillMaxSize()) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    pageSpacing = 16.dp
+                ) { page ->
+                    when (page) {
+                    0 -> {
+                        // --- Matches view ---
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (sortedHistory.isNotEmpty()) {
+                                item {
+                                    val avgDurationText = averageMatchDurationMinutes?.let { "${it}min" } ?: "--"
+                                    HistorySummaryItem(
+                                        text = stringResource(
+                                            R.string.average_duration,
+                                            avgDurationText
+                                        ),
+                                        leadingIcon = Icons.Default.AccessTime
+                                    )
+                                }
+                            }
+                            items(sortedHistory, key = { it.id }) { match ->
+                                HistoryItem(
+                                    match = match,
+                                    isDarkTheme = isDarkTheme,
+                                    showElo = showElo,
+                                    showScore = showScore,
+                                    durationMinutes = matchDurationsMinutes[match.id]
                                 )
                             }
-                        }
-                        items(sortedHistory, key = { it.id }) { match ->
-                            HistoryItem(
-                                match = match,
-                                isDarkTheme = isDarkTheme,
-                                showElo = showElo,
-                                showScore = showScore,
-                                durationMinutes = matchDurationsMinutes[match.id]
-                            )
-                        }
-                        if (sortedHistory.isEmpty()) item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    stringResource(R.string.no_matches_found),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        item {  }
-                    }
-                }
-                1 -> {
-                    // --- Players view ---
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        if (historyPlayerList.isEmpty()) {
-                            item {
+                            if (sortedHistory.isEmpty()) item {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -739,39 +722,75 @@ fun HistoryScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        stringResource(R.string.no_players),
+                                        stringResource(R.string.no_matches_found),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                        } else {
-                            item {
-                                HistorySummaryItem(
-                                    text = stringResource(
-                                        R.string.average_elo,
-                                        averagePlayersEloText ?: "--"
-                                    ),
-                                    leadingIcon = Icons.Default.WorkspacePremium
-                                )
+                            item {  }
+                        }
+                    }
+                    1 -> {
+                        // --- Players view ---
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (historyPlayerList.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.no_players),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            } else {
+                                item {
+                                    HistorySummaryItem(
+                                        text = stringResource(
+                                            R.string.average_elo,
+                                            averagePlayersEloText ?: "--"
+                                        ),
+                                        leadingIcon = Icons.Default.WorkspacePremium
+                                    )
+                                }
+                                itemsIndexed(
+                                    items = historyPlayerList,
+                                    key = { _, info -> "${info.player.id}_${info.name}" }
+                                ) { index, info ->
+                                    HistoryPlayerCard(
+                                        rank = if (playerSortMode != PlayerSortMode.ALPHABETICAL) index + 1 else null,
+                                        player = info.player,
+                                        displayElo = info.displayElo,
+                                        showElo = showElo,
+                                        gamesPlayed = info.gamesPlayed,
+                                        victories = info.victories,
+                                        playedMinutes = info.playedMinutes,
+                                        useSideBySide = playersSideBySide
+                                    )
+                                }
                             }
-                            itemsIndexed(
-                                items = historyPlayerList,
-                                key = { _, info -> "${info.player.id}_${info.name}" }
-                            ) { index, info ->
-                                HistoryPlayerCard(
-                                    rank = if (playerSortMode != PlayerSortMode.ALPHABETICAL) index + 1 else null,
-                                    player = info.player,
-                                    displayElo = info.displayElo,
-                                    showElo = showElo,
-                                    gamesPlayed = info.gamesPlayed,
-                                    victories = info.victories,
-                                    playedMinutes = info.playedMinutes,
-                                    useSideBySide = playersSideBySide
-                                )
+                            item {  }
                             }
                         }
-                        item {  }
-                        }
+                    }
+                }
+                Crossfade(
+                    targetState = isComputingHistory,
+                    label = "historyLoadingProgress"
+                ) { isVisible ->
+                    if (isVisible) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxWidth()
+                        )
                     }
                 }
             }
