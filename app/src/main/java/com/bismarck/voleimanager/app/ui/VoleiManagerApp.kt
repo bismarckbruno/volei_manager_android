@@ -6,12 +6,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -101,6 +103,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val uiMessage by viewModel.uiMessage.collectAsState()
 
     val currentScreen by viewModel.currentScreen.collectAsState()
+    val isGroupDataLoading by viewModel.isGroupDataLoading.collectAsState()
     val allPlayers by viewModel.players.collectAsState()
     val showElo by viewModel.showElo.collectAsState()
     val showToll by viewModel.showToll.collectAsState()
@@ -1059,60 +1062,75 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                  .fillMaxSize()
                  .windowInsetsPadding(safeDrawingNavBarDirection)
              ) {
-                 AnimatedContent(
-                     targetState = currentScreen,
-                     transitionSpec = {
-                         fadeIn(animationSpec = tween(500)) togetherWith fadeOut(
-                             animationSpec = tween(
-                                 500
-                             )
-                         )
-                     },
-                     label = "ScreenAnim"
-                 ) { screen ->
-                    when (screen) {
-                        Screen.GAME -> GameScreenContent(
-                            viewModel = viewModel,
-                            selectedGroup = selectedGroup ?: DEFAULT_GROUP_NAME,
-                            onSelectedGroupChange = { selectedGroup = it },
-                            isDarkTheme = isDarkTheme,
-                            showElo = showElo,
-                            showToll = showToll,
-                            showScore = showScore,
-                            isSetupMode = isSetupMode,
-                            onSetupModeChange = { isSetupMode = it },
-                            onDeleteRequest = { playerToDelete = it },
-                            onShowSnackbar = { msg, actionLabel, onAction ->
-                                scope.launch {
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = msg,
-                                        actionLabel = actionLabel,
-                                        withDismissAction = actionLabel != null,
-                                        duration = if (actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        onAction?.invoke()
+                 if (isGroupDataLoading) {
+                     Box(
+                         modifier = Modifier.fillMaxSize(),
+                         contentAlignment = Alignment.Center
+                     ) {
+                         CircularProgressIndicator()
+                     }
+                 } else {
+                     AnimatedContent(
+                         targetState = currentScreen,
+                         transitionSpec = {
+                             val forward = targetState.ordinal > initialState.ordinal
+                             val offsetSign = if (forward) 1 else -1
+                             slideInHorizontally(
+                                 animationSpec = spring(
+                                     stiffness = Spring.StiffnessMediumLow,
+                                     dampingRatio = Spring.DampingRatioNoBouncy
+                                 ),
+                                 initialOffsetX = { fullWidth -> fullWidth * offsetSign }
+                             ) togetherWith slideOutHorizontally(
+                                 animationSpec = tween(180)
+                             ) { fullWidth -> -fullWidth * offsetSign }
+                         },
+                         label = "ScreenAnim"
+                     ) { screen ->
+                        when (screen) {
+                            Screen.GAME -> GameScreenContent(
+                                viewModel = viewModel,
+                                selectedGroup = selectedGroup ?: DEFAULT_GROUP_NAME,
+                                onSelectedGroupChange = { selectedGroup = it },
+                                isDarkTheme = isDarkTheme,
+                                showElo = showElo,
+                                showToll = showToll,
+                                showScore = showScore,
+                                isSetupMode = isSetupMode,
+                                onSetupModeChange = { isSetupMode = it },
+                                onDeleteRequest = { playerToDelete = it },
+                                onShowSnackbar = { msg, actionLabel, onAction ->
+                                    scope.launch {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = msg,
+                                            actionLabel = actionLabel,
+                                            withDismissAction = actionLabel != null,
+                                            duration = if (actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            onAction?.invoke()
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
 
-                        Screen.HISTORY -> HistoryScreen(
-                            matchSortMode = historyMatchSortMode,
-                            onMatchSortModeChanged = { historyMatchSortMode = it },
-                            viewModel = viewModel,
-                            isDarkTheme = isDarkTheme,
-                            showElo = showElo,
-                            showScore = showScore,
-                            selectedTab = historySelectedTab,
-                            onTabChanged = { historySelectedTab = it },
-                            playerSortMode = historyPlayerSortMode,
-                            onPlayerSortModeChanged = { historyPlayerSortMode = it }
-                        )
-                        Screen.FAQ -> FAQScreen()
-                        Screen.ABOUT -> AboutScreen()
+                            Screen.HISTORY -> HistoryScreen(
+                                matchSortMode = historyMatchSortMode,
+                                onMatchSortModeChanged = { historyMatchSortMode = it },
+                                viewModel = viewModel,
+                                isDarkTheme = isDarkTheme,
+                                showElo = showElo,
+                                showScore = showScore,
+                                selectedTab = historySelectedTab,
+                                onTabChanged = { historySelectedTab = it },
+                                playerSortMode = historyPlayerSortMode,
+                                onPlayerSortModeChanged = { historyPlayerSortMode = it }
+                            )
+                            Screen.FAQ -> FAQScreen()
+                            Screen.ABOUT -> AboutScreen()
+                        }
                     }
-                }
+                 }
             }
         }
     }

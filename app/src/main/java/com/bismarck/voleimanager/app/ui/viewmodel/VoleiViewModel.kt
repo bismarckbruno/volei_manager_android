@@ -145,6 +145,7 @@ internal fun resolveReturningPlayers(
 
 class VoleiViewModel(application: Application, private val repository: VoleiRepository) :
     AndroidViewModel(application) {
+    private val screenDataSharing = SharingStarted.Eagerly
 
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
@@ -157,6 +158,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun navigateTo(screen: Screen) {
         _currentScreen.value = screen
     }
+    private val _isGroupDataLoading = MutableStateFlow(true)
+    val isGroupDataLoading: StateFlow<Boolean> = _isGroupDataLoading.asStateFlow()
+    private var groupLoadToken = 0
 
     private val _currentGroupConfig = MutableStateFlow(
         GroupConfig(DEFAULT_GROUP_NAME, onboardingStep = ONBOARDING_STEP_GROUP_NAME)
@@ -165,31 +169,31 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     val players = repository.allPlayers.stateIn(
         viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
+        screenDataSharing,
         emptyList()
     )
     private val _allHistory = repository.history.stateIn(
         viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
+        screenDataSharing,
         emptyList()
     )
     private val _allEloLogs = repository.eloLogs.stateIn(
         viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
+        screenDataSharing,
         emptyList()
     )
 
     val currentGroupPlayers = combine(players, _currentGroupConfig) { list, config ->
         list.filter { it.groupName == config.groupName }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     val currentGroupHistory = combine(_allHistory, _currentGroupConfig) { list, config ->
         list.filter { it.groupName == config.groupName }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     val currentGroupEloLogs = combine(_allEloLogs, _currentGroupConfig) { list, config ->
         list.filter { it.groupName == config.groupName }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     val groupsSortedByRecentHistory = _allHistory.map { history ->
         val groupsWithDates = mutableMapOf<String, Long>()
@@ -208,7 +212,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         
         groupsWithDates.toList().sortedByDescending { it.second }.map { it.first }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     private val _historyDateFilter = MutableStateFlow<String?>(null)
     val historyDateFilter = _historyDateFilter.asStateFlow()
@@ -222,7 +226,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 0
             }
         }.reversed()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     val targetDate = combine(currentGroupEloLogs, availableHistoryDates) { logs, _dates ->
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -230,13 +234,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (hasToday) today else logs.map { it.date }.maxOrNull() ?: today
     }.stateIn(
         viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
+        screenDataSharing,
         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     )
 
     val gamesPlayedTodayMap = combine(currentGroupEloLogs, targetDate) { logs, tDate ->
         logs.filter { it.date == tDate }.groupingBy { it.playerId }.eachCount()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.stateIn(viewModelScope, screenDataSharing, emptyMap())
 
     val sortedPlayersForPresence =
         combine(currentGroupPlayers, gamesPlayedTodayMap) { pList, gamesMap ->
@@ -254,7 +258,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     }
                 }
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -683,6 +687,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun loadGroupConfig(name: String, balancingMode: String? = null) {
         val same = _currentGroupConfig.value.groupName == name
+        val loadToken = ++groupLoadToken
+        if (!same || !persistenceReady) {
+            _isGroupDataLoading.value = true
+        }
         viewModelScope.launch {
             val loaded = repository.getGroupConfig(name)
             val normalized = loaded?.copy(
@@ -705,6 +713,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 tryRestoreGameState(name)
             }
             persistenceReady = true
+            if (loadToken == groupLoadToken) {
+                _isGroupDataLoading.value = false
+            }
         }
     }
 
