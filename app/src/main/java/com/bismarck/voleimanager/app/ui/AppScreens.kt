@@ -1362,6 +1362,7 @@ fun HistoryItem(
 fun FAQScreen() {
     val faqItems = listOf(
         stringResource(R.string.faq_q1) to stringResource(R.string.faq_a1),
+        stringResource(R.string.faq_q10) to stringResource(R.string.faq_a10),
         stringResource(R.string.faq_q2) to stringResource(R.string.faq_a2),
         stringResource(R.string.faq_q3) to stringResource(R.string.faq_a3),
         stringResource(R.string.faq_q4) to stringResource(R.string.faq_a4),

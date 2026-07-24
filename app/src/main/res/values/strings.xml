@@ -140,6 +140,8 @@
     <string name="faq_a8">Just long-press the person you want to remove, tap who\'s replacing them, and confirm.</string>
     <string name="faq_q9">When should I use manual team setup?</string>
     <string name="faq_a9">Use this only for unusual situations, like when a match is already in progress when you open the app. Overall, automatic mode is faster and more consistent.</string>
+    <string name="faq_q10">What does the Elo change value (e.g., +-16) in History mean?</string>
+    <string name="faq_a10">This number shows the match impact on Elo. Around 16 means the teams were well balanced. Well below 16 usually means the favored team won. Above 16 indicates a win by a team with lower average Elo (an upset).</string>
     <string name="faq_q2">How does Priority (Star) work?</string>
     <string name="faq_a2">It serves to ensure that certain positions or skill levels are well distributed. For example, if you mark the setters with \"Priority\", the app will try to place a setter on each side when generating teams automatically.</string>
     <string name="faq_q3">What is Show Delay?</string>
@@ -201,6 +203,7 @@
     <string name="limit_reached_title">King of the Court has reached the limit!</string>
     <string name="limit_reached_text">%1$d win streak! The winning team will be split in two next round.</string>
     <string name="decrease_score">Decrease score</string>
+    <string name="winner_score_validation_snackbar">The selected team score is lower than the other team. Please check if you selected the correct team before continuing.</string>
     <string name="select_minimum_players_long">Select at least %1$d players or change this setting in \"Group rules\"</string>
     <string name="selected">%1$d selected out of %3$d players</string>
     <string name="no_entries">No entries</string>

@@ -880,6 +880,25 @@ fun ActiveGameView(
         streakDialogTeam = teamId
     }
 
+    fun requestWinConfirmation(teamId: String) {
+        val selectedScore = if (teamId == "A") scoreA else scoreB
+        val otherScore = if (teamId == "A") scoreB else scoreA
+        val bothScoresAreZero = scoreA == 0 && scoreB == 0
+        val isSelectedTeamLeading = selectedScore > otherScore
+
+        if (bothScoresAreZero || isSelectedTeamLeading) {
+            onWinRequest(teamId)
+            return
+        }
+
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.winner_score_validation_snackbar),
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
     LaunchedEffect(streakDialogTeam, streakOwner, currentStreak, maxEditableStreak) {
         val selectedTeam = streakDialogTeam ?: return@LaunchedEffect
         streakDraftValue = if (streakOwner == selectedTeam) currentStreak else 0
@@ -1128,7 +1147,7 @@ fun ActiveGameView(
                                         onDecrementScore = firstOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
                                         onPlayerClick = onSubRequest
-                                    ) { onWinRequest(firstWinId) }
+                                    ) { requestWinConfirmation(firstWinId) }
                                 }
                                 Box(
                                     modifier = Modifier
@@ -1162,7 +1181,7 @@ fun ActiveGameView(
                                         onDecrementScore = secondOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
                                         onPlayerClick = onSubRequest
-                                    ) { onWinRequest(secondWinId) }
+                                    ) { requestWinConfirmation(secondWinId) }
                                 }
 
                             }
@@ -1246,7 +1265,7 @@ fun ActiveGameView(
                             onDecrementScore = firstOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
                             onPlayerClick = onSubRequest
-                        ) { onWinRequest(firstWinId) }
+                        ) { requestWinConfirmation(firstWinId) }
                     }
                     Box(
                         modifier = Modifier
@@ -1279,7 +1298,7 @@ fun ActiveGameView(
                             onDecrementScore = secondOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
                             onPlayerClick = onSubRequest
-                        ) { onWinRequest(secondWinId) }
+                        ) { requestWinConfirmation(secondWinId) }
                     }
                     TextButton(
                         onClick = onCancelRequest,
@@ -1631,6 +1650,7 @@ fun ActiveTeamCard(
                     )
                     RepeatingScoreButton(
                         onClick = onIncrementScore,
+                        canRepeat = { score < 99 },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
