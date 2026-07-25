@@ -7,7 +7,7 @@
     <string name="cancel">Cancel</string>
     <string name="export_data">Export data</string>
     <string name="file_name">File name</string>
-    <string name="full_backup">Full Backup (.json)</string>
+    <string name="full_backup">Group Backup (.json)</string>
     <string name="export_csv">Export CSV (Advanced)</string>
     <string name="players_word">Players</string>
     <string name="history">History</string>
@@ -137,7 +137,7 @@
     <string name="faq_q7">What happens when the victory limit is reached?</string>
     <string name="faq_a7">When a team reaches the set limit, they become \'King of the Court\' and will either split, rest, or keep playing, depending on the balancing mode and queue size.</string>
     <string name="faq_q8">How do substitutions work during a match?</string>
-    <string name="faq_a8">Just long-press the person you want to remove, tap who\'s replacing them, and confirm.</string>
+    <string name="faq_a8">Just long-press the person you want to remove, tap who\'s replacing them, and confirm. You can substitute court players with those in the waiting line, as well as swap players between the two teams on the court.</string>
     <string name="faq_q9">When should I use manual team setup?</string>
     <string name="faq_a9">Use this only for unusual situations, like when a match is already in progress when you open the app. Overall, automatic mode is faster and more consistent.</string>
     <string name="faq_q10">What does the Elo change value (e.g., +-16) in History mean?</string>

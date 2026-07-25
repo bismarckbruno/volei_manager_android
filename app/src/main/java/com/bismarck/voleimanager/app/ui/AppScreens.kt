@@ -1306,12 +1306,11 @@ fun HistoryItem(
                                 fontSize = 16.sp,
                                 color = contentColor
                             )
-                            Spacer(Modifier.height(4.dp))
                         }
                     }
 
                     if (showElo && match.teamAAverageElo != null) {
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(6.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1330,7 +1329,7 @@ fun HistoryItem(
                             )
                         }
                     }
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         teamANames,
                         style = MaterialTheme.typography.bodySmall,
@@ -1364,12 +1363,11 @@ fun HistoryItem(
                                 fontSize = 16.sp,
                                 color = contentColor
                             )
-                            Spacer(Modifier.height(4.dp))
                         }
                     }
 
                     if (showElo && match.teamBAverageElo != null) {
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(6.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1388,7 +1386,7 @@ fun HistoryItem(
                             )
                         }
                     }
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         teamBNames,
                         style = MaterialTheme.typography.bodySmall,

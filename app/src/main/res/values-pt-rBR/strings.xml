@@ -7,7 +7,7 @@
     <string name="cancel">Cancelar</string>
     <string name="export_data">Exportar dados</string>
     <string name="file_name">Nome do arquivo</string>
-    <string name="full_backup">Backup Completo (.json)</string>
+    <string name="full_backup">Backup do grupo (.json)</string>
     <string name="export_csv">Exportar CSV (Avançado)</string>
     <string name="players_word">Jogadores</string>
     <string name="history">Histórico</string>
@@ -137,7 +137,7 @@
     <string name="faq_q7">O que acontece quando o limite de vitórias é atingido?</string>
     <string name="faq_a7">Ao atingir o limite configurado, o time se torna o \"Rei da Quadra\" e será dividido, descansará ou continuará jogando, dependendo do modo de balanceamento e do tamanho da fila de espera.</string>
     <string name="faq_q8">Como funcionam substituições durante o jogo?</string>
-    <string name="faq_a8">Basta pressionar o nome de quem vai sair, selecionar quem vai entrar e confirmar.</string>
+    <string name="faq_a8">Basta pressionar o nome de quem vai sair, selecionar quem vai entrar e confirmar. É possível substituir jogadores em quadra por quem está na fila de espera, assim como trocar jogadores entre os dois times que estão em quadra.</string>
     <string name="faq_q9">Quando vale usar montagem manual de times?</string>
     <string name="faq_a9">Use apenas em situações atípicas, como quando uma partida já estiver em andamento ao abrir o app. No geral, o modo automático é mais rápido e consistente.</string>
     <string name="faq_q10">O que significa o valor de variação de Elo (ex.: +-16) no Histórico?</string>

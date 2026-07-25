@@ -21,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -39,7 +38,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
@@ -261,8 +259,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.full_backup))
                     }
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    Text(stringResource(R.string.export_csv), style = MaterialTheme.typography.labelSmall)
+                    HorizontalDivider(Modifier.padding(vertical = 16.dp))
+                    Text(text = stringResource(R.string.export_csv), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = {
                             viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
@@ -306,8 +304,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.restore_backup))
                     }
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    Text(stringResource(R.string.import_csv), style = MaterialTheme.typography.labelSmall)
+                    HorizontalDivider(Modifier.padding(vertical = 16.dp))
+                    Text(text = stringResource(R.string.import_csv), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = {
                             pendingImportType = CsvType.JOGADORES
@@ -578,7 +576,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 Modifier.padding(vertical = 8.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                             )
-                            Text(stringResource(R.string.settings), style = MaterialTheme.typography.labelMedium)
+                            Text(text = stringResource(R.string.settings), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
 
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.Settings, null) },
@@ -616,7 +614,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 Modifier.padding(vertical = 8.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                             )
-                            Text(stringResource(R.string.data), style = MaterialTheme.typography.labelMedium)
+                            Text(text = stringResource(R.string.data), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
 
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.FileUpload, null) },
@@ -638,7 +636,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 Modifier.padding(vertical = 8.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                             )
-                            Text(stringResource(R.string.privacy), style = MaterialTheme.typography.labelMedium)
+                            Text(text = stringResource(R.string.privacy), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
 
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.Lock, null) },
@@ -927,7 +925,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         }
 
                                         val avgDurationText = if (mdm.isNotEmpty()) {
-                                            "${mdm.values.average().toInt()} min"
+                                            "${mdm.values.average().toInt()}min"
                                         } else null
 
                                         viewModel.captureHistoryScreenAsImage(

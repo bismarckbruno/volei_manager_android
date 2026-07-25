@@ -317,11 +317,22 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                     modifier = Modifier.focusRequester(nameFocusRequester)
                 )
                 Spacer(Modifier.height(40.dp))
-                Text(
-                    text = stringResource(R.string.initial_elo),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WorkspacePremium,
+                        contentDescription = null,
+                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.initial_elo),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 Slider(
                     value = eloIndex.toFloat(),
                     onValueChange = { eloIndex = it.roundToInt().coerceIn(0, eloLevels.lastIndex) },
@@ -377,16 +388,19 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                         .clip(RoundedCornerShape(40.dp))
                         .clickable { isPriority = !isPriority }) {
                     val priorityColor = if (isPriority) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(10.dp))
                     Icon(
                         Icons.Default.Star,
                         contentDescription = null,
+                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                         tint = priorityColor
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.set_priority),
-                        color = priorityColor
+                        color = priorityColor,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
