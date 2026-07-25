@@ -1805,9 +1805,9 @@ fun ExportableImageContent(
             )
         }
 
-        val groupTitle = stringResource(R.string.group_title)
         val displayGroupName = getDisplayGroupName(groupName)
-        val title = "$groupTitle $displayGroupName - ${formatLocalizedDate(date)}"
+        val localizedGroupTitle = stringResource(R.string.export_history_group_title, displayGroupName)
+        val title = "$localizedGroupTitle - ${formatLocalizedDate(date)}"
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,

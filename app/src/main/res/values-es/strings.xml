@@ -268,4 +268,5 @@
     <string name="limit_reached_text_rest_selected_lt_two_teams">¡%1$d victorias seguidas! Selecciona al menos %2$d jugadores.</string>
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_ES_419</string>
     <string name="group_title">Grupo</string>
+    <string name="export_history_group_title">Grupo %1$s</string>
 </resources>
