@@ -79,6 +79,23 @@ interface VoleiDao {
     @Query("SELECT * FROM group_configs")
     suspend fun getAllGroupConfigs(): List<com.bismarck.voleimanager.app.data.model.GroupConfig>
 
+    @Query("SELECT * FROM group_configs")
+    fun getAllGroupConfigsFlow(): Flow<List<com.bismarck.voleimanager.app.data.model.GroupConfig>>
+
+    @Query(
+        """
+        SELECT groupName FROM group_configs
+        UNION
+        SELECT groupName FROM players
+        UNION
+        SELECT groupName FROM match_history
+        UNION
+        SELECT groupName FROM elo_logs
+        ORDER BY groupName COLLATE NOCASE
+        """
+    )
+    suspend fun getAllGroupNames(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveGroupConfig(config: com.bismarck.voleimanager.app.data.model.GroupConfig)
 
@@ -107,4 +124,3 @@ interface VoleiDao {
     @Query("DELETE FROM elo_logs WHERE groupName = :groupName")
     suspend fun deleteEloLogsByGroup(groupName: String)
 }
-

@@ -179,6 +179,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         screenDataSharing,
         emptyList()
     )
+    private val _allGroupConfigs = repository.allGroupConfigs.stateIn(
+        viewModelScope,
+        screenDataSharing,
+        emptyList()
+    )
     private val _allEloLogs = repository.eloLogs.stateIn(
         viewModelScope,
         screenDataSharing,
@@ -201,11 +206,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         .flatMapLatest { repository.eloLogsByGroup(it) }
         .stateIn(viewModelScope, screenDataSharing, emptyList())
 
-    val groupsSortedByRecentHistory = _allHistory.map { history ->
+    val groupsSortedByRecentHistory = combine(
+        _allHistory,
+        players,
+        _allEloLogs,
+        _allGroupConfigs
+    ) { history, allPlayers, allEloLogs, allConfigs ->
         val groupsWithDates = mutableMapOf<String, Long>()
-        
+        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+
         history.forEach { match ->
-            val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
             try {
                 val matchTime = sdf.parse(match.date)?.time ?: 0L
                 val currentMax = groupsWithDates[match.groupName] ?: 0L
@@ -216,8 +226,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 // Ignore parse errors
             }
         }
-        
-        groupsWithDates.toList().sortedByDescending { it.second }.map { it.first }
+
+        val orderedByHistory = groupsWithDates.toList()
+            .sortedByDescending { it.second }
+            .map { it.first }
+
+        val allGroups = linkedSetOf<String>()
+        allGroups.addAll(allConfigs.map { it.groupName })
+        allGroups.addAll(allPlayers.map { it.groupName })
+        allGroups.addAll(history.map { it.groupName })
+        allGroups.addAll(allEloLogs.map { it.groupName })
+
+        val groupsWithoutHistory = allGroups
+            .filterNot { groupsWithDates.containsKey(it) }
+            .sortedBy { it.lowercase(Locale.getDefault()) }
+
+        orderedByHistory + groupsWithoutHistory
     }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     private val _historyDateFilter = MutableStateFlow<String?>(null)
@@ -429,7 +453,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     init {
         loadPreferences()
-        loadGroupConfig(DEFAULT_GROUP_NAME)
+        viewModelScope.launch {
+            val existingGroups = repository.getAllGroupNames()
+            val initialGroup = existingGroups.firstOrNull() ?: DEFAULT_GROUP_NAME
+            loadGroupConfig(initialGroup)
+        }
         observeAndPersistGameState()
         viewModelScope.launch {
             availableHistoryDates.collect { dates ->
@@ -699,12 +727,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         viewModelScope.launch {
             val loaded = repository.getGroupConfig(name)
+            val knownGroups = repository.getAllGroupNames()
+            val existingGroupWithoutConfig = loaded == null && knownGroups.contains(name)
             val normalized = loaded?.copy(
                 balancingMode = BalancingMode.fromStoredValue(loaded.balancingMode).name
             ) ?: GroupConfig(
                 groupName = name,
                 balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
-                onboardingStep = ONBOARDING_STEP_GROUP_NAME
+                onboardingStep = if (existingGroupWithoutConfig) {
+                    ONBOARDING_STEP_COMPLETE
+                } else {
+                    ONBOARDING_STEP_GROUP_NAME
+                }
             )
             if (loaded == null || normalized.balancingMode != loaded.balancingMode) {
                 repository.saveGroupConfig(normalized)
@@ -823,9 +857,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun deleteGroup(name: String) = viewModelScope.launch {
-        repository.deleteGroup(name); if (_currentGroupConfig.value.groupName == name) loadGroupConfig(
-        DEFAULT_GROUP_NAME
-    )
+        repository.deleteGroup(name)
+        if (_currentGroupConfig.value.groupName == name) {
+            val fallbackGroup = repository.getAllGroupNames().firstOrNull() ?: DEFAULT_GROUP_NAME
+            loadGroupConfig(fallbackGroup)
+        }
     }
 
     fun createGroup(name: String, balancingMode: String = BalancingMode.REBALANCE.name) = viewModelScope.launch(Dispatchers.IO) {

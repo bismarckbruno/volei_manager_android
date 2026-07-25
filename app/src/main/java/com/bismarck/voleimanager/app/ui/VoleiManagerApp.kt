@@ -91,8 +91,6 @@ private fun getDisplayGroupWithMode(groupName: String?, balancingMode: String, t
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
-    val DEFAULT_GROUP_NAME = "Geral"
-
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -112,7 +110,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val showScore = groupConfig.scoreEnabled
     val groupsSortedByRecent by viewModel.groupsSortedByRecentHistory.collectAsState()
-    val uniqueGroups = remember(allPlayers) { allPlayers.map { it.groupName }.distinct().sorted() }
     var selectedGroup by rememberSaveable { mutableStateOf<String?>(null) }
 
     var isSetupMode by rememberSaveable { mutableStateOf(false) }
@@ -165,9 +162,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             }
         }
 
-    LaunchedEffect(groupsSortedByRecent) {
-        if (selectedGroup == null && groupsSortedByRecent.isNotEmpty()) {
-            selectedGroup = groupsSortedByRecent.first()
+    LaunchedEffect(groupsSortedByRecent, groupConfig.groupName, isGroupDataLoading, selectedGroup) {
+        if (isGroupDataLoading) return@LaunchedEffect
+        val validGroups = (groupsSortedByRecent + groupConfig.groupName).toSet()
+        if (selectedGroup != null && !validGroups.contains(selectedGroup)) {
+            selectedGroup = null
+        }
+        if (selectedGroup == null) {
+            selectedGroup = groupsSortedByRecent.firstOrNull() ?: groupConfig.groupName
         }
     }
     LaunchedEffect(selectedGroup, groupConfig.onboardingStep) {
@@ -665,7 +667,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     ) {
         if (showConfigDialog) {
             GroupConfigDialog(
-                groupName = selectedGroup ?: DEFAULT_GROUP_NAME,
+                groupName = selectedGroup ?: groupConfig.groupName,
                 initialTeamSize = groupConfig.teamSize,
                 initialVictoryLimit = groupConfig.victoryLimit,
                 initialPriorityEnabled = groupConfig.priorityEnabled,
@@ -693,7 +695,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 viewModel.addPlayer(
                     name,
                     elo,
-                    selectedGroup ?: DEFAULT_GROUP_NAME,
+                    selectedGroup ?: groupConfig.groupName,
                     isPriority
                 )
                 showAddPlayerDialog = false
@@ -785,7 +787,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     Button(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                         onClick = {
-                            viewModel.deleteGroup(group); selectedGroup = DEFAULT_GROUP_NAME
+                            viewModel.deleteGroup(group); selectedGroup = null
                             showDeleteGroupDialog = null
                         }) { Text(stringResource(R.string.delete)) }
                 },
@@ -1138,7 +1140,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         when (screen) {
                             Screen.GAME -> GameScreenContent(
                                 viewModel = viewModel,
-                                selectedGroup = selectedGroup ?: DEFAULT_GROUP_NAME,
+                                selectedGroup = selectedGroup ?: groupConfig.groupName,
                                 onSelectedGroupChange = { selectedGroup = it },
                                 isDarkTheme = isDarkTheme,
                                 showElo = showElo,

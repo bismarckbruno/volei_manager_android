@@ -10,6 +10,7 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
 
     val allPlayers: Flow<List<com.bismarck.voleimanager.app.data.model.Player>> = voleiDao.getAllPlayers()
     val history: Flow<List<com.bismarck.voleimanager.app.data.model.MatchHistory>> = voleiDao.getHistory()
+    val allGroupConfigs: Flow<List<com.bismarck.voleimanager.app.data.model.GroupConfig>> = voleiDao.getAllGroupConfigsFlow()
 
     // --- ESTA LINHA CORRIGE O ERRO 'eloLogs' ---
     val eloLogs: Flow<List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>> = voleiDao.getAllEloLogs()
@@ -99,6 +100,7 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
     suspend fun getGroupConfig(groupName: String) = voleiDao.getGroupConfig(groupName)
     suspend fun saveGroupConfig(config: com.bismarck.voleimanager.app.data.model.GroupConfig) = voleiDao.saveGroupConfig(config)
     suspend fun getAllGroupConfigs() = voleiDao.getAllGroupConfigs()
+    suspend fun getAllGroupNames() = voleiDao.getAllGroupNames()
 
     // --- Group Management ---
     suspend fun renameGroup(oldName: String, newName: String) {
@@ -117,4 +119,3 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
         voleiDao.deleteEloLogsByGroup(groupName)
     }
 }
-

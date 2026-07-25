@@ -8,6 +8,7 @@ import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.data.model.MatchHistory
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -133,6 +135,90 @@ class VoleiViewModelRestingIntegrationTest {
         assertTrue(vm.waitingList.value.isEmpty())
     }
 
+    @Test
+    fun init_withExistingNonDefaultGroup_doesNotCreateDefaultGroup() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()
+
+        val dao = FakeVoleiDao()
+        val repo = VoleiRepository(dao)
+        repo.saveGroupConfig(
+            GroupConfig(
+                groupName = "Amigos",
+                onboardingStep = ONBOARDING_STEP_COMPLETE
+            )
+        )
+
+        val vm = VoleiViewModel(app, repo)
+        withTimeout(3_000) {
+            vm.currentGroupConfig.first { it.groupName == "Amigos" }
+        }
+
+        val groupNames = repo.getAllGroupNames()
+        assertTrue(groupNames.contains("Amigos"))
+        assertTrue(!groupNames.contains(DEFAULT_GROUP_NAME))
+    }
+
+    @Test
+    fun init_withLegacyGroupDataWithoutConfig_marksOnboardingAsComplete() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()
+
+        val dao = FakeVoleiDao()
+        val repo = VoleiRepository(dao)
+        repo.insertPlayer(Player(name = "Bruno", groupName = "Amigos", elo = 1200.0))
+
+        val vm = VoleiViewModel(app, repo)
+        val loaded = withTimeout(3_000) {
+            vm.currentGroupConfig.first { it.groupName == "Amigos" }
+        }
+
+        assertEquals(ONBOARDING_STEP_COMPLETE, loaded.onboardingStep)
+        val persisted = repo.getGroupConfig("Amigos")
+        assertEquals(ONBOARDING_STEP_COMPLETE, persisted?.onboardingStep)
+    }
+
+    @Test
+    fun groupsSortedByRecentHistory_includesGroupsWithoutHistoryAtEnd() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()
+
+        val dao = FakeVoleiDao()
+        val repo = VoleiRepository(dao)
+
+        repo.saveGroupConfig(GroupConfig(groupName = "SemHistorico", onboardingStep = ONBOARDING_STEP_COMPLETE))
+        repo.insertMatch(
+            MatchHistory(
+                date = "01/01/2026 10:00",
+                teamA = "A1, A2",
+                teamB = "B1, B2",
+                winner = "A",
+                eloPoints = 16.0,
+                groupName = "MaisAntigo"
+            )
+        )
+        repo.insertMatch(
+            MatchHistory(
+                date = "02/01/2026 10:00",
+                teamA = "C1, C2",
+                teamB = "D1, D2",
+                winner = "B",
+                eloPoints = 16.0,
+                groupName = "MaisRecente"
+            )
+        )
+
+        val vm = VoleiViewModel(app, repo)
+        val groups = withTimeout(3_000) {
+            vm.groupsSortedByRecentHistory.first {
+                it.contains("MaisRecente") && it.contains("MaisAntigo") && it.contains("SemHistorico")
+            }
+        }
+
+        assertEquals(listOf("MaisRecente", "MaisAntigo"), groups.take(2))
+        assertEquals("SemHistorico", groups.last())
+    }
+
     private suspend fun insertPlayers(env: TestEnv, players: List<Player>): Map<String, Player> {
         env.repo.insertPlayers(players)
         val loaded = withTimeout(3_000) {
@@ -192,6 +278,7 @@ private class FakeVoleiDao : VoleiDao {
     private val playersFlow = MutableStateFlow<List<Player>>(emptyList())
     private val historyFlow = MutableStateFlow<List<MatchHistory>>(emptyList())
     private val eloLogsFlow = MutableStateFlow<List<PlayerEloLog>>(emptyList())
+    private val configsFlow = MutableStateFlow<List<GroupConfig>>(emptyList())
 
     private var nextPlayerId = 1
     private var nextMatchId = 1
@@ -279,9 +366,20 @@ private class FakeVoleiDao : VoleiDao {
     override suspend fun getGroupConfig(groupName: String): GroupConfig? = configs[groupName]
 
     override suspend fun getAllGroupConfigs(): List<GroupConfig> = configs.values.toList()
+    override fun getAllGroupConfigsFlow(): Flow<List<GroupConfig>> = configsFlow.asStateFlow()
+
+    override suspend fun getAllGroupNames(): List<String> {
+        val groups = mutableSetOf<String>()
+        groups.addAll(configs.keys)
+        groups.addAll(players.map { it.groupName })
+        groups.addAll(history.map { it.groupName })
+        groups.addAll(eloLogs.map { it.groupName })
+        return groups.sortedBy { it.lowercase() }
+    }
 
     override suspend fun saveGroupConfig(config: GroupConfig) {
         configs[config.groupName] = config
+        emitConfigs()
     }
 
     override suspend fun updatePlayerGroupNames(oldName: String, newName: String) {
@@ -297,6 +395,7 @@ private class FakeVoleiDao : VoleiDao {
     override suspend fun updateConfigGroupNames(oldName: String, newName: String) {
         val old = configs.remove(oldName) ?: return
         configs[newName] = old.copy(groupName = newName)
+        emitConfigs()
     }
 
     override suspend fun updateEloLogGroupNames(oldName: String, newName: String) {
@@ -316,6 +415,7 @@ private class FakeVoleiDao : VoleiDao {
 
     override suspend fun deleteConfigByGroup(groupName: String) {
         configs.remove(groupName)
+        emitConfigs()
     }
 
     override suspend fun deleteEloLogsByGroup(groupName: String) {
@@ -326,7 +426,8 @@ private class FakeVoleiDao : VoleiDao {
     private fun emitPlayers() {
         playersFlow.value = players.sortedByDescending { it.elo }
     }
+
+    private fun emitConfigs() {
+        configsFlow.value = configs.values.sortedBy { it.groupName.lowercase(Locale.getDefault()) }
+    }
 }
-
-
-
