@@ -458,15 +458,28 @@ fun HistoryScreen(
                 val allDatesSelected = historyDate == null
                 DropdownMenuItem(
                     text = {
-                        Text(
-                            stringResource(R.string.all_dates),
-                            fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (allDatesSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.all_dates),
+                                fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (allDatesSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                            if (allDatesSelected) {
+                                Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
-                        )
+                        }
                     },
                     onClick = { viewModel.setHistoryDateFilter(null); dateExpanded = false }
                 )
@@ -474,15 +487,28 @@ fun HistoryScreen(
                     val isSelected = historyDate == date
                     DropdownMenuItem(
                         text = {
-                            Text(
-                                formatLocalizedDate(date),
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    formatLocalizedDate(date),
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                                if (isSelected) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                 }
-                            )
+                            }
                         },
                         onClick = { viewModel.setHistoryDateFilter(date); dateExpanded = false }
                     )

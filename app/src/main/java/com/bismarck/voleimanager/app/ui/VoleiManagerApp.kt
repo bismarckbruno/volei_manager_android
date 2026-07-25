@@ -1,6 +1,7 @@
 package com.bismarck.voleimanager.app.ui
 
 import android.widget.Toast
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,11 +35,14 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
@@ -433,11 +437,21 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             Text(stringResource(R.string.current_group), style = MaterialTheme.typography.labelMedium)
                             Spacer(Modifier.height(8.dp))
                             var groupExpanded by remember { mutableStateOf(false) }
+                            var groupAnchorWidth by remember { mutableStateOf(280.dp) }
+                            val groupConfiguration = LocalConfiguration.current
+                            val groupHeightFraction = if (groupConfiguration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                                0.27f
+                            } else {
+                                0.57f
+                            }
+                            val groupMaxMenuHeight = (groupConfiguration.screenHeightDp * groupHeightFraction).dp
                             ExposedDropdownMenuBox(
                                 expanded = groupExpanded,
                                 onExpandedChange = { groupExpanded = !groupExpanded }) {
                                 OutlinedTextField(
-                                    value = selectedGroup?.let { getDisplayGroupName(it) } ?: stringResource(R.string.select),                                    onValueChange = {}, readOnly = true,
+                                    value = selectedGroup?.let { getDisplayGroupName(it) } ?: stringResource(R.string.select),
+                                    onValueChange = {},
+                                    readOnly = true,
                                     trailingIcon = {
                                         val rotation by animateFloatAsState(
                                             targetValue = if (groupExpanded) 180f else 0f,
@@ -452,12 +466,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     },
                                     modifier = Modifier
                                         .menuAnchor()
+                                        .onGloballyPositioned { coordinates ->
+                                            groupAnchorWidth = with(density) { coordinates.size.width.toDp() }
+                                        }
                                         .fillMaxWidth(),
                                     shape = androidx.compose.foundation.shape.RoundedCornerShape(56.dp)
                                 )
-                                ExposedDropdownMenu(
+                                DropdownMenu(
                                     expanded = groupExpanded,
-                                    onDismissRequest = { groupExpanded = false }) {
+                                    onDismissRequest = { groupExpanded = false },
+                                    offset = DpOffset(x = 0.dp, y = 4.dp),
+                                    modifier = Modifier
+                                        .heightIn(max = groupMaxMenuHeight)
+                                        .widthIn(min = groupAnchorWidth)
+                                ) {
                                     groupsSortedByRecent.forEach { group ->
                                         val isSelected = selectedGroup == group
                                         DropdownMenuItem(
