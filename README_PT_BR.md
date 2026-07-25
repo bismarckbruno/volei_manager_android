@@ -8,7 +8,7 @@
 - **Sorteio Automático Inteligente**: O app seleciona as pessoas e equilibra os grupos da forma mais justa possível, misturando participantes com diferentes níveis de habilidade (utilizando o sistema de pontuação Elo) e distribuindo uniformemente os jogadores prioritários.
 - **Rotação Justa**: Sistema de fila de prioridade inteligente para garantir que todos aproveitem o jogo.
   - **Prioridade por Partidas**: Na hora de decidir quem entra na quadra ou quem fica entre os perdedores para jogar mais, **o app dá prioridade para quem jogou menos vezes**.
-  - **Divisão de Vencedores**: Times que vencem muitas seguidas são divididos para evitar domínio e garantir rotatividade ("Rei da Quadra").
+  - **Tratamento de Sequência por Modo**: Ao atingir o limite de vitórias, o app aplica o modo escolhido: no **Rebalanceamento**, divide os vencedores; no **Descanso**, pode tirar os vencedores da quadra para rodar a fila ("Rei da Quadra").
 - **Montagem Manual**: Tela dedicada para selecionar ou ajustar manualmente a composição dos times.
 - **Placar em Tempo Real**: Contagem de pontos de cada time durante a partida.
 
@@ -45,10 +45,11 @@
    ```
 2. Abra o projeto no **Android Studio**.
 3. Sincronize o Gradle e execute o app em um emulador ou dispositivo físico (Android 7.0+ / API 24+).
+4. Níveis de SDK atuais para publicação na Play Store: **compileSdk 36** e **targetSdk 36** (Android 16).
 
 ## ⚙️ Regras Configuráveis por Grupo
 - **Tamanho do Time**: De 2 a 6 jogadores por lado.
-- **Limite de Vitórias**: Máximo de vitórias consecutivas antes do time vencedor ser dividido.
+- **Limite de Vitórias**: Máximo de vitórias consecutivas antes de aplicar a regra do modo ativo (dividir no Rebalanceamento ou rodar descanso no modo Descanso).
 - **Ativar Prioridade**: Garante ao menos um jogador prioritário por time no sorteio automático (se houver disponibilidade).
 
 ## 🤝 Contribuição e Feedback

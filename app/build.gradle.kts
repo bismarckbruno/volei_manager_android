@@ -7,14 +7,14 @@ plugins {
 
 android {
     namespace = "com.bismarck.voleimanager.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.bismarck.voleimanager.app"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 3
-        versionName = "1.1.1"
+        targetSdk = 36
+        versionCode = 4
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations.addAll(listOf("en", "pt-rBR", "es"))

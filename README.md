@@ -8,7 +8,7 @@
 - **Smart Automatic Team Draw**: The app selects players and balances teams as fairly as possible, mixing participants with different skill levels (using Elo rating) and evenly distributing priority players.
 - **Fair Rotation**: Smart waiting queue logic to make sure everyone gets play time.
   - **Match-Based Priority**: When deciding who enters the court or who stays after a loss, **the app prioritizes players who have played fewer matches**.
-  - **Winner Split Rule**: Teams on long winning streaks are split to avoid dominance and keep matches dynamic ("King of the Court").
+  - **Streak Handling by Mode**: When the streak limit is reached, the app applies the selected balancing mode: in **Rebalance**, winners are split; in **Rest**, winners may rotate out so waiting teams can play ("King of the Court").
 - **Manual Setup**: Dedicated screen to manually choose or adjust team composition.
 - **Live Scoreboard**: Real-time score tracking during matches.
 
@@ -45,10 +45,11 @@
    ```
 2. Open the project in **Android Studio**.
 3. Sync Gradle and run the app on an emulator or physical device (Android 7.0+ / API 24+).
+4. Current Play-targeted SDK levels: **compileSdk 36** and **targetSdk 36** (Android 16).
 
 ## ⚙️ Group-Level Rules
 - **Team Size**: From 2 to 6 players per side.
-- **Victory Limit**: Max consecutive wins before the winning team is split.
+- **Victory Limit**: Max consecutive wins before the app applies the configured streak rule (split in Rebalance mode, rest rotation in Rest mode).
 - **Priority Distribution**: Ensures at least one priority player per team in automatic balancing (when available).
 
 ## 🤝 Contributing and Feedback

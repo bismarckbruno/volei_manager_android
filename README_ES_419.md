@@ -8,7 +8,7 @@
 - **Sorteo Automático Inteligente**: La app selecciona a las personas y equilibra los equipos de la forma más justa posible, mezclando niveles de habilidad (usando Elo) y distribuyendo de forma uniforme a los jugadores prioritarios.
 - **Rotación Justa**: Sistema de cola inteligente para asegurar que todos jueguen.
   - **Prioridad por Partidos**: Al decidir quién entra a la cancha o quién se mantiene para jugar más, **la app prioriza a quien jugó menos veces**.
-  - **División de Ganadores**: Equipos con muchas victorias seguidas se dividen para evitar dominio y mantener la rotación ("Rey de la Cancha").
+  - **Manejo de Racha por Modo**: Al alcanzar el límite de victorias, la app aplica el modo elegido: en **Rebalanceo**, divide al equipo ganador; en **Descanso**, puede sacar a los ganadores para dar turno a la cola ("Rey de la Cancha").
 - **Armado Manual**: Pantalla dedicada para seleccionar o ajustar manualmente la composición de los equipos.
 - **Marcador en Tiempo Real**: Conteo de puntos durante el partido.
 
@@ -45,10 +45,11 @@
    ```
 2. Abre el proyecto en **Android Studio**.
 3. Sincroniza Gradle y ejecuta la app en un emulador o dispositivo físico (Android 7.0+ / API 24+).
+4. Niveles de SDK actuales para publicación en Play Store: **compileSdk 36** y **targetSdk 36** (Android 16).
 
 ## ⚙️ Reglas Configurables por Grupo
 - **Tamaño del Equipo**: De 2 a 6 jugadores por lado.
-- **Límite de Victorias**: Máximo de victorias consecutivas antes de dividir el equipo ganador.
+- **Límite de Victorias**: Máximo de victorias consecutivas antes de aplicar la regla del modo activo (dividir en Rebalanceo o rotar descanso en modo Descanso).
 - **Prioridad Activada**: Garantiza al menos un jugador prioritario por equipo en el sorteo automático (si hay disponibilidad).
 
 ## 🤝 Contribución y Feedback
