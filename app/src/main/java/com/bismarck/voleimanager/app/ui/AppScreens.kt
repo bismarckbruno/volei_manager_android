@@ -2,6 +2,7 @@
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -398,6 +400,18 @@ fun HistoryScreen(
 
         // --- Date filter dropdown ---
         var dateExpanded by remember { mutableStateOf(false) }
+
+        // Obtém a altura da tela atual em Dp
+        val configuration = LocalConfiguration.current
+
+        // Define a porcentagem dependendo da orientação
+        val heightFraction = if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            0.33f // altura da janela relativamente à tela quando esta estiver na HORIZONTAL
+        } else {
+            0.57f // altura da janela relativamente à tela quando esta estiver na VERTICAL
+        }
+        val maxMenuHeight = (configuration.screenHeightDp * heightFraction).dp
+
         ExposedDropdownMenuBox(
             expanded = dateExpanded,
             onExpandedChange = { dateExpanded = !dateExpanded },
@@ -433,10 +447,13 @@ fun HistoryScreen(
                     modifier = Modifier.rotate(rotation)
                 )
             }
-            ExposedDropdownMenu(
+            DropdownMenu(
                 expanded = dateExpanded,
-                modifier = Modifier.width(IntrinsicSize.Min),
-                onDismissRequest = { dateExpanded = false }
+                onDismissRequest = { dateExpanded = false },
+                offset = DpOffset(x = 36.dp, y = 0.dp),
+                modifier = Modifier
+                    .heightIn(max = maxMenuHeight)
+                    .width(IntrinsicSize.Min)
             ) {
                 val allDatesSelected = historyDate == null
                 DropdownMenuItem(
@@ -1650,7 +1667,8 @@ fun AboutScreen() {
                     // Pílula do Instagram
                     Button(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/bismarckbruno/"))
+                            val intent = Intent(Intent.ACTION_VIEW,
+                                "https://www.instagram.com/bismarckbruno/".toUri())
                             context.startActivity(intent)
                         },
                         colors = ButtonDefaults.buttonColors(
