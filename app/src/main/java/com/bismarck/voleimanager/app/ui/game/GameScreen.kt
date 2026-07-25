@@ -2632,7 +2632,9 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                                 painter = painterResource(R.drawable.text_zzz),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                                modifier = Modifier
+                                    .offset(y = (-4).dp)
+                                    .size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
                             )
                         }
                     }

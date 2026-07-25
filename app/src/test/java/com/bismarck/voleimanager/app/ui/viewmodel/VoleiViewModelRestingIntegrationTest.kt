@@ -26,6 +26,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -108,6 +109,43 @@ class VoleiViewModelRestingIntegrationTest {
         val waitingIds = vm.waitingList.value.map { it.id }.toSet()
         assertTrue("Winning team must rest", waitingIds.containsAll(champs.map { it.id }))
         assertTrue("Losers must go to the waiting list", waitingIds.containsAll(losers.map { it.id }))
+    }
+
+    @Test
+    fun returningRestTeam_withUncheckedPlayer_usesNextWaitingPlayerAsSubstitute() = runBlocking {
+        val env = createViewModel(BalancingMode.REST)
+        val vm = env.vm
+
+        val allPlayers = listOf(
+            player(31, "A1"), player(32, "A2"),
+            player(33, "B1"), player(34, "B2"),
+            player(35, "C1"), player(36, "C2"),
+            player(37, "D1"), player(38, "D2")
+        )
+
+        val byName = insertPlayers(env, allPlayers)
+        val champs = listOf(byName.getValue("A1"), byName.getValue("A2"))
+        val losers = listOf(byName.getValue("B1"), byName.getValue("B2"))
+        val queue = listOf(byName.getValue("C1"), byName.getValue("C2"))
+        val queue2 = listOf(byName.getValue("D1"), byName.getValue("D2"))
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startManualGame(champs, losers, queue)
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+        vm.startNextRound()
+
+        vm.togglePlayerPresence(byName.getValue("A1"))
+
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+        vm.startNextRound()
+
+        val allTeamIds = (vm.teamA.value + vm.teamB.value).map { it.id }.toSet()
+        assertFalse("Unchecked resting player must not be auto-added back to the match", allTeamIds.contains(byName.getValue("A1").id))
+        assertTrue("Resting team should still return using the next waiting player as substitute", allTeamIds.contains(byName.getValue("A2").id))
+        val loserIds = losers.map { it.id }.toSet()
+        assertTrue("A waiting player should replace the missing resting teammate", allTeamIds.any { loserIds.contains(it) })
     }
 
     @Test

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -591,7 +592,9 @@ private fun WaitingListPlayerItem(
                                     painter = painterResource(R.drawable.text_zzz),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                                    modifier = Modifier
+                                        .offset(y = (-4).dp)
+                                        .size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
                                 )
                             }
                         }

@@ -337,7 +337,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         )
         if (result.returningIds.isEmpty()) return emptyList()
         val returning = result.returningIds
-            .mapNotNull { id -> currentGroupPlayers.value.find { it.id == id } }
+            .mapNotNull { id ->
+                currentGroupPlayers.value.find { it.id == id }
+                    ?.takeIf { _presentPlayerIds.value.contains(it.id) }
+            }
         _restingPlayers.value = result.restingPlayers
         _waitingList.value = result.waitingList
         return returning
@@ -353,14 +356,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (returningPlayers.isEmpty()) return false
 
         val teamSize = conf.teamSize
-        // O time retornante precisa ter pelo menos teamSize jogadores para voltar como time completo.
-        if (returningPlayers.size < teamSize) {
-            // Se ainda não fecha um time completo, recoloca os jogadores como descansando.
-            markPlayersResting(returningPlayers, rounds = 0) // Reinsere sem avançar rodada (mantém visibilidade)
+        val returningTeamPlayers = returningPlayers.take(teamSize).map { applyTollIfNecessary(it) }.toMutableList()
+        if (returningTeamPlayers.size < teamSize) {
+            val missing = teamSize - returningTeamPlayers.size
+            val substitutePlayers = _waitingList.value
+                .asSequence()
+                .filterNot { _restingPlayers.value.containsKey(it.id) }
+                .take(missing)
+                .toList()
+            if (substitutePlayers.isNotEmpty()) {
+                val substituteIds = substitutePlayers.map { it.id }.toSet()
+                returningTeamPlayers.addAll(substitutePlayers.map { applyTollIfNecessary(it) })
+                _waitingList.value = _waitingList.value.filterNot { substituteIds.contains(it.id) }
+            }
+        }
+        if (returningTeamPlayers.size < teamSize) {
+            _waitingList.value = (returningTeamPlayers + _waitingList.value).distinctBy { it.id }
             return false
         }
-
-        val returningTeamPlayers = returningPlayers.take(teamSize).map { applyTollIfNecessary(it) }
 
         // O time adversário é o time reinante da rodada em que eles descansaram,
         // guardado em _lastWinners e filtrado apenas pelos jogadores ainda presentes.
