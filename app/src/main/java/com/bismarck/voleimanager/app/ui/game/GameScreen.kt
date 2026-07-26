@@ -1149,6 +1149,7 @@ fun ActiveGameView(
                                         onPlayerClick = onSubRequest
                                     ) { requestWinConfirmation(firstWinId) }
                                 }
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
                                         .width(50.dp)
@@ -1157,7 +1158,15 @@ fun ActiveGameView(
                                         .clip(CircleShape)
                                         .clickable { viewModel.toggleTeamsSwapped() },
                                     contentAlignment = Alignment.Center
-                                ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp) }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(if (isDarkTheme) R.drawable.vs_icon_dark_bold else R.drawable.vs_icon_light_bold),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(50.dp),
+                                        tint = Color.Unspecified
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -1267,6 +1276,7 @@ fun ActiveGameView(
                             onPlayerClick = onSubRequest
                         ) { requestWinConfirmation(firstWinId) }
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
                             .height(50.dp)
@@ -1274,7 +1284,15 @@ fun ActiveGameView(
                             .clip(CircleShape)
                             .clickable { viewModel.toggleTeamsSwapped() },
                         contentAlignment = Alignment.Center
-                    ) { Text("VS", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
+                    ) {
+                        Icon(
+                            painter = painterResource(if (isDarkTheme) R.drawable.vs_icon_dark_bold else R.drawable.vs_icon_light_bold),
+                            contentDescription = null,
+                            modifier = Modifier.size(50.dp),
+                            tint = Color.Unspecified
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
