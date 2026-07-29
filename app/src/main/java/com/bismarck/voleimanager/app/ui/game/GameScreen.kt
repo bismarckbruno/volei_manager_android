@@ -66,12 +66,15 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -466,6 +469,7 @@ fun GameScreenContent(
                                                 hasPrev,
                                                 { viewModel.startNextRound() },
                                                 winners,
+                                                presentIds,
                                                 owner,
                                                 streak,
                                                 config.victoryLimit,
@@ -2181,6 +2185,7 @@ fun EmptyStateCard(
     hasPreviousMatch: Boolean = false,
     onNextRoundClick: () -> Unit = {},
     lastWinners: List<Player> = emptyList(),
+    presentPlayerIds: Set<Int> = emptySet(),
     streakOwner: String? = null,
     currentStreak: Int = 0,
     victoryLimit: Int = 3,
@@ -2221,6 +2226,22 @@ fun EmptyStateCard(
     val selectMinimumPlayers = stringResource(R.string.select_minimum_players, minNeeded)
     val selectMinimumPlayersLong =
         stringResource(R.string.select_minimum_players_long, minNeeded)
+    val winnerNamesAnnotated = remember(lastWinners, presentPlayerIds) {
+        buildAnnotatedString {
+            append("(")
+            lastWinners.forEachIndexed { index, player ->
+                if (index > 0) append(", ")
+                if (presentPlayerIds.contains(player.id)) {
+                    append(player.name)
+                } else {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Normal)) {
+                        append(player.name)
+                    }
+                }
+            }
+            append(")")
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -2270,7 +2291,7 @@ fun EmptyStateCard(
                     if (winnerNames.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "(${winnerNames.joinToString(", ")})",
+                            text = winnerNamesAnnotated,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
@@ -2322,7 +2343,6 @@ fun EmptyStateCard(
                         ) else stringResource(
                             R.string.winner
                         )
-                    val playerNames = lastWinners.joinToString(", ") { it.name }
                     Text(
                         text = stringResource(R.string.team_x_wins, teamName),
                         fontSize = 18.sp,
@@ -2331,7 +2351,7 @@ fun EmptyStateCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "($playerNames)",
+                        text = winnerNamesAnnotated,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
