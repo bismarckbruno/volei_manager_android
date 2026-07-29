@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -1150,22 +1152,10 @@ fun ActiveGameView(
                                     ) { requestWinConfirmation(firstWinId) }
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .width(50.dp)
-                                        .height(50.dp)
-                                        .align(Alignment.CenterVertically)
-                                        .clip(CircleShape)
-                                        .clickable { viewModel.toggleTeamsSwapped() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(if (isDarkTheme) R.drawable.vs_icon_dark_bold else R.drawable.vs_icon_light_bold),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(50.dp),
-                                        tint = Color.Unspecified
-                                    )
-                                }
+                                VsSwapButton(
+                                    isLandscape = true,
+                                    modifier = Modifier.align(Alignment.CenterVertically)
+                                ) { viewModel.toggleTeamsSwapped() }
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
@@ -1277,21 +1267,7 @@ fun ActiveGameView(
                         ) { requestWinConfirmation(firstWinId) }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Box(
-                        modifier = Modifier
-                            .height(50.dp)
-                            .width(50.dp)
-                            .clip(CircleShape)
-                            .clickable { viewModel.toggleTeamsSwapped() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(if (isDarkTheme) R.drawable.vs_icon_dark_bold else R.drawable.vs_icon_light_bold),
-                            contentDescription = null,
-                            modifier = Modifier.size(50.dp),
-                            tint = Color.Unspecified
-                        )
-                    }
+                    VsSwapButton(isLandscape = false) { viewModel.toggleTeamsSwapped() }
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
@@ -1453,6 +1429,55 @@ fun ActiveGameView(
             sheetState = waitingSheetState,
             contentAlpha = sheetContentAlpha,
             onDismiss = ::closeWaitingSheet
+        )
+    }
+}
+
+@Composable
+private fun VsSwapButton(
+    isLandscape: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    var rotationTurns by remember { mutableIntStateOf(0) }
+    val rotation by animateFloatAsState(
+        targetValue = rotationTurns * 180f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "vsSwapRotation"
+    )
+
+    val arrowColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f)
+    val vsColor = MaterialTheme.colorScheme.onSurface
+
+    Box(
+        modifier = modifier
+            .size(50.dp)
+            .clip(CircleShape)
+            .clickable {
+                rotationTurns++
+                onClick()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(
+                if (isLandscape) R.drawable.yin_yang_horizontal
+                else R.drawable.yin_yang_vertical
+            ),
+            contentDescription = null,
+            modifier = Modifier
+                .size(50.dp)
+                .rotate(rotation),
+            tint = arrowColor
+        )
+        Icon(
+            painter = painterResource(R.drawable.vs_text),
+            contentDescription = null,
+            modifier = Modifier.size(50.dp),
+            tint = vsColor
         )
     }
 }
