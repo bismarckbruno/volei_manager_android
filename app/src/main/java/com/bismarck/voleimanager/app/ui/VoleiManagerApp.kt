@@ -460,8 +460,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         )
                                         Icon(
                                             Icons.Default.KeyboardArrowDown,
-                                            contentDescription = null,
-                                            modifier = Modifier.rotate(rotation)
+                                            contentDescription = stringResource(R.string.keyboard_arrow_down),
+                                            modifier = Modifier
+                                                .rotate(rotation)
+                                                .size(24.dp)
                                         )
                                     },
                                     modifier = Modifier
@@ -494,25 +496,31 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                                     )
-                                                    IconButton(onClick = {
-                                                        showRenameGroupDialog = group
-                                                        groupExpanded = false
-                                                    }) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            showRenameGroupDialog = group
+                                                            groupExpanded = false
+                                                        },
+                                                        modifier = Modifier.minimumInteractiveComponentSize()
+                                                    ) {
                                                         Icon(
                                                             Icons.Default.Edit,
-                                                            null,
-                                                            modifier = Modifier.size(20.dp)
+                                                            contentDescription = stringResource(R.string.rename_group),
+                                                            modifier = Modifier.size(24.dp)
                                                         )
                                                     }
-                                                    IconButton(onClick = {
-                                                        showDeleteGroupDialog = group
-                                                        groupExpanded = false
-                                                    }) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            showDeleteGroupDialog = group
+                                                            groupExpanded = false
+                                                        },
+                                                        modifier = Modifier.minimumInteractiveComponentSize()
+                                                    ) {
                                                         Icon(
                                                             Icons.Default.Delete,
-                                                            null,
+                                                            contentDescription = stringResource(R.string.delete),
                                                             tint = MaterialTheme.colorScheme.error,
-                                                            modifier = Modifier.size(20.dp)
+                                                            modifier = Modifier.size(24.dp)
                                                         )
                                                     }
                                                 }

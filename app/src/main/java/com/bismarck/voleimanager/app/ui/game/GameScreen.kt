@@ -1452,11 +1452,13 @@ private fun VsSwapButton(
     val arrowColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f)
     val vsColor = MaterialTheme.colorScheme.onSurface
 
+    val switchTeamsLabel = stringResource(R.string.switch_teams)
+
     Box(
         modifier = modifier
             .size(50.dp)
             .clip(CircleShape)
-            .clickable {
+            .clickable(onClickLabel = switchTeamsLabel) {
                 rotationTurns++
                 onClick()
             },
@@ -1475,7 +1477,7 @@ private fun VsSwapButton(
         )
         Icon(
             painter = painterResource(R.drawable.vs_text),
-            contentDescription = null,
+            contentDescription = "versus",
             modifier = Modifier.size(50.dp),
             tint = vsColor
         )

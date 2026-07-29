@@ -56,6 +56,7 @@
     <string name="about_dev_desc">¡Hola! Soy Bruno Bismarck, desarrollador y diseñador UX detrás de este proyecto. Creé esta aplicación con dedicación para hacer la vida más fácil a quienes organizan partidos con amigos. ¡Sigue mi trabajo, saluda y mantente al tanto de las novedades a través de mi Instagram haciendo clic en el botón de abajo!</string>
     <string name="clear_match_desc">Los datos temporales se borrarán sin afectar el historial, que se mantendrá. Se desmarcarán todos los jugadores.</string>
     <string name="no_players_swap">No hay jugadores disponibles para intercambiar.</string>
+    <string name="switch_teams">Cambiar equipos</string>
     <string name="progress_lost">Se perderá el progreso actual.</string>
     <string name="no_matches_found">No se encontraron partidos.</string>
     <string name="faq_title">Preguntas frecuentes (FAQ)</string>

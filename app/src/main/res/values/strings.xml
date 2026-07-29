@@ -56,6 +56,7 @@
     <string name="about_dev_desc">Hello! I am Bruno Bismarck, developer and UX Designer behind this project. I created this application with dedication to make life easier for those who organize games with friends. Follow my work, say hello and stay up to date with the news through my Instagram by clicking the button below!</string>
     <string name="clear_match_desc">Temporary data will be cleared without affecting history, which will be kept. All players will be unchecked.</string>
     <string name="no_players_swap">No players available to swap.</string>
+    <string name="switch_teams">Switch teams</string>
     <string name="progress_lost">Current progress will be lost.</string>
     <string name="no_matches_found">No matches found</string>
     <string name="faq_title">FAQ</string>
@@ -272,4 +273,5 @@
     <string name="elo_level_1150_desc">" "</string>
     <string name="group_title">Group</string>
     <string name="export_history_group_title">%1$s Group</string>
+    <string name="keyboard_arrow_down">Keyboard Arrow Down</string>
 </resources>

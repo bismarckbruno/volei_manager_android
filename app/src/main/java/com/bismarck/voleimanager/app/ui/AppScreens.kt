@@ -1740,7 +1740,7 @@ fun AboutScreen() {
                         Icon(
                             imageVector = instagramIcon,
                             contentDescription = "Instagram",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
