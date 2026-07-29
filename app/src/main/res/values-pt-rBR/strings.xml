@@ -273,4 +273,5 @@
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_PT_BR</string>
     <string name="group_title">Grupo</string>
     <string name="export_history_group_title">Grupo %1$s</string>
+    <string name="keyboard_arrow_down">Seta para baixo</string>
 </resources>

@@ -203,6 +203,7 @@
     <string name="limit_reached_title">¡Rey de la Cancha alcanzó el límite!</string>
     <string name="limit_reached_text">¡%1$d victorias consecutivas! El equipo ganador se dividirá en dos la próxima ronda.</string>
     <string name="decrease_score">Disminuir marcador</string>
+    <string name="winner_score_validation_snackbar">La puntuación del equipo seleccionado es menor que la del otro. Revisa si elegiste el equipo correcto antes de continuar.</string>
     <string name="select_minimum_players_long">Selecciona al menos %1$d jugadores o cambia esta configuración en \"Reglas del grupo\"</string>
     <string name="selected">%1$d seleccionado%2$s de %3$d registro%4$s</string>
     <string name="no_entries">Ningún registro</string>
@@ -270,4 +271,5 @@
     <string name="readme_url">https://bismarckbruno.github.io/volei_manager_android/README_ES_419</string>
     <string name="group_title">Grupo</string>
     <string name="export_history_group_title">Grupo %1$s</string>
+    <string name="keyboard_arrow_down">Flecha hacia abajo</string>
 </resources>

@@ -380,6 +380,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val reigningWinnerPlayers = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
         val opposingTeamPlayers = mutableListOf<Player>()
         opposingTeamPlayers.addAll(reigningWinnerPlayers.take(teamSize))
+        var replacedMissingWinnerWithWaitingPlayer = false
 
         // Se o time reinante não completar a quadra, complementa com a waitingList.
         if (opposingTeamPlayers.size < teamSize) {
@@ -387,6 +388,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val picks = _waitingList.value.take(needed)
             opposingTeamPlayers.addAll(picks)
             _waitingList.value = _waitingList.value.drop(needed)
+            if (picks.isNotEmpty()) replacedMissingWinnerWithWaitingPlayer = true
         }
 
         // Se ainda faltarem jogadores, devolve o time retornante para a fila de espera.
@@ -424,6 +426,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         _hasPreviousMatch.value = false
         _scoreA.value = 0; _scoreB.value = 0
+        if (replacedMissingWinnerWithWaitingPlayer) {
+            _currentStreak.value = 0
+            _streakOwner.value = null
+        }
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
 
         return true
@@ -1160,7 +1166,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val pool =
             TeamBalancer.groupAndInterleave(availableWithTollApplied) { getEffectiveGames(it) }.toMutableList()
 
-        if (config.priorityEnabled) {
+        val shouldApplyPriorityRuleInSelection = shouldApplyPriorityRule(config.priorityEnabled, pool)
+        if (shouldApplyPriorityRuleInSelection) {
             val priorities = pool.filter { it.isPriority }
             val prioritiesToSelect = priorities.take(2)
             selectedPlayers.addAll(prioritiesToSelect)
@@ -1174,7 +1181,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             pool.removeAll(others)
         }
 
-        val (finalA, finalB) = balanceTeamsWithPriority(selectedPlayers, size)
+        val (finalA, finalB) = balanceTeamsWithPriority(
+            players = selectedPlayers,
+            teamSize = size,
+            usePriorityRule = shouldApplyPriorityRule(config.priorityEnabled, selectedPlayers)
+        )
         _teamA.value = sortTeamPlayers(finalA); _teamB.value =
             sortTeamPlayers(finalB); _waitingList.value = pool
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
@@ -1182,12 +1193,25 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
     }
 
+    private fun shouldApplyPriorityRule(priorityEnabled: Boolean, players: List<Player>): Boolean {
+        return priorityEnabled && players.count { it.isPriority } >= 2
+    }
+
     private fun balanceTeamsWithPriority(
         players: List<Player>,
-        teamSize: Int
+        teamSize: Int,
+        usePriorityRule: Boolean
     ): Pair<List<Player>, List<Player>> {
-        val priorities = players.filter { it.isPriority }.sortedByDescending { it.elo }
-        val nonPriorities = players.filter { !it.isPriority }.sortedByDescending { it.elo }
+        val priorities = if (usePriorityRule) {
+            players.filter { it.isPriority }.sortedByDescending { it.elo }
+        } else {
+            emptyList()
+        }
+        val nonPriorities = if (usePriorityRule) {
+            players.filter { !it.isPriority }.sortedByDescending { it.elo }
+        } else {
+            players.sortedByDescending { it.elo }
+        }
         val tA = mutableListOf<Player>()
         val tB = mutableListOf<Player>()
 
@@ -1447,7 +1471,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val cA = mutableListOf<Player>()
             val cB = mutableListOf<Player>()
 
-            if (conf.priorityEnabled) {
+            if (shouldApplyPriorityRule(conf.priorityEnabled, winnersToKeep + fullPool)) {
                 val priorityWinners = winnersToKeep.filter { it.isPriority }.toMutableList()
                 val nonPriorityWinners = winnersToKeep.filter { !it.isPriority }.toMutableList()
 
@@ -1515,6 +1539,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _teamB.value = sortTeamPlayers(cB)
             _waitingList.value = fullPool
         } else {
+            val previousWinnerSide = _streakOwner.value
+            var resetStreakAfterAutomaticReplacement = false
             var teamWin = activeWinners.toMutableList()
             var remainingPool = (waitlist + sortedLosers).toMutableList()
 
@@ -1529,7 +1555,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     val picked = remainingPool.take(needed)
                     teamWin.addAll(picked)
                     remainingPool.removeAll(picked)
+                    if (picked.isNotEmpty()) resetStreakAfterAutomaticReplacement = true
                 } else {
+                    if (remainingPool.isNotEmpty()) resetStreakAfterAutomaticReplacement = true
                     teamWin.addAll(remainingPool)
                     remainingPool.clear()
                 }
@@ -1537,7 +1565,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
             val teamChal = mutableListOf<Player>()
 
-            if (conf.priorityEnabled) {
+            if (shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)) {
                 val priorityPlayer = remainingPool.firstOrNull { it.isPriority }
                 if (priorityPlayer != null) {
                     teamChal.add(priorityPlayer); remainingPool.remove(priorityPlayer)
@@ -1552,11 +1580,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             }
 
             _waitingList.value = remainingPool
-            if (_streakOwner.value == "B") {
+            if (previousWinnerSide == "B") {
                 _teamB.value = sortTeamPlayers(teamWin); _teamA.value = sortTeamPlayers(teamChal)
             } else {
                 _teamA.value = sortTeamPlayers(teamWin); _teamB.value = sortTeamPlayers(teamChal)
-                _streakOwner.value = "A"
+                if (!resetStreakAfterAutomaticReplacement) {
+                    _streakOwner.value = "A"
+                }
+            }
+
+            if (resetStreakAfterAutomaticReplacement) {
+                _currentStreak.value = 0
+                _streakOwner.value = null
             }
         }
 
@@ -1607,7 +1642,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val team = basePlayers.take(conf.teamSize).toMutableList()
             val remaining = fillPool.toMutableList()
             if (team.size < conf.teamSize) {
-                if (conf.priorityEnabled) {
+                if (shouldApplyPriorityRule(conf.priorityEnabled, team + remaining)) {
                     val priorityPlayer = remaining.firstOrNull { it.isPriority }
                     if (priorityPlayer != null) {
                         team.add(priorityPlayer)

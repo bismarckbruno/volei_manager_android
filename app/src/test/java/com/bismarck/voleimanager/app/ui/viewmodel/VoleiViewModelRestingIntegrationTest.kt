@@ -174,6 +174,77 @@ class VoleiViewModelRestingIntegrationTest {
     }
 
     @Test
+    fun startNextRound_rebalance_withMissingRecentWinner_resetsStreakAfterAutomaticReplacement() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        vm.updateConfig(
+            s = 2,
+            l = 3,
+            priorityP = false,
+            scoreEnabled = true,
+            balancingMode = BalancingMode.REBALANCE.name
+        )
+
+        val allPlayers = listOf(
+            player(41, "A1"), player(42, "A2"),
+            player(43, "B1"), player(44, "B2"),
+            player(45, "C1"), player(46, "C2")
+        )
+        val byName = insertPlayers(env, allPlayers)
+        val champs = listOf(byName.getValue("A1"), byName.getValue("A2"))
+        val losers = listOf(byName.getValue("B1"), byName.getValue("B2"))
+        val queue = listOf(byName.getValue("C1"), byName.getValue("C2"))
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startManualGame(champs, losers, queue)
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+        assertEquals(1, vm.currentStreak.value)
+        assertEquals("A", vm.streakOwner.value)
+
+        vm.togglePlayerPresence(byName.getValue("A1"))
+        vm.startNextRound()
+
+        val nextRoundIds = (vm.teamA.value + vm.teamB.value).map { it.id }.toSet()
+        assertFalse(nextRoundIds.contains(byName.getValue("A1").id))
+        assertTrue(nextRoundIds.contains(byName.getValue("A2").id))
+        assertEquals(0, vm.currentStreak.value)
+        assertEquals(null, vm.streakOwner.value)
+    }
+
+    @Test
+    fun startNewAutomaticGame_withOnlyOnePriority_doesNotForcePriorityRule() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        vm.updateConfig(
+            s = 2,
+            l = 3,
+            priorityP = true,
+            scoreEnabled = true,
+            balancingMode = BalancingMode.REBALANCE.name
+        )
+
+        val allPlayers = listOf(
+            player(51, "N1", elo = 1300.0),
+            player(52, "N2", elo = 1290.0),
+            player(53, "N3", elo = 1280.0),
+            player(54, "P1", elo = 1270.0, isPriority = true),
+            player(55, "N4", elo = 1260.0),
+            player(56, "N5", elo = 1250.0)
+        )
+        val byName = insertPlayers(env, allPlayers)
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startNewAutomaticGame(byName.values.toList(), size = 2)
+
+        val selectedIds = (vm.teamA.value + vm.teamB.value).map { it.id }.toSet()
+        assertFalse(
+            "Single priority player should not be force-selected when priority mode is enabled",
+            selectedIds.contains(byName.getValue("P1").id)
+        )
+    }
+
+    @Test
     fun init_withExistingNonDefaultGroup_doesNotCreateDefaultGroup() = runBlocking {
         val app = ApplicationProvider.getApplicationContext<Application>()
         app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()
@@ -298,8 +369,18 @@ class VoleiViewModelRestingIntegrationTest {
         }
     }
 
-    private fun player(id: Int, name: String): Player =
-        Player(id = id, name = name, elo = 1200.0, groupName = DEFAULT_GROUP_NAME)
+    private fun player(
+        id: Int,
+        name: String,
+        elo: Double = 1200.0,
+        isPriority: Boolean = false
+    ): Player = Player(
+        id = id,
+        name = name,
+        elo = elo,
+        isPriority = isPriority,
+        groupName = DEFAULT_GROUP_NAME
+    )
 }
 
 private data class TestEnv(
