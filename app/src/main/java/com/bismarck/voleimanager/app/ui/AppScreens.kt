@@ -226,7 +226,7 @@ private fun computeHistoryComputation(
         )
         PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
             compareByDescending<HistoryPlayerInfo> { it.winRate() }
-                .thenBy { it.gamesPlayed }
+                .thenByDescending { it.gamesPlayed }
                 .thenByDescending { it.displayElo }
         )
         PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
