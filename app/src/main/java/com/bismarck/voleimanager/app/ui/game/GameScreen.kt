@@ -2235,6 +2235,8 @@ fun EmptyStateCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val limitReached = hasPreviousMatch && currentStreak >= victoryLimit
+            val winnerNames = lastWinners.map { it.name }
+            var showAllLimitWinners by remember(limitReached, winnerNames) { mutableStateOf(false) }
             val kingTextColor = MaterialTheme.colorScheme.tertiary
             val mainLogo = if (isDarkTheme) {
                 R.drawable.bola_volei_fundo_escuro
@@ -2266,7 +2268,7 @@ fun EmptyStateCard(
                         color = kingTextColor,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(4.dp));
+                    Spacer(modifier = Modifier.height(4.dp))
                     // Adapta a mensagem dependendo do modo de balanceamento
                     val body = when (BalancingMode.fromStoredValue(balancingMode)) {
                         BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
@@ -2305,6 +2307,36 @@ fun EmptyStateCard(
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
+                    if (winnerNames.isNotEmpty()) {
+                        val compactWinnerNames = if (winnerNames.size <= 2) {
+                            winnerNames.joinToString(", ")
+                        } else {
+                            "${winnerNames.take(2).joinToString(", ")} +${winnerNames.size - 2}"
+                        }
+                        val visibleWinnerNames = if (showAllLimitWinners) {
+                            winnerNames.joinToString(", ")
+                        } else {
+                            compactWinnerNames
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "($visibleWinnerNames)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = if (showAllLimitWinners) Int.MAX_VALUE else 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (winnerNames.size > 2) {
+                            TextButton(onClick = { showAllLimitWinners = !showAllLimitWinners }) {
+                                Text(
+                                    stringResource(
+                                        if (showAllLimitWinners) R.string.collapse else R.string.expand
+                                    )
+                                )
+                            }
+                        }
+                    }
                  } else {
                     val teamName =
                         if (streakOwner == "A") stringResource(R.string.team_a) else if (streakOwner == "B") stringResource(
