@@ -23,7 +23,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -89,6 +92,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -919,7 +923,7 @@ fun ActiveGameView(
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -968,6 +972,7 @@ fun ActiveGameView(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             },
             confirmButton = {
@@ -1669,12 +1674,12 @@ fun ActiveTeamCard(
                     horizontalArrangement = Arrangement.Center,
                     modifier = Modifier
                         .background(buttonColor.copy(alpha = 0.1f), shape = CircleShape)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 0.dp, vertical = 0.dp)
                 ) {
                     RepeatingScoreButton(
                         onClick = onDecrementScore,
                         canRepeat = { score > 0 },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             Icons.Default.Remove,
@@ -1696,7 +1701,7 @@ fun ActiveTeamCard(
                     RepeatingScoreButton(
                         onClick = onIncrementScore,
                         canRepeat = { score < 99 },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             Icons.Default.Add,
@@ -2723,29 +2728,47 @@ fun RepeatingScoreButton(
     val haptic = LocalHapticFeedback.current
     val currentOnClick by rememberUpdatedState(onClick)
     val currentCanRepeat by rememberUpdatedState(canRepeat)
-    var pressed by remember { mutableStateOf(false) }
-
-    LaunchedEffect(pressed) {
-        if (pressed) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            currentOnClick()
-            delay(initialDelayMs)
-            while (currentCanRepeat?.invoke() != false) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                currentOnClick()
-                delay(repeatDelayMs)
-            }
-        }
-    }
+    val interactionSource = remember { MutableInteractionSource() }
+    // Tracks whether the hold-repeat already fired, to avoid double-fire in onTap
+    var holdFired by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
+            .clip(CircleShape)
+            .indication(interactionSource, LocalIndication.current)
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        tryAwaitRelease()
-                        pressed = false
+                    onPress = { offset ->
+                        holdFired = false
+                        val press = PressInteraction.Press(offset)
+                        interactionSource.emit(press)
+                        // launch runs concurrently while tryAwaitRelease() waits for finger up.
+                        // coroutineScope {} creates a child scope tied to this suspend lambda.
+                        coroutineScope {
+                            val job = launch {
+                                delay(initialDelayMs)
+                                holdFired = true
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                currentOnClick()
+                                while (currentCanRepeat?.invoke() != false) {
+                                    delay(repeatDelayMs)
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    currentOnClick()
+                                }
+                            }
+                            val released = tryAwaitRelease()
+                            job.cancel()
+                            if (released) interactionSource.emit(PressInteraction.Release(press))
+                            else interactionSource.emit(PressInteraction.Cancel(press))
+                        }
+                    },
+                    // onTap only fires on a confirmed tap (not on scroll/drag),
+                    // so the score only changes when the user actually taps the button.
+                    onTap = {
+                        if (!holdFired) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            currentOnClick()
+                        }
                     }
                 )
             },

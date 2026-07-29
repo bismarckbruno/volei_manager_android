@@ -99,13 +99,13 @@ fun ManualSetupScreen(
                         containerColor = if (canStart) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                         contentColor = if (canStart) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     ),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                    contentPadding = if (canStart) PaddingValues(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp) else PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                     modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
                     Text(stringResource(R.string.start))
                     if (canStart) {
                         Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Check, null)
                     }
                 }
             }
