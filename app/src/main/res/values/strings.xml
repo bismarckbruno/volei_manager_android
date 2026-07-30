@@ -141,8 +141,8 @@
     <string name="faq_a8">Just long-press the person you want to remove, tap who\'s replacing them, and confirm. You can substitute court players with those in the waiting line, as well as swap players between the two teams on the court.</string>
     <string name="faq_q9">When should I use manual team setup?</string>
     <string name="faq_a9">Use this only for unusual situations, like when a match is already in progress when you open the app. Overall, automatic mode is faster and more consistent.</string>
-    <string name="faq_q10">What does the Elo change value (e.g., +-16) in History mean?</string>
-    <string name="faq_a10">This number shows the match impact on Elo. Around 16 means the teams were well balanced. Well below 16 usually means the favored team won. Above 16 indicates a win by a team with lower average Elo (an upset).</string>
+    <string name="faq_q10">What do the Elo change values mean on the History screen?</string>
+    <string name="faq_a10">Visible when the \"Show Elo\" option is enabled, these values show the match\'s impact on Elo. Values close to 16 indicate well-balanced teams. Well below 16 usually means the favored team won. Above 16 indicates a victory by a team with a lower average Elo (an upset).</string>
     <string name="faq_q2">How does Priority (Star) work?</string>
     <string name="faq_a2">It serves to ensure that certain positions or skill levels are well distributed. For example, if you mark the setters with \"Priority\", the app will try to place a setter on each side when generating teams automatically.</string>
     <string name="faq_q3">What is Show Delay?</string>

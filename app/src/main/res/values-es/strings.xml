@@ -141,6 +141,7 @@
     <string name="faq_a8">Solo mantén presionado el nombre de quien sale, selecciona a quien entra y confirma. Puedes sustituir a los jugadores que están en la cancha por los que están en la fila de espera, o también cambiar jugadores entre los dos equipos que están en la cancha.</string>
     <string name="faq_q9">¿Cuándo conviene usar la formación manual de equipos?</string>
     <string name="faq_a9">Úsalo solo en situaciones atípicas, como cuando un partido ya esté en curso al abrir la app. En general, el modo automático es más rápido y constante.</string>
+    <string name="faq_a10">Visibles cuando la opción \"Mostrar Elo\" está activada, estos valores muestran el impacto del partido en el Elo. Un valor cercano a 16 indica equipos bien equilibrados. Muy por debajo de 16 generalmente significa que ganó el equipo favorito. Por encima de 16 indica la victoria de un equipo con un Elo promedio menor (una sorpresa).</string>
     <string name="faq_q2">¿Cómo funciona la Prioridad (Estrella)?</string>
     <string name="faq_a2">Sirve para distribuir mejor los niveles o posiciones en la cancha. Por ejemplo, si etiquetas a los levantadores con \"Prioridad\", el sistema intentará colocar a uno en cada lado para que los equipos queden equilibrados al generarlos automáticamente.</string>
     <string name="faq_q3">¿Qué es Mostrar Retraso?</string>
@@ -272,4 +273,5 @@
     <string name="group_title">Grupo</string>
     <string name="export_history_group_title">Grupo %1$s</string>
     <string name="keyboard_arrow_down">Flecha hacia abajo</string>
+    <string name="faq_q10">¿Qué significan los valores de variación de Elo en la pantalla de Historial?</string>
 </resources>

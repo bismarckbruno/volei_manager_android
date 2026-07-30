@@ -54,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -2741,8 +2742,8 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
 }
 
 /**
- * A button that fires [onClick] immediately on press (with haptic feedback),
- * then repeats it continuously while the finger is held down.
+ * A button that fires [onClick] on confirmed tap (with haptic feedback),
+ * or repeats it continuously while the finger is held down.
  * If [canRepeat] is provided and returns false, the repeat loop (and vibration) stops
  * until the user lifts and presses again.
  */
@@ -2759,7 +2760,7 @@ fun RepeatingScoreButton(
     val currentOnClick by rememberUpdatedState(onClick)
     val currentCanRepeat by rememberUpdatedState(canRepeat)
     val interactionSource = remember { MutableInteractionSource() }
-    // Tracks whether the hold-repeat already fired, to avoid double-fire in onTap
+    // Tracks whether the hold-repeat already fired, to avoid double-fire in onTap.
     var holdFired by remember { mutableStateOf(false) }
 
     Box(
@@ -2770,14 +2771,16 @@ fun RepeatingScoreButton(
                 detectTapGestures(
                     onPress = { offset ->
                         holdFired = false
-                        val press = PressInteraction.Press(offset)
-                        interactionSource.emit(press)
+                        var holdPress: PressInteraction.Press? = null
                         // launch runs concurrently while tryAwaitRelease() waits for finger up.
                         // coroutineScope {} creates a child scope tied to this suspend lambda.
                         coroutineScope {
                             val job = launch {
                                 delay(initialDelayMs)
                                 holdFired = true
+                                // Show visual press state only when the hold action actually starts.
+                                holdPress = PressInteraction.Press(offset)
+                                interactionSource.emit(holdPress!!)
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 currentOnClick()
                                 while (currentCanRepeat?.invoke() != false) {
@@ -2788,16 +2791,21 @@ fun RepeatingScoreButton(
                             }
                             val released = tryAwaitRelease()
                             job.cancel()
-                            if (released) interactionSource.emit(PressInteraction.Release(press))
-                            else interactionSource.emit(PressInteraction.Cancel(press))
+                            holdPress?.let { press ->
+                                if (released) interactionSource.emit(PressInteraction.Release(press))
+                                else interactionSource.emit(PressInteraction.Cancel(press))
+                            }
                         }
                     },
                     // onTap only fires on a confirmed tap (not on scroll/drag),
                     // so the score only changes when the user actually taps the button.
-                    onTap = {
+                    onTap = { offset ->
                         if (!holdFired) {
+                            val tapPress = PressInteraction.Press(offset)
+                            interactionSource.tryEmit(tapPress)
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             currentOnClick()
+                            interactionSource.tryEmit(PressInteraction.Release(tapPress))
                         }
                     }
                 )

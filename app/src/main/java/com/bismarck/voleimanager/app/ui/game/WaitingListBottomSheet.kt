@@ -546,7 +546,7 @@ private fun WaitingListPlayerItem(
                     .widthIn(min = 120.dp)
                     .heightIn(min = 60.dp)
                     .padding(vertical = 12.dp)
-                    .padding(start = 16.dp, end = 6.dp)
+                    .padding(start = 16.dp, end = 4.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {

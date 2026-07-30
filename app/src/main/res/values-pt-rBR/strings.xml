@@ -141,8 +141,8 @@
     <string name="faq_a8">Basta pressionar o nome de quem vai sair, selecionar quem vai entrar e confirmar. É possível substituir jogadores em quadra por quem está na fila de espera, assim como trocar jogadores entre os dois times que estão em quadra.</string>
     <string name="faq_q9">Quando vale usar montagem manual de times?</string>
     <string name="faq_a9">Use apenas em situações atípicas, como quando uma partida já estiver em andamento ao abrir o app. No geral, o modo automático é mais rápido e consistente.</string>
-    <string name="faq_q10">O que significa o valor de variação de Elo (ex.: +-16) no Histórico?</string>
-    <string name="faq_a10">Esse número mostra o impacto da partida no Elo. Perto de 16 indica times bem equilibrados. Bem abaixo de 16 geralmente significa que venceu o time mais cotado. Acima de 16 indica uma vitória de um time com Elo médio menor (um resultado inesperado).</string>
+    <string name="faq_q10">O que significam os valores de variação de Elo na tela de Histórico?</string>
+    <string name="faq_a10">Visíveis quando a opção \"Mostrar Elo\" está ativada, esses valores mostram o impacto da partida no Elo. Perto de 16 indica times bem equilibrados. Bem abaixo de 16 geralmente significa que venceu o time mais cotado. Acima de 16 indica uma vitória de um time com Elo médio menor (um resultado inesperado).</string>
     <string name="faq_q2">Como funciona a Prioridade (Estrela)?</string>
     <string name="faq_a2">Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com \"Prioridade\", o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente.</string>
     <string name="faq_q3">O que é Mostrar Atraso?</string>

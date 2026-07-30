@@ -213,6 +213,7 @@ private fun computeHistoryComputation(
         PlayerSortMode.ELO -> playerDataList.sortedWith(
             compareByDescending<HistoryPlayerInfo> { it.displayElo }
                 .thenByDescending { it.winRate() }
+                .thenByDescending { it.gamesPlayed }
         )
         PlayerSortMode.GAMES -> playerDataList.sortedWith(
             compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
@@ -231,12 +232,15 @@ private fun computeHistoryComputation(
         )
         PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
             compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
-                .thenByDescending { it.displayElo }
-                .thenByDescending { it.victories }
                 .thenByDescending { it.winRate() }
+                .thenByDescending { it.gamesPlayed }
+                .thenByDescending { it.displayElo }
+
         )
         PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
             compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
+                .thenByDescending { it.winRate() }
+                .thenByDescending { it.gamesPlayed }
                 .thenByDescending { it.displayElo }
         )
     }
