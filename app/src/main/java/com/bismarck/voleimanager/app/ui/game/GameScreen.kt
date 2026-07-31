@@ -942,7 +942,7 @@ fun ActiveGameView(
                                     streakDraftValue = (streakDraftValue - 1).coerceAtLeast(0)
                                 },
                                 canRepeat = { streakDraftValue > 0 },
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Remove,
@@ -967,7 +967,7 @@ fun ActiveGameView(
                                     streakDraftValue = (streakDraftValue + 1).coerceAtMost(maxEditableStreak)
                                 },
                                 canRepeat = { streakDraftValue < maxEditableStreak },
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Add,
@@ -1197,6 +1197,7 @@ fun ActiveGameView(
                             TextButton(
                                 onClick = onCancelRequest,
                                 modifier = Modifier
+                                    .defaultMinSize(minHeight = 48.dp)
                                     .align(Alignment.CenterHorizontally)
                                     .padding(top = 4.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp)
@@ -1307,6 +1308,8 @@ fun ActiveGameView(
                     TextButton(
                         onClick = onCancelRequest,
                         modifier = Modifier
+                            .padding(top = 4.dp)
+                            .defaultMinSize(minHeight = 48.dp)
                             .fillMaxWidth()
                     ) {
                         Text(
@@ -1618,19 +1621,27 @@ fun ActiveTeamCard(
                         .fillMaxWidth()
                         .padding(horizontal = 4.dp)
                 ) {
-                    Text(
-                        name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = buttonColor,
-                        modifier = Modifier.align(Alignment.TopCenter)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Text(
+                            name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = buttonColor
+                        )
+                    }
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .clip(RoundedCornerShape(30.dp))
+                            .clip(RoundedCornerShape(48.dp))
+                            .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
                             .combinedClickable(
                                 onClick = { },
                                 onLongClick = {
@@ -1668,12 +1679,11 @@ fun ActiveTeamCard(
                         color = contentColor.copy(alpha = 0.7f)
                     )
                 }
-                Spacer(Modifier.height(4.dp))
             }
 
             // Score Counter
             if (showScore) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -1717,7 +1727,7 @@ fun ActiveTeamCard(
                 }
             }
 
-            HorizontalDivider(Modifier.padding(vertical = 8.dp), color = dividerColor)
+            if (!showScore) {HorizontalDivider(Modifier.padding(top = 12.dp), color = dividerColor)}
 
             Column(
                 modifier = Modifier
@@ -1732,8 +1742,8 @@ fun ActiveTeamCard(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 30.dp)
-                            .clip(RoundedCornerShape(30.dp))
+                            .defaultMinSize(minHeight = 40.dp)
+                            .clip(RoundedCornerShape(40.dp))
                             .combinedClickable(
                                 onClick = { },
                                 onLongClick = {
@@ -1775,12 +1785,11 @@ fun ActiveTeamCard(
                     }
                 }
             }
-            Spacer(Modifier.height(4.dp))
             Button(
                 onClick = onWin,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp),
+                    .height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
                 contentPadding = PaddingValues(0.dp)
             ) {
