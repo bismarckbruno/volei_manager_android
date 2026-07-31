@@ -1602,6 +1602,9 @@ fun ActiveTeamCard(
     val dividerColor = contentColor.copy(alpha = 0.2f)
     val haptic = LocalHapticFeedback.current
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1619,8 +1622,27 @@ fun ActiveTeamCard(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.WorkspacePremium,
+                            contentDescription = null,
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
+                            tint = contentColor.copy(alpha = 0.7f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            EloCalculator.formatElo(avgElo),
+                            fontSize = 12.sp,
+                            color = contentColor.copy(alpha = 0.7f)
+                        )
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -1629,7 +1651,7 @@ fun ActiveTeamCard(
                     ) {
                         Text(
                             name,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = if (!isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = buttonColor
                         )
@@ -1637,7 +1659,6 @@ fun ActiveTeamCard(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .clip(RoundedCornerShape(48.dp))
@@ -1651,12 +1672,14 @@ fun ActiveTeamCard(
                             )
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
+                        Spacer(Modifier.width(2.dp))
                         Icon(
                             imageVector = Icons.Default.LocalFireDepartment,
                             contentDescription = stringResource(R.string.edit_streak_cd),
                             tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.38f),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() })
                         )
+                        Spacer(Modifier.width(2.dp))
                         Text(
                             text = if (streak > 0) streak.toString() else "--",
                             fontSize = 14.sp,
@@ -1665,25 +1688,11 @@ fun ActiveTeamCard(
                         )
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.WorkspacePremium,
-                        contentDescription = null,
-                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
-                        tint = contentColor.copy(alpha = 0.7f)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        EloCalculator.formatElo(avgElo),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = contentColor.copy(alpha = 0.7f)
-                    )
-                }
             }
 
             // Score Counter
             if (showScore) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(4.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -1727,7 +1736,7 @@ fun ActiveTeamCard(
                 }
             }
 
-            if (!showScore) {HorizontalDivider(Modifier.padding(top = 12.dp), color = dividerColor)}
+            if (!showScore) {HorizontalDivider(Modifier.padding(top = 8.dp), color = dividerColor)}
 
             Column(
                 modifier = Modifier
@@ -1796,7 +1805,7 @@ fun ActiveTeamCard(
                 Text(
                     stringResource(R.string.victory),
                     fontWeight = FontWeight.Black,
-                    fontSize = 12.sp,
+                    fontSize = if (!isLandscape) 14.sp else 12.sp,
                     color = buttonTextColor
                 )
             }
