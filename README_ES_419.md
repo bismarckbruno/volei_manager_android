@@ -52,6 +52,15 @@
 - **Límite de Victorias**: Máximo de victorias consecutivas antes de aplicar la regla del modo activo (dividir en Rebalanceo o rotar descanso en modo Descanso).
 - **Prioridad Activada**: Garantiza al menos un jugador prioritario por equipo en el sorteo automático (si hay disponibilidad).
 
+## 🎯 Sobre el Proyecto
+
+**Vóley Manager** es una app Android para organizadores de vóley amateur. Automatiza el balanceo de equipos (con Elo y prioridad), gestiona la fila de espera de forma justa y reduce conflictos en la cancha.
+
+📖 **Documentación de Producto:**
+- [Visión de Producto y Personas](docs/product/PERSONAS_ES_419.md)
+- [Reglas de Negocio y Algoritmos](docs/product/RULES_ES_419.md)
+- [Escenarios Clave de Uso](docs/product/SCENARIOS_ES_419.md)
+
 ## 🤝 Contribución y Feedback
 ¡Las contribuciones son bienvenidas! Siéntete libre de abrir un *pull request*.
 

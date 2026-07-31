@@ -52,6 +52,15 @@
 - **Victory Limit**: Max consecutive wins before the app applies the configured streak rule (split in Rebalance mode, rest rotation in Rest mode).
 - **Priority Distribution**: Ensures at least one priority player per team in automatic balancing (when available).
 
+## 🎯 About the Product
+
+**Volley Manager** is an Android app built for recreational volleyball organizers. It automates team balancing (with Elo + priority), manages the waiting queue fairly, and reduces court-side conflicts.
+
+📖 **Product Documentation:**
+- [Product Vision and Personas](docs/product/PERSONAS.md)
+- [Business Rules and Algorithms](docs/product/RULES.md)
+- [Core Usage Scenarios](docs/product/SCENARIOS.md)
+
 ## 🤝 Contributing and Feedback
 Contributions are welcome! Feel free to open a pull request.
 

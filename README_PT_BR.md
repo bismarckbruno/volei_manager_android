@@ -52,6 +52,15 @@
 - **Limite de Vitórias**: Máximo de vitórias consecutivas antes de aplicar a regra do modo ativo (dividir no Rebalanceamento ou rodar descanso no modo Descanso).
 - **Ativar Prioridade**: Garante ao menos um jogador prioritário por time no sorteio automático (se houver disponibilidade).
 
+## 🎯 Sobre o Projeto
+
+O **Vôlei Manager** é um aplicativo Android desenvolvido para organizadores de vôlei amador. Ele automatiza o balanceamento de times (via Elo e prioridade), gerencia a fila de forma justa e reduz os conflitos de quadra.
+
+📖 **Documentação de Produto:**
+- [Visão de Produto e Personas](docs/product/PERSONAS_PT_BR.md)
+- [Regras de Negócio e Algoritmos](docs/product/RULES_PT_BR.md)
+- [Cenários Principais de Uso](docs/product/SCENARIOS_PT_BR.md)
+
 ## 🤝 Contribuição e Feedback
 Contribuições são bem-vindas! Sinta-se à vontade para enviar um *pull request*.
 
