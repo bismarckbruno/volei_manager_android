@@ -823,8 +823,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, stringResource(R.string.side_menu))
+                        IconButton(onClick = { scope.launch { drawerState.open() } }, modifier = Modifier.minimumInteractiveComponentSize()) {
+                            Icon(
+                                Icons.Default.Menu,
+                                stringResource(R.string.side_menu),
+                                modifier = Modifier.size(24.dp))
                         }
                     },
                     actions = {
@@ -869,13 +872,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             
                             IconButton(
                                 onClick = { showAddPlayerDialog = true },
-                                modifier = Modifier.scale(scale)
+                                modifier = Modifier
+                                    .scale(scale)
+                                    .minimumInteractiveComponentSize()
                             ) {
                                 Icon(
                                     Icons.Default.Add,
                                     stringResource(R.string.add_new_player),
                                     tint = iconColor,
-                                    modifier = Modifier.rotate(iconRotation)
+                                    modifier = Modifier.rotate(iconRotation).size(24.dp)
                                 )
                             }
                         } else if (currentScreen == Screen.HISTORY) {
@@ -1116,8 +1121,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         )
                                     }
                                 }
-                            }) {
-                                Icon(Icons.Default.Share, stringResource(R.string.share_history))
+                            }, modifier = Modifier.minimumInteractiveComponentSize()
+                            ) {
+                                Icon(
+                                    Icons.Default.Share,
+                                    stringResource(R.string.share_history),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
                     }

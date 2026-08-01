@@ -1197,7 +1197,7 @@ fun ActiveGameView(
                             TextButton(
                                 onClick = onCancelRequest,
                                 modifier = Modifier
-                                    .defaultMinSize(minHeight = 48.dp)
+                                    .defaultMinSize(minHeight = 40.dp)
                                     .align(Alignment.CenterHorizontally)
                                     .padding(top = 4.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp)
@@ -1309,7 +1309,7 @@ fun ActiveGameView(
                         onClick = onCancelRequest,
                         modifier = Modifier
                             .padding(top = 4.dp)
-                            .defaultMinSize(minHeight = 48.dp)
+                            .defaultMinSize(minHeight = 40.dp)
                             .fillMaxWidth()
                     ) {
                         Text(
@@ -1798,7 +1798,7 @@ fun ActiveTeamCard(
                 onClick = onWin,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(40.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
                 contentPadding = PaddingValues(0.dp)
             ) {
