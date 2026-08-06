@@ -76,6 +76,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
@@ -1990,7 +1991,13 @@ private fun GroupOnboardingBalanceModeCard(
                     label = stringResource(labelRes),
                     tooltip = stringResource(tooltipRes),
                     selected = selectedMode == value,
-                    onSelect = { onModeSelected(value) }
+                    onSelect = { onModeSelected(value) },
+                    iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
+                        R.drawable.rebalance_arrows
+                    } else {
+                        R.drawable.text_zzz
+                    },
+                    iconSize = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) 20.dp else 16.dp
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -2025,7 +2032,9 @@ private fun OnboardingBalanceModeRow(
     label: String,
     tooltip: String,
     selected: Boolean,
-    onSelect: () -> Unit
+    onSelect: () -> Unit,
+    iconRes: Int,
+    iconSize: Dp = 20.dp
 ) {
     val scope = rememberCoroutineScope()
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -2042,6 +2051,7 @@ private fun OnboardingBalanceModeRow(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(32.dp))
@@ -2063,8 +2073,18 @@ private fun OnboardingBalanceModeRow(
                     onSelect()
                 }
             )
-            Spacer(Modifier.width(12.dp))
-            Text(label, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(iconSize)
+            )
         }
     }
 }

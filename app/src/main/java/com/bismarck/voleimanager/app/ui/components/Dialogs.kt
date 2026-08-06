@@ -35,10 +35,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
@@ -490,7 +492,13 @@ fun GroupConfigDialog(
                         label = label,
                         tooltip = tooltip,
                         selected = balancingMode == value,
-                        onSelect = { balancingMode = value }
+                        onSelect = { balancingMode = value },
+                        iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
+                            R.drawable.rebalance_arrows
+                        } else {
+                            R.drawable.text_zzz
+                        },
+                        iconSize = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) 20.dp else 16.dp
                     )
                 }
 
@@ -536,7 +544,9 @@ private fun BalancingModeOptionRow(
     label: String,
     tooltip: String,
     selected: Boolean,
-    onSelect: () -> Unit
+    onSelect: () -> Unit,
+    iconRes: Int,
+    iconSize: Dp = 20.dp
 ) {
     val scope = rememberCoroutineScope()
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -556,6 +566,7 @@ private fun BalancingModeOptionRow(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(32.dp))
@@ -572,12 +583,25 @@ private fun BalancingModeOptionRow(
                     }
                 )
         ) {
-            RadioButton(selected = selected, onClick = {
-                tooltipState.dismiss()
-                onSelect()
-            })
-            Spacer(Modifier.width(12.dp))
-            Text(label, style = MaterialTheme.typography.bodySmall)
+            RadioButton(
+                selected = selected,
+                onClick = {
+                    tooltipState.dismiss()
+                    onSelect()
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(iconSize)
+            )
         }
     }
 }
@@ -685,7 +709,13 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                         label = label,
                         tooltip = tooltip,
                         selected = balancingMode == value,
-                        onSelect = { balancingMode = value }
+                        onSelect = { balancingMode = value },
+                        iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
+                            R.drawable.rebalance_arrows
+                        } else {
+                            R.drawable.text_zzz
+                        },
+                        iconSize = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) 20.dp else 16.dp
                     )
                 }
             }
