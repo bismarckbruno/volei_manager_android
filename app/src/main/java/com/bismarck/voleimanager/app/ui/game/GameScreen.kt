@@ -29,7 +29,6 @@ import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -105,6 +104,7 @@ import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
 import android.app.Activity
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 
@@ -136,6 +136,8 @@ fun GameScreenContent(
     val streak by viewModel.currentStreak.collectAsState()
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
+    val rebalancedPlayerIds by viewModel.rebalancedPlayerIds.collectAsState()
+    val guaranteedNextMatchPlayerIds by viewModel.guaranteedNextMatchPlayerIds.collectAsState()
     val manualStreakAdjustments by viewModel.manualStreakAdjustments.collectAsState()
     val manualSubstitutions by viewModel.manualSubstitutions.collectAsState()
 
@@ -308,6 +310,7 @@ fun GameScreenContent(
                             isDarkTheme,
                             showElo,
                             showScore,
+                            rebalancedPlayerIds,
                             { showCancel = true },
                             { subOut = it },
                             { confirmWinTeam = it },
@@ -431,11 +434,13 @@ fun GameScreenContent(
                                                 PlayerCard(
                                                     p,
                                                     presentIds.contains(p.id),
+                                                    guaranteedNextMatchPlayerIds.contains(p.id),
                                                     gamesPlayedMap[p.id],
                                                     targetDate,
                                                     showElo,
                                                     showToll,
                                                     { viewModel.togglePlayerPresence(p) },
+                                                    { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
                                                     { editP = p })
                                             }
@@ -531,11 +536,13 @@ fun GameScreenContent(
                                                 PlayerCard(
                                                     p,
                                                     presentIds.contains(p.id),
+                                                    guaranteedNextMatchPlayerIds.contains(p.id),
                                                     gamesPlayedMap[p.id],
                                                     targetDate,
                                                     showElo,
                                                     showToll,
                                                     { viewModel.togglePlayerPresence(p) },
+                                                    { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
                                                     { editP = p })
                                             }
@@ -611,6 +618,7 @@ fun ActiveGameView(
     isDarkTheme: Boolean,
     showElo: Boolean,
     showScore: Boolean,
+    rebalancedPlayerIds: Set<Int>,
     onCancelRequest: () -> Unit,
     onSubRequest: (Player) -> Unit,
     onWinRequest: (String) -> Unit,
@@ -1153,6 +1161,7 @@ fun ActiveGameView(
                                         firstStreak,
                                         firstStreakTeamId,
                                         showElo,
+                                        rebalancedPlayerIds,
                                         score = firstScore,
                                         showScore = showScore,
                                         onIncrementScore = firstOnIncrement,
@@ -1184,6 +1193,7 @@ fun ActiveGameView(
                                         secondStreak,
                                         secondStreakTeamId,
                                         showElo,
+                                        rebalancedPlayerIds,
                                         score = secondScore,
                                         showScore = showScore,
                                         onIncrementScore = secondOnIncrement,
@@ -1269,6 +1279,7 @@ fun ActiveGameView(
                             firstStreak,
                             firstStreakTeamId,
                             showElo,
+                            rebalancedPlayerIds,
                             score = firstScore,
                             showScore = showScore,
                             onIncrementScore = firstOnIncrement,
@@ -1297,6 +1308,7 @@ fun ActiveGameView(
                             secondStreak,
                             secondStreakTeamId,
                             showElo,
+                            rebalancedPlayerIds,
                             score = secondScore,
                             showScore = showScore,
                             onIncrementScore = secondOnIncrement,
@@ -1577,7 +1589,7 @@ private fun WaitingListPreviewHeader(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveTeamCard(
     name: String,
@@ -1589,6 +1601,7 @@ fun ActiveTeamCard(
     streak: Int,
     streakTeamId: String,
     showElo: Boolean,
+    rebalancedPlayerIds: Set<Int>,
     score: Int,
     showScore: Boolean = true,
     onIncrementScore: () -> Unit,
@@ -1610,7 +1623,8 @@ fun ActiveTeamCard(
             .fillMaxWidth()
             .padding(4.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(4.dp),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 26.dp, bottomEnd = 26.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1636,7 +1650,7 @@ fun ActiveTeamCard(
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
                             tint = contentColor.copy(alpha = 0.7f)
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(2.dp))
                         Text(
                             EloCalculator.formatElo(avgElo),
                             fontSize = 12.sp,
@@ -1676,7 +1690,7 @@ fun ActiveTeamCard(
                         Icon(
                             imageVector = Icons.Default.LocalFireDepartment,
                             contentDescription = stringResource(R.string.edit_streak_cd),
-                            tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.38f),
+                            tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() })
                         )
                         Spacer(Modifier.width(2.dp))
@@ -1746,50 +1760,95 @@ fun ActiveTeamCard(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 players.forEach { p ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 40.dp)
-                            .clip(RoundedCornerShape(40.dp))
-                            .combinedClickable(
-                                onClick = { },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onPlayerClick(p)
+                    key(p.id) {
+                        val isRebalancedPlayer = rebalancedPlayerIds.contains(p.id)
+                        val tooltipState = rememberTooltipState(isPersistent = true)
+                        val playerRowScope = rememberCoroutineScope()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 40.dp)
+                                .clip(RoundedCornerShape(40.dp))
+                                .combinedClickable(
+                                    onClick = {
+                                        if (isRebalancedPlayer) {
+                                            playerRowScope.launch { tooltipState.show() }
+                                        }
+                                    },
+                                    onLongClick = {
+                                        tooltipState.dismiss()
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onPlayerClick(p)
+                                    }
+                                )
+                        ) {
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = {
+                                    PlainTooltip {
+                                        Text(
+                                            text = stringResource(R.string.rebalanced_player_tooltip),
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                },
+                                state = tooltipState,
+                                enableUserInput = false
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    if (isRebalancedPlayer) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.rebalance_arrows),
+                                            contentDescription = stringResource(R.string.rebalanced_player_icon_cd),
+                                            tint = contentColor.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(
+                                                with(LocalDensity.current) {
+                                                    MaterialTheme.typography.bodyMedium.fontSize.toDp()
+                                                }
+                                            )
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                    }
+                                    Text(
+                                        text = p.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = contentColor
+                                    )
                                 }
-                            )
-                    ) {
-                        Text(
-                            text = p.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, color = contentColor
-                        )
-                        if (showElo) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.WorkspacePremium,
-                                contentDescription = null,
-                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                tint = contentColor.copy(alpha = 0.7f)
-                            )
-                            Spacer(Modifier.width(2.dp))
-                            Text(
-                                text = EloCalculator.formatElo(p.elo),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = contentColor.copy(alpha = 0.7f),
-                                maxLines = 1
-                            )
-                        }
-                        if (p.isPriority) {
-                            Spacer(Modifier.width(2.dp))
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = stringResource(R.string.priority),
-                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                tint = contentColor.copy(alpha = 0.7f)
-                            )
+                            }
+                            if (p.isPriority) {
+                                Spacer(Modifier.width(2.dp))
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = stringResource(R.string.priority),
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                    tint = contentColor.copy(alpha = 0.7f)
+                                )
+                            }
+                            if (showElo) {
+                                Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.WorkspacePremium,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                    tint = contentColor.copy(alpha = 0.7f)
+                                )
+                                Spacer(Modifier.width(2.dp))
+                                Text(
+                                    text = EloCalculator.formatElo(p.elo),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = contentColor.copy(alpha = 0.7f),
+                                    maxLines = 1
+                                )
+                            }
+
                         }
                     }
                 }
@@ -1804,7 +1863,7 @@ fun ActiveTeamCard(
             ) {
                 Text(
                     stringResource(R.string.victory),
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Bold,
                     fontSize = if (!isLandscape) 14.sp else 12.sp,
                     color = buttonTextColor
                 )
@@ -1831,7 +1890,8 @@ private fun GroupOnboardingNameCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1905,7 +1965,8 @@ private fun GroupOnboardingBalanceModeCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -2019,7 +2080,8 @@ private fun GroupOnboardingTeamSizeCard(
     val options = remember { (2..6).toList() }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -2101,7 +2163,8 @@ private fun GroupOnboardingMinimumPlayersCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -2265,7 +2328,8 @@ fun EmptyStateCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        border = null
+        border = null,
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 48.dp, bottomEnd = 48.dp)
     ) {
         Column(
             modifier = Modifier
@@ -2555,17 +2619,29 @@ fun EmptyStateCard(
 fun PlayerCard(
     player: Player,
     isPresent: Boolean,
+    isGuaranteedNextMatch: Boolean,
     gamesPlayed: Int?,
     targetDate: String,
     showElo: Boolean,
     showToll: Boolean,
     onTogglePresence: () -> Unit,
+    onToggleGuaranteedNextMatch: () -> Unit,
     onDelete: () -> Unit,
     onEdit: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val cardShape = RoundedCornerShape(12.dp)
+    val border = when {
+        isGuaranteedNextMatch -> BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary)
+        isPresent -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        else -> null
+    }
+    val containerColor = when {
+        isGuaranteedNextMatch -> MaterialTheme.colorScheme.tertiaryContainer
+        isPresent -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Card(
@@ -2573,8 +2649,8 @@ fun PlayerCard(
                 .padding(vertical = 4.dp)
                 .fillMaxWidth(),
             shape = cardShape,
-            colors = CardDefaults.cardColors(containerColor = if (isPresent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
-            border = if (isPresent) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
+            colors = CardDefaults.cardColors(containerColor = containerColor),
+            border = border
         ) {
             Row(
                 modifier = Modifier
@@ -2590,7 +2666,14 @@ fun PlayerCard(
                     .padding(start = 2.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(checked = isPresent, onCheckedChange = { onTogglePresence() })
+                Checkbox(
+                    checked = isPresent,
+                    onCheckedChange = { onTogglePresence() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = if(isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = player.name, fontWeight = FontWeight.Bold)
@@ -2600,7 +2683,7 @@ fun PlayerCard(
                                 Icons.Default.Star,
                                 contentDescription = stringResource(R.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = if(isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -2611,7 +2694,7 @@ fun PlayerCard(
                                 contentDescription = null,
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(2.dp))
                             Text(
                                 text = EloCalculator.formatElo(player.elo),
                                 style = MaterialTheme.typography.bodySmall
@@ -2656,6 +2739,19 @@ fun PlayerCard(
             onDismissRequest = { showMenu = false },
             offset = DpOffset(x = 16.dp, y = 0.dp)
         ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        if (isGuaranteedNextMatch) {
+                            stringResource(R.string.remove_next_match_guarantee)
+                        } else {
+                            stringResource(R.string.guarantee_next_match)
+                        }
+                    )
+                },
+                onClick = { showMenu = false; onToggleGuaranteedNextMatch() },
+                leadingIcon = { Icon(Icons.Default.PlayArrow, null) }
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.edit)) },
                 onClick = { showMenu = false; onEdit() },
@@ -2745,7 +2841,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(2.dp))
                             Text(
                                 EloCalculator.formatElo(player.elo),
                                 style = MaterialTheme.typography.bodySmall,

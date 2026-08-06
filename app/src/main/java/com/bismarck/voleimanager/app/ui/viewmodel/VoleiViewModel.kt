@@ -77,7 +77,9 @@ data class GameStateSnapshot(
     val lastLosers: List<Player>,
     val currentMatchStartTimestamp: Long? = null,
     val roundCounter: Int = 0,
-    val restingPlayers: Map<Int, Int> = emptyMap()
+    val restingPlayers: Map<Int, Int> = emptyMap(),
+    val rebalancedPlayerIds: List<Int> = emptyList(),
+    val guaranteedNextMatchPlayerIds: List<Int> = emptyList()
 )
 
 data class ManualStreakAdjustmentLog(
@@ -457,6 +459,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val streakOwner = _streakOwner.asStateFlow()
     private val _lastWinners = MutableStateFlow<List<Player>>(emptyList())
     val lastWinners = _lastWinners.asStateFlow()
+    private val _rebalancedPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
+    val rebalancedPlayerIds = _rebalancedPlayerIds.asStateFlow()
+    private val _guaranteedNextMatchPlayerIds = MutableStateFlow<List<Int>>(emptyList())
+    val guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.asStateFlow()
     private val _manualStreakAdjustments = MutableStateFlow<List<ManualStreakAdjustmentLog>>(emptyList())
     val manualStreakAdjustments = _manualStreakAdjustments.asStateFlow()
     private val _manualSubstitutions = MutableStateFlow<List<ManualSubstitutionLog>>(emptyList())
@@ -499,7 +505,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         // Persiste também os jogadores em descanso e o contador de rodadas
         viewModelScope.launch {
-            combine(_restingPlayers, _roundCounter) { _, _ -> }.collect { if (persistenceReady) saveGameState() }
+            combine(
+                _restingPlayers,
+                _roundCounter,
+                _rebalancedPlayerIds,
+                _guaranteedNextMatchPlayerIds
+            ) { _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
         }
 
         // Sempre que os times mudarem, remove esses jogadores do mapa de descanso e garante que a waitingList não tenha duplicados nem jogadores em quadra
@@ -540,7 +551,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             lastLosers = lastLosers,
             currentMatchStartTimestamp = _currentMatchStartTimestamp.value,
             roundCounter = _roundCounter.value,
-            restingPlayers = _restingPlayers.value
+            restingPlayers = _restingPlayers.value,
+            rebalancedPlayerIds = _rebalancedPlayerIds.value.toList(),
+            guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.value
         )
         // If nothing meaningful is happening, clear instead of saving
         if (!snapshot.hasPreviousMatch && snapshot.teamA.isEmpty() && snapshot.teamB.isEmpty()) {
@@ -580,6 +593,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _currentMatchStartTimestamp.value = snapshot.currentMatchStartTimestamp
             _roundCounter.value = snapshot.roundCounter
             _restingPlayers.value = snapshot.restingPlayers
+            _rebalancedPlayerIds.value = snapshot.rebalancedPlayerIds.toSet()
+            _guaranteedNextMatchPlayerIds.value = snapshot.guaranteedNextMatchPlayerIds
             Log.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
             true
         } catch (e: Exception) {
@@ -715,6 +730,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun clearAllActivityLogs() {
         clearManualSubstitutionLogs()
         clearManualStreakLogs()
+        _rebalancedPlayerIds.value = emptySet()
     }
 
     private fun loadPreferences() {
@@ -786,6 +802,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _currentMatchStartTimestamp.value = null
         _roundCounter.value = 0
         _restingPlayers.value = emptyMap()
+        _guaranteedNextMatchPlayerIds.value = emptyList()
         clearAllActivityLogs()
         lastLosers = emptyList()
     }
@@ -794,6 +811,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (_currentGroupConfig.value.teamSize != s) {
             _currentStreak.value = 0
             _streakOwner.value = null
+            trimGuaranteedNextMatchToCapacity(s * 2)
         }
         _currentGroupConfig.value = _currentGroupConfig.value.copy(
             teamSize = s,
@@ -803,6 +821,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             balancingMode = BalancingMode.fromStoredValue(balancingMode).name
         )
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    private fun trimGuaranteedNextMatchToCapacity(maxPlayersInCourt: Int) {
+        if (maxPlayersInCourt <= 0) {
+            _guaranteedNextMatchPlayerIds.value = emptyList()
+            return
+        }
+        val current = _guaranteedNextMatchPlayerIds.value
+        if (current.size > maxPlayersInCourt) {
+            _guaranteedNextMatchPlayerIds.value = current.take(maxPlayersInCourt)
+        }
     }
 
     fun continueCurrentGroupOnboardingWithTeamSize(teamSize: Int) {
@@ -977,9 +1006,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun deletePlayer(p: Player) = viewModelScope.launch {
-        repository.deletePlayer(p); if (_presentPlayerIds.value.contains(p.id)) togglePlayerPresence(
-        p
-    )
+        repository.deletePlayer(p)
+        _guaranteedNextMatchPlayerIds.value =
+            _guaranteedNextMatchPlayerIds.value.filter { it != p.id }
+        if (_presentPlayerIds.value.contains(p.id)) togglePlayerPresence(p)
     }
 
     fun editPlayer(p: Player, n: String, isPriority: Boolean) = viewModelScope.launch(Dispatchers.IO) {
@@ -1014,6 +1044,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             ids.remove(p.id)
             _waitingList.value = _waitingList.value.filter { it.id != p.id }
             _presentPlayerIds.value = ids
+            _guaranteedNextMatchPlayerIds.value =
+                _guaranteedNextMatchPlayerIds.value.filter { it != p.id }
         } else {
             ids.add(p.id)
             _presentPlayerIds.value = ids
@@ -1032,6 +1064,30 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 }
             }
         }
+    }
+
+    fun toggleGuaranteedNextMatchPlayer(player: Player) {
+        val maxPlayersInCourt = _currentGroupConfig.value.teamSize * 2
+        if (maxPlayersInCourt <= 0) return
+
+        val current = _guaranteedNextMatchPlayerIds.value
+        if (current.contains(player.id)) {
+            _guaranteedNextMatchPlayerIds.value = current.filter { it != player.id }
+            return
+        }
+
+        if (current.size >= maxPlayersInCourt) {
+            _uiMessage.value = getApplication<Application>().getString(
+                R.string.max_guaranteed_next_match_players,
+                maxPlayersInCourt
+            )
+            return
+        }
+
+        if (!_presentPlayerIds.value.contains(player.id)) {
+            togglePlayerPresence(player)
+        }
+        _guaranteedNextMatchPlayerIds.value = _guaranteedNextMatchPlayerIds.value + player.id
     }
 
     fun removePlayerFromWaitingList(p: Player) {
@@ -1140,11 +1196,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             }
 
             _presentPlayerIds.value = newIds
+            _guaranteedNextMatchPlayerIds.value =
+                _guaranteedNextMatchPlayerIds.value.filter { newIds.contains(it) }
             if (isGameInProgress()) {
                 _waitingList.value = currentWait
             }
         } else {
             _presentPlayerIds.value = emptySet(); _waitingList.value = emptyList()
+            _guaranteedNextMatchPlayerIds.value = emptyList()
         }
     }
 
@@ -1165,13 +1224,20 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val selectedPlayers = mutableListOf<Player>()
         val pool =
             TeamBalancer.groupAndInterleave(availableWithTollApplied) { getEffectiveGames(it) }.toMutableList()
-
-        val shouldApplyPriorityRuleInSelection = shouldApplyPriorityRule(config.priorityEnabled, pool)
-        if (shouldApplyPriorityRuleInSelection) {
-            val priorities = pool.filter { it.isPriority }
-            val prioritiesToSelect = priorities.take(2)
-            selectedPlayers.addAll(prioritiesToSelect)
-            pool.removeAll(prioritiesToSelect)
+        val guaranteedIdsSet = _guaranteedNextMatchPlayerIds.value.toSet()
+        if (guaranteedIdsSet.isNotEmpty()) {
+            val guaranteedPlayers = pool.filter { guaranteedIdsSet.contains(it.id) }.take(size * 2)
+            selectedPlayers.addAll(guaranteedPlayers)
+            val guaranteedSelectedIds = guaranteedPlayers.map { it.id }.toSet()
+            pool.removeAll { guaranteedSelectedIds.contains(it.id) }
+        } else {
+            val shouldApplyPriorityRuleInSelection = shouldApplyPriorityRule(config.priorityEnabled, pool)
+            if (shouldApplyPriorityRuleInSelection) {
+                val priorities = pool.filter { it.isPriority }
+                val prioritiesToSelect = priorities.take(2)
+                selectedPlayers.addAll(prioritiesToSelect)
+                pool.removeAll(prioritiesToSelect)
+            }
         }
 
         val remainingSlots = (size * 2) - selectedPlayers.size
@@ -1191,6 +1257,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         _scoreA.value = 0; _scoreB.value = 0
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _guaranteedNextMatchPlayerIds.value = emptyList()
     }
 
     private fun shouldApplyPriorityRule(priorityEnabled: Boolean, players: List<Player>): Boolean {
@@ -1232,6 +1299,45 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         return tA to tB
     }
 
+    private fun splitPlayersEvenlyForRebalance(
+        players: List<Player>,
+        priorityEnabled: Boolean
+    ): Pair<MutableList<Player>, MutableList<Player>> {
+        if (players.isEmpty()) return mutableListOf<Player>() to mutableListOf<Player>()
+        val targetA = (players.size + 1) / 2
+        val targetB = players.size / 2
+        val remaining = players.sortedByDescending { it.elo }.toMutableList()
+        val teamA = mutableListOf<Player>()
+        val teamB = mutableListOf<Player>()
+
+        if (shouldApplyPriorityRule(priorityEnabled, players)) {
+            val orderedPriorities = TeamBalancer.interleaveByElo(remaining.filter { it.isPriority })
+            val firstPriority = orderedPriorities.getOrNull(0)
+            val secondPriority = orderedPriorities.getOrNull(1)
+            if (firstPriority != null && teamA.size < targetA) {
+                teamA.add(firstPriority)
+                remaining.remove(firstPriority)
+            }
+            if (secondPriority != null && teamB.size < targetB) {
+                teamB.add(secondPriority)
+                remaining.remove(secondPriority)
+            }
+        }
+
+        remaining.forEach { player ->
+            val canAddA = teamA.size < targetA
+            val canAddB = teamB.size < targetB
+            when {
+                canAddA && canAddB -> {
+                    if (teamA.sumOf { it.elo } <= teamB.sumOf { it.elo }) teamA.add(player) else teamB.add(player)
+                }
+                canAddA -> teamA.add(player)
+                canAddB -> teamB.add(player)
+            }
+        }
+        return teamA to teamB
+    }
+
     fun startManualGame(tA: List<Player>, tB: List<Player>, rem: List<Player>) {
         clearAllActivityLogs()
         val tAWithToll = tA.map { applyTollIfNecessary(it) }
@@ -1243,6 +1349,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         _scoreA.value = 0; _scoreB.value = 0
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _guaranteedNextMatchPlayerIds.value = emptyList()
     }
 
     fun cancelGame() {
@@ -1419,6 +1526,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun startNextRound() {
+        _guaranteedNextMatchPlayerIds.value = emptyList()
         val conf = _currentGroupConfig.value
         if (conf.teamSize <= 0) {
             startNextRoundRebalance(conf.copy(teamSize = 6))
@@ -1434,6 +1542,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun startNextRoundRebalance(conf: GroupConfig) {
         if (conf.teamSize <= 0) return
+        _rebalancedPlayerIds.value = emptySet()
         val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
         val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
 
@@ -1467,50 +1576,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val winnersToDrop = sortedWinners.drop(conf.teamSize * 2)
 
             val fullPool = (winnersToDrop + waitlist + sortedLosers).toMutableList()
+            val (cA, cB) = splitPlayersEvenlyForRebalance(
+                players = winnersToKeep,
+                priorityEnabled = conf.priorityEnabled
+            )
 
-            val cA = mutableListOf<Player>()
-            val cB = mutableListOf<Player>()
-
-            if (shouldApplyPriorityRule(conf.priorityEnabled, winnersToKeep + fullPool)) {
-                val priorityWinners = winnersToKeep.filter { it.isPriority }.toMutableList()
-                val nonPriorityWinners = winnersToKeep.filter { !it.isPriority }.toMutableList()
-
-                if (priorityWinners.isNotEmpty()) {
-                    cA.add(priorityWinners.removeAt(0))
-                } else {
+            if (shouldApplyPriorityRule(conf.priorityEnabled, cA + cB + fullPool)) {
+                if (cA.none { it.isPriority } && cA.size < conf.teamSize) {
                     val p = fullPool.firstOrNull { it.isPriority }
                     if (p != null) {
-                        cA.add(p); fullPool.remove(p)
+                        cA.add(p)
+                        fullPool.remove(p)
                     }
                 }
-
-                if (priorityWinners.isNotEmpty()) {
-                    cB.add(priorityWinners.removeAt(0))
-                } else {
+                if (cB.none { it.isPriority } && cB.size < conf.teamSize) {
                     val p = fullPool.firstOrNull { it.isPriority }
                     if (p != null) {
-                        cB.add(p); fullPool.remove(p)
-                    }
-                }
-
-                nonPriorityWinners.addAll(priorityWinners)
-                nonPriorityWinners.sortedByDescending { it.elo }.forEach { p ->
-                    if (cA.size < conf.teamSize && cB.size < conf.teamSize) {
-                        if (cA.sumOf { it.elo } <= cB.sumOf { it.elo }) cA.add(p) else cB.add(p)
-                    } else if (cA.size < conf.teamSize) {
-                        cA.add(p)
-                    } else if (cB.size < conf.teamSize) {
                         cB.add(p)
-                    }
-                }
-            } else {
-                winnersToKeep.sortedByDescending { it.elo }.forEach { p ->
-                    if (cA.size < conf.teamSize && cB.size < conf.teamSize) {
-                        if (cA.sumOf { it.elo } <= cB.sumOf { it.elo }) cA.add(p) else cB.add(p)
-                    } else if (cA.size < conf.teamSize) {
-                        cA.add(p)
-                    } else if (cB.size < conf.teamSize) {
-                        cB.add(p)
+                        fullPool.remove(p)
                     }
                 }
             }
@@ -1538,6 +1621,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _teamA.value = sortTeamPlayers(cA)
             _teamB.value = sortTeamPlayers(cB)
             _waitingList.value = fullPool
+            val winnersToKeepIds = winnersToKeep.map { it.id }.toSet()
+            _rebalancedPlayerIds.value =
+                (cA + cB).map { it.id }.filter { winnersToKeepIds.contains(it) }.toSet()
         } else {
             val previousWinnerSide = _streakOwner.value
             var resetStreakAfterAutomaticReplacement = false
@@ -1560,6 +1646,29 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (remainingPool.isNotEmpty()) resetStreakAfterAutomaticReplacement = true
                     teamWin.addAll(remainingPool)
                     remainingPool.clear()
+                }
+            }
+
+            if (shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)) {
+                if (teamWin.none { it.isPriority }) {
+                    val incomingPriority = remainingPool.firstOrNull { it.isPriority }
+                    val outgoingWinner = teamWin.lastOrNull()
+                    if (incomingPriority != null && outgoingWinner != null) {
+                        remainingPool.remove(incomingPriority)
+                        teamWin.remove(outgoingWinner)
+                        teamWin.add(incomingPriority)
+                        remainingPool.add(0, outgoingWinner)
+                    }
+                }
+                if (remainingPool.none { it.isPriority } && teamWin.count { it.isPriority } >= 2) {
+                    val outgoingPriority = teamWin.lastOrNull { it.isPriority }
+                    val incomingNonPriority = remainingPool.firstOrNull { !it.isPriority }
+                    if (outgoingPriority != null && incomingNonPriority != null) {
+                        teamWin.remove(outgoingPriority)
+                        remainingPool.remove(incomingNonPriority)
+                        teamWin.add(incomingNonPriority)
+                        remainingPool.add(0, outgoingPriority)
+                    }
                 }
             }
 
@@ -1603,6 +1712,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun startNextRoundRest(conf: GroupConfig) {
         if (conf.teamSize <= 0) return
+        _rebalancedPlayerIds.value = emptySet()
         _roundCounter.value += 1
         if (tryScheduleReturningTeamMatchIfAny(conf)) return
 

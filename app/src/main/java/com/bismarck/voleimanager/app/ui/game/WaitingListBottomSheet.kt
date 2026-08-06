@@ -607,7 +607,7 @@ private fun WaitingListPlayerItem(
                                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(2.dp))
                                 Text(
                                     EloCalculator.formatElo(player.elo),
                                     style = MaterialTheme.typography.bodySmall,
@@ -779,7 +779,7 @@ private fun InactivePlayerItem(
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(2.dp))
                             Text(
                                 EloCalculator.formatElo(player.elo),
                                 style = MaterialTheme.typography.bodySmall,

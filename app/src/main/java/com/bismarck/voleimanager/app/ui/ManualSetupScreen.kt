@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -207,16 +208,27 @@ fun PlayerSelectionRow(
             )
             Spacer(Modifier.width(10.dp))
             Column {
-                Text(
-                    player.name,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = player.name,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (player.isPriority) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = stringResource(R.string.priority),
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 if (showElo) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.WorkspacePremium,

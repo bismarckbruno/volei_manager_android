@@ -245,6 +245,88 @@ class VoleiViewModelRestingIntegrationTest {
     }
 
     @Test
+    fun startNextRound_rebalance_atVictoryLimit_splitsEvenlyBeforeFillingFromQueue() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        vm.updateConfig(
+            s = 4,
+            l = 1,
+            priorityP = false,
+            scoreEnabled = true,
+            balancingMode = BalancingMode.REBALANCE.name
+        )
+
+        val allPlayers = listOf(
+            player(101, "W1", elo = 1400.0),
+            player(102, "W2", elo = 1350.0),
+            player(103, "W3", elo = 1300.0),
+            player(104, "W4", elo = 1250.0),
+            player(105, "L1", elo = 1200.0),
+            player(106, "L2", elo = 1180.0),
+            player(107, "L3", elo = 1160.0),
+            player(108, "L4", elo = 1140.0),
+            player(109, "Q1", elo = 1220.0),
+            player(110, "Q2", elo = 1100.0)
+        )
+        val byName = insertPlayers(env, allPlayers)
+        val winners = listOf("W1", "W2", "W3", "W4").map { byName.getValue(it) }
+        val losers = listOf("L1", "L2", "L3", "L4").map { byName.getValue(it) }
+        val queue = listOf("Q1", "Q2").map { byName.getValue(it) }
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startManualGame(winners, losers, queue)
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+        vm.startNextRound()
+
+        assertEquals(4, vm.teamA.value.size)
+        assertEquals(4, vm.teamB.value.size)
+
+        val winnerIds = winners.map { it.id }.toSet()
+        val winnersInA = vm.teamA.value.count { winnerIds.contains(it.id) }
+        val winnersInB = vm.teamB.value.count { winnerIds.contains(it.id) }
+        assertEquals(2, winnersInA)
+        assertEquals(2, winnersInB)
+    }
+
+    @Test
+    fun startNewAutomaticGame_withGuaranteedPlayers_includesThemAndClearsTemporaryMarks() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        vm.updateConfig(
+            s = 2,
+            l = 3,
+            priorityP = true,
+            scoreEnabled = true,
+            balancingMode = BalancingMode.REBALANCE.name
+        )
+
+        val allPlayers = listOf(
+            player(121, "G1", elo = 1000.0, isPriority = true),
+            player(122, "G2", elo = 1010.0, isPriority = true),
+            player(123, "N1", elo = 1400.0),
+            player(124, "N2", elo = 1380.0),
+            player(125, "N3", elo = 1360.0),
+            player(126, "N4", elo = 1340.0)
+        )
+        val byName = insertPlayers(env, allPlayers)
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.toggleGuaranteedNextMatchPlayer(byName.getValue("G1"))
+        vm.toggleGuaranteedNextMatchPlayer(byName.getValue("G2"))
+        assertEquals(2, vm.guaranteedNextMatchPlayerIds.value.size)
+
+        vm.startNewAutomaticGame(byName.values.toList(), size = 2)
+
+        val selectedIds = (vm.teamA.value + vm.teamB.value).map { it.id }.toSet()
+        assertTrue(selectedIds.contains(byName.getValue("G1").id))
+        assertTrue(selectedIds.contains(byName.getValue("G2").id))
+        assertEquals(0, vm.guaranteedNextMatchPlayerIds.value.size)
+        assertTrue(vm.teamA.value.any { it.isPriority })
+        assertTrue(vm.teamB.value.any { it.isPriority })
+    }
+
+    @Test
     fun init_withExistingNonDefaultGroup_doesNotCreateDefaultGroup() = runBlocking {
         val app = ApplicationProvider.getApplicationContext<Application>()
         app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()

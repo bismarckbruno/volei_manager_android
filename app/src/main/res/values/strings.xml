@@ -119,12 +119,16 @@
     <string name="streak_history_same_team">Adjusted for %1$s</string>
     <string name="streak_history_started">Started for %1$s</string>
     <string name="streak_history_cleared">Cleared for %1$s</string>
+    <string name="rebalanced_player_icon_cd">Player rebalanced after reaching the win streak limit</string>
+    <string name="rebalanced_player_tooltip">This player was rebalanced after the win streak limit was reached.</string>
     <string name="substitution_history_title">Recent substitutions</string>
     <string name="substitution_history_from_waiting">%1$s entered %2$s from the waiting list; %3$s moved to the queue</string>
     <string name="substitution_history_team_swap">%1$s entered %2$s from %3$s; %4$s moved to %3$s</string>
     <string name="waiting_list_label">waiting list</string>
     <string name="save">Save</string>
     <string name="edit">Edit</string>
+    <string name="guarantee_next_match">Guarantee next match</string>
+    <string name="remove_next_match_guarantee">Remove guarantee</string>
     <string name="create">Create</string>
     <string name="name">Name</string>
     <string name="no">No</string>
@@ -207,6 +211,7 @@
     <string name="winner_score_validation_snackbar">The selected team score is lower than the other team. Please check if you selected the correct team before continuing.</string>
     <string name="select_minimum_players_long">Select at least %1$d players or change this setting in \"Group rules\"</string>
     <string name="selected">%1$d selected out of %3$d players</string>
+    <string name="max_guaranteed_next_match_players">You can guarantee up to %1$d players for the next match.</string>
     <string name="no_entries">No entries</string>
     <string name="options_menu">Options menu</string>
     <string name="victory_limit">Victory limit: %1$d</string>

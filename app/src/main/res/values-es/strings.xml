@@ -119,12 +119,16 @@
     <string name="streak_history_same_team">Ajustada para %1$s</string>
     <string name="streak_history_started">Iniciada para %1$s</string>
     <string name="streak_history_cleared">Reiniciada para %1$s</string>
+    <string name="rebalanced_player_icon_cd">Persona reequilibrada tras alcanzar el límite de victorias seguidas</string>
+    <string name="rebalanced_player_tooltip">Esta persona fue reequilibrada por límite de victorias seguidas.</string>
     <string name="substitution_history_title">Sustituciones recientes</string>
     <string name="substitution_history_from_waiting">%1$s entró en %2$s desde la lista de espera; %3$s fue a la cola</string>
     <string name="substitution_history_team_swap">%1$s entró en %2$s desde %3$s; %4$s fue a %3$s</string>
     <string name="waiting_list_label">lista de espera</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
+    <string name="guarantee_next_match">Garantizar próxima partida</string>
+    <string name="remove_next_match_guarantee">Quitar garantía</string>
     <string name="create">Crear</string>
     <string name="name">Nombre</string>
     <string name="no">No</string>
@@ -207,6 +211,7 @@
     <string name="winner_score_validation_snackbar">La puntuación del equipo seleccionado es menor que la del otro. Revisa si elegiste el equipo correcto antes de continuar.</string>
     <string name="select_minimum_players_long">Selecciona al menos %1$d jugadores o cambia esta configuración en \"Reglas del grupo\"</string>
     <string name="selected">%1$d seleccionado%2$s de %3$d registro%4$s</string>
+    <string name="max_guaranteed_next_match_players">Puedes garantizar hasta %1$d jugadores para la próxima partida.</string>
     <string name="no_entries">Ningún registro</string>
     <string name="options_menu">Menú de opciones</string>
     <string name="victory_limit">Límite de victorias: %1$d</string>
