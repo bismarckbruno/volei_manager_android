@@ -98,6 +98,9 @@
     <string name="add">Add</string>
     <string name="new_name">New name</string>
     <string name="confirm">Confirm</string>
+    <string name="import_merge_title">Merge group data?</string>
+    <string name="import_merge_text">The imported data belongs to the group(s): %1$s. These groups already exist in the app. New data will be merged with existing data (duplicates will be skipped). Proceed?</string>
+    <string name="import_merge_action">Merge</string>
     <string name="move_down">Move down</string>
     <string name="move_up">Move up</string>
     <string name="by_elo">By Elo</string>

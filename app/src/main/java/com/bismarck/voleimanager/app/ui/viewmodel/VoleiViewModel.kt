@@ -62,6 +62,13 @@ data class BackupData(
     val logs: List<PlayerEloLog>
 )
 
+data class PendingMergeImportData(
+    val players: List<Player>,
+    val history: List<MatchHistory>,
+    val logs: List<PlayerEloLog>,
+    val overlappingGroups: List<String>
+)
+
 data class GameStateSnapshot(
     val groupName: String,
     val teamA: List<Player>,
@@ -152,6 +159,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
+
+    private val _pendingMergeImport = MutableStateFlow<PendingMergeImportData?>(null)
+    val pendingMergeImport: StateFlow<PendingMergeImportData?> = _pendingMergeImport.asStateFlow()
 
     fun clearUiMessage() {
         _uiMessage.value = null
@@ -1883,9 +1893,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     val backup = Gson().fromJson(json, BackupData::class.java)
 
                     if (backup != null) {
-
                         val safePlayers = backup.players.map { p ->
                             p.copy(
+                                id = 0,
                                 name = normalizePersonName(p.name).ifBlank { "Desconhecido" },
                                 groupName = p.groupName.take(50)
                             )
@@ -1893,6 +1903,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
                         val safeHistory = backup.history.map { h ->
                             h.copy(
+                                id = 0,
                                 date = h.date.take(20),
                                 teamA = normalizeTeamNamesSnapshot(h.teamA),
                                 teamB = normalizeTeamNamesSnapshot(h.teamB),
@@ -1903,6 +1914,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
                         val safeLogs = backup.logs.map { l ->
                             l.copy(
+                                id = 0,
                                 playerNameSnapshot = normalizePersonName(l.playerNameSnapshot)
                                     .ifBlank { "Desconhecido" },
                                 date = l.date.take(20),
@@ -1910,10 +1922,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             )
                         }
 
-                        repository.insertPlayers(safePlayers)
-                        repository.insertHistoryList(safeHistory)
-                        safeLogs.forEach { repository.insertEloLog(it) }
+                        val importedGroups = (safePlayers.map { it.groupName } +
+                            safeHistory.map { it.groupName } +
+                            safeLogs.map { it.groupName }).toSet()
+                        val existingGroups = repository.getAllGroupNames().toSet()
+                        val overlapping = importedGroups.intersect(existingGroups).toList()
 
+                        if (overlapping.isNotEmpty()) {
+                            _pendingMergeImport.value = PendingMergeImportData(
+                                players = safePlayers,
+                                history = safeHistory,
+                                logs = safeLogs,
+                                overlappingGroups = overlapping
+                            )
+                        } else {
+                            performImportWithDedup(safePlayers, safeHistory, safeLogs, emptySet())
+                        }
                     } else {
                         Log.e("Import", context.getString(R.string.invalid_backup_format))
                     }
@@ -1930,7 +1954,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     val cols = smartSplit(line)
                                     if (cols.size >= 6) {
                                         Player(
-                                            id = cols[0].toIntOrNull() ?: 0,
+                                            id = 0,
                                             name = cols[1].takeIf { it.isNotBlank() }
                                                 ?.let { normalizePersonName(it) }
                                                 ?.ifBlank { "Desconhecido" }
@@ -1951,7 +1975,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     null
                                 }
                             }
-                            if (list.isNotEmpty()) repository.insertPlayers(list)
+                            if (list.isNotEmpty()) {
+                                val importedGroups = list.map { it.groupName }.toSet()
+                                val existingGroups = repository.getAllGroupNames().toSet()
+                                val overlapping = importedGroups.intersect(existingGroups)
+                                if (overlapping.isNotEmpty()) {
+                                    _pendingMergeImport.value = PendingMergeImportData(
+                                        players = list, history = emptyList(), logs = emptyList(),
+                                        overlappingGroups = overlapping.toList()
+                                    )
+                                } else {
+                                    performImportWithDedup(list, emptyList(), emptyList(), emptySet())
+                                }
+                            }
                         }
 
                         CsvType.HISTORICO -> {
@@ -1960,6 +1996,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     val cols = smartSplit(line)
                                     if (cols.size >= 6) {
                                         MatchHistory(
+                                            id = 0,
                                             date = cols[0].takeIf { it.isNotBlank() }?.take(20)
                                                 ?: SimpleDateFormat(
                                                     "dd/MM/yyyy HH:mm",
@@ -1987,7 +2024,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     null
                                 }
                             }
-                            if (list.isNotEmpty()) repository.insertHistoryList(list)
+                            if (list.isNotEmpty()) {
+                                val importedGroups = list.map { it.groupName }.toSet()
+                                val existingGroups = repository.getAllGroupNames().toSet()
+                                val overlapping = importedGroups.intersect(existingGroups)
+                                if (overlapping.isNotEmpty()) {
+                                    _pendingMergeImport.value = PendingMergeImportData(
+                                        players = emptyList(), history = list, logs = emptyList(),
+                                        overlappingGroups = overlapping.toList()
+                                    )
+                                } else {
+                                    performImportWithDedup(emptyList(), list, emptyList(), emptySet())
+                                }
+                            }
                         }
 
                         CsvType.ELO_LOGS -> {
@@ -1996,7 +2045,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     val cols = smartSplit(line)
                                     if (cols.size >= 6) {
                                         PlayerEloLog(
-                                            id = cols[0].toIntOrNull() ?: 0,
+                                            id = 0,
                                             playerId = cols[1].toIntOrNull() ?: 0,
                                             playerNameSnapshot = normalizePersonName(cols[2])
                                                 .ifBlank { "Desconhecido" },
@@ -2015,7 +2064,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     null
                                 }
                             }
-                            list.forEach { repository.insertEloLog(it) }
+                            if (list.isNotEmpty()) {
+                                val importedGroups = list.map { it.groupName }.toSet()
+                                val existingGroups = repository.getAllGroupNames().toSet()
+                                val overlapping = importedGroups.intersect(existingGroups)
+                                if (overlapping.isNotEmpty()) {
+                                    _pendingMergeImport.value = PendingMergeImportData(
+                                        players = emptyList(), history = emptyList(), logs = list,
+                                        overlappingGroups = overlapping.toList()
+                                    )
+                                } else {
+                                    performImportWithDedup(emptyList(), emptyList(), list, emptySet())
+                                }
+                            }
                         }
 
                         else -> {}
@@ -2024,6 +2085,69 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } catch (e: Exception) {
                 Log.e("Import", "Erro: ${e.message}")
             }
+        }
+    }
+
+    fun confirmMergeImport() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val data = _pendingMergeImport.value ?: return@launch
+            performImportWithDedup(
+                players = data.players,
+                history = data.history,
+                logs = data.logs,
+                overlappingGroups = data.overlappingGroups.toSet()
+            )
+            _pendingMergeImport.value = null
+        }
+    }
+
+    fun cancelMergeImport() {
+        _pendingMergeImport.value = null
+    }
+
+    private suspend fun performImportWithDedup(
+        players: List<Player>,
+        history: List<MatchHistory>,
+        logs: List<PlayerEloLog>,
+        overlappingGroups: Set<String>
+    ) {
+        // Players: dedup by canonical name within same group
+        val playersByGroup = players.groupBy { it.groupName }
+        for ((groupName, groupPlayers) in playersByGroup) {
+            val toInsert = if (groupName in overlappingGroups) {
+                val existingNames = repository.getPlayersByGroupSync(groupName)
+                    .map { canonicalPersonName(it.name) }.toSet()
+                groupPlayers.filter { canonicalPersonName(it.name) !in existingNames }
+            } else {
+                groupPlayers
+            }
+            if (toInsert.isNotEmpty()) repository.insertPlayers(toInsert)
+        }
+
+        // History: dedup by date+teamA+teamB within same group
+        val historyByGroup = history.groupBy { it.groupName }
+        for ((groupName, groupHistory) in historyByGroup) {
+            val toInsert = if (groupName in overlappingGroups) {
+                val existingKeys = repository.getHistoryByGroupSync(groupName)
+                    .map { Triple(it.date, it.teamA, it.teamB) }.toSet()
+                groupHistory.filter { Triple(it.date, it.teamA, it.teamB) !in existingKeys }
+            } else {
+                groupHistory
+            }
+            if (toInsert.isNotEmpty()) repository.insertHistoryList(toInsert)
+        }
+
+        // EloLogs: dedup by playerNameSnapshot+date within same group
+        val logsByGroup = logs.groupBy { it.groupName }
+        for ((groupName, groupLogs) in logsByGroup) {
+            val toInsert = if (groupName in overlappingGroups) {
+                val existingKeys = repository.getEloLogsByGroupSync(groupName)
+                    .map { Pair(it.playerNameSnapshot, it.date) }.toSet()
+                groupLogs.filter { Pair(it.playerNameSnapshot, it.date) !in existingKeys }
+            } else {
+                groupLogs
+            }
+            if (toInsert.isNotEmpty()) repository.insertEloLogs(toInsert)
         }
     }
 

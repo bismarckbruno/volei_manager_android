@@ -95,6 +95,11 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
 
     // --- Elo Logs (ESTA FUNÇÃO CORRIGE O ERRO 'insertEloLog') ---
     suspend fun insertEloLog(log: com.bismarck.voleimanager.app.data.model.PlayerEloLog) = voleiDao.insertEloLog(log)
+    suspend fun insertEloLogs(logs: List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>) = voleiDao.insertEloLogs(logs)
+
+    suspend fun getPlayersByGroupSync(groupName: String) = voleiDao.getPlayersByGroupSync(groupName)
+    suspend fun getHistoryByGroupSync(groupName: String) = voleiDao.getHistoryByGroupSync(groupName)
+    suspend fun getEloLogsByGroupSync(groupName: String) = voleiDao.getEloLogsByGroupSync(groupName)
 
     // --- Configs ---
     suspend fun getGroupConfig(groupName: String) = voleiDao.getGroupConfig(groupName)

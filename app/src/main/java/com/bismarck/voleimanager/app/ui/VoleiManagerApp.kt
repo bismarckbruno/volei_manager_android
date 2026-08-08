@@ -52,6 +52,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
+import com.bismarck.voleimanager.app.ui.viewmodel.PendingMergeImportData
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import kotlinx.coroutines.launch
@@ -329,6 +330,26 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 TextButton(onClick = {
                     showImportDialog = false
                 }) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+        )
+    }
+
+    val pendingMergeImport by viewModel.pendingMergeImport.collectAsState()
+    pendingMergeImport?.let { pending ->
+        val groupList = pending.overlappingGroups.joinToString(", ")
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelMergeImport() },
+            title = { Text(stringResource(R.string.import_merge_title)) },
+            text = { Text(stringResource(R.string.import_merge_text, groupList)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmMergeImport() }) {
+                    Text(stringResource(R.string.import_merge_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelMergeImport() }) {
+                    Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         )
     }

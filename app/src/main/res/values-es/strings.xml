@@ -98,6 +98,9 @@
     <string name="add">Añadir</string>
     <string name="new_name">Nuevo nombre</string>
     <string name="confirm">Confirmar</string>
+    <string name="import_merge_title">¿Combinar datos del grupo?</string>
+    <string name="import_merge_text">Los datos importados pertenecen al/los grupo(s): %1$s. Estos grupos ya existen en la app. Los datos nuevos se combinarán con los existentes (se omitirán duplicados). ¿Confirmar?</string>
+    <string name="import_merge_action">Combinar</string>
     <string name="move_down">Mover hacia abajo</string>
     <string name="move_up">Mover hacia arriba</string>
     <string name="by_elo">Por Elo</string>

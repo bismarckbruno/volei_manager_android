@@ -56,6 +56,18 @@ interface VoleiDao {
     @Query("SELECT * FROM match_history")
     suspend fun getAllHistorySync(): List<com.bismarck.voleimanager.app.data.model.MatchHistory>
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertEloLogs(logs: List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>)
+
+    @Query("SELECT * FROM players WHERE groupName = :groupName")
+    suspend fun getPlayersByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.Player>
+
+    @Query("SELECT * FROM match_history WHERE groupName = :groupName")
+    suspend fun getHistoryByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.MatchHistory>
+
+    @Query("SELECT * FROM elo_logs WHERE groupName = :groupName")
+    suspend fun getEloLogsByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>
+
     // --- ELO LOGS ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEloLog(log: com.bismarck.voleimanager.app.data.model.PlayerEloLog)

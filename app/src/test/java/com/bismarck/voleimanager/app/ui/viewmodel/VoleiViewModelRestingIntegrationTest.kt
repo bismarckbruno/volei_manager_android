@@ -551,6 +551,19 @@ private class FakeVoleiDao : VoleiDao {
         eloLogsFlow.value = eloLogs.sortedBy { it.date }
     }
 
+    override suspend fun insertEloLogs(logs: List<PlayerEloLog>) {
+        logs.forEach { insertEloLog(it) }
+    }
+
+    override suspend fun getPlayersByGroupSync(groupName: String): List<Player> =
+        players.filter { it.groupName == groupName }
+
+    override suspend fun getHistoryByGroupSync(groupName: String): List<MatchHistory> =
+        history.filter { it.groupName == groupName }
+
+    override suspend fun getEloLogsByGroupSync(groupName: String): List<PlayerEloLog> =
+        eloLogs.filter { it.groupName == groupName }
+
     override fun getAllEloLogs(): Flow<List<PlayerEloLog>> = eloLogsFlow.asStateFlow()
     override fun getEloLogsByGroup(groupName: String): Flow<List<PlayerEloLog>> =
         eloLogsFlow.asStateFlow().map { list -> list.filter { it.groupName == groupName } }
