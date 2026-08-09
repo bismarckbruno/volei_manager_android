@@ -27,6 +27,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -77,6 +78,51 @@ class VoleiViewModelRestingIntegrationTest {
 
         val waitingIds = vm.waitingList.value.map { it.id }.toSet()
         assertTrue("Losers must move to the waiting list", waitingIds.containsAll(losers.map { it.id }))
+    }
+
+    @Test
+    fun scoreIndicator_tracksLatestScorerAndRotation_onScoreIncrease() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+
+        assertNull(vm.lastScoringTeam.value)
+        assertNull(vm.rotationRequiredForTeam.value)
+
+        vm.incrementScoreA()
+        assertEquals("A", vm.lastScoringTeam.value)
+        assertNull(vm.rotationRequiredForTeam.value)
+
+        vm.incrementScoreA()
+        assertEquals("A", vm.lastScoringTeam.value)
+        assertNull(vm.rotationRequiredForTeam.value)
+
+        vm.incrementScoreB()
+        assertEquals("B", vm.lastScoringTeam.value)
+        assertEquals("B", vm.rotationRequiredForTeam.value)
+    }
+
+    @Test
+    fun scoreIndicator_clearsOnScoreDecreaseAndGameReset() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+
+        vm.incrementScoreA()
+        vm.incrementScoreB()
+        assertEquals("B", vm.lastScoringTeam.value)
+        assertEquals("B", vm.rotationRequiredForTeam.value)
+
+        vm.decrementScoreB()
+        assertNull(vm.lastScoringTeam.value)
+        assertNull(vm.rotationRequiredForTeam.value)
+
+        vm.incrementScoreA()
+        assertEquals("A", vm.lastScoringTeam.value)
+
+        vm.cancelGame()
+        assertEquals(0, vm.scoreA.value)
+        assertEquals(0, vm.scoreB.value)
+        assertNull(vm.lastScoringTeam.value)
+        assertNull(vm.rotationRequiredForTeam.value)
     }
 
     @Test

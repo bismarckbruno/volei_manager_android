@@ -86,7 +86,9 @@ data class GameStateSnapshot(
     val roundCounter: Int = 0,
     val restingPlayers: Map<Int, Int> = emptyMap(),
     val rebalancedPlayerIds: List<Int> = emptyList(),
-    val guaranteedNextMatchPlayerIds: List<Int> = emptyList()
+    val guaranteedNextMatchPlayerIds: List<Int> = emptyList(),
+    val lastScoringTeam: String? = null,
+    val rotationRequiredForTeam: String? = null
 )
 
 data class ManualStreakAdjustmentLog(
@@ -437,7 +439,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _teamB.value = sortTeamPlayers(returningTeamPlayers)
         }
         _hasPreviousMatch.value = false
-        _scoreA.value = 0; _scoreB.value = 0
+        resetScoresAndPointIndicator()
         if (replacedMissingWinnerWithWaitingPlayer) {
             _currentStreak.value = 0
             _streakOwner.value = null
@@ -460,6 +462,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val scoreA = _scoreA.asStateFlow()
     private val _scoreB = MutableStateFlow(0)
     val scoreB = _scoreB.asStateFlow()
+    private val _lastScoringTeam = MutableStateFlow<String?>(null)
+    val lastScoringTeam = _lastScoringTeam.asStateFlow()
+    private val _rotationRequiredForTeam = MutableStateFlow<String?>(null)
+    val rotationRequiredForTeam = _rotationRequiredForTeam.asStateFlow()
 
     private val _hasPreviousMatch = MutableStateFlow(false)
     val hasPreviousMatch = _hasPreviousMatch.asStateFlow()
@@ -513,6 +519,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _scoreB, _currentStreak, _hasPreviousMatch, _lastWinners, _streakOwner
             ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
         }
+        viewModelScope.launch {
+            combine(_lastScoringTeam, _rotationRequiredForTeam) { _, _ -> }
+                .collect { if (persistenceReady) saveGameState() }
+        }
         // Persiste também os jogadores em descanso e o contador de rodadas
         viewModelScope.launch {
             combine(
@@ -563,7 +573,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             roundCounter = _roundCounter.value,
             restingPlayers = _restingPlayers.value,
             rebalancedPlayerIds = _rebalancedPlayerIds.value.toList(),
-            guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.value
+            guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.value,
+            lastScoringTeam = _lastScoringTeam.value,
+            rotationRequiredForTeam = _rotationRequiredForTeam.value
         )
         // If nothing meaningful is happening, clear instead of saving
         if (!snapshot.hasPreviousMatch && snapshot.teamA.isEmpty() && snapshot.teamB.isEmpty()) {
@@ -605,6 +617,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _restingPlayers.value = snapshot.restingPlayers
             _rebalancedPlayerIds.value = snapshot.rebalancedPlayerIds.toSet()
             _guaranteedNextMatchPlayerIds.value = snapshot.guaranteedNextMatchPlayerIds
+            _lastScoringTeam.value = snapshot.lastScoringTeam
+            _rotationRequiredForTeam.value = snapshot.rotationRequiredForTeam
             Log.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
             true
         } catch (e: Exception) {
@@ -649,19 +663,52 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun incrementScoreA() {
-        if (_scoreA.value < 99) _scoreA.value++
+        if (_scoreA.value < 99) {
+            _scoreA.value++
+            registerPointForTeam("A")
+        }
     }
 
     fun decrementScoreA() {
-        if (_scoreA.value > 0) _scoreA.value--
+        if (_scoreA.value > 0) {
+            _scoreA.value--
+            clearPointIndicator()
+        }
     }
 
     fun incrementScoreB() {
-        if (_scoreB.value < 99) _scoreB.value++
+        if (_scoreB.value < 99) {
+            _scoreB.value++
+            registerPointForTeam("B")
+        }
     }
 
     fun decrementScoreB() {
-        if (_scoreB.value > 0) _scoreB.value--
+        if (_scoreB.value > 0) {
+            _scoreB.value--
+            clearPointIndicator()
+        }
+    }
+
+    private fun registerPointForTeam(teamId: String) {
+        val previousScoringTeam = _lastScoringTeam.value
+        _lastScoringTeam.value = teamId
+        _rotationRequiredForTeam.value = if (previousScoringTeam != null && previousScoringTeam != teamId) {
+            teamId
+        } else {
+            null
+        }
+    }
+
+    private fun clearPointIndicator() {
+        _lastScoringTeam.value = null
+        _rotationRequiredForTeam.value = null
+    }
+
+    private fun resetScoresAndPointIndicator() {
+        _scoreA.value = 0
+        _scoreB.value = 0
+        clearPointIndicator()
     }
 
     fun setStreakForTeam(team: String, streakValue: Int): ManualStreakAdjustmentLog? {
@@ -808,7 +855,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _presentPlayerIds.value = emptySet(); _currentStreak.value = 0; _streakOwner.value =
             null; _hasPreviousMatch.value = false
         _historyDateFilter.value = null
-        _scoreA.value = 0; _scoreB.value = 0
+        resetScoresAndPointIndicator()
         _currentMatchStartTimestamp.value = null
         _roundCounter.value = 0
         _restingPlayers.value = emptyMap()
@@ -1265,7 +1312,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _teamA.value = sortTeamPlayers(finalA); _teamB.value =
             sortTeamPlayers(finalB); _waitingList.value = pool
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
-        _scoreA.value = 0; _scoreB.value = 0
+        resetScoresAndPointIndicator()
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
         _guaranteedNextMatchPlayerIds.value = emptyList()
     }
@@ -1357,7 +1404,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _teamA.value = sortTeamPlayers(tAWithToll); _teamB.value =
             sortTeamPlayers(tBWithToll); _waitingList.value = remWithToll
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
-        _scoreA.value = 0; _scoreB.value = 0
+        resetScoresAndPointIndicator()
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
         _guaranteedNextMatchPlayerIds.value = emptyList()
     }
@@ -1366,7 +1413,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         clearAllActivityLogs()
         _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
         _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
-        _scoreA.value = 0; _scoreB.value = 0
+        resetScoresAndPointIndicator()
         _currentMatchStartTimestamp.value = null
     }
 
@@ -1530,7 +1577,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 )
             )
             _teamA.value = emptyList(); _teamB.value = emptyList()
-            _scoreA.value = 0; _scoreB.value = 0
+            resetScoresAndPointIndicator()
             _currentMatchStartTimestamp.value = null
         }
     }
@@ -1721,8 +1768,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         _hasPreviousMatch.value = false
-        _scoreA.value = 0
-        _scoreB.value = 0
+        resetScoresAndPointIndicator()
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
     }
 
@@ -1852,8 +1898,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         _hasPreviousMatch.value = false
-        _scoreA.value = 0
-        _scoreB.value = 0
+        resetScoresAndPointIndicator()
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
     }
 

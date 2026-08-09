@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,8 +56,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
@@ -213,7 +216,7 @@ fun GameScreenContent(
             title = { Text(stringResource(R.string.victorious_team, team)) },
             text = {
                 Text(
-                    text = "$selectedTeamLabel ($selectedTeamNames)",
+                    text = "$selectedTeamLabel: $selectedTeamNames.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -702,6 +705,8 @@ fun ActiveGameView(
 
     val scoreA by viewModel.scoreA.collectAsState()
     val scoreB by viewModel.scoreB.collectAsState()
+    val lastScoringTeamId by viewModel.lastScoringTeam.collectAsState()
+    val rotationRequiredForTeamId by viewModel.rotationRequiredForTeam.collectAsState()
     val restingMap by viewModel.restingPlayers.collectAsState()
     var streakDialogTeam by remember { mutableStateOf<String?>(null) }
     var streakDraftValue by remember { mutableIntStateOf(0) }
@@ -1069,6 +1074,8 @@ fun ActiveGameView(
     val teamsSwapped by viewModel.teamsSwapped.collectAsState()
 
     // Display-order slots: first = top/left, second = bottom/right
+    val firstTeamId = if (teamsSwapped) "B" else "A"
+    val secondTeamId = if (teamsSwapped) "A" else "B"
     val firstName =
         if (teamsSwapped) stringResource(R.string.team_b) else stringResource(R.string.team_a)
     val firstPlayers = if (teamsSwapped) teamB else teamA
@@ -1088,8 +1095,8 @@ fun ActiveGameView(
     } else {
         { viewModel.decrementScoreA() }
     }
-    val firstWinId = if (teamsSwapped) "B" else "A"
-    val firstStreakTeamId = if (teamsSwapped) "B" else "A"
+    val firstWinId = firstTeamId
+    val firstStreakTeamId = firstTeamId
 
     val secondName =
         if (teamsSwapped) stringResource(R.string.team_a) else stringResource(R.string.team_b)
@@ -1099,7 +1106,7 @@ fun ActiveGameView(
     val secondBtnTextColor = if (teamsSwapped) btnTextColorA else btnTextColorB
     val secondStreakColor = if (teamsSwapped) streakColorA else streakColorB
     val secondStreak = if (teamsSwapped) teamAStreak else teamBStreak
-    val secondStreakTeamId = if (teamsSwapped) "A" else "B"
+    val secondStreakTeamId = secondTeamId
     val secondScore = if (teamsSwapped) scoreA else scoreB
     val secondOnIncrement: () -> Unit = if (teamsSwapped) {
         { viewModel.incrementScoreA() }
@@ -1111,7 +1118,22 @@ fun ActiveGameView(
     } else {
         { viewModel.decrementScoreB() }
     }
-    val secondWinId = if (teamsSwapped) "A" else "B"
+    val secondWinId = secondTeamId
+    val firstShowRotationIndicator = rotationRequiredForTeamId == firstTeamId
+    val firstShowLatestPointBorder = !firstShowRotationIndicator && lastScoringTeamId == firstTeamId
+    val firstScoreTooltip = when {
+        firstShowRotationIndicator -> stringResource(R.string.score_rotation_tooltip, firstName)
+        firstShowLatestPointBorder -> stringResource(R.string.score_latest_point_tooltip, firstName)
+        else -> null
+    }
+
+    val secondShowRotationIndicator = rotationRequiredForTeamId == secondTeamId
+    val secondShowLatestPointBorder = !secondShowRotationIndicator && lastScoringTeamId == secondTeamId
+    val secondScoreTooltip = when {
+        secondShowRotationIndicator -> stringResource(R.string.score_rotation_tooltip, secondName)
+        secondShowLatestPointBorder -> stringResource(R.string.score_latest_point_tooltip, secondName)
+        else -> null
+    }
     val useCompactTeamCards = !showScore && firstPlayers.size <= 2 && secondPlayers.size <= 2
 
     val configuration = LocalConfiguration.current
@@ -1182,6 +1204,9 @@ fun ActiveGameView(
                                         rebalancedPlayerIds,
                                         score = firstScore,
                                         showScore = showScore,
+                                        showLatestPointBorder = firstShowLatestPointBorder,
+                                        showRotationIndicator = firstShowRotationIndicator,
+                                        scoreIndicatorTooltip = firstScoreTooltip,
                                         onIncrementScore = firstOnIncrement,
                                         onDecrementScore = firstOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
@@ -1214,6 +1239,9 @@ fun ActiveGameView(
                                         rebalancedPlayerIds,
                                         score = secondScore,
                                         showScore = showScore,
+                                        showLatestPointBorder = secondShowLatestPointBorder,
+                                        showRotationIndicator = secondShowRotationIndicator,
+                                        scoreIndicatorTooltip = secondScoreTooltip,
                                         onIncrementScore = secondOnIncrement,
                                         onDecrementScore = secondOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
@@ -1300,6 +1328,9 @@ fun ActiveGameView(
                             rebalancedPlayerIds,
                             score = firstScore,
                             showScore = showScore,
+                            showLatestPointBorder = firstShowLatestPointBorder,
+                            showRotationIndicator = firstShowRotationIndicator,
+                            scoreIndicatorTooltip = firstScoreTooltip,
                             onIncrementScore = firstOnIncrement,
                             onDecrementScore = firstOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
@@ -1329,6 +1360,9 @@ fun ActiveGameView(
                             rebalancedPlayerIds,
                             score = secondScore,
                             showScore = showScore,
+                            showLatestPointBorder = secondShowLatestPointBorder,
+                            showRotationIndicator = secondShowRotationIndicator,
+                            scoreIndicatorTooltip = secondScoreTooltip,
                             onIncrementScore = secondOnIncrement,
                             onDecrementScore = secondOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
@@ -1499,7 +1533,7 @@ private fun VsSwapButton(
 
     Box(
         modifier = modifier
-            .size(50.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .clickable(onClickLabel = switchTeamsLabel) {
                 rotationTurns++
@@ -1514,14 +1548,14 @@ private fun VsSwapButton(
             ),
             contentDescription = null,
             modifier = Modifier
-                .size(50.dp)
+                .size(48.dp)
                 .rotate(rotation),
             tint = arrowColor
         )
         Icon(
             painter = painterResource(R.drawable.vs_text),
             contentDescription = "versus",
-            modifier = Modifier.size(50.dp),
+            modifier = Modifier.size(48.dp),
             tint = vsColor
         )
     }
@@ -1622,6 +1656,9 @@ fun ActiveTeamCard(
     rebalancedPlayerIds: Set<Int>,
     score: Int,
     showScore: Boolean = true,
+    showLatestPointBorder: Boolean = false,
+    showRotationIndicator: Boolean = false,
+    scoreIndicatorTooltip: String? = null,
     onIncrementScore: () -> Unit,
     onDecrementScore: () -> Unit,
     onStreakLongClick: (String) -> Unit,
@@ -1743,17 +1780,16 @@ fun ActiveTeamCard(
                             tint = buttonColor
                         )
                     }
-                    Text(
-                        text = score.toString(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black,
-                        color = buttonColor,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .defaultMinSize(minWidth = 60.dp)
-                            .padding(horizontal = 12.dp)
+                    Spacer(Modifier.width(4.dp))
+                    ScoreValueIndicator(
+                        score = score,
+                        textColor = buttonColor,
+                        indicatorColor = buttonColor,
+                        showLatestPointBorder = showLatestPointBorder,
+                        showRotationIndicator = showRotationIndicator,
+                        tooltipText = scoreIndicatorTooltip
                     )
+                    Spacer(Modifier.width(4.dp))
                     RepeatingScoreButton(
                         onClick = onIncrementScore,
                         canRepeat = { score < 99 },
@@ -1886,6 +1922,97 @@ fun ActiveTeamCard(
                     color = buttonTextColor
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScoreValueIndicator(
+    score: Int,
+    textColor: Color,
+    indicatorColor: Color,
+    showLatestPointBorder: Boolean,
+    showRotationIndicator: Boolean,
+    tooltipText: String?
+) {
+    val hasTooltip = !tooltipText.isNullOrBlank()
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val scope = rememberCoroutineScope()
+
+    val scoreContent: @Composable () -> Unit = {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+        ) {
+            when {
+                showRotationIndicator -> {
+                    Canvas(modifier = Modifier.size(48.dp)) {
+                        drawCircle(
+                            color = indicatorColor,
+                            radius = size.minDimension / 2f - 1.dp.toPx(),
+                            style = Stroke(
+                                width = 1.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(
+                                    floatArrayOf(6.dp.toPx(), 4.dp.toPx())
+                                )
+                            )
+                        )
+                    }
+                }
+
+                showLatestPointBorder -> {
+                    Canvas(modifier = Modifier.size(48.dp)) {
+                        drawCircle(
+                            color = indicatorColor,
+                            radius = size.minDimension / 2f - 1.dp.toPx(),
+                            style = Stroke(width = 1.dp.toPx())
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = score.toString(),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = textColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+        }
+    }
+
+    if (!hasTooltip) {
+        scoreContent()
+        return
+    }
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = {
+            PlainTooltip {
+                Text(
+                    text = tooltipText.orEmpty(),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        state = tooltipState,
+        enableUserInput = false
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(24.dp))
+                .clickable {
+                    scope.launch {
+                        tooltipState.dismiss()
+                        tooltipState.show()
+                    }
+                }
+        ) {
+            scoreContent()
         }
     }
 }

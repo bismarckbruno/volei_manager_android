@@ -108,6 +108,8 @@
     <string name="victory">VICTORY</string>
     <string name="team_a">Team A</string>
     <string name="team_b">Team B</string>
+    <string name="score_latest_point_tooltip">%1$s scored the most recent point.</string>
+    <string name="score_rotation_tooltip">%1$s must rotate now.</string>
     <string name="edit_streak_title">Edit streak - %1$s</string>
     <string name="edit_streak_description">Adjust the current winning streak before continuing.</string>
     <string name="edit_streak_cd">Streak indicator (long press to edit)</string>
