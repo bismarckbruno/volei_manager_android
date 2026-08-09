@@ -213,6 +213,96 @@ class VoleiViewModelRestingIntegrationTest {
     }
 
     @Test
+    fun startNextRound_rebalance_belowVictoryLimit_keepsWinnerTeamIntactEvenWithoutPriority() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        vm.updateConfig(
+            s = 2,
+            l = 3,
+            priorityP = true,
+            scoreEnabled = true,
+            balancingMode = BalancingMode.REBALANCE.name
+        )
+
+        val allPlayers = listOf(
+            player(61, "W1"),
+            player(62, "W2"),
+            player(63, "L1", isPriority = true),
+            player(64, "L2"),
+            player(65, "Q1", isPriority = true),
+            player(66, "Q2")
+        )
+        val byName = insertPlayers(env, allPlayers)
+        val champs = listOf(byName.getValue("W1"), byName.getValue("W2"))
+        val losers = listOf(byName.getValue("L1"), byName.getValue("L2"))
+        val queue = listOf(byName.getValue("Q1"), byName.getValue("Q2"))
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startManualGame(champs, losers, queue)
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+        vm.startNextRound()
+
+        assertEquals(champs.map { it.id }.toSet(), vm.teamA.value.map { it.id }.toSet())
+        assertTrue(vm.teamB.value.any { it.isPriority })
+        assertFalse(vm.teamB.value.any { it.id == byName.getValue("W1").id || it.id == byName.getValue("W2").id })
+    }
+
+    @Test
+    fun startNextRound_rebalance_prioritizesGuaranteedByLowerUsageAfterPriorityAllocation() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        vm.updateConfig(
+            s = 2,
+            l = 3,
+            priorityP = true,
+            scoreEnabled = true,
+            balancingMode = BalancingMode.REBALANCE.name
+        )
+
+        val allPlayers = listOf(
+            player(71, "W1"),
+            player(72, "W2"),
+            player(73, "L1", isPriority = true),
+            player(74, "L2"),
+            player(75, "P2", isPriority = true),
+            player(76, "GLOW"),
+            player(77, "GHIGH"),
+            player(78, "NQ")
+        )
+        val byName = insertPlayers(env, allPlayers)
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startManualGame(
+            tA = listOf(byName.getValue("GHIGH"), byName.getValue("NQ")),
+            tB = listOf(byName.getValue("L2"), byName.getValue("P2")),
+            rem = listOf(byName.getValue("W1"), byName.getValue("W2"), byName.getValue("L1"), byName.getValue("GLOW"))
+        )
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+
+        vm.startManualGame(
+            tA = listOf(byName.getValue("W1"), byName.getValue("W2")),
+            tB = listOf(byName.getValue("L1"), byName.getValue("L2")),
+            rem = listOf(byName.getValue("GLOW"), byName.getValue("GHIGH"), byName.getValue("P2"), byName.getValue("NQ"))
+        )
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+
+        vm.toggleGuaranteedNextMatchPlayer(byName.getValue("GLOW"))
+        vm.toggleGuaranteedNextMatchPlayer(byName.getValue("GHIGH"))
+
+        vm.startNextRound()
+
+        assertEquals(setOf(byName.getValue("W1").id, byName.getValue("W2").id), vm.teamA.value.map { it.id }.toSet())
+        val challengerIds = vm.teamB.value.map { it.id }.toSet()
+        assertTrue(challengerIds.contains(byName.getValue("GLOW").id))
+        assertFalse(challengerIds.contains(byName.getValue("GHIGH").id))
+        assertTrue(vm.teamB.value.any { it.isPriority })
+        assertTrue(vm.guaranteedNextMatchPlayerIds.value.isEmpty())
+    }
+
+    @Test
     fun startNewAutomaticGame_withOnlyOnePriority_doesNotForcePriorityRule() = runBlocking {
         val env = createViewModel(BalancingMode.REBALANCE)
         val vm = env.vm

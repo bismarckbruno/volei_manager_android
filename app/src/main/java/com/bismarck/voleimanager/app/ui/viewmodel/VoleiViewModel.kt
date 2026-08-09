@@ -1536,16 +1536,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun startNextRound() {
-        _guaranteedNextMatchPlayerIds.value = emptyList()
-        val conf = _currentGroupConfig.value
-        if (conf.teamSize <= 0) {
-            startNextRoundRebalance(conf.copy(teamSize = 6))
-            return
-        }
-        val mode = BalancingMode.fromStoredValue(conf.balancingMode)
-        when (mode) {
-            BalancingMode.REBALANCE -> startNextRoundRebalance(conf)
-            BalancingMode.REST -> startNextRoundRest(conf)
+        try {
+            val conf = _currentGroupConfig.value
+            if (conf.teamSize <= 0) {
+                startNextRoundRebalance(conf.copy(teamSize = 6))
+                return
+            }
+            val mode = BalancingMode.fromStoredValue(conf.balancingMode)
+            when (mode) {
+                BalancingMode.REBALANCE -> startNextRoundRebalance(conf)
+                BalancingMode.REST -> startNextRoundRest(conf)
+            }
+        } finally {
+            _guaranteedNextMatchPlayerIds.value = emptyList()
         }
     }
 
@@ -1639,6 +1642,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             var resetStreakAfterAutomaticReplacement = false
             var teamWin = activeWinners.toMutableList()
             var remainingPool = (waitlist + sortedLosers).toMutableList()
+            val guaranteedIdsSet = _guaranteedNextMatchPlayerIds.value.toSet()
+            val shuffledPool = remainingPool.shuffled()
 
             if (teamWin.size > conf.teamSize) {
                 val sorted = TeamBalancer.groupAndInterleave(teamWin.toList()) { getEffectiveGames(it) }
@@ -1646,45 +1651,36 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 val droppedWinners = TeamBalancer.interleaveByElo(sorted.drop(conf.teamSize))
                 remainingPool.addAll(0, droppedWinners)
             } else if (teamWin.size < conf.teamSize) {
-                val needed = conf.teamSize - teamWin.size
-                if (remainingPool.size >= needed) {
-                    val picked = remainingPool.take(needed)
-                    teamWin.addAll(picked)
-                    remainingPool.removeAll(picked)
-                    if (picked.isNotEmpty()) resetStreakAfterAutomaticReplacement = true
-                } else {
-                    if (remainingPool.isNotEmpty()) resetStreakAfterAutomaticReplacement = true
-                    teamWin.addAll(remainingPool)
-                    remainingPool.clear()
-                }
-            }
-
-            if (shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)) {
-                if (teamWin.none { it.isPriority }) {
-                    val incomingPriority = remainingPool.firstOrNull { it.isPriority }
-                    val outgoingWinner = teamWin.lastOrNull()
-                    if (incomingPriority != null && outgoingWinner != null) {
-                        remainingPool.remove(incomingPriority)
-                        teamWin.remove(outgoingWinner)
-                        teamWin.add(incomingPriority)
-                        remainingPool.add(0, outgoingWinner)
+                val guaranteedOrdered = shuffledPool
+                    .filter { guaranteedIdsSet.contains(it.id) }
+                    .sortedBy { getEffectiveGames(it) }
+                while (teamWin.size < conf.teamSize && remainingPool.isNotEmpty()) {
+                    val shouldApplyPriorityRuleInWinner =
+                        shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)
+                    val needsPriorityInWinner = shouldApplyPriorityRuleInWinner && teamWin.none { it.isPriority }
+                    val candidate = when {
+                        needsPriorityInWinner -> {
+                            remainingPool.firstOrNull { it.isPriority }
+                                ?: guaranteedOrdered.firstOrNull { guaranteed -> remainingPool.any { it.id == guaranteed.id } }
+                                ?: remainingPool.firstOrNull()
+                        }
+                        else -> guaranteedOrdered.firstOrNull { guaranteed ->
+                            remainingPool.any { it.id == guaranteed.id }
+                        } ?: remainingPool.firstOrNull()
                     }
-                }
-                if (remainingPool.none { it.isPriority } && teamWin.count { it.isPriority } >= 2) {
-                    val outgoingPriority = teamWin.lastOrNull { it.isPriority }
-                    val incomingNonPriority = remainingPool.firstOrNull { !it.isPriority }
-                    if (outgoingPriority != null && incomingNonPriority != null) {
-                        teamWin.remove(outgoingPriority)
-                        remainingPool.remove(incomingNonPriority)
-                        teamWin.add(incomingNonPriority)
-                        remainingPool.add(0, outgoingPriority)
+                    if (candidate == null) {
+                        break
                     }
+                    teamWin.add(candidate)
+                    remainingPool.remove(candidate)
+                    resetStreakAfterAutomaticReplacement = true
                 }
             }
 
             val teamChal = mutableListOf<Player>()
+            val shouldApplyPriorityRuleInRound = shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)
 
-            if (shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)) {
+            if (shouldApplyPriorityRuleInRound) {
                 val priorityPlayer = remainingPool.firstOrNull { it.isPriority }
                 if (priorityPlayer != null) {
                     teamChal.add(priorityPlayer); remainingPool.remove(priorityPlayer)
@@ -1693,9 +1689,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
             val slotsNeeded = conf.teamSize - teamChal.size
             if (slotsNeeded > 0) {
-                val picked = remainingPool.take(slotsNeeded)
-                teamChal.addAll(picked)
-                remainingPool.removeAll(picked)
+                val guaranteedOrdered = remainingPool
+                    .shuffled()
+                    .filter { guaranteedIdsSet.contains(it.id) }
+                    .sortedBy { getEffectiveGames(it) }
+                val guaranteedPicked = guaranteedOrdered.take(slotsNeeded)
+                teamChal.addAll(guaranteedPicked)
+                remainingPool.removeAll(guaranteedPicked)
+                val pendingSlots = conf.teamSize - teamChal.size
+                if (pendingSlots > 0) {
+                    val queuePicked = remainingPool.take(pendingSlots)
+                    teamChal.addAll(queuePicked)
+                    remainingPool.removeAll(queuePicked)
+                }
             }
 
             _waitingList.value = remainingPool

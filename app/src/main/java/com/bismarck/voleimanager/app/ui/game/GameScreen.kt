@@ -198,9 +198,26 @@ fun GameScreenContent(
     }
 
     confirmWinTeam?.let { team ->
+        val selectedTeamLabel = if (team == "B") {
+            stringResource(R.string.team_b)
+        } else {
+            stringResource(R.string.team_a)
+        }
+        val selectedTeamNames = if (team == "B") {
+            teamB.joinToString(", ") { it.name }
+        } else {
+            teamA.joinToString(", ") { it.name }
+        }.ifBlank { "-" }
         AlertDialog(
             onDismissRequest = { confirmWinTeam = null },
             title = { Text(stringResource(R.string.victorious_team, team)) },
+            text = {
+                Text(
+                    text = "$selectedTeamLabel ($selectedTeamNames)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {

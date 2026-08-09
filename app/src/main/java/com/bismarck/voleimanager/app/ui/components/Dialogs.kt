@@ -182,10 +182,23 @@ fun SubstitutionDialog(
                                 ) {
                                     ListItem(
                                         headlineContent = {
-                                            Text(
-                                                playerIn.name,
-                                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                                            )
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    playerIn.name,
+                                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                                )
+                                                if (playerIn.isPriority) {
+                                                    Icon(
+                                                        Icons.Default.Star,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
                                         },
                                         supportingContent = {
                                             Text(
