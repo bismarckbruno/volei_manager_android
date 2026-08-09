@@ -28,8 +28,8 @@
     <string name="theme">Tema</string>
     <string name="show_elo">Mostrar Elo</string>
     <string name="show_elo_tooltip">Muestra la puntuación de habilidad de cada jugador y el promedio del equipo.</string>
-    <string name="show_lateness">Mostrar tardanza</string>
-    <string name="show_lateness_tooltip">Muestra el promedio de juegos disputados por el grupo antes de la llegada del jugador atrasado.</string>
+    <string name="show_lateness">Mostrar partidos</string>
+    <string name="show_lateness_tooltip">Muestra el número de partidos de cada jugador. Si el jugador llegó tarde, se suma el promedio de partidos que el grupo ya había jugado hasta su llegada.</string>
     <string name="data">Datos</string>
     <string name="export">Exportar</string>
     <string name="import_text">Importar</string>

@@ -28,8 +28,8 @@
     <string name="theme">Theme</string>
     <string name="show_elo">Show Elo</string>
     <string name="show_elo_tooltip">Shows the skill rating of each player and the team average.</string>
-    <string name="show_lateness">Show lateness</string>
-    <string name="show_lateness_tooltip">Shows the average number of games played by the group before the late player arrived.</string>
+    <string name="show_lateness">Show matches</string>
+    <string name="show_lateness_tooltip">Displays the number of matches for each player. If the player arrived late, the average number of matches the group had already played up to their arrival is added.</string>
     <string name="data">Data</string>
     <string name="export">Export</string>
     <string name="import_text">Import</string>

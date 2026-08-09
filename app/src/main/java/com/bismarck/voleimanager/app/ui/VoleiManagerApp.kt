@@ -60,6 +60,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
 
 @Composable
 fun getDisplayGroupName(groupName: String?): String {
@@ -632,7 +633,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onClick = { viewModel.setShowElo(!showElo) }
                             )
                             FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.AlarmAdd, null) },
+                                icon = { Icon(painter = painterResource(R.drawable.bola_de_volei_solida_para_variar_a_cor), null) },
                                 label = { Text(stringResource(R.string.show_lateness)) },
                                 selected = false,
                                 badge = { Switch(checked = showToll, onCheckedChange = null) },

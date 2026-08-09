@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.outlined.AlarmAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.R
@@ -61,6 +62,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -99,6 +101,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
+import com.bismarck.voleimanager.app.util.TollCalculator
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -330,6 +333,7 @@ fun GameScreenContent(
                             config.victoryLimit,
                             isDarkTheme,
                             showElo,
+                            showToll,
                             showScore,
                             rebalancedPlayerIds,
                             { showCancel = true },
@@ -638,6 +642,7 @@ fun ActiveGameView(
     victoryLimit: Int,
     isDarkTheme: Boolean,
     showElo: Boolean,
+    showToll: Boolean,
     showScore: Boolean,
     rebalancedPlayerIds: Set<Int>,
     onCancelRequest: () -> Unit,
@@ -705,9 +710,11 @@ fun ActiveGameView(
 
     val scoreA by viewModel.scoreA.collectAsState()
     val scoreB by viewModel.scoreB.collectAsState()
+    val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
     val lastScoringTeamId by viewModel.lastScoringTeam.collectAsState()
     val rotationRequiredForTeamId by viewModel.rotationRequiredForTeam.collectAsState()
     val restingMap by viewModel.restingPlayers.collectAsState()
+    val targetDate by viewModel.targetDate.collectAsState()
     var streakDialogTeam by remember { mutableStateOf<String?>(null) }
     var streakDraftValue by remember { mutableIntStateOf(0) }
     val maxEditableStreak = (victoryLimit - 1).coerceAtLeast(0)
@@ -1201,6 +1208,9 @@ fun ActiveGameView(
                                         firstStreak,
                                         firstStreakTeamId,
                                         showElo,
+                                        showToll,
+                                        targetDate,
+                                        gamesPlayedMap,
                                         rebalancedPlayerIds,
                                         score = firstScore,
                                         showScore = showScore,
@@ -1236,6 +1246,9 @@ fun ActiveGameView(
                                         secondStreak,
                                         secondStreakTeamId,
                                         showElo,
+                                        showToll,
+                                        targetDate,
+                                        gamesPlayedMap,
                                         rebalancedPlayerIds,
                                         score = secondScore,
                                         showScore = showScore,
@@ -1325,6 +1338,9 @@ fun ActiveGameView(
                             firstStreak,
                             firstStreakTeamId,
                             showElo,
+                            showToll,
+                            targetDate,
+                            gamesPlayedMap,
                             rebalancedPlayerIds,
                             score = firstScore,
                             showScore = showScore,
@@ -1357,6 +1373,9 @@ fun ActiveGameView(
                             secondStreak,
                             secondStreakTeamId,
                             showElo,
+                            showToll,
+                            targetDate,
+                            gamesPlayedMap,
                             rebalancedPlayerIds,
                             score = secondScore,
                             showScore = showScore,
@@ -1653,6 +1672,9 @@ fun ActiveTeamCard(
     streak: Int,
     streakTeamId: String,
     showElo: Boolean,
+    showToll: Boolean,
+    targetDate: String,
+    gamesPlayedMap: Map<Int, Int>,
     rebalancedPlayerIds: Set<Int>,
     score: Int,
     showScore: Boolean = true,
@@ -1820,7 +1842,7 @@ fun ActiveTeamCard(
                         val playerRowScope = rememberCoroutineScope()
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
+                            horizontalArrangement = Arrangement.Start,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .defaultMinSize(minHeight = 40.dp)
@@ -1838,69 +1860,57 @@ fun ActiveTeamCard(
                                     }
                                 )
                         ) {
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                tooltip = {
-                                    PlainTooltip {
-                                        Text(
-                                            text = stringResource(R.string.rebalanced_player_tooltip),
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                },
-                                state = tooltipState,
-                                enableUserInput = false
+                            val actualGamesToday = gamesPlayedMap[p.id] ?: 0
+                            val hasToll = p.dailyToll > 0 && p.tollDate == targetDate
+                            val effectiveGamesToday = TollCalculator.getEffectiveGames(
+                                player = p,
+                                actualGamesToday = actualGamesToday,
+                                today = targetDate
+                            )
+                            val infoBlockAlignment = if (showToll) Alignment.CenterStart else Alignment.Center
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 8.dp, end = 8.dp),
+                                contentAlignment = infoBlockAlignment
                             ) {
+                                PlayerIdentityInlineRow(
+                                    name = p.name,
+                                    isRebalancedPlayer = isRebalancedPlayer,
+                                    isPriority = p.isPriority,
+                                    showElo = showElo,
+                                    eloText = EloCalculator.formatElo(p.elo),
+                                    contentColor = contentColor,
+                                    tooltipState = tooltipState,
+                                    modifier = if (showToll) Modifier.fillMaxWidth() else Modifier.fillMaxWidth(0.9f)
+                                )
+                            }
+
+                            if (showToll) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
+                                    horizontalArrangement = Arrangement.End
                                 ) {
-                                    if (isRebalancedPlayer) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.rebalance_arrows),
-                                            contentDescription = stringResource(R.string.rebalanced_player_icon_cd),
-                                            tint = contentColor.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(
-                                                with(LocalDensity.current) {
-                                                    MaterialTheme.typography.bodyMedium.fontSize.toDp()
-                                                }
-                                            )
+                                    Icon(
+                                        painter = painterResource(R.drawable.bola_de_volei_solida_para_variar_a_cor),
+                                        contentDescription = null,
+                                        tint = contentColor.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(
+                                            with(LocalDensity.current) {
+                                                MaterialTheme.typography.bodySmall.fontSize.toDp()
+                                            }
                                         )
-                                        Spacer(Modifier.width(4.dp))
-                                    }
-                                    Text(
-                                        text = p.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = contentColor
                                     )
+                                    Spacer(Modifier.width(2.dp))
+                                    Text(
+                                        text = effectiveGamesToday.toString(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = contentColor.copy(alpha = 0.7f),
+                                        maxLines = 1
+                                    )
+                                    Spacer(Modifier.width(8.dp))
                                 }
-                            }
-                            if (p.isPriority) {
-                                Spacer(Modifier.width(2.dp))
-                                Icon(
-                                    Icons.Default.Star,
-                                    contentDescription = stringResource(R.string.priority),
-                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                    tint = contentColor.copy(alpha = 0.7f)
-                                )
-                            }
-                            if (showElo) {
-                                Spacer(Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Default.WorkspacePremium,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                    tint = contentColor.copy(alpha = 0.7f)
-                                )
-                                Spacer(Modifier.width(2.dp))
-                                Text(
-                                    text = EloCalculator.formatElo(p.elo),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = contentColor.copy(alpha = 0.7f),
-                                    maxLines = 1
-                                )
                             }
 
                         }
@@ -1922,6 +1932,112 @@ fun ActiveTeamCard(
                     color = buttonTextColor
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayerIdentityInlineRow(
+    name: String,
+    isRebalancedPlayer: Boolean,
+    isPriority: Boolean,
+    showElo: Boolean,
+    eloText: String,
+    contentColor: Color,
+    tooltipState: TooltipState,
+    modifier: Modifier = Modifier
+) {
+    val inlineIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
+    val rebalancedTooltip = stringResource(R.string.rebalanced_player_tooltip)
+    val rebalancedIconCd = stringResource(R.string.rebalanced_player_icon_cd)
+    val priorityCd = stringResource(R.string.priority)
+
+    SubcomposeLayout(modifier = modifier) { constraints ->
+        val suffixPlaceable = subcompose("suffix") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isPriority) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = priorityCd,
+                        modifier = Modifier.size(inlineIconSize),
+                        tint = contentColor.copy(alpha = 0.7f)
+                    )
+                }
+                if (showElo) {
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.WorkspacePremium,
+                        contentDescription = null,
+                        modifier = Modifier.size(inlineIconSize),
+                        tint = contentColor.copy(alpha = 0.7f)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = eloText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.7f),
+                        maxLines = 1
+                    )
+                }
+            }
+        }.first().measure(constraints.copy(minWidth = 0, minHeight = 0))
+
+        val remainingWidth = (constraints.maxWidth - suffixPlaceable.width).coerceAtLeast(0)
+        val namePlaceable = subcompose("name") {
+            val content: @Composable () -> Unit = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isRebalancedPlayer) {
+                        Icon(
+                            painter = painterResource(R.drawable.rebalance_arrows),
+                            contentDescription = rebalancedIconCd,
+                            tint = contentColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(inlineIconSize)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = contentColor
+                    )
+                }
+            }
+
+            if (isRebalancedPlayer) {
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = {
+                        PlainTooltip {
+                            Text(
+                                text = rebalancedTooltip,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
+                    state = tooltipState,
+                    enableUserInput = false
+                ) {
+                    content()
+                }
+            } else {
+                content()
+            }
+        }.first().measure(
+            constraints.copy(minWidth = 0, minHeight = 0, maxWidth = remainingWidth)
+        )
+
+        val layoutWidth = (namePlaceable.width + suffixPlaceable.width).coerceAtMost(constraints.maxWidth)
+        val layoutHeight = maxOf(namePlaceable.height, suffixPlaceable.height)
+
+        layout(layoutWidth, layoutHeight) {
+            val nameY = (layoutHeight - namePlaceable.height) / 2
+            val suffixY = (layoutHeight - suffixPlaceable.height) / 2
+            namePlaceable.placeRelative(0, nameY)
+            suffixPlaceable.placeRelative(namePlaceable.width, suffixY)
         }
     }
 }
