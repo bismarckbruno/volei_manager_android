@@ -87,6 +87,7 @@ enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE, PLA
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 
 internal data class PlayerIdentifier(val id: Int?, val name: String)
+private val historyDiacriticsRegex = Regex("\\p{M}+")
 
 internal fun parseTeamIdentifiers(teamNamesRaw: String, teamIdsRaw: String): List<PlayerIdentifier> {
     val names = teamNamesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -100,45 +101,51 @@ internal fun parseTeamIdentifiers(teamNamesRaw: String, teamIdsRaw: String): Lis
 
 internal fun canonicalHistoryName(name: String): String {
     return java.text.Normalizer.normalize(name.trim(), java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "")
+        .replace(historyDiacriticsRegex, "")
         .lowercase(Locale.ROOT)
 }
 
 internal fun resolveHistoryPlayer(
     identifier: PlayerIdentifier,
     playersById: Map<Int, Player>,
-    playersByCanonicalName: Map<String, Player>
+    playersByCanonicalName: Map<String, Player>,
+    canonicalIdentifierName: String = canonicalHistoryName(identifier.name)
 ): Player? {
     val byId = identifier.id?.let { playersById[it] }
-    val byName = playersByCanonicalName[canonicalHistoryName(identifier.name)]
+    val byName = playersByCanonicalName[canonicalIdentifierName]
     if (byId == null) return byName
-    return if (canonicalHistoryName(byId.name) == canonicalHistoryName(identifier.name)) byId else byName ?: byId
+    return if (canonicalHistoryName(byId.name) == canonicalIdentifierName) byId else byName ?: byId
 }
 
 internal fun buildUniqueHistoryIdentifiers(allIdentifiers: List<PlayerIdentifier>): List<PlayerIdentifier> {
     val uniquePlayerIdentifiers = mutableListOf<PlayerIdentifier>()
+    val seenIds = mutableSetOf<Int>()
+    val indexByCanonicalName = mutableMapOf<String, Int>()
+
     allIdentifiers.forEach { identifier ->
         val canonicalName = canonicalHistoryName(identifier.name)
-        val existingByName = uniquePlayerIdentifiers.find {
-            canonicalHistoryName(it.name) == canonicalName
-        }
-        if (existingByName != null) {
-            if (existingByName.id == null && identifier.id != null) {
-                uniquePlayerIdentifiers.remove(existingByName)
-                uniquePlayerIdentifiers.add(identifier)
+        val existingIndexByName = indexByCanonicalName[canonicalName]
+        if (existingIndexByName != null) {
+            val existing = uniquePlayerIdentifiers[existingIndexByName]
+            if (existing.id == null && identifier.id != null) {
+                uniquePlayerIdentifiers[existingIndexByName] = identifier
+                seenIds.add(identifier.id)
             }
             return@forEach
         }
 
         if (identifier.id != null) {
-            val existingById = uniquePlayerIdentifiers.find { it.id == identifier.id }
-            if (existingById != null) {
-                uniquePlayerIdentifiers.add(identifier.copy(id = null))
+            if (seenIds.contains(identifier.id)) {
+                val fallbackIdentifier = identifier.copy(id = null)
+                uniquePlayerIdentifiers.add(fallbackIdentifier)
+                indexByCanonicalName[canonicalName] = uniquePlayerIdentifiers.lastIndex
                 return@forEach
             }
+            seenIds.add(identifier.id)
         }
 
         uniquePlayerIdentifiers.add(identifier)
+        indexByCanonicalName[canonicalName] = uniquePlayerIdentifiers.lastIndex
     }
     return uniquePlayerIdentifiers
 }
@@ -192,12 +199,11 @@ private fun computeHistoryComputation(
     }
     val averageMatchDurationMinutes = if (matchDurationsMinutes.isEmpty()) null else matchDurationsMinutes.values.average().toInt()
 
-    val allIdentifiers = buildList {
-        sortedHistory.forEach { match ->
-            addAll(parseTeamIdentifiers(match.teamA, match.teamAIds))
-            addAll(parseTeamIdentifiers(match.teamB, match.teamBIds))
-        }
+    val participantsByMatchId = sortedHistory.associate { match ->
+        match.id to (parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds))
     }
+
+    val allIdentifiers = participantsByMatchId.values.flatten()
 
     val uniquePlayerIdentifiers = buildUniqueHistoryIdentifiers(allIdentifiers)
 
@@ -205,10 +211,7 @@ private fun computeHistoryComputation(
     sortedHistory.forEach { match ->
         val duration = matchDurationsMinutes[match.id] ?: 0
         if (duration <= 0) return@forEach
-        val matchIdentifiers = (
-            parseTeamIdentifiers(match.teamA, match.teamAIds) +
-                parseTeamIdentifiers(match.teamB, match.teamBIds)
-            ).toSet()
+        val matchIdentifiers = participantsByMatchId[match.id].orEmpty().toSet()
         matchIdentifiers.forEach { identifier ->
             playedMinutesByIdentifier[identifier] = (playedMinutesByIdentifier[identifier] ?: 0) + duration
         }
@@ -229,10 +232,16 @@ private fun computeHistoryComputation(
     val logsByCanonicalName = filteredLogs.groupBy { canonicalHistoryName(it.playerNameSnapshot) }
 
     val playerDataList = uniquePlayerIdentifiers.map { identifier ->
-        val player = resolveHistoryPlayer(identifier, playersById, playersByCanonicalName)
+        val canonicalIdentifierName = canonicalHistoryName(identifier.name)
+        val player = resolveHistoryPlayer(
+            identifier = identifier,
+            playersById = playersById,
+            playersByCanonicalName = playersByCanonicalName,
+            canonicalIdentifierName = canonicalIdentifierName
+        )
         val logsForPlayer = when {
             player != null -> logsByPlayerId[player.id].orEmpty()
-            else -> logsByCanonicalName[canonicalHistoryName(identifier.name)].orEmpty()
+            else -> logsByCanonicalName[canonicalIdentifierName].orEmpty()
         }
         val games = logsForPlayer.size
         val victories = logsForPlayer.count { it.won == true }
