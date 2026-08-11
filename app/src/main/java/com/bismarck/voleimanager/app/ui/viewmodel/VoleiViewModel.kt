@@ -121,6 +121,41 @@ internal data class ReturningPlayersResolution(
     val waitingList: List<Player>
 )
 
+internal data class TeamSnapshotWithIds(
+    val names: String,
+    val ids: String
+)
+
+private data class TeamSnapshotEntry(
+    val name: String,
+    val id: Int?
+)
+
+internal fun normalizeTeamSnapshotWithIds(
+    rawNames: String,
+    rawIds: String,
+    normalizeName: (String) -> String
+): TeamSnapshotWithIds {
+    val idsByIndex = if (rawIds.isBlank()) emptyList() else rawIds.split(",").map { it.trim().toIntOrNull() }
+    val entries = rawNames
+        .take(255)
+        .split(",")
+        .mapIndexedNotNull { index, rawName ->
+            val normalizedName = normalizeName(rawName)
+            if (normalizedName.isBlank()) return@mapIndexedNotNull null
+            TeamSnapshotEntry(name = normalizedName, id = idsByIndex.getOrNull(index))
+        }
+        .sortedBy { it.name.lowercase(Locale.ROOT) }
+
+    val names = entries.joinToString(", ") { it.name }
+    val ids = if (entries.none { it.id != null }) {
+        ""
+    } else {
+        entries.joinToString(",") { it.id?.toString() ?: "" }
+    }
+    return TeamSnapshotWithIds(names = names, ids = ids)
+}
+
 internal fun applyRestingMark(
     currentResting: Map<Int, Int>,
     currentWaiting: List<Player>,
@@ -1002,6 +1037,20 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    private fun teamSnapshotFromPlayers(players: List<Player>): TeamSnapshotWithIds {
+        val entries = players
+            .mapNotNull { player ->
+                val normalizedName = normalizePersonName(player.name)
+                if (normalizedName.isBlank()) return@mapNotNull null
+                TeamSnapshotEntry(name = normalizedName, id = player.id)
+            }
+            .sortedBy { it.name.lowercase(Locale.ROOT) }
+        return TeamSnapshotWithIds(
+            names = entries.joinToString(", ") { it.name },
+            ids = entries.joinToString(",") { it.id?.toString() ?: "" }
+        )
+    }
+
     private fun calculateTollForNewPlayer(excludePlayerId: Int? = null): Int {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val usageMap = getUsageCountMap(today)
@@ -1552,19 +1601,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
             _lastWinners.value = newWinners; lastLosers = newLosers
             repository.updatePlayers(updatedPlayers)
+            val teamASnapshot = teamSnapshotFromPlayers(cA)
+            val teamBSnapshot = teamSnapshotFromPlayers(cB)
             repository.insertMatch(
                 MatchHistory(
                     date = dateDisplay,
-                    teamA = cA.map { normalizePersonName(it.name) }
-                        .filter { it.isNotBlank() }
-                        .sortedBy { it.lowercase() }
-                        .joinToString(", "),
-                    teamB = cB.map { normalizePersonName(it.name) }
-                        .filter { it.isNotBlank() }
-                        .sortedBy { it.lowercase() }
-                        .joinToString(", "),
-                    teamAIds = cA.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
-                    teamBIds = cB.sortedBy { it.name.lowercase() }.joinToString(",") { it.id.toString() },
+                    teamA = teamASnapshot.names,
+                    teamB = teamBSnapshot.names,
+                    teamAIds = teamASnapshot.ids,
+                    teamBIds = teamBSnapshot.ids,
                     winner = winner,
                     eloPoints = delta,
                     groupName = cA.first().groupName,
@@ -1925,13 +1970,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     private fun normalizeTeamNamesSnapshot(raw: String): String {
-        return raw
-            .take(255)
-            .split(",")
-            .map { normalizePersonName(it) }
-            .filter { it.isNotBlank() }
-            .sortedBy { it.lowercase() }
-            .joinToString(", ")
+        return normalizeTeamSnapshotWithIds(
+            rawNames = raw,
+            rawIds = "",
+            normalizeName = ::normalizePersonName
+        ).names
     }
 
     fun importData(uri: Uri, type: CsvType, context: Context) {
@@ -1946,18 +1989,30 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (backup != null) {
                         val safePlayers = backup.players.map { p ->
                             p.copy(
-                                id = 0,
+                                id = if (p.id > 0) p.id else 0,
                                 name = normalizePersonName(p.name).ifBlank { "Desconhecido" },
                                 groupName = p.groupName.take(50)
                             )
                         }
 
                         val safeHistory = backup.history.map { h ->
+                            val teamASnapshot = normalizeTeamSnapshotWithIds(
+                                rawNames = h.teamA,
+                                rawIds = h.teamAIds,
+                                normalizeName = ::normalizePersonName
+                            )
+                            val teamBSnapshot = normalizeTeamSnapshotWithIds(
+                                rawNames = h.teamB,
+                                rawIds = h.teamBIds,
+                                normalizeName = ::normalizePersonName
+                            )
                             h.copy(
                                 id = 0,
                                 date = h.date.take(20),
-                                teamA = normalizeTeamNamesSnapshot(h.teamA),
-                                teamB = normalizeTeamNamesSnapshot(h.teamB),
+                                teamA = teamASnapshot.names,
+                                teamB = teamBSnapshot.names,
+                                teamAIds = teamASnapshot.ids,
+                                teamBIds = teamBSnapshot.ids,
                                 winner = h.winner.take(50),
                                 groupName = h.groupName.take(50)
                             )
@@ -2365,16 +2420,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (historyArray != null) {
             for (element in historyArray) {
                 val match = element.asJsonObject
-                if (match.has("teamA")) {
-                    match.addProperty("teamA", normalizeTeamNamesSnapshot(match.get("teamA").asString))
-                }
-                if (match.has("teamB")) {
-                    match.addProperty("teamB", normalizeTeamNamesSnapshot(match.get("teamB").asString))
-                }
-                if (!match.has("teamAScore")) match.addProperty("teamAScore", 0)
-                if (!match.has("teamBScore")) match.addProperty("teamBScore", 0)
                 if (!match.has("teamAIds")) match.addProperty("teamAIds", "")
                 if (!match.has("teamBIds")) match.addProperty("teamBIds", "")
+                val teamASnapshot = normalizeTeamSnapshotWithIds(
+                    rawNames = match.get("teamA")?.asString ?: "",
+                    rawIds = match.get("teamAIds")?.asString ?: "",
+                    normalizeName = ::normalizePersonName
+                )
+                val teamBSnapshot = normalizeTeamSnapshotWithIds(
+                    rawNames = match.get("teamB")?.asString ?: "",
+                    rawIds = match.get("teamBIds")?.asString ?: "",
+                    normalizeName = ::normalizePersonName
+                )
+                match.addProperty("teamA", teamASnapshot.names)
+                match.addProperty("teamB", teamBSnapshot.names)
+                match.addProperty("teamAIds", teamASnapshot.ids)
+                match.addProperty("teamBIds", teamBSnapshot.ids)
+                if (!match.has("teamAScore")) match.addProperty("teamAScore", 0)
+                if (!match.has("teamBScore")) match.addProperty("teamBScore", 0)
                 if (!match.has("teamAAverageElo")) match.addProperty("teamAAverageElo", 0.0)
                 if (!match.has("teamBAverageElo")) match.addProperty("teamBAverageElo", 0.0)
                 if (!match.has("startTimestamp")) match.addProperty("startTimestamp", 0L)

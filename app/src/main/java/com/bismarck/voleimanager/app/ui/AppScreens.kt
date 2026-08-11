@@ -86,7 +86,62 @@ data class HistoryPlayerInfo(
 enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE, PLAYED_TIME }
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 
-private data class PlayerIdentifier(val id: Int?, val name: String)
+internal data class PlayerIdentifier(val id: Int?, val name: String)
+
+internal fun parseTeamIdentifiers(teamNamesRaw: String, teamIdsRaw: String): List<PlayerIdentifier> {
+    val names = teamNamesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    val ids = if (teamIdsRaw.isBlank()) {
+        emptyList()
+    } else {
+        teamIdsRaw.split(",").map { it.trim().toIntOrNull() }
+    }
+    return names.mapIndexed { index, name -> PlayerIdentifier(ids.getOrNull(index), name) }
+}
+
+internal fun canonicalHistoryName(name: String): String {
+    return java.text.Normalizer.normalize(name.trim(), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "")
+        .lowercase(Locale.ROOT)
+}
+
+internal fun resolveHistoryPlayer(
+    identifier: PlayerIdentifier,
+    playersById: Map<Int, Player>,
+    playersByCanonicalName: Map<String, Player>
+): Player? {
+    val byId = identifier.id?.let { playersById[it] }
+    val byName = playersByCanonicalName[canonicalHistoryName(identifier.name)]
+    if (byId == null) return byName
+    return if (canonicalHistoryName(byId.name) == canonicalHistoryName(identifier.name)) byId else byName ?: byId
+}
+
+internal fun buildUniqueHistoryIdentifiers(allIdentifiers: List<PlayerIdentifier>): List<PlayerIdentifier> {
+    val uniquePlayerIdentifiers = mutableListOf<PlayerIdentifier>()
+    allIdentifiers.forEach { identifier ->
+        val canonicalName = canonicalHistoryName(identifier.name)
+        val existingByName = uniquePlayerIdentifiers.find {
+            canonicalHistoryName(it.name) == canonicalName
+        }
+        if (existingByName != null) {
+            if (existingByName.id == null && identifier.id != null) {
+                uniquePlayerIdentifiers.remove(existingByName)
+                uniquePlayerIdentifiers.add(identifier)
+            }
+            return@forEach
+        }
+
+        if (identifier.id != null) {
+            val existingById = uniquePlayerIdentifiers.find { it.id == identifier.id }
+            if (existingById != null) {
+                uniquePlayerIdentifiers.add(identifier.copy(id = null))
+                return@forEach
+            }
+        }
+
+        uniquePlayerIdentifiers.add(identifier)
+    }
+    return uniquePlayerIdentifiers
+}
 
 private data class HistoryComputationResult(
     val sortedHistory: List<MatchHistory>,
@@ -137,43 +192,30 @@ private fun computeHistoryComputation(
     }
     val averageMatchDurationMinutes = if (matchDurationsMinutes.isEmpty()) null else matchDurationsMinutes.values.average().toInt()
 
-    fun parseTeam(teamNamesRaw: String, teamIdsRaw: String): List<PlayerIdentifier> {
-        val names = teamNamesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-        val ids = teamIdsRaw.split(",").mapNotNull { it.trim().toIntOrNull() }
-        return names.mapIndexed { index, name -> PlayerIdentifier(ids.getOrNull(index), name) }
-    }
-
     val allIdentifiers = buildList {
         sortedHistory.forEach { match ->
-            addAll(parseTeam(match.teamA, match.teamAIds))
-            addAll(parseTeam(match.teamB, match.teamBIds))
+            addAll(parseTeamIdentifiers(match.teamA, match.teamAIds))
+            addAll(parseTeamIdentifiers(match.teamB, match.teamBIds))
         }
     }
 
-    val uniquePlayerIdentifiers = mutableListOf<PlayerIdentifier>()
-    allIdentifiers.forEach { identifier ->
-        if (identifier.id != null && uniquePlayerIdentifiers.any { it.id == identifier.id }) return@forEach
-        val existingByName = uniquePlayerIdentifiers.find { it.name == identifier.name }
-        if (existingByName == null) {
-            uniquePlayerIdentifiers.add(identifier)
-        } else if (existingByName.id == null && identifier.id != null) {
-            uniquePlayerIdentifiers.remove(existingByName)
-            uniquePlayerIdentifiers.add(identifier)
-        }
-    }
+    val uniquePlayerIdentifiers = buildUniqueHistoryIdentifiers(allIdentifiers)
 
     val playedMinutesByIdentifier = mutableMapOf<PlayerIdentifier, Int>()
     sortedHistory.forEach { match ->
         val duration = matchDurationsMinutes[match.id] ?: 0
         if (duration <= 0) return@forEach
-        val matchIdentifiers = (parseTeam(match.teamA, match.teamAIds) + parseTeam(match.teamB, match.teamBIds)).toSet()
+        val matchIdentifiers = (
+            parseTeamIdentifiers(match.teamA, match.teamAIds) +
+                parseTeamIdentifiers(match.teamB, match.teamBIds)
+            ).toSet()
         matchIdentifiers.forEach { identifier ->
             playedMinutesByIdentifier[identifier] = (playedMinutesByIdentifier[identifier] ?: 0) + duration
         }
     }
 
     val playersById = groupPlayers.associateBy { it.id }
-    val playersByName = groupPlayers.associateBy { it.name }
+    val playersByCanonicalName = groupPlayers.associateBy { canonicalHistoryName(it.name) }
     val eloDateStr = if (historyDate != null) {
         try {
             val parts = historyDate.split("/")
@@ -184,13 +226,13 @@ private fun computeHistoryComputation(
     } else null
     val filteredLogs = if (eloDateStr != null) eloLogs.filter { it.date == eloDateStr } else eloLogs
     val logsByPlayerId = filteredLogs.groupBy { it.playerId }
-    val logsByName = filteredLogs.groupBy { it.playerNameSnapshot }
+    val logsByCanonicalName = filteredLogs.groupBy { canonicalHistoryName(it.playerNameSnapshot) }
 
     val playerDataList = uniquePlayerIdentifiers.map { identifier ->
-        val player = if (identifier.id != null) playersById[identifier.id] else playersByName[identifier.name]
+        val player = resolveHistoryPlayer(identifier, playersById, playersByCanonicalName)
         val logsForPlayer = when {
             player != null -> logsByPlayerId[player.id].orEmpty()
-            else -> logsByName[identifier.name].orEmpty()
+            else -> logsByCanonicalName[canonicalHistoryName(identifier.name)].orEmpty()
         }
         val games = logsForPlayer.size
         val victories = logsForPlayer.count { it.won == true }
