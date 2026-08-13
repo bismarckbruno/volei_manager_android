@@ -1562,7 +1562,7 @@ fun HistoryItem(
                     )
                 }
                 Text(
-                    "VS",
+                    stringResource(R.string.vs),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     style = MaterialTheme.typography.titleSmall

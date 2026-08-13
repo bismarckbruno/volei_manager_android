@@ -66,7 +66,9 @@ data class PendingMergeImportData(
     val players: List<Player>,
     val history: List<MatchHistory>,
     val logs: List<PlayerEloLog>,
-    val overlappingGroups: List<String>
+    val overlappingGroups: List<String>,
+    val duplicatePlayerNames: List<String> = emptyList(),
+    val duplicatePlayerGroups: Map<String, Int> = emptyMap()
 )
 
 data class GameStateSnapshot(
@@ -154,6 +156,92 @@ internal fun normalizeTeamSnapshotWithIds(
         entries.joinToString(",") { it.id?.toString() ?: "" }
     }
     return TeamSnapshotWithIds(names = names, ids = ids)
+}
+
+internal fun canonicalizePersonNameCompat(name: String): String {
+    val normalized = name.trim().replace(Regex("\\s+"), " ")
+    val noAccents = Normalizer.normalize(normalized, Normalizer.Form.NFD)
+        .replace(Regex("\\p{M}+"), "")
+    return noAccents.lowercase(Locale.ROOT)
+}
+
+internal fun collectDuplicatePlayerNames(players: List<Player>): List<String> {
+    val duplicates = linkedSetOf<String>()
+    players.groupBy { it.groupName }.forEach { (_, groupPlayers) ->
+        val seen = mutableSetOf<String>()
+        groupPlayers.forEach { player ->
+            val key = canonicalizePersonNameCompat(player.name)
+            if (key.isBlank()) return@forEach
+            if (key in seen) {
+                duplicates.add(player.name.trim())
+            } else {
+                seen.add(key)
+            }
+        }
+    }
+    return duplicates.toList()
+}
+
+internal fun resolveImportedPlayersForInsert(
+    players: List<Player>,
+    existingNamesByGroup: Map<String, Set<String>> = emptyMap()
+): Pair<List<Player>, List<String>> {
+    val accepted = mutableListOf<Player>()
+    val skipped = linkedSetOf<String>()
+    players.groupBy { it.groupName }.forEach { (groupName, groupPlayers) ->
+        val seenInPayload = mutableSetOf<String>()
+        val existingNames = existingNamesByGroup[groupName].orEmpty()
+        groupPlayers.forEach { player ->
+            val canonicalName = canonicalizePersonNameCompat(player.name)
+            if (canonicalName.isBlank()) return@forEach
+            if (canonicalName in existingNames || canonicalName in seenInPayload) {
+                skipped.add("${player.name.trim()} [$groupName]")
+                return@forEach
+            }
+            seenInPayload.add(canonicalName)
+            accepted.add(player)
+        }
+    }
+    return accepted to skipped.toList()
+}
+
+internal fun resolveImportedPlayersWithAutoRename(
+    players: List<Player>,
+    existingNamesByGroup: Map<String, Set<String>> = emptyMap()
+): Pair<List<Player>, List<String>> {
+    val accepted = mutableListOf<Player>()
+    val renamed = linkedSetOf<String>()
+    players.groupBy { it.groupName }.forEach { (groupName, groupPlayers) ->
+        val seenInPayload = mutableSetOf<String>()
+        val existingNames = existingNamesByGroup[groupName].orEmpty().toMutableSet()
+        groupPlayers.forEach { player ->
+            val canonicalName = canonicalizePersonNameCompat(player.name)
+            if (canonicalName.isBlank()) return@forEach
+        val baseName = player.name.trim().replace(Regex("\\s+"), " ").ifBlank { "Desconhecido" }
+            if (canonicalName in existingNames || canonicalName in seenInPayload) {
+                var nextIndex = 2
+                var candidate = baseName
+                while (true) {
+                    val candidateCanonical = canonicalizePersonNameCompat(candidate)
+                    if (candidateCanonical !in existingNames && candidateCanonical !in seenInPayload) {
+                        break
+                    }
+                    candidate = "${baseName} $nextIndex"
+                    nextIndex++
+                }
+                val renamedPlayer = player.copy(name = candidate)
+                renamed.add("${player.name.trim()} -> ${renamedPlayer.name} [$groupName]")
+                accepted.add(renamedPlayer)
+                seenInPayload.add(canonicalizePersonNameCompat(candidate))
+                existingNames.add(canonicalizePersonNameCompat(candidate))
+                return@forEach
+            }
+            seenInPayload.add(canonicalName)
+            existingNames.add(canonicalName)
+            accepted.add(player)
+        }
+    }
+    return accepted to renamed.toList()
 }
 
 internal fun applyRestingMark(
@@ -1959,10 +2047,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     private fun canonicalPersonName(name: String): String {
-        val normalized = normalizePersonName(name)
-        val noAccents = Normalizer.normalize(normalized, Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-        return noAccents.lowercase(Locale.ROOT)
+        return canonicalizePersonNameCompat(name)
     }
 
     private fun areSameCanonicalName(a: String, b: String): Boolean {
@@ -2033,13 +2118,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             safeLogs.map { it.groupName }).toSet()
                         val existingGroups = repository.getAllGroupNames().toSet()
                         val overlapping = importedGroups.intersect(existingGroups).toList()
+                        val duplicatePlayerNames = collectDuplicatePlayerNames(safePlayers)
+                        val duplicatePlayerGroups = safePlayers.groupBy { it.groupName }
+                            .mapValues { (_, players) ->
+                                players.groupBy { canonicalizePersonNameCompat(it.name) }
+                                    .count { it.value.size > 1 }
+                            }
+                            .filterValues { it > 0 }
 
-                        if (overlapping.isNotEmpty()) {
+                        if (overlapping.isNotEmpty() || duplicatePlayerNames.isNotEmpty()) {
                             _pendingMergeImport.value = PendingMergeImportData(
                                 players = safePlayers,
                                 history = safeHistory,
                                 logs = safeLogs,
-                                overlappingGroups = overlapping
+                                overlappingGroups = overlapping,
+                                duplicatePlayerNames = duplicatePlayerNames,
+                                duplicatePlayerGroups = duplicatePlayerGroups
                             )
                         } else {
                             performImportWithDedup(safePlayers, safeHistory, safeLogs, emptySet())
@@ -2085,10 +2179,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 val importedGroups = list.map { it.groupName }.toSet()
                                 val existingGroups = repository.getAllGroupNames().toSet()
                                 val overlapping = importedGroups.intersect(existingGroups)
-                                if (overlapping.isNotEmpty()) {
+                                val duplicatePlayerNames = collectDuplicatePlayerNames(list)
+                                val duplicatePlayerGroups = list.groupBy { it.groupName }
+                                    .mapValues { (_, players) ->
+                                        players.groupBy { canonicalizePersonNameCompat(it.name) }
+                                            .count { it.value.size > 1 }
+                                    }
+                                    .filterValues { it > 0 }
+                                if (overlapping.isNotEmpty() || duplicatePlayerNames.isNotEmpty()) {
                                     _pendingMergeImport.value = PendingMergeImportData(
                                         players = list, history = emptyList(), logs = emptyList(),
-                                        overlappingGroups = overlapping.toList()
+                                        overlappingGroups = overlapping.toList(),
+                                        duplicatePlayerNames = duplicatePlayerNames,
+                                        duplicatePlayerGroups = duplicatePlayerGroups
                                     )
                                 } else {
                                     performImportWithDedup(list, emptyList(), emptyList(), emptySet())
@@ -2194,15 +2297,41 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
-    fun confirmMergeImport() {
+    fun confirmMergeImport(renameDuplicates: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             val data = _pendingMergeImport.value ?: return@launch
-            performImportWithDedup(
-                players = data.players,
-                history = data.history,
-                logs = data.logs,
-                overlappingGroups = data.overlappingGroups.toSet()
-            )
+            val resolvedPlayers = if (renameDuplicates) {
+                val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
+                    repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+                }
+                resolveImportedPlayersWithAutoRename(data.players, existingNamesByGroup).first
+            } else {
+                val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
+                    repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+                }
+                resolveImportedPlayersForInsert(data.players, existingNamesByGroup).first
+            }
+
+            val groupedByGroup = resolvedPlayers.groupBy { it.groupName }
+            groupedByGroup.forEach { (_, playersInGroup) ->
+                if (playersInGroup.isNotEmpty()) repository.insertPlayers(playersInGroup)
+            }
+
+            val historyByGroup = data.history.groupBy { it.groupName }
+            for ((groupName, groupHistory) in historyByGroup) {
+                val existingKeys = repository.getHistoryByGroupSync(groupName)
+                    .map { Triple(it.date, it.teamA, it.teamB) }.toSet()
+                val toInsert = groupHistory.filter { Triple(it.date, it.teamA, it.teamB) !in existingKeys }
+                if (toInsert.isNotEmpty()) repository.insertHistoryList(toInsert)
+            }
+
+            val logsByGroup = data.logs.groupBy { it.groupName }
+            for ((groupName, groupLogs) in logsByGroup) {
+                val existingKeys = repository.getEloLogsByGroupSync(groupName)
+                    .map { Pair(it.playerNameSnapshot, it.date) }.toSet()
+                val toInsert = groupLogs.filter { Pair(it.playerNameSnapshot, it.date) !in existingKeys }
+                if (toInsert.isNotEmpty()) repository.insertEloLogs(toInsert)
+            }
             _pendingMergeImport.value = null
         }
     }
@@ -2217,17 +2346,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         logs: List<PlayerEloLog>,
         overlappingGroups: Set<String>
     ) {
-        // Players: dedup by canonical name within same group
-        val playersByGroup = players.groupBy { it.groupName }
+        val existingNamesByGroup = overlappingGroups.associateWith { groupName ->
+            repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+        }
+        val (playersToInsert, _) = resolveImportedPlayersForInsert(players, existingNamesByGroup)
+        val playersByGroup = playersToInsert.groupBy { it.groupName }
         for ((groupName, groupPlayers) in playersByGroup) {
-            val toInsert = if (groupName in overlappingGroups) {
-                val existingNames = repository.getPlayersByGroupSync(groupName)
-                    .map { canonicalPersonName(it.name) }.toSet()
-                groupPlayers.filter { canonicalPersonName(it.name) !in existingNames }
-            } else {
-                groupPlayers
-            }
-            if (toInsert.isNotEmpty()) repository.insertPlayers(toInsert)
+            if (groupPlayers.isNotEmpty()) repository.insertPlayers(groupPlayers)
         }
 
         // History: dedup by date+teamA+teamB within same group

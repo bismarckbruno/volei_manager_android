@@ -338,13 +338,27 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val pendingMergeImport by viewModel.pendingMergeImport.collectAsState()
     pendingMergeImport?.let { pending ->
         val groupList = pending.overlappingGroups.joinToString(", ")
+        val duplicateSummary = if (pending.duplicatePlayerNames.isNotEmpty()) {
+            val preview = pending.duplicatePlayerNames.take(8).joinToString(", ")
+            "\n\n${stringResource(R.string.import_duplicate_names_detected, preview)}${if (pending.duplicatePlayerNames.size > 8) "..." else ""}"
+        } else ""
+        val dialogText = if (groupList.isBlank()) {
+            "${stringResource(R.string.import_duplicate_name_dialog_text)}${duplicateSummary}"
+        } else {
+            "${stringResource(R.string.import_merge_text, groupList)}${duplicateSummary}"
+        }
         AlertDialog(
             onDismissRequest = { viewModel.cancelMergeImport() },
             title = { Text(stringResource(R.string.import_merge_title)) },
-            text = { Text(stringResource(R.string.import_merge_text, groupList)) },
+            text = { Text(dialogText) },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmMergeImport() }) {
-                    Text(stringResource(R.string.import_merge_action))
+                Row {
+                    TextButton(onClick = { viewModel.confirmMergeImport(false) }) {
+                        Text(stringResource(R.string.import_keep_first_and_skip))
+                    }
+                    TextButton(onClick = { viewModel.confirmMergeImport(true) }) {
+                        Text(stringResource(R.string.import_rename_duplicates))
+                    }
                 }
             },
             dismissButton = {

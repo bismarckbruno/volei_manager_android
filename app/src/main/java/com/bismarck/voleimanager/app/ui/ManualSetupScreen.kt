@@ -125,7 +125,7 @@ fun ManualSetupScreen(
                     teamA.size,
                     MaterialTheme.colorScheme.primary
                 )
-                Text("VS", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.vs), fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // Usando a cor estendida importada do Theme.kt gerado pelo Figma
                 TeamCounter(
                     stringResource(R.string.team_b),

@@ -101,6 +101,10 @@
     <string name="import_merge_title">Combinar dados do grupo?</string>
     <string name="import_merge_text">Os dados importados pertencem ao(s) grupo(s): %1$s. Esses grupos já existem no app. Os dados novos serão combinados com os existentes (duplicatas serão ignoradas). Confirmar?</string>
     <string name="import_merge_action">Combinar</string>
+    <string name="import_duplicate_name_dialog_text">Os dados importados contêm nomes de jogadores duplicados. Você pode manter a primeira entrada e ignorar as demais, ou renomear automaticamente as duplicatas como Nome 2, Nome 3, etc. Deseja continuar?</string>
+    <string name="import_duplicate_names_detected">Nomes duplicados detectados no arquivo: %1$s</string>
+    <string name="import_keep_first_and_skip">Manter o primeiro e ignorar</string>
+    <string name="import_rename_duplicates">Renomear duplicatas</string>
     <string name="move_down">Descer um</string>
     <string name="move_up">Subir um</string>
     <string name="by_elo">Por Elo</string>
@@ -108,6 +112,7 @@
     <string name="victory">VITÓRIA</string>
     <string name="team_a">Time A</string>
     <string name="team_b">Time B</string>
+    <string name="vs">VS</string>
     <string name="score_latest_point_tooltip">%1$s fez o ponto mais recente.</string>
     <string name="score_rotation_tooltip">%1$s deve fazer a rotação.</string>
     <string name="edit_streak_title">Editar sequência - %1$s</string>
