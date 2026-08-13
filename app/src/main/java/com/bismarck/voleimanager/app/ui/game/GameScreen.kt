@@ -14,6 +14,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -63,10 +65,13 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.focus.onFocusChanged
@@ -152,6 +157,16 @@ fun GameScreenContent(
     var subOut by remember { mutableStateOf<Player?>(null) }
     var editP by remember { mutableStateOf<Player?>(null) }
     var confirmWinTeam by remember { mutableStateOf<String?>(null) }
+    var playerSearchExpanded by rememberSaveable { mutableStateOf(false) }
+    var playerSearchQuery by rememberSaveable { mutableStateOf("") }
+    val visiblePlayers = remember(sortedPlayers, playerSearchQuery) {
+        if (playerSearchQuery.isBlank()) {
+            sortedPlayers
+        } else {
+            val query = playerSearchQuery.trim()
+            sortedPlayers.filter { it.name.contains(query, ignoreCase = true) }
+        }
+    }
 
     if (showCancel) AlertDialog(
         onDismissRequest = { showCancel = false },
@@ -425,37 +440,17 @@ fun GameScreenContent(
 
                                         if (sortedPlayers.isNotEmpty()) {
                                             item {
-                                                Row(
-                                                    Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(top = 6.dp),
-                                                    Arrangement.SpaceBetween,
-                                                    Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        stringResource(R.string.players_word),
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                    val all =
-                                                        sortedPlayers.all { presentIds.contains(it.id) }
-                                                    TextButton(
-                                                        onClick = {
-                                                            viewModel.setAllPlayersPresence(
-                                                                sortedPlayers,
-                                                                !all
-                                                            )
-                                                        }) {
-                                                        Text(
-                                                            if (all) stringResource(R.string.uncheck_all) else stringResource(
-                                                                R.string.check_all
-                                                            ),
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
-                                                        )
-                                                    }
-                                                }
+                                                PlayerListHeader(
+                                                    title = stringResource(R.string.players_word),
+                                                    allPlayersSelected = visiblePlayers.all { presentIds.contains(it.id) },
+                                                    onToggleAll = { checked -> viewModel.setAllPlayersPresence(visiblePlayers, checked) },
+                                                    searchExpanded = playerSearchExpanded,
+                                                    searchQuery = playerSearchQuery,
+                                                    onSearchExpandedChange = { playerSearchExpanded = it },
+                                                    onSearchQueryChange = { playerSearchQuery = it }
+                                                )
                                             }
-                                            items(sortedPlayers) { p ->
+                                            items(visiblePlayers) { p ->
                                                 PlayerCard(
                                                     p,
                                                     presentIds.contains(p.id),
@@ -468,6 +463,17 @@ fun GameScreenContent(
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
                                                     { editP = p })
+                                            }
+                                            if (visiblePlayers.isEmpty()) {
+                                                item {
+                                                    Text(
+                                                        text = stringResource(R.string.no_players),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        textAlign = TextAlign.Center,
+                                                        modifier = Modifier.fillMaxWidth().padding(24.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -527,37 +533,17 @@ fun GameScreenContent(
                                             }
                                         } else {
                                             item {
-                                                Row(
-                                                    Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(top = 6.dp),
-                                                    Arrangement.SpaceBetween,
-                                                    Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        stringResource(R.string.players_word),
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                    val all =
-                                                        sortedPlayers.all { presentIds.contains(it.id) }
-                                                    TextButton(
-                                                        onClick = {
-                                                            viewModel.setAllPlayersPresence(
-                                                                sortedPlayers,
-                                                                !all
-                                                            )
-                                                        }) {
-                                                        Text(
-                                                            if (all) stringResource(R.string.uncheck_all) else stringResource(
-                                                                R.string.check_all
-                                                            ),
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
-                                                        )
-                                                    }
-                                                }
+                                                PlayerListHeader(
+                                                    title = stringResource(R.string.players_word),
+                                                    allPlayersSelected = visiblePlayers.all { presentIds.contains(it.id) },
+                                                    onToggleAll = { checked -> viewModel.setAllPlayersPresence(visiblePlayers, checked) },
+                                                    searchExpanded = playerSearchExpanded,
+                                                    searchQuery = playerSearchQuery,
+                                                    onSearchExpandedChange = { playerSearchExpanded = it },
+                                                    onSearchQueryChange = { playerSearchQuery = it }
+                                                )
                                             }
-                                            items(sortedPlayers) { p ->
+                                            items(visiblePlayers) { p ->
                                                 PlayerCard(
                                                     p,
                                                     presentIds.contains(p.id),
@@ -570,6 +556,17 @@ fun GameScreenContent(
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
                                                     { editP = p })
+                                            }
+                                            if (visiblePlayers.isEmpty()) {
+                                                item {
+                                                    Text(
+                                                        text = stringResource(R.string.no_players),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        textAlign = TextAlign.Center,
+                                                        modifier = Modifier.fillMaxWidth().padding(24.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1526,6 +1523,101 @@ fun ActiveGameView(
             contentAlpha = sheetContentAlpha,
             onDismiss = ::closeWaitingSheet
         )
+    }
+}
+
+@Composable
+private fun PlayerListHeader(
+    title: String,
+    allPlayersSelected: Boolean,
+    onToggleAll: (Boolean) -> Unit,
+    searchExpanded: Boolean,
+    searchQuery: String,
+    onSearchExpandedChange: (Boolean) -> Unit,
+    onSearchQueryChange: (String) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+    var hasFocus by remember { mutableStateOf(false) }
+
+    LaunchedEffect(searchExpanded) {
+        if (searchExpanded) {
+            hasFocus = false
+            focusRequester.requestFocus()
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AnimatedContent(targetState = searchExpanded, label = "playerSearchToggle") { expanded ->
+            if (expanded) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { newValue ->
+                        onSearchQueryChange(newValue)
+                        if (newValue.isBlank()) {
+                            onSearchExpandedChange(false)
+                            focusManager.clearFocus()
+                        }
+                    },
+                    singleLine = true,
+                    placeholder = { Text(stringResource(R.string.search_player)) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            onSearchQueryChange("")
+                            onSearchExpandedChange(false)
+                            focusManager.clearFocus()
+                        }) {
+                            Text("X", fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    modifier = Modifier
+                        .widthIn(min = 180.dp, max = 240.dp)
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { state ->
+                            if (state.isFocused) {
+                                hasFocus = true
+                            } else if (hasFocus) {
+                                hasFocus = false
+                                onSearchQueryChange("")
+                                onSearchExpandedChange(false)
+                            }
+                        }
+                )
+            } else {
+                IconButton(
+                    onClick = { onSearchExpandedChange(true) },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = stringResource(R.string.search_player),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        if (!searchExpanded) {
+            Spacer(Modifier.width(8.dp))
+            Text(title, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.weight(1f))
+        TextButton(onClick = { onToggleAll(!allPlayersSelected) }) {
+            Text(
+                if (allPlayersSelected) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

@@ -44,6 +44,7 @@
     <string name="delete">Delete</string>
     <string name="delete_player_title">Delete %1$s?</string>
     <string name="delete_player_text">The person will be removed from the active list, but their match history WILL BE KEPT.</string>
+    <string name="player_was_deleted">This player was deleted from the active list, only their match history remains.</string>
     <string name="delete_group_title">Delete group \"%1$s\"?</string>
     <string name="delete_group_text">Are you sure? All data for this group will be permanently deleted.</string>
     <string name="add_new_player">Add new player</string>
@@ -85,6 +86,18 @@
     <string name="remove_from_queue">Remove from queue</string>
     <string name="about_code">About the code</string>
     <string name="all_dates">All dates</string>
+    <string name="all_dates_with_player">All dates with %1$s</string>
+    <string name="search_player">Search player</string>
+    <string name="clear_search">Clear search</string>
+    <string name="filter_player">Filter by player</string>
+    <string name="select_player">Select player</string>
+    <string name="all_players">All players</string>
+    <string name="clear_filter">Clear filter</string>
+    <string name="apply_filter">Apply filter</string>
+    <string name="filter">Filter</string>
+    <string name="matches_played">Matches played</string>
+    <string name="victories">Victories</string>
+    <string name="played_time">Played time</string>
     <string name="rename_group">Rename group</string>
     <string name="start_of_queue">Start of queue</string>
     <string name="new_registration">New registration</string>

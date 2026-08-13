@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,6 +48,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
@@ -61,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
@@ -80,7 +85,8 @@ data class HistoryPlayerInfo(
     val name: String,
     val gamesPlayed: Int,
     val victories: Int,
-    val playedMinutes: Int
+    val playedMinutes: Int,
+    val isDeleted: Boolean = false
 )
 
 enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE, PLAYED_TIME }
@@ -162,13 +168,21 @@ private data class HistoryComputationResult(
 private fun computeHistoryComputation(
     groupHistory: List<MatchHistory>,
     historyDate: String?,
+    historyPlayerFilter: String?,
+    restrictToDates: List<String>?,
     matchSortMode: MatchSortMode,
     groupPlayers: List<Player>,
     eloLogs: List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>,
     playerSortMode: PlayerSortMode
 ): HistoryComputationResult {
     val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-    val filteredHistory = groupHistory.filter { historyDate == null || it.date.startsWith(historyDate) }
+    val restrictedHistory = if (restrictToDates == null) {
+        groupHistory
+    } else {
+        val allowedDates = restrictToDates.toSet()
+        groupHistory.filter { match -> allowedDates.any { match.date.startsWith(it) } }
+    }
+    val filteredHistory = restrictedHistory.filter { historyDate == null || it.date.startsWith(historyDate) }
     val sortedHistory = when (matchSortMode) {
         MatchSortMode.NEWEST -> filteredHistory.sortedWith(
             compareByDescending<MatchHistory> {
@@ -254,7 +268,8 @@ private fun computeHistoryComputation(
             name = player?.name ?: identifier.name,
             gamesPlayed = games,
             victories = victories,
-            playedMinutes = playedMinutesByIdentifier[identifier] ?: 0
+            playedMinutes = playedMinutesByIdentifier[identifier] ?: 0,
+            isDeleted = player == null
         )
     }
 
@@ -365,6 +380,51 @@ fun HistoryScreen(
     val eloLogs by viewModel.currentGroupEloLogs.collectAsState()
     val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
 
+    var historyPlayerFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var showHistoryPlayerDialog by remember { mutableStateOf(false) }
+    var tempHistoryPlayerFilter by remember { mutableStateOf<String?>(null) }
+    var historyPlayerSearchQuery by remember { mutableStateOf("") }
+    val historyPlayerFilterOptions = remember(groupHistory) {
+        buildUniqueHistoryIdentifiers(
+            groupHistory.flatMap { match ->
+                parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds)
+            }
+        ).map { it.name }.sortedBy { it.lowercase(Locale.getDefault()) }
+    }
+    val activeHistoryPlayerFilter = historyPlayerFilter?.trim()?.ifBlank { null }
+    val selectedHistoryDate = historyDate
+
+    val dateOptionsForPlayer = remember(groupHistory, availableDates, activeHistoryPlayerFilter) {
+        val targetPlayer = activeHistoryPlayerFilter.orEmpty()
+        if (targetPlayer.isBlank()) {
+            availableDates
+        } else {
+            val canonical = canonicalHistoryName(targetPlayer)
+            availableDates.filter { date ->
+                groupHistory.any { match ->
+                    val namesInMatch = (parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds))
+                        .map { canonicalHistoryName(it.name) }
+                    match.date.startsWith(date) && namesInMatch.any { it == canonical }
+                }
+            }
+        }
+    }
+
+    val restrictHistoryToDates = if (activeHistoryPlayerFilter != null && selectedHistoryDate == null) dateOptionsForPlayer else null
+
+    val visibleHistoryDateLabel = when {
+        activeHistoryPlayerFilter == null -> selectedHistoryDate?.let { formatLocalizedDate(it) } ?: stringResource(R.string.all_dates)
+        selectedHistoryDate == null -> stringResource(R.string.all_dates_with_player, activeHistoryPlayerFilter)
+        else -> formatLocalizedDate(selectedHistoryDate)
+    }
+
+    LaunchedEffect(showHistoryPlayerDialog) {
+        if (showHistoryPlayerDialog) {
+            tempHistoryPlayerFilter = historyPlayerFilter
+            historyPlayerSearchQuery = historyPlayerFilter.orEmpty()
+        }
+    }
+
     // 0 = Partidas, 1 = Jogadores
     val pagerState = rememberPagerState(initialPage = selectedTab) { 2 }
     LaunchedEffect(pagerState.currentPage) {
@@ -381,13 +441,15 @@ fun HistoryScreen(
 
     var historyComputation by remember { mutableStateOf<HistoryComputationResult?>(null) }
     var isComputingHistory by remember { mutableStateOf(false) }
-    LaunchedEffect(groupHistory, historyDate, matchSortMode, groupPlayers, eloLogs, playerSortMode) {
+    LaunchedEffect(groupHistory, historyDate, historyPlayerFilter, restrictHistoryToDates, matchSortMode, groupPlayers, eloLogs, playerSortMode) {
         isComputingHistory = true
         try {
             historyComputation = withContext(Dispatchers.Default) {
                 computeHistoryComputation(
                     groupHistory = groupHistory,
                     historyDate = historyDate,
+                    historyPlayerFilter = historyPlayerFilter,
+                    restrictToDates = restrictHistoryToDates,
                     matchSortMode = matchSortMode,
                     groupPlayers = groupPlayers,
                     eloLogs = eloLogs,
@@ -408,6 +470,33 @@ fun HistoryScreen(
     val uniquePlayerCount = historyComputation?.uniquePlayerCount ?: 0
     val historyPlayerList = historyComputation?.historyPlayerList.orEmpty()
     val averagePlayersEloText = historyComputation?.averagePlayersEloText
+
+    if (showHistoryPlayerDialog) {
+        HistoryPlayerFilterDialog(
+            playerNames = historyPlayerFilterOptions,
+            initialSelection = tempHistoryPlayerFilter,
+            searchQuery = historyPlayerSearchQuery,
+            onSearchQueryChange = { historyPlayerSearchQuery = it },
+            onDismiss = {
+                showHistoryPlayerDialog = false
+                historyPlayerSearchQuery = ""
+            },
+            onClear = {
+                historyPlayerFilter = null
+                tempHistoryPlayerFilter = null
+                viewModel.setHistoryDateFilter(null)
+                showHistoryPlayerDialog = false
+                historyPlayerSearchQuery = ""
+            },
+            onConfirm = { selected ->
+                historyPlayerFilter = selected
+                tempHistoryPlayerFilter = selected
+                viewModel.setHistoryDateFilter(null)
+                showHistoryPlayerDialog = false
+                historyPlayerSearchQuery = ""
+            }
+        )
+    }
 
     // --- Compute layout mode once for all player cards ---
     val textMeasurer = rememberTextMeasurer()
@@ -472,54 +561,86 @@ fun HistoryScreen(
                         // Date filter dropdown
                         item {
                             var dateExpanded2 by remember { mutableStateOf(false) }
-                            ExposedDropdownMenuBox(
-                                expanded = dateExpanded2,
-                                onExpandedChange = { dateExpanded2 = !dateExpanded2 },
-                                modifier = Modifier.fillMaxWidth()
+                            val activePersonFilterText = activeHistoryPlayerFilter
+                            val dateOptions = if (activePersonFilterText == null) availableDates else dateOptionsForPlayer
+                            val allDatesSelected2 = historyDate == null
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                OutlinedButton(
-                                    onClick = { dateExpanded2 = true },
-                                    modifier = Modifier.menuAnchor().fillMaxWidth(),
-                                    contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
-                                ) {
-                                    Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(historyDate?.let { formatLocalizedDate(it) } ?: stringResource(R.string.all_dates), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Spacer(Modifier.weight(1f))
-                                    val rotation2 by animateFloatAsState(targetValue = if (dateExpanded2) 180f else 0f, animationSpec = tween(200), label = "DateRot2")
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(rotation2))
-                                }
-                                DropdownMenu(
-                                    expanded = dateExpanded2,
-                                    onDismissRequest = { dateExpanded2 = false },
-                                    offset = DpOffset(x = 36.dp, y = 0.dp),
-                                    modifier = Modifier.heightIn(max = maxMenuHeight).width(IntrinsicSize.Min)
-                                ) {
-                                    val allDatesSelected2 = historyDate == null
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                                Text(stringResource(R.string.all_dates), fontWeight = if (allDatesSelected2) FontWeight.SemiBold else FontWeight.Normal, color = if (allDatesSelected2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                                                if (allDatesSelected2) { Spacer(Modifier.width(8.dp)); Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
-                                            }
-                                        },
-                                        onClick = { viewModel.setHistoryDateFilter(null); dateExpanded2 = false }
+                                IconButton(
+                                    onClick = { showHistoryPlayerDialog = true },
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .border(1.dp, if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape),
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
+                                        contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    availableDates.forEach { date ->
-                                        val isSel = historyDate == date
+                                ) {
+                                    Icon(Icons.Default.Person, contentDescription = stringResource(R.string.player), modifier = Modifier.size(24.dp))
+                                }
+                                ExposedDropdownMenuBox(
+                                    expanded = dateExpanded2,
+                                    onExpandedChange = { dateExpanded2 = !dateExpanded2 },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { dateExpanded2 = true },
+                                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
+                                    ) {
+                                        Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(visibleHistoryDateLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Spacer(Modifier.weight(1f))
+                                        val rotation2 by animateFloatAsState(targetValue = if (dateExpanded2) 180f else 0f, animationSpec = tween(200), label = "DateRot2")
+                                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(rotation2))
+                                    }
+                                    DropdownMenu(
+                                        expanded = dateExpanded2,
+                                        onDismissRequest = { dateExpanded2 = false },
+                                        offset = DpOffset(x = 36.dp, y = 0.dp),
+                                        modifier = Modifier.heightIn(max = maxMenuHeight).width(IntrinsicSize.Min)
+                                    ) {
                                         DropdownMenuItem(
                                             text = {
                                                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(formatLocalizedDate(date), fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal, color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                                                    if (isSel) { Spacer(Modifier.width(8.dp)); Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                                                    Text(
+                                                        if (activePersonFilterText == null) stringResource(R.string.all_dates) else stringResource(R.string.all_dates_with_player, activePersonFilterText),
+                                                        fontWeight = if (allDatesSelected2) FontWeight.SemiBold else FontWeight.Normal,
+                                                        color = if (allDatesSelected2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Spacer(Modifier.weight(1f))
+                                                    if (allDatesSelected2) { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
                                                 }
                                             },
-                                            onClick = { viewModel.setHistoryDateFilter(date); dateExpanded2 = false }
+                                            onClick = {
+                                                viewModel.setHistoryDateFilter(null)
+                                                dateExpanded2 = false
+                                            }
                                         )
+                                        dateOptions.forEach { date ->
+                                            val isSel = historyDate == date
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                                        Text(formatLocalizedDate(date), fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal, color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                                        Spacer(Modifier.weight(1f))
+                                                        if (isSel) { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                                                    }
+                                                },
+                                                onClick = {
+                                                    viewModel.setHistoryDateFilter(date)
+                                                    dateExpanded2 = false
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
-                            }
+                        }
 
                             // Tab selector + sort button
                         item {
@@ -558,23 +679,54 @@ fun HistoryScreen(
                                         }
                                     }
                                 }
+                                val activeSortBadgeIcon = when {
+                                    selectedTab == 0 -> when (matchSortMode) {
+                                        MatchSortMode.NEWEST -> Icons.Default.DateRange
+                                        MatchSortMode.OLDEST -> Icons.Default.DateRange
+                                        MatchSortMode.ELO_DELTA -> Icons.Default.WorkspacePremium
+                                        MatchSortMode.SCORE_DIFF -> Icons.Default.Star
+                                    }
+                                    else -> when (playerSortMode) {
+                                        PlayerSortMode.ALPHABETICAL -> Icons.Default.Person
+                                        PlayerSortMode.ELO -> Icons.Default.WorkspacePremium
+                                        PlayerSortMode.GAMES -> Icons.Default.Groups
+                                        PlayerSortMode.VICTORIES -> Icons.Default.Star
+                                        PlayerSortMode.PERCENTAGE -> Icons.Default.Check
+                                        PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
+                                    }
+                                }
                                 Box {
                                     IconButton(onClick = { expandedFilter = true }) {
                                         Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort_word), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    DropdownMenu(expanded = expandedFilter, onDismissRequest = { expandedFilter = false }) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .offset(x = 2.dp, y = 2.dp)
+                                            .size(16.dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = activeSortBadgeIcon,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                    }
+                                    DropdownMenu(expanded = expandedFilter, onDismissRequest = { expandedFilter = false }, modifier = Modifier.widthIn(min = 260.dp)) {
                                         if (selectedTab == 0) {
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.newest_first)) } }, onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.oldest_first)) } }, onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo_change)) } }, onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_score_diff)) } }, onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.newest_first)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.oldest_first)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo_change)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_score_diff)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false })
                                         } else {
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.alphabetical)) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo)) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_matches)) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_victories)) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_percentage)) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_played_time)) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.alphabetical)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_matches)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Groups, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_victories)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_percentage)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_played_time)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
                                         }
                                     }
                                 }
@@ -617,7 +769,9 @@ fun HistoryScreen(
                                         gamesPlayed = info.gamesPlayed,
                                         victories = info.victories,
                                         playedMinutes = info.playedMinutes,
-                                        useSideBySide = playersSideBySide
+                                        useSideBySide = playersSideBySide,
+                                        isDeleted = info.isDeleted,
+                                        playerSortMode = playerSortMode
                                     )
                                 }
                             }
@@ -635,80 +789,77 @@ fun HistoryScreen(
 
         // --- Date filter dropdown ---
         var dateExpanded by remember { mutableStateOf(false) }
+        val activePersonFilterText = activeHistoryPlayerFilter
+        val dateOptions = if (activePersonFilterText == null) availableDates else dateOptionsForPlayer
 
-        ExposedDropdownMenuBox(
-            expanded = dateExpanded,
-            onExpandedChange = { dateExpanded = !dateExpanded },
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(
-                onClick = { dateExpanded = true },
+            IconButton(
+                onClick = { showHistoryPlayerDialog = true },
                 modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
+                    .size(48.dp)
+                    .border(
+                        1.dp,
+                        if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        CircleShape
+                    ),
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
+                    contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
-                Icon(
-                    Icons.Default.DateRange,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    historyDate?.let { formatLocalizedDate(it) } ?: stringResource(R.string.all_dates),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.weight(1f))
-                val rotation by animateFloatAsState(
-                    targetValue = if (dateExpanded) 180f else 0f,
-                    animationSpec = tween(durationMillis = 200),
-                    label = "HistoryDateRotation"
-                )
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.rotate(rotation)
-                )
+                Icon(Icons.Default.Person, contentDescription = stringResource(R.string.filter_player), modifier = Modifier.size(24.dp))
             }
-            DropdownMenu(
+
+            ExposedDropdownMenuBox(
                 expanded = dateExpanded,
-                onDismissRequest = { dateExpanded = false },
-                offset = DpOffset(x = 36.dp, y = 0.dp),
-                modifier = Modifier
-                    .heightIn(max = maxMenuHeight)
-                    .width(IntrinsicSize.Min)
+                onExpandedChange = { dateExpanded = !dateExpanded },
+                modifier = Modifier.weight(1f)
             ) {
-                val allDatesSelected = historyDate == null
-                DropdownMenuItem(
-                    text = {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                stringResource(R.string.all_dates),
-                                fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (allDatesSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                }
-                            )
-                            if (allDatesSelected) {
-                                Spacer(Modifier.width(8.dp))
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    },
-                    onClick = { viewModel.setHistoryDateFilter(null); dateExpanded = false }
-                )
-                availableDates.forEach { date ->
-                    val isSelected = historyDate == date
+                OutlinedButton(
+                    onClick = { dateExpanded = true },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        visibleHistoryDateLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.weight(1f))
+                    val rotation by animateFloatAsState(
+                        targetValue = if (dateExpanded) 180f else 0f,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "HistoryDateRotation"
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.rotate(rotation)
+                    )
+                }
+                DropdownMenu(
+                    expanded = dateExpanded,
+                    onDismissRequest = { dateExpanded = false },
+                    offset = DpOffset(x = 36.dp, y = 0.dp),
+                    modifier = Modifier
+                        .heightIn(max = maxMenuHeight)
+                        .width(IntrinsicSize.Min)
+                ) {
+                    val allDatesSelected = historyDate == null
                     DropdownMenuItem(
                         text = {
                             Row(
@@ -716,26 +867,40 @@ fun HistoryScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    formatLocalizedDate(date),
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
+                                    if (activePersonFilterText == null) stringResource(R.string.all_dates) else stringResource(R.string.all_dates_with_player, activePersonFilterText),
+                                    fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (allDatesSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )
-                                if (isSelected) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
+                                Spacer(Modifier.weight(1f))
+                                if (allDatesSelected) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         },
-                        onClick = { viewModel.setHistoryDateFilter(date); dateExpanded = false }
+                        onClick = { viewModel.setHistoryDateFilter(null); dateExpanded = false }
                     )
+                    dateOptions.forEach { date ->
+                        val isSelected = historyDate == date
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        formatLocalizedDate(date),
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    if (isSelected) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            },
+                            onClick = { viewModel.setHistoryDateFilter(date); dateExpanded = false }
+                        )
+                    }
                 }
             }
         }
@@ -821,6 +986,22 @@ fun HistoryScreen(
             }
 
             // Filter/sort icon button
+            val activeSortBadgeIcon = when {
+                selectedTab == 0 -> when (matchSortMode) {
+                    MatchSortMode.NEWEST -> Icons.Default.DateRange
+                    MatchSortMode.OLDEST -> Icons.Default.DateRange
+                    MatchSortMode.ELO_DELTA -> Icons.Default.WorkspacePremium
+                    MatchSortMode.SCORE_DIFF -> Icons.Default.Star
+                }
+                else -> when (playerSortMode) {
+                    PlayerSortMode.ALPHABETICAL -> Icons.Default.Person
+                    PlayerSortMode.ELO -> Icons.Default.WorkspacePremium
+                    PlayerSortMode.GAMES -> Icons.Default.Groups
+                    PlayerSortMode.VICTORIES -> Icons.Default.Star
+                    PlayerSortMode.PERCENTAGE -> Icons.Default.Check
+                    PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
+                }
+            }
             Box {
                 IconButton(onClick = { expandedFilter = true }) {
                     Icon(
@@ -829,7 +1010,22 @@ fun HistoryScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                DropdownMenu(expanded = expandedFilter, onDismissRequest = { expandedFilter = false }) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(16.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = activeSortBadgeIcon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(10.dp)
+                    )
+                }
+                DropdownMenu(expanded = expandedFilter, onDismissRequest = { expandedFilter = false }, modifier = Modifier.widthIn(min = 260.dp)) {
                     if (selectedTab == 0) {
                         DropdownMenuItem(
                             text = {
@@ -837,6 +1033,8 @@ fun HistoryScreen(
                                     RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.newest_first))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false }
@@ -847,6 +1045,8 @@ fun HistoryScreen(
                                     RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.oldest_first))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false }
@@ -857,6 +1057,8 @@ fun HistoryScreen(
                                     RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_elo_change))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false }
@@ -867,6 +1069,8 @@ fun HistoryScreen(
                                     RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_score_diff))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false }
@@ -878,6 +1082,8 @@ fun HistoryScreen(
                                     RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.alphabetical))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false }
@@ -888,6 +1094,8 @@ fun HistoryScreen(
                                     RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_elo))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false }
@@ -898,6 +1106,8 @@ fun HistoryScreen(
                                     RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_matches))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.Groups, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false }
@@ -908,6 +1118,8 @@ fun HistoryScreen(
                                     RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_victories))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false }
@@ -918,6 +1130,8 @@ fun HistoryScreen(
                                     RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_percentage))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false }
@@ -928,6 +1142,8 @@ fun HistoryScreen(
                                     RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_played_time))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false }
@@ -1039,7 +1255,9 @@ fun HistoryScreen(
                                         gamesPlayed = info.gamesPlayed,
                                         victories = info.victories,
                                         playedMinutes = info.playedMinutes,
-                                        useSideBySide = playersSideBySide
+                                        useSideBySide = playersSideBySide,
+                                        isDeleted = info.isDeleted,
+                                        playerSortMode = playerSortMode
                                     )
                                 }
                             }
@@ -1063,6 +1281,143 @@ fun HistoryScreen(
             }
         }
         } // end portrait else
+    }
+}
+
+@Composable
+private fun HistoryPlayerFilterDialog(
+    playerNames: List<String>,
+    initialSelection: String?,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onClear: () -> Unit,
+    onConfirm: (String?) -> Unit
+) {
+    var selectedPlayer by remember { mutableStateOf(initialSelection) }
+
+    LaunchedEffect(initialSelection) {
+        selectedPlayer = initialSelection
+    }
+
+    val filteredPlayers = remember(playerNames, searchQuery) {
+        if (searchQuery.isBlank()) {
+            playerNames
+        } else {
+            playerNames.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(min = 280.dp, max = 420.dp)
+                    .heightIn(max = 560.dp)
+            ) {
+                Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
+                    Text(
+                        text = stringResource(R.string.filter_player),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.search_player)) },
+                        trailingIcon = {
+                            if (searchQuery.isNotBlank()) {
+                                IconButton(onClick = { onSearchQueryChange("") }) {
+                                    Text("X", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedPlayer = null }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selectedPlayer == null, onClick = { selectedPlayer = null })
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.all_players))
+                        }
+                    }
+                    items(filteredPlayers) { player ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedPlayer = player }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selectedPlayer == player, onClick = { selectedPlayer = player })
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = player,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    if (filteredPlayers.isEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.no_players),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = onClear,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.clear_filter))
+                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = { onConfirm(selectedPlayer) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.apply_filter))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1113,9 +1468,13 @@ fun HistoryPlayerCard(
     gamesPlayed: Int = 0,
     victories: Int = 0,
     playedMinutes: Int = 0,
-    useSideBySide: Boolean = true
+    useSideBySide: Boolean = true,
+    isDeleted: Boolean = false,
+    playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL
 ) {
-    val victoriesText = when (victories) {
+        var showDeletedTooltip by remember { mutableStateOf(false) }
+
+val victoriesText = when (victories) {
         0 -> stringResource(R.string.no_victories)
         1 -> stringResource(R.string.one_victory)
         else -> stringResource(R.string.x_victories, victories)
@@ -1159,12 +1518,44 @@ fun HistoryPlayerCard(
                         fontSize = 16.sp
                     )
                 } else {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box {
+                        if (isDeleted && playerSortMode == PlayerSortMode.ALPHABETICAL) {
+                            IconButton(
+                                onClick = { showDeletedTooltip = !showDeletedTooltip },
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() })
+                            ) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = stringResource(R.string.player_was_deleted),
+                                    modifier = Modifier.fillMaxSize(),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            if (showDeletedTooltip) {
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .offset(y = (with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }) + 4.dp)
+                                        .widthIn(max = 200.dp),
+                                    tonalElevation = 4.dp,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.player_was_deleted),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
             Spacer(Modifier.width(8.dp))
@@ -2124,7 +2515,9 @@ fun ExportableImageContent(
                 showElo = showElo,
                 gamesPlayed = info.gamesPlayed,
                 victories = info.victories,
-                playedMinutes = info.playedMinutes
+                playedMinutes = info.playedMinutes,
+                isDeleted = info.isDeleted,
+                playerSortMode = playerSortMode ?: PlayerSortMode.ALPHABETICAL
             )
         }
     }
