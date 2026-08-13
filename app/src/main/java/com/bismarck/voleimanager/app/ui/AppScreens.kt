@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
@@ -572,10 +573,11 @@ fun HistoryScreen(
                                 IconButton(
                                     onClick = { showHistoryPlayerDialog = true },
                                     modifier = Modifier
-                                        .size(48.dp)
-                                        .border(1.dp, if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape),
+                                        .size(40.dp)
+                                        .border(if (activePersonFilterText != null) 2.dp else 1.dp,
+                                            if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                            CircleShape),
                                     colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
                                         contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 ) {
@@ -584,11 +586,11 @@ fun HistoryScreen(
                                 ExposedDropdownMenuBox(
                                     expanded = dateExpanded2,
                                     onExpandedChange = { dateExpanded2 = !dateExpanded2 },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f).height(48.dp)
                                 ) {
                                     OutlinedButton(
                                         onClick = { dateExpanded2 = true },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                        modifier = Modifier.menuAnchor().fillMaxWidth().height(48.dp),
                                         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
                                     ) {
                                         Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -644,9 +646,10 @@ fun HistoryScreen(
 
                             // Tab selector + sort button
                         item {
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f).height(48.dp)) {
                                     SegmentedButton(
+                                        modifier = Modifier.fillMaxHeight(),
                                         selected = selectedTab == 0,
                                         onClick = { onTabChanged(0) },
                                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
@@ -663,6 +666,7 @@ fun HistoryScreen(
                                         }
                                     }
                                     SegmentedButton(
+                                        modifier = Modifier.fillMaxHeight(),
                                         selected = selectedTab == 1,
                                         onClick = { onTabChanged(1) },
                                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
@@ -679,6 +683,7 @@ fun HistoryScreen(
                                         }
                                     }
                                 }
+                                Spacer(Modifier.width(8.dp))
                                 val activeSortBadgeIcon = when {
                                     selectedTab == 0 -> when (matchSortMode) {
                                         MatchSortMode.NEWEST -> Icons.Default.DateRange
@@ -696,25 +701,41 @@ fun HistoryScreen(
                                     }
                                 }
                                 Box {
-                                    IconButton(onClick = { expandedFilter = true }) {
-                                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort_word), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    IconButton(
+                                        onClick = { expandedFilter = true },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .border(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.outline,
+                                                CircleShape
+                                            )
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.Sort,
+                                            contentDescription = stringResource(R.string.sort_word),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .offset(x = 2.dp, y = 2.dp)
-                                            .size(16.dp)
-                                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                            .offset(x = 4.dp, y = 4.dp)
+                                            .size(24.dp)
+                                            .background(MaterialTheme.colorScheme.outline, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = activeSortBadgeIcon,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.size(10.dp)
+                                            tint = MaterialTheme.colorScheme.surface,
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
-                                    DropdownMenu(expanded = expandedFilter, onDismissRequest = { expandedFilter = false }, modifier = Modifier.widthIn(min = 260.dp)) {
+                                    DropdownMenu(
+                                        expanded = expandedFilter,
+                                        onDismissRequest = { expandedFilter = false },
+                                        offset = DpOffset(x = 0.dp, y = 8.dp),
+                                        modifier = Modifier.widthIn(min = 260.dp)
+                                    ) {
                                         if (selectedTab == 0) {
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.newest_first)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.oldest_first)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false })
@@ -730,6 +751,7 @@ fun HistoryScreen(
                                         }
                                     }
                                 }
+                                Spacer(Modifier.width(4.dp))
                             }
                         }
 
@@ -800,14 +822,13 @@ fun HistoryScreen(
             IconButton(
                 onClick = { showHistoryPlayerDialog = true },
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(40.dp)
                     .border(
-                        1.dp,
+                        if (activePersonFilterText != null) 2.dp else 1.dp,
                         if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                         CircleShape
                     ),
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
                     contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
@@ -817,13 +838,14 @@ fun HistoryScreen(
             ExposedDropdownMenuBox(
                 expanded = dateExpanded,
                 onExpandedChange = { dateExpanded = !dateExpanded },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).height(48.dp)
             ) {
                 OutlinedButton(
                     onClick = { dateExpanded = true },
                     modifier = Modifier
                         .menuAnchor()
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .height(48.dp),
                     contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
                 ) {
                     Icon(
@@ -909,11 +931,11 @@ fun HistoryScreen(
         // --- Segmented button row + filter icon ---
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f).height(48.dp)) {
                 SegmentedButton(
+                    modifier = Modifier.fillMaxHeight(),
                     selected = selectedTab == 0,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
@@ -949,6 +971,7 @@ fun HistoryScreen(
                     }
                 }
                 SegmentedButton(
+                    modifier = Modifier.fillMaxHeight(),
                     selected = selectedTab == 1,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
@@ -984,6 +1007,7 @@ fun HistoryScreen(
                     }
                 }
             }
+            Spacer(Modifier.width(8.dp))
 
             // Filter/sort icon button
             val activeSortBadgeIcon = when {
@@ -1003,7 +1027,16 @@ fun HistoryScreen(
                 }
             }
             Box {
-                IconButton(onClick = { expandedFilter = true }) {
+                IconButton(
+                    onClick = { expandedFilter = true },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .border(
+                            1.dp,
+                             MaterialTheme.colorScheme.outline,
+                            CircleShape
+                        )
+                ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
                         contentDescription = stringResource(R.string.sort_word),
@@ -1013,19 +1046,24 @@ fun HistoryScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(x = 2.dp, y = 2.dp)
-                        .size(16.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        .offset(x = 4.dp, y = 4.dp)
+                        .size(24.dp)
+                        .background(MaterialTheme.colorScheme.outline, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = activeSortBadgeIcon,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(10.dp)
+                        tint = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
-                DropdownMenu(expanded = expandedFilter, onDismissRequest = { expandedFilter = false }, modifier = Modifier.widthIn(min = 260.dp)) {
+                DropdownMenu(
+                    expanded = expandedFilter,
+                    onDismissRequest = { expandedFilter = false },
+                    offset = DpOffset(x = 0.dp, y = 8.dp),
+                    modifier = Modifier.widthIn(min = 260.dp)
+                ) {
                     if (selectedTab == 0) {
                         DropdownMenuItem(
                             text = {
@@ -1150,7 +1188,9 @@ fun HistoryScreen(
                         )
                     }
                 }
+                Spacer(Modifier.width(4.dp))
             }
+
         }
         Spacer(Modifier.height(12.dp))
 
@@ -1310,7 +1350,7 @@ private fun HistoryPlayerFilterDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(26.dp),
             tonalElevation = 6.dp,
             color = MaterialTheme.colorScheme.surface
         ) {
@@ -1331,11 +1371,12 @@ private fun HistoryPlayerFilterDialog(
                         onValueChange = onSearchQueryChange,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        shape = CircleShape,
                         placeholder = { Text(stringResource(R.string.search_player)) },
                         trailingIcon = {
                             if (searchQuery.isNotBlank()) {
                                 IconButton(onClick = { onSearchQueryChange("") }) {
-                                    Text("X", fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                                 }
                             }
                         }
@@ -1344,16 +1385,16 @@ private fun HistoryPlayerFilterDialog(
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     item {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(CircleShape)
                                 .clickable { selectedPlayer = null }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = selectedPlayer == null, onClick = { selectedPlayer = null })
@@ -1365,9 +1406,9 @@ private fun HistoryPlayerFilterDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(CircleShape)
                                 .clickable { selectedPlayer = player }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = selectedPlayer == player, onClick = { selectedPlayer = player })
@@ -1385,7 +1426,7 @@ private fun HistoryPlayerFilterDialog(
                             Text(
                                 text = stringResource(R.string.no_players),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(12.dp)
+                                modifier = Modifier.padding(16.dp)
                             )
                         }
                     }
@@ -1394,7 +1435,7 @@ private fun HistoryPlayerFilterDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextButton(
@@ -1402,12 +1443,6 @@ private fun HistoryPlayerFilterDialog(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(stringResource(R.string.clear_filter))
-                    }
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(R.string.cancel))
                     }
                     Button(
                         onClick = { onConfirm(selectedPlayer) },

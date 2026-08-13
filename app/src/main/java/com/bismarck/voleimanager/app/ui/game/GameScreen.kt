@@ -117,6 +117,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
 import android.app.Activity
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.Modifier
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 
@@ -1550,13 +1551,14 @@ private fun PlayerListHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 6.dp),
+            .heightIn(min = 60.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AnimatedContent(targetState = searchExpanded, label = "playerSearchToggle") { expanded ->
             if (expanded) {
                 OutlinedTextField(
                     value = searchQuery,
+                    shape = CircleShape,
                     onValueChange = { newValue ->
                         onSearchQueryChange(newValue)
                         if (newValue.isBlank()) {
@@ -1575,7 +1577,7 @@ private fun PlayerListHeader(
                             onSearchExpandedChange(false)
                             focusManager.clearFocus()
                         }) {
-                            Text("X", fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                         }
                     },
                     modifier = Modifier
@@ -1595,8 +1597,10 @@ private fun PlayerListHeader(
                 IconButton(
                     onClick = { onSearchExpandedChange(true) },
                     modifier = Modifier
-                        .size(48.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline,
+                            CircleShape)
                 ) {
                     Icon(
                         Icons.Default.Search,
