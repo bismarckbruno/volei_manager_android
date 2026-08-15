@@ -507,11 +507,10 @@ fun GroupConfigDialog(
                         selected = balancingMode == value,
                         onSelect = { balancingMode = value },
                         iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
-                            R.drawable.rebalance_arrows
+                            R.drawable.arrowsbothsides
                         } else {
-                            R.drawable.text_zzz
-                        },
-                        iconSize = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) 20.dp else 16.dp
+                            R.drawable.zzz_rest
+                        }
                     )
                 }
 
@@ -724,11 +723,10 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                         selected = balancingMode == value,
                         onSelect = { balancingMode = value },
                         iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
-                            R.drawable.rebalance_arrows
+                            R.drawable.arrowsbothsides
                         } else {
-                            R.drawable.text_zzz
-                        },
-                        iconSize = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) 20.dp else 16.dp
+                            R.drawable.zzz_rest
+                        }
                     )
                 }
             }

@@ -647,7 +647,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onClick = { viewModel.setShowElo(!showElo) }
                             )
                             FlexibleDrawerItem(
-                                icon = { Icon(painter = painterResource(R.drawable.bola_de_volei_solida_para_variar_a_cor), null, modifier = Modifier.size(24.dp).padding(horizontal = 3.dp)) },
+                                icon = { Icon(painter = painterResource(R.drawable.volei_manager_icon), null) },
                                 label = { Text(stringResource(R.string.show_lateness)) },
                                 selected = false,
                                 badge = { Switch(checked = showToll, onCheckedChange = null) },

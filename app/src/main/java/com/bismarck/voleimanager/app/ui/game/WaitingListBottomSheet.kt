@@ -68,6 +68,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -86,7 +87,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
@@ -123,7 +123,7 @@ internal fun WaitingListContent(
     horizontalPadding: Dp = 16.dp,
     externalSnackbarHostState: SnackbarHostState? = null
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val restingMap by viewModel.restingPlayers.collectAsState()
 
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
@@ -249,7 +249,7 @@ internal fun WaitingListContent(
         val index = waitingList.indexOfFirst { it.id == player.id }
         undoAction = UndoAction.Remove(player, index)
         viewModel.removePlayerFromWaitingList(player)
-        val off_waitlist = context.getString(R.string.off_waitlist, player.name)
+        val off_waitlist = resources.getString(R.string.off_waitlist, player.name)
         showSnackbar(off_waitlist, true)
     }
 
@@ -270,7 +270,7 @@ internal fun WaitingListContent(
                 item(key = "empty_active") {
                     Card(
                         modifier = Modifier
-                            .animateItemPlacement()
+                            .animateItem()
                             .fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
@@ -290,7 +290,7 @@ internal fun WaitingListContent(
                     waitingList,
                     key = { _, player -> "active_${player.id}" }) { index, player ->
                     WaitingListPlayerItem(
-                        modifier = Modifier.animateItemPlacement(reorderAnimationSpec),
+                        modifier = Modifier.animateItem(placementSpec = reorderAnimationSpec),
                         index = index,
                         isFirst = index == 0,
                         isLast = index == waitingList.lastIndex,
@@ -312,7 +312,7 @@ internal fun WaitingListContent(
                         },
                         onMoveToBeginning = {
                             val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                            val went_to_start_queue = context.getString(R.string.went_to_start_queue, player.name)
+                            val went_to_start_queue = resources.getString(R.string.went_to_start_queue, player.name)
                             viewModel.movePlayerToBeginning(player)
                             scrollToAndHighlight(player.id, 0)
                             undoAction =
@@ -321,7 +321,7 @@ internal fun WaitingListContent(
                         },
                         onMoveToEnd = {
                             val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                            val went_to_end_queue = context.getString(R.string.went_to_end_queue, player.name)
+                            val went_to_end_queue = resources.getString(R.string.went_to_end_queue, player.name)
                             viewModel.movePlayerToEnd(player)
                             scrollToAndHighlight(player.id, waitingList.size - 1)
                             undoAction = UndoAction.Move(
@@ -342,7 +342,7 @@ internal fun WaitingListContent(
             item(key = "inactive_header") {
                 Column(
                     modifier = Modifier
-                        .animateItemPlacement()
+                        .animateItem()
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { absentExpanded = !absentExpanded },
@@ -385,7 +385,7 @@ internal fun WaitingListContent(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
-                                .animateItemPlacement()
+                                .animateItem()
                                 .padding(horizontal = 8.dp, vertical = 12.dp),
                             textAlign = TextAlign.Center
                         )
@@ -395,14 +395,14 @@ internal fun WaitingListContent(
                         absentPlayers,
                         key = { _, player -> "inactive_${player.id}" }) { _, player ->
                         InactivePlayerItem(
-                            modifier = Modifier.animateItemPlacement(),
+                            modifier = Modifier.animateItem(),
                             player = player,
                             showElo = showElo,
                             onMoveToBeginning = {
                                 val targetIndex = 0
                                 undoAction = UndoAction.Add(player, targetIndex)
                                 viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                val has_entered_start_queue = context.getString(R.string.has_entered_start_queue, player.name)
+                                val has_entered_start_queue = resources.getString(R.string.has_entered_start_queue, player.name)
                                 showSnackbar(has_entered_start_queue, true)
                                 scope.launch { delay(100); listState.animateScrollToItem(0) }
                             },
@@ -410,7 +410,7 @@ internal fun WaitingListContent(
                                 val targetIndex = waitingList.size
                                 undoAction = UndoAction.Add(player, targetIndex)
                                 viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                val has_entered_end_queue = context.getString(R.string.has_entered_end_queue, player.name)
+                                val has_entered_end_queue = resources.getString(R.string.has_entered_end_queue, player.name)
                                 showSnackbar(has_entered_end_queue, true)
                                 scope.launch {
                                     delay(100)
@@ -460,7 +460,7 @@ fun WaitingListBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         scrimColor = Color.Black.copy(alpha = 0.32f),
-        windowInsets = WindowInsets(0, 0, 0, 0),
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = {
             Column(
@@ -590,7 +590,7 @@ private fun WaitingListPlayerItem(
                             if (isResting) {
                                 Spacer(Modifier.width(4.dp))
                                 Icon(
-                                    painter = painterResource(R.drawable.text_zzz),
+                                    painter = painterResource(R.drawable.zzz_rest),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier

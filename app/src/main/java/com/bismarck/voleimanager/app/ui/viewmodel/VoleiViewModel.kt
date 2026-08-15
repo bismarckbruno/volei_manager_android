@@ -1366,38 +1366,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun setAllPlayersPresence(list: List<Player>, present: Boolean) {
-        if (present) {
-            val newIds = mutableSetOf<Int>()
-            val currentWait = _waitingList.value.toMutableList()
-
-            list.forEach { p ->
-                newIds.add(p.id)
-                val playing =
-                    _teamA.value.any { it.id == p.id } || _teamB.value.any { it.id == p.id }
-                if (!playing && !currentWait.any { it.id == p.id }) {
-                    if (isGameInProgress()) {
-                        val updatedP = applyTollIfNecessary(p)
-                        val gamesPlayed = gamesPlayedTodayMap.value[updatedP.id] ?: 0
-                        if (gamesPlayed > 0) {
-                            currentWait.add(updatedP)
-                        } else {
-                            currentWait.add(0, updatedP)
-                        }
-                    } else {
-                        currentWait.add(p)
-                    }
-                }
+        list.forEach { player ->
+            val isCurrentlyPresent = _presentPlayerIds.value.contains(player.id)
+            val shouldToggle =
+                (present && !isCurrentlyPresent) || (!present && isCurrentlyPresent)
+            if (shouldToggle) {
+                togglePlayerPresence(player)
             }
-
-            _presentPlayerIds.value = newIds
-            _guaranteedNextMatchPlayerIds.value =
-                _guaranteedNextMatchPlayerIds.value.filter { newIds.contains(it) }
-            if (isGameInProgress()) {
-                _waitingList.value = currentWait
-            }
-        } else {
-            _presentPlayerIds.value = emptySet(); _waitingList.value = emptyList()
-            _guaranteedNextMatchPlayerIds.value = emptyList()
         }
     }
 

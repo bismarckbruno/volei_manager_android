@@ -2,6 +2,7 @@ package com.bismarck.voleimanager.app.ui.game
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -69,10 +70,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
@@ -122,6 +123,14 @@ import androidx.compose.ui.Modifier
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 
 @Composable
+private fun currentLocale(): Locale {
+    val configuration = LocalConfiguration.current
+    return remember(configuration) {
+        if (configuration.locales.isEmpty) Locale.ROOT else configuration.locales[0]
+    }
+}
+
+@Composable
 fun GameScreenContent(
     viewModel: VoleiViewModel,
     selectedGroup: String,
@@ -135,9 +144,10 @@ fun GameScreenContent(
     onDeleteRequest: (Player) -> Unit,
     onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val undoLabel = stringResource(R.string.undo)
     val sortedPlayers by viewModel.sortedPlayersForPresence.collectAsState()
+    val currentGroupHistory by viewModel.currentGroupHistory.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
     val targetDate by viewModel.targetDate.collectAsState()
     val teamA by viewModel.teamA.collectAsState()
@@ -167,6 +177,29 @@ fun GameScreenContent(
             val query = playerSearchQuery.trim()
             sortedPlayers.filter { it.name.contains(query, ignoreCase = true) }
         }
+    }
+    val historyPlayerIds = remember(currentGroupHistory) {
+        currentGroupHistory.asSequence()
+            .flatMap { match ->
+                sequenceOf(match.teamAIds, match.teamBIds).flatMap { rawIds ->
+                    rawIds.split(",").asSequence().mapNotNull { idText -> idText.trim().toIntOrNull() }
+                }
+            }
+            .toSet()
+    }
+    val historyPlayerNames = remember(currentGroupHistory) {
+        fun canonicalName(name: String): String {
+            return name.trim().lowercase(Locale.ROOT)
+        }
+        currentGroupHistory.asSequence()
+            .flatMap { match ->
+                sequenceOf(match.teamA, match.teamB).flatMap { rawNames ->
+                    rawNames.split(",").asSequence()
+                        .map { canonicalName(it) }
+                        .filter { it.isNotEmpty() }
+                }
+            }
+            .toSet()
     }
 
     if (showCancel) AlertDialog(
@@ -200,7 +233,7 @@ fun GameScreenContent(
             { replacement ->
                 viewModel.substitutePlayer(p, replacement)
                 subOut = null
-                val message = context.getString(R.string.substitution_snackbar, p.name, replacement.name)
+                val message = resources.getString(R.string.substitution_snackbar, p.name, replacement.name)
                 onShowSnackbar(
                     message,
                     undoLabel
@@ -443,7 +476,8 @@ fun GameScreenContent(
                                             item {
                                                 PlayerListHeader(
                                                     title = stringResource(R.string.players_word),
-                                                    allPlayersSelected = visiblePlayers.all { presentIds.contains(it.id) },
+                                                    allPlayersSelected = visiblePlayers.isNotEmpty() && visiblePlayers.all { presentIds.contains(it.id) },
+                                                    visiblePlayerCount = visiblePlayers.size,
                                                     onToggleAll = { checked -> viewModel.setAllPlayersPresence(visiblePlayers, checked) },
                                                     searchExpanded = playerSearchExpanded,
                                                     searchQuery = playerSearchQuery,
@@ -460,6 +494,7 @@ fun GameScreenContent(
                                                     targetDate,
                                                     showElo,
                                                     showToll,
+                                                    !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase(Locale.ROOT)),
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
@@ -536,7 +571,8 @@ fun GameScreenContent(
                                             item {
                                                 PlayerListHeader(
                                                     title = stringResource(R.string.players_word),
-                                                    allPlayersSelected = visiblePlayers.all { presentIds.contains(it.id) },
+                                                    allPlayersSelected = visiblePlayers.isNotEmpty() && visiblePlayers.all { presentIds.contains(it.id) },
+                                                    visiblePlayerCount = visiblePlayers.size,
                                                     onToggleAll = { checked -> viewModel.setAllPlayersPresence(visiblePlayers, checked) },
                                                     searchExpanded = playerSearchExpanded,
                                                     searchQuery = playerSearchQuery,
@@ -553,6 +589,7 @@ fun GameScreenContent(
                                                     targetDate,
                                                     showElo,
                                                     showToll,
+                                                    !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase(Locale.ROOT)),
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
@@ -649,7 +686,8 @@ fun ActiveGameView(
     presentPlayerIds: Set<Int>,
     allPlayers: List<Player>
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
+    val locale = currentLocale()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.undo)
@@ -718,9 +756,9 @@ fun ActiveGameView(
     val maxEditableStreak = (victoryLimit - 1).coerceAtLeast(0)
 
     fun teamName(teamId: String?): String = when (teamId) {
-        "A" -> context.getString(R.string.team_a)
-        "B" -> context.getString(R.string.team_b)
-        else -> context.getString(R.string.winner)
+        "A" -> resources.getString(R.string.team_a)
+        "B" -> resources.getString(R.string.team_b)
+        else -> resources.getString(R.string.winner)
     }
 
     fun buildStreakAdjustmentMessage(
@@ -731,7 +769,7 @@ fun ActiveGameView(
     ): String {
         return when {
             oldOwner != null && newOwner != null && oldOwner != newOwner -> {
-                context.getString(
+                resources.getString(
                     R.string.streak_transferred_snackbar,
                     teamName(oldOwner),
                     teamName(newOwner),
@@ -741,7 +779,7 @@ fun ActiveGameView(
             }
 
             newOwner != null && oldOwner == newOwner -> {
-                context.getString(
+                resources.getString(
                     R.string.streak_adjusted_same_team_snackbar,
                     teamName(newOwner),
                     oldStreak,
@@ -750,7 +788,7 @@ fun ActiveGameView(
             }
 
             oldOwner == null && newOwner != null -> {
-                context.getString(
+                resources.getString(
                     R.string.streak_started_snackbar,
                     teamName(newOwner),
                     oldStreak,
@@ -759,7 +797,7 @@ fun ActiveGameView(
             }
 
             oldOwner != null && newOwner == null -> {
-                context.getString(
+                resources.getString(
                     R.string.streak_cleared_snackbar,
                     teamName(oldOwner),
                     oldStreak,
@@ -768,7 +806,7 @@ fun ActiveGameView(
             }
 
             else -> {
-                context.getString(
+                resources.getString(
                     R.string.streak_adjusted_same_team_snackbar,
                     teamName(newOwner),
                     oldStreak,
@@ -780,7 +818,7 @@ fun ActiveGameView(
 
     @Composable
     fun buildStreakHistoryLine(log: ManualStreakAdjustmentLog): String {
-        val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.timestamp))
+        val timeLabel = SimpleDateFormat("HH:mm", locale).format(Date(log.timestamp))
         val teamLabel = when (log.team) {
             "A" -> stringResource(R.string.team_a)
             "B" -> stringResource(R.string.team_b)
@@ -822,25 +860,25 @@ fun ActiveGameView(
     }
 
     fun substitutionLocationLabel(location: String): String = when (location) {
-        "A" -> context.getString(R.string.team_a)
-        "B" -> context.getString(R.string.team_b)
-        "WAIT" -> context.getString(R.string.waiting_list_label)
-        else -> context.getString(R.string.waiting_list_label)
+        "A" -> resources.getString(R.string.team_a)
+        "B" -> resources.getString(R.string.team_b)
+        "WAIT" -> resources.getString(R.string.waiting_list_label)
+        else -> resources.getString(R.string.waiting_list_label)
     }
 
     fun buildSubstitutionHistoryLine(log: ManualSubstitutionLog): String {
-        val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.timestamp))
+        val timeLabel = SimpleDateFormat("HH:mm", locale).format(Date(log.timestamp))
         val targetTeamLabel = substitutionLocationLabel(log.targetTeam)
         val sourceLabel = substitutionLocationLabel(log.incomingSource)
         val description = if (log.incomingSource == "WAIT") {
-            context.getString(
+            resources.getString(
                 R.string.substitution_history_from_waiting,
                 log.playerInName,
                 targetTeamLabel,
                 log.playerOutName
             )
         } else {
-            context.getString(
+            resources.getString(
                 R.string.substitution_history_team_swap,
                 log.playerInName,
                 targetTeamLabel,
@@ -940,7 +978,7 @@ fun ActiveGameView(
 
         scope.launch {
             snackbarHostState.showSnackbar(
-                message = context.getString(R.string.winner_score_validation_snackbar),
+                message = resources.getString(R.string.winner_score_validation_snackbar),
                 duration = SnackbarDuration.Short
             )
         }
@@ -1042,7 +1080,7 @@ fun ActiveGameView(
                                     val undone = viewModel.undoLastManualStreakAdjustment()
                                     if (!undone) {
                                         snackbarHostState.showSnackbar(
-                                            message = context.getString(R.string.streak_undo_unavailable),
+                                            message = resources.getString(R.string.streak_undo_unavailable),
                                             duration = SnackbarDuration.Short
                                         )
                                     }
@@ -1437,7 +1475,7 @@ fun ActiveGameView(
                                 item(key = "empty_active") {
                                     Card(
                                         modifier = Modifier
-                                            .animateItemPlacement()
+                                            .animateItem()
                                             .fillMaxWidth(),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                                         onClick = ::openWaitingSheet
@@ -1531,12 +1569,16 @@ fun ActiveGameView(
 private fun PlayerListHeader(
     title: String,
     allPlayersSelected: Boolean,
+    visiblePlayerCount: Int,
     onToggleAll: (Boolean) -> Unit,
     searchExpanded: Boolean,
     searchQuery: String,
     onSearchExpandedChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val landscapeSearchFieldWidth = configuration.screenWidthDp.dp / 2
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     var hasFocus by remember { mutableStateOf(false) }
@@ -1554,8 +1596,16 @@ private fun PlayerListHeader(
             .heightIn(min = 60.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AnimatedContent(targetState = searchExpanded, label = "playerSearchToggle") { expanded ->
-            if (expanded) {
+        val leftAreaModifier = if (searchExpanded && isLandscape) {
+            Modifier.width(landscapeSearchFieldWidth)
+        } else {
+            Modifier.weight(1f)
+        }
+        Box(
+            modifier = leftAreaModifier.heightIn(min = 56.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            if (searchExpanded) {
                 OutlinedTextField(
                     value = searchQuery,
                     shape = CircleShape,
@@ -1581,7 +1631,7 @@ private fun PlayerListHeader(
                         }
                     },
                     modifier = Modifier
-                        .widthIn(min = 180.dp, max = 240.dp)
+                        .fillMaxWidth()
                         .focusRequester(focusRequester)
                         .onFocusChanged { state ->
                             if (state.isFocused) {
@@ -1609,17 +1659,23 @@ private fun PlayerListHeader(
                     )
                 }
             }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !searchExpanded,
+                enter = fadeIn(animationSpec = tween(180)),
+                exit = fadeOut(animationSpec = tween(120)),
+                modifier = Modifier.padding(start = 54.dp)
+            ) {
+                Text(title, fontWeight = FontWeight.Bold)
+            }
         }
-        if (!searchExpanded) {
-            Spacer(Modifier.width(8.dp))
-            Text(title, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.weight(1f))
-        TextButton(onClick = { onToggleAll(!allPlayersSelected) }) {
+        Spacer(Modifier.width(8.dp))
+        TextButton(
+            onClick = { onToggleAll(!allPlayersSelected) },
+            enabled = visiblePlayerCount > 0
+        ) {
             Text(
-                if (allPlayersSelected) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                "${if (allPlayersSelected) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all)} ($visiblePlayerCount)",
+                maxLines = 1
             )
         }
     }
@@ -1989,7 +2045,7 @@ fun ActiveTeamCard(
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.bola_de_volei_solida_para_variar_a_cor),
+                                        painter = painterResource(R.drawable.volei_manager_icon),
                                         contentDescription = null,
                                         tint = contentColor.copy(alpha = 0.7f),
                                         modifier = Modifier.size(
@@ -2086,7 +2142,7 @@ private fun PlayerIdentityInlineRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isRebalancedPlayer) {
                         Icon(
-                            painter = painterResource(R.drawable.rebalance_arrows),
+                            painter = painterResource(R.drawable.arrowsbothsides),
                             contentDescription = rebalancedIconCd,
                             tint = contentColor.copy(alpha = 0.7f),
                             modifier = Modifier.size(inlineIconSize)
@@ -2349,11 +2405,10 @@ private fun GroupOnboardingBalanceModeCard(
                     selected = selectedMode == value,
                     onSelect = { onModeSelected(value) },
                     iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
-                        R.drawable.rebalance_arrows
+                        R.drawable.arrowsbothsides
                     } else {
-                        R.drawable.text_zzz
-                    },
-                    iconSize = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) 20.dp else 16.dp
+                        R.drawable.zzz_rest
+                    }
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -2724,7 +2779,7 @@ fun EmptyStateCard(
             }
             if (limitReached) {
                 Icon(
-                    painter = painterResource(R.drawable.coroa_icon),
+                    painter = painterResource(R.drawable.crown_icon),
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = kingTextColor
@@ -3000,6 +3055,7 @@ fun PlayerCard(
     targetDate: String,
     showElo: Boolean,
     showToll: Boolean,
+    isWithoutHistory: Boolean,
     onTogglePresence: () -> Unit,
     onToggleGuaranteedNextMatch: () -> Unit,
     onDelete: () -> Unit,
@@ -3007,10 +3063,12 @@ fun PlayerCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
+    val locale = currentLocale()
     val cardShape = RoundedCornerShape(12.dp)
     val border = when {
         isGuaranteedNextMatch -> BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary)
         isPresent -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        isWithoutHistory -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         else -> null
     }
     val containerColor = when {
@@ -3080,10 +3138,10 @@ fun PlayerCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     val actualGames = gamesPlayed ?: 0
-                    val today = remember {
+                    val today = remember(locale) {
                         SimpleDateFormat(
                             "yyyy-MM-dd",
-                            Locale.getDefault()
+                            locale
                         ).format(Date())
                     }
                     val hasToll =
@@ -3200,7 +3258,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                         if (isResting) {
                             Spacer(Modifier.width(4.dp))
                             Icon(
-                                painter = painterResource(R.drawable.text_zzz),
+                                painter = painterResource(R.drawable.zzz_rest),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
