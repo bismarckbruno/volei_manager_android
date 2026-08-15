@@ -605,6 +605,10 @@ fun HistoryScreen(
                                 ) {
                                     OutlinedButton(
                                         onClick = { dateExpanded2 = true },
+                                        border = BorderStroke(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outline
+                                        ),
                                         modifier = Modifier.menuAnchor().fillMaxWidth().height(48.dp),
                                         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
                                     ) {
@@ -859,6 +863,10 @@ fun HistoryScreen(
             ) {
                 OutlinedButton(
                     onClick = { dateExpanded = true },
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline
+                    ),
                     modifier = Modifier
                         .menuAnchor()
                         .fillMaxWidth()
@@ -2136,7 +2144,7 @@ fun FAQScreen() {
                 }
             )
             HorizontalDivider(
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = 16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
             )
         }

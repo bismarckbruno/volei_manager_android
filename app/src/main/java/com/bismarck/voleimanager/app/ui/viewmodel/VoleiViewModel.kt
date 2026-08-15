@@ -408,6 +408,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         logs.filter { it.date == tDate }.groupingBy { it.playerId }.eachCount()
     }.stateIn(viewModelScope, screenDataSharing, emptyMap())
 
+    // Usado na tela de jogo em andamento: conta apenas os jogos do dia real (sem cair
+    // para o último dia com histórico), zerando para o primeiro jogo do dia de cada jogador.
+    val gamesPlayedStrictTodayMap = currentGroupEloLogs.map { logs ->
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        logs.filter { it.date == today }.groupingBy { it.playerId }.eachCount()
+    }.stateIn(viewModelScope, screenDataSharing, emptyMap())
+
     val sortedPlayersForPresence =
         combine(currentGroupPlayers, gamesPlayedTodayMap) { pList, gamesMap ->
             pList.sortedWith { p1, p2 ->

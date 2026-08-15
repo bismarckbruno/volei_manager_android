@@ -2,7 +2,6 @@ package com.bismarck.voleimanager.app.ui.game
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -48,7 +47,6 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material.icons.outlined.AlarmAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.R
@@ -58,7 +56,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.luminance
@@ -100,14 +97,12 @@ import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
-import com.bismarck.voleimanager.app.ui.components.LazyListFastScroller
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
-import com.bismarck.voleimanager.app.util.TollCalculator
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -612,12 +607,6 @@ fun GameScreenContent(
                             }
 
                             if (isOnboardingComplete || onboardingStep == ONBOARDING_STEP_MIN_PLAYERS) {
-                                LazyListFastScroller(
-                                    state = listState,
-                                    modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .padding(end = 4.dp)
-                                )
 
                                 Surface(
                                     modifier = Modifier
@@ -746,11 +735,13 @@ fun ActiveGameView(
 
     val scoreA by viewModel.scoreA.collectAsState()
     val scoreB by viewModel.scoreB.collectAsState()
-    val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
+    val gamesPlayedMap by viewModel.gamesPlayedStrictTodayMap.collectAsState()
     val lastScoringTeamId by viewModel.lastScoringTeam.collectAsState()
     val rotationRequiredForTeamId by viewModel.rotationRequiredForTeam.collectAsState()
     val restingMap by viewModel.restingPlayers.collectAsState()
-    val targetDate by viewModel.targetDate.collectAsState()
+    val targetDate = remember(locale) {
+        SimpleDateFormat("yyyy-MM-dd", locale).format(Date())
+    }
     var streakDialogTeam by remember { mutableStateOf<String?>(null) }
     var streakDraftValue by remember { mutableIntStateOf(0) }
     val maxEditableStreak = (victoryLimit - 1).coerceAtLeast(0)
@@ -2014,11 +2005,6 @@ fun ActiveTeamCard(
                         ) {
                             val actualGamesToday = gamesPlayedMap[p.id] ?: 0
                             val hasToll = p.dailyToll > 0 && p.tollDate == targetDate
-                            val effectiveGamesToday = TollCalculator.getEffectiveGames(
-                                player = p,
-                                actualGamesToday = actualGamesToday,
-                                today = targetDate
-                            )
                             val infoBlockAlignment = if (showToll) Alignment.CenterStart else Alignment.Center
 
                             Box(
@@ -2050,17 +2036,26 @@ fun ActiveTeamCard(
                                         tint = contentColor.copy(alpha = 0.7f),
                                         modifier = Modifier.size(
                                             with(LocalDensity.current) {
-                                                MaterialTheme.typography.bodySmall.fontSize.toDp()
+                                                MaterialTheme.typography.bodyMedium.fontSize.toDp()
                                             }
                                         )
                                     )
                                     Spacer(Modifier.width(2.dp))
                                     Text(
-                                        text = effectiveGamesToday.toString(),
+                                        text = actualGamesToday.toString(),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = contentColor.copy(alpha = 0.7f),
                                         maxLines = 1
                                     )
+                                    if (hasToll) {
+                                        Spacer(Modifier.width(2.dp))
+                                        Text(
+                                            text = "+${p.dailyToll}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = contentColor.copy(alpha = 0.7f),
+                                            maxLines = 1
+                                        )
+                                    }
                                     Spacer(Modifier.width(8.dp))
                                 }
                             }
