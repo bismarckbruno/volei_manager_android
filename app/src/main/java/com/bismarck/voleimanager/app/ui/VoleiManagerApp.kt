@@ -136,23 +136,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var pendingDrawerCloseScreen by remember { mutableStateOf<Screen?>(null) }
 
     val density = LocalDensity.current
-    val layoutDirection = LocalLayoutDirection.current
-    val navBarInsets = WindowInsets.navigationBars
-
-// 2. Verifique os lados (em DP)
-    val navBarLeft = with(density) { navBarInsets.getLeft(density, layoutDirection).toDp() }
-    val navBarRight = with(density) { navBarInsets.getRight(density, layoutDirection).toDp() }
-
-    val safeDrawingNavBarDirection = WindowInsets.safeDrawing.only(
-        when {
-            // Se houver barra na esquerda, protege o End (Direita)
-            navBarLeft > 0.dp -> WindowInsetsSides.End
-            // Se houver barra na direita, protege o Star (Esquerda)
-            navBarRight > 0.dp -> WindowInsetsSides.Start
-            // Caso padrão (barra embaixo ou gestos), mantém o comportamento padrão
-            else -> WindowInsetsSides.Horizontal
-        }
-    )
 
     val launcherImport =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -1176,7 +1159,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
              Box(Modifier
                  .padding(padding)
                  .fillMaxSize()
-                 .windowInsetsPadding(safeDrawingNavBarDirection)
              ) {
                  if (isGroupDataLoading) {
                      Box(
