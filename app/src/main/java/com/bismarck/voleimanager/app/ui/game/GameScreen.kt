@@ -564,6 +564,7 @@ fun GameScreenContent(
                                             }
                                         } else {
                                             item {
+                                                Spacer(modifier = Modifier.height(8.dp))
                                                 PlayerListHeader(
                                                     title = stringResource(R.string.players_word),
                                                     allPlayersSelected = visiblePlayers.isNotEmpty() && visiblePlayers.all { presentIds.contains(it.id) },
@@ -1567,9 +1568,6 @@ private fun PlayerListHeader(
     onSearchExpandedChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit
 ) {
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val landscapeSearchFieldWidth = configuration.screenWidthDp.dp / 2
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     var hasFocus by remember { mutableStateOf(false) }
@@ -1587,13 +1585,8 @@ private fun PlayerListHeader(
             .heightIn(min = 60.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val leftAreaModifier = if (searchExpanded && isLandscape) {
-            Modifier.width(landscapeSearchFieldWidth)
-        } else {
-            Modifier.weight(1f)
-        }
         Box(
-            modifier = leftAreaModifier.heightIn(min = 56.dp),
+            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             if (searchExpanded) {
