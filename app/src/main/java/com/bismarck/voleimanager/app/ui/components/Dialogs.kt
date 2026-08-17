@@ -487,9 +487,9 @@ fun GroupConfigDialog(
                 Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
                 Slider(
                     value = victoryLimit,
-                    onValueChange = { victoryLimit = it },
-                    valueRange = 1f..6f,
-                    steps = 4
+                    onValueChange = { victoryLimit = it.coerceIn(2f, 6f) },
+                    valueRange = 2f..6f,
+                    steps = 3
                 )
 
                 Spacer(Modifier.height(24.dp))
@@ -618,7 +618,7 @@ private fun BalancingModeOptionRow(
             Spacer(Modifier.width(8.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall
+                fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.width(8.dp))
             Icon(
@@ -678,7 +678,7 @@ private fun TooltipToggleRow(
                 onCheckedChange(it)
             })
             Spacer(Modifier.width(16.dp))
-            Text(label, style = MaterialTheme.typography.bodySmall)
+            Text(label, fontWeight = FontWeight.Medium)
         }
     }
 }

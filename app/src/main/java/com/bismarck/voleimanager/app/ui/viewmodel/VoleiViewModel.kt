@@ -951,6 +951,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val knownGroups = repository.getAllGroupNames()
             val existingGroupWithoutConfig = loaded == null && knownGroups.contains(name)
             val normalized = loaded?.copy(
+                victoryLimit = loaded.victoryLimit.coerceIn(2, 6),
                 balancingMode = BalancingMode.fromStoredValue(loaded.balancingMode).name
             ) ?: GroupConfig(
                 groupName = name,
@@ -961,7 +962,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     ONBOARDING_STEP_GROUP_NAME
                 }
             )
-            if (loaded == null || normalized.balancingMode != loaded.balancingMode) {
+            if (loaded == null || normalized.balancingMode != loaded.balancingMode || normalized.victoryLimit != loaded.victoryLimit) {
                 repository.saveGroupConfig(normalized)
             }
             _currentGroupConfig.value = normalized
@@ -995,14 +996,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun updateConfig(s: Int, l: Int, priorityP: Boolean, scoreEnabled: Boolean = true, balancingMode: String = _currentGroupConfig.value.balancingMode) {
-        if (_currentGroupConfig.value.teamSize != s) {
+        val safeTeamSize = s.coerceIn(2, 6)
+        val safeVictoryLimit = l.coerceIn(2, 6)
+        if (_currentGroupConfig.value.teamSize != safeTeamSize) {
             _currentStreak.value = 0
             _streakOwner.value = null
-            trimGuaranteedNextMatchToCapacity(s * 2)
+            trimGuaranteedNextMatchToCapacity(safeTeamSize * 2)
         }
         _currentGroupConfig.value = _currentGroupConfig.value.copy(
-            teamSize = s,
-            victoryLimit = l,
+            teamSize = safeTeamSize,
+            victoryLimit = safeVictoryLimit,
             priorityEnabled = priorityP,
             scoreEnabled = scoreEnabled,
             balancingMode = BalancingMode.fromStoredValue(balancingMode).name

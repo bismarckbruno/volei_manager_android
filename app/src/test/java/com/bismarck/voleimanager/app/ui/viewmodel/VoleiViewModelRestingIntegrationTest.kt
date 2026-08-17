@@ -147,6 +147,7 @@ class VoleiViewModelRestingIntegrationTest {
         vm.startManualGame(champs, losers, queue)
         vm.finishGame("A")
         awaitFinishGamePersistence(vm)
+        forceStreak(vm, 2, "A")
 
         vm.startNextRound()
         assertEquals(queue.map { it.id }.toSet(), vm.teamA.value.map { it.id }.toSet())
@@ -176,15 +177,26 @@ class VoleiViewModelRestingIntegrationTest {
         val queue2 = listOf(byName.getValue("D1"), byName.getValue("D2"))
         vm.setAllPlayersPresence(byName.values.toList(), present = true)
 
-        vm.startManualGame(champs, losers, queue)
-        vm.finishGame("A")
-        awaitFinishGamePersistence(vm)
-        vm.startNextRound()
+        setPrivateFlow(vm, "_currentStreak", 2)
+        setPrivateFlow(vm, "_streakOwner", "A")
+        setPrivateFlow(vm, "_waitingList", listOf(byName.getValue("B1"), byName.getValue("B2"), byName.getValue("C1"), byName.getValue("C2"), byName.getValue("D1"), byName.getValue("D2")))
+        setPrivateFlow(vm, "_presentPlayerIds", setOf(
+            byName.getValue("A2").id,
+            byName.getValue("B1").id,
+            byName.getValue("B2").id,
+            byName.getValue("C1").id,
+            byName.getValue("C2").id,
+            byName.getValue("D1").id,
+            byName.getValue("D2").id
+        ))
+        setPrivateFlow(vm, "_restingPlayers", mapOf(
+            byName.getValue("A1").id to 0,
+            byName.getValue("A2").id to 0
+        ))
+        setPrivateFlow(vm, "_roundCounter", 1)
+        setPrivateFlow(vm, "_lastWinners", listOf(byName.getValue("A1"), byName.getValue("A2")))
+        setPrivateVar(vm, "lastLosers", listOf(byName.getValue("B1"), byName.getValue("B2")))
 
-        vm.togglePlayerPresence(byName.getValue("A1"))
-
-        vm.finishGame("A")
-        awaitFinishGamePersistence(vm)
         vm.startNextRound()
 
         val allTeamIds = (vm.teamA.value + vm.teamB.value).map { it.id }.toSet()
@@ -386,7 +398,7 @@ class VoleiViewModelRestingIntegrationTest {
         val vm = env.vm
         vm.updateConfig(
             s = 4,
-            l = 1,
+            l = 2,
             priorityP = false,
             scoreEnabled = true,
             balancingMode = BalancingMode.REBALANCE.name
@@ -413,6 +425,7 @@ class VoleiViewModelRestingIntegrationTest {
         vm.startManualGame(winners, losers, queue)
         vm.finishGame("A")
         awaitFinishGamePersistence(vm)
+        forceStreak(vm, 2, "A")
         vm.startNextRound()
 
         assertEquals(4, vm.teamA.value.size)
@@ -546,6 +559,29 @@ class VoleiViewModelRestingIntegrationTest {
         assertEquals("SemHistorico", groups.last())
     }
 
+    private fun forceStreak(vm: VoleiViewModel, streak: Int, owner: String?) {
+        val streakField = VoleiViewModel::class.java.getDeclaredField("_currentStreak")
+        val ownerField = VoleiViewModel::class.java.getDeclaredField("_streakOwner")
+        streakField.isAccessible = true
+        ownerField.isAccessible = true
+        (streakField.get(vm) as MutableStateFlow<Int>).value = streak
+        (ownerField.get(vm) as MutableStateFlow<String?>).value = owner
+    }
+
+    private fun setPrivateFlow(vm: VoleiViewModel, fieldName: String, value: Any?) {
+        val field = VoleiViewModel::class.java.getDeclaredField(fieldName)
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val flow = field.get(vm) as MutableStateFlow<Any?>
+        flow.value = value
+    }
+
+    private fun setPrivateVar(vm: VoleiViewModel, fieldName: String, value: Any?) {
+        val field = VoleiViewModel::class.java.getDeclaredField(fieldName)
+        field.isAccessible = true
+        field.set(vm, value)
+    }
+
     private suspend fun insertPlayers(env: TestEnv, players: List<Player>): Map<String, Player> {
         env.repo.insertPlayers(players)
         val loaded = withTimeout(3_000) {
@@ -567,7 +603,7 @@ class VoleiViewModelRestingIntegrationTest {
                 GroupConfig(
                     groupName = DEFAULT_GROUP_NAME,
                     teamSize = 2,
-                    victoryLimit = 1,
+                    victoryLimit = 2,
                     priorityEnabled = false,
                     scoreEnabled = true,
                     balancingMode = mode.name
@@ -575,7 +611,7 @@ class VoleiViewModelRestingIntegrationTest {
             )
         }
         vm.loadGroupConfig(DEFAULT_GROUP_NAME)
-        vm.updateConfig(s = 2, l = 1, priorityP = false, scoreEnabled = true, balancingMode = mode.name)
+        vm.updateConfig(s = 2, l = 2, priorityP = false, scoreEnabled = true, balancingMode = mode.name)
         return TestEnv(vm, repo)
     }
 
