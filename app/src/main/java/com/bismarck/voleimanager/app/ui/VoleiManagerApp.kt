@@ -836,7 +836,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             selectedGroup?.let {
                                 Text(
                                     getDisplayGroupWithMode(groupConfig.groupName, groupConfig.balancingMode, groupConfig.teamSize),
-                                    style = MaterialTheme.typography.labelSmall
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }

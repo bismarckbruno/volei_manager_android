@@ -106,6 +106,81 @@ enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 internal data class PlayerIdentifier(val id: Int?, val name: String)
 private val historyDiacriticsRegex = Regex("\\p{M}+")
 
+@Composable
+private fun SortModeIcon(
+    matchSortMode: MatchSortMode? = null,
+    playerSortMode: PlayerSortMode? = null,
+    modifier: Modifier = Modifier,
+    tint: Color
+) {
+    when {
+        matchSortMode != null -> when (matchSortMode) {
+            MatchSortMode.NEWEST -> Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.arrowup),
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            MatchSortMode.OLDEST -> Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.arrowdown),
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            MatchSortMode.ELO_DELTA -> Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.plus_minus),
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            MatchSortMode.SCORE_DIFF -> Icon(
+                imageVector = Icons.Outlined.Scoreboard,
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+        }
+        playerSortMode != null -> when (playerSortMode) {
+            PlayerSortMode.ALPHABETICAL -> Icon(
+                imageVector = Icons.Default.SortByAlpha,
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            PlayerSortMode.ELO -> Icon(
+                imageVector = Icons.Default.WorkspacePremium,
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            PlayerSortMode.GAMES -> Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.volei_manager_icon),
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            PlayerSortMode.VICTORIES -> Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.crown_icon),
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            PlayerSortMode.PERCENTAGE -> Icon(
+                imageVector = Icons.Default.Percent,
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            PlayerSortMode.PLAYED_TIME -> Icon(
+                imageVector = Icons.Default.AccessTime,
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+        }
+    }
+}
+
 internal fun parseTeamIdentifiers(teamNamesRaw: String, teamIdsRaw: String): List<PlayerIdentifier> {
     val names = teamNamesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     val ids = if (teamIdsRaw.isBlank()) {
@@ -2590,12 +2665,24 @@ fun ExportableImageContent(
         }
         
         if (sortLabel.isNotEmpty()) {
-            Text(
-                text = sortLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = if (players != null && !showElo) Modifier.padding(bottom = 8.dp) else Modifier.padding()
-            )
+            val sortIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = if (players != null && !showElo) Modifier.padding(bottom = 8.dp) else Modifier
+            ) {
+                Text(
+                    text = sortLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(4.dp))
+                SortModeIcon(
+                    matchSortMode = if (matches != null) matchSortMode else null,
+                    playerSortMode = if (players != null) playerSortMode else null,
+                    modifier = Modifier.size(sortIconSize),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         
         if (players != null && showElo && averagePlayersEloText != null) {

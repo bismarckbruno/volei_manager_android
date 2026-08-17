@@ -2,6 +2,7 @@ package com.bismarck.voleimanager.app.ui.game
 
 import android.app.Activity
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -143,6 +144,7 @@ fun GameScreenContent(
     onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit
 ) {
     val resources = LocalResources.current
+    val focusManager = LocalFocusManager.current
     val undoLabel = stringResource(R.string.undo)
     val sortedPlayers by viewModel.sortedPlayersForPresence.collectAsState()
     val currentGroupHistory by viewModel.currentGroupHistory.collectAsState()
@@ -168,6 +170,11 @@ fun GameScreenContent(
     var confirmWinTeam by remember { mutableStateOf<String?>(null) }
     var playerSearchExpanded by rememberSaveable { mutableStateOf(false) }
     var playerSearchQuery by rememberSaveable { mutableStateOf("") }
+    BackHandler(enabled = playerSearchExpanded) {
+        playerSearchQuery = ""
+        playerSearchExpanded = false
+        focusManager.clearFocus(force = true)
+    }
     val visiblePlayers = remember(sortedPlayers, playerSearchQuery) {
         if (playerSearchQuery.isBlank()) {
             sortedPlayers
@@ -1686,7 +1693,11 @@ private fun PlayerListHeader(
                 exit = fadeOut(animationSpec = tween(120)),
                 modifier = Modifier.padding(start = 54.dp)
             ) {
-                Text(title, fontWeight = FontWeight.Bold)
+                Text(
+                    title,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
         Spacer(Modifier.width(8.dp))

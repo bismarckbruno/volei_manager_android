@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.ui
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,6 +32,7 @@ import com.bismarck.voleimanager.app.util.EloCalculator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.launch
 
@@ -50,6 +52,9 @@ fun ManualSetupScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val errorMsg = stringResource(R.string.select_equal_number)
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val listState = rememberLazyListState()
 
     // Calcula os times em tempo real baseados na seleção
     val teamA = players.filter { selectionState[it.id] == "A" }
@@ -59,111 +64,191 @@ fun ManualSetupScreen(
     val canStart = teamA.size == teamB.size && teamA.size in 2..6
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+        val contentModifier = Modifier
+            .padding(padding)
+            .fillMaxSize()
 
-            // --- 1. CABEÇALHO PERSONALIZADO ---
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 4.dp, end = 16.dp)
-                    .padding(top = 0.dp, bottom = 8.dp)
+        if (isLandscape) {
+            LazyColumn(
+                state = listState,
+                modifier = contentModifier
             ) {
-                IconButton(
-                    onClick = onCancel,
-                    modifier = Modifier.align(Alignment.CenterStart)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
-                }
-
-                Text(
-                    text = stringResource(R.string.assemble_teams),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-
-                Button(
-                    onClick = { 
-                        if (canStart) {
-                            onConfirm(teamA, teamB, bench, teamA.size) 
-                        } else {
-                            scope.launch {
-                                snackbarHostState.showSnackbar(errorMsg)
+                item {
+                    ManualSetupActionBar(
+                        canStart = canStart,
+                        onCancel = onCancel,
+                        onStart = {
+                            if (canStart) {
+                                onConfirm(teamA, teamB, bench, teamA.size)
+                            } else {
+                                scope.launch { snackbarHostState.showSnackbar(errorMsg) }
                             }
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (canStart) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                        contentColor = if (canStart) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    ),
-                    contentPadding = if (canStart) PaddingValues(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp) else PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                ) {
-                    Text(stringResource(R.string.start))
-                    if (canStart) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Default.Check, null)
-                    }
+                    )
                 }
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.padding(horizontal = 16.dp))
-            // --- 2. PLACAR COM CONTAGEM ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TeamCounter(
-                    stringResource(R.string.team_a),
-                    teamA.size,
-                    MaterialTheme.colorScheme.primary
-                )
-                Text(stringResource(R.string.vs), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                // Usando a cor estendida importada do Theme.kt gerado pelo Figma
-                TeamCounter(
-                    stringResource(R.string.team_b),
-                    teamB.size,
-                    LocalExtendedColors.current.anotherPrime.color
-                )
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.padding(horizontal = 16.dp))
-
-            // --- 3. LISTA DE SELEÇÃO ---
-            val listState = rememberLazyListState()
-            Box(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                ) {
-                    items(players) { player ->
-                        PlayerSelectionRow(
-                            player = player,
-                            currentSelection = selectionState[player.id],
-                            showElo = showElo,
-                            onSelect = { selection ->
-                                val newState = selectionState.toMutableMap()
-
-                                if (newState[player.id] == selection) {
-                                    newState.remove(player.id) // Desmarcar (vai pro banco)
-                                } else {
-                                    newState[player.id] = selection // Marca A ou B
-                                }
-                                selectionState = newState
+                item {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                item {
+                    ManualSetupSelectionSummary(teamACount = teamA.size, teamBCount = teamB.size)
+                }
+                item {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                items(players) { player ->
+                    PlayerSelectionRow(
+                        player = player,
+                        currentSelection = selectionState[player.id],
+                        showElo = showElo,
+                        onSelect = { selection ->
+                            val newState = selectionState.toMutableMap()
+                            if (newState[player.id] == selection) {
+                                newState.remove(player.id)
+                            } else {
+                                newState[player.id] = selection
                             }
-                        )
+                            selectionState = newState
+                        }
+                    )
+                }
+                item { Spacer(Modifier.height(12.dp)) }
+            }
+        } else {
+            Column(modifier = contentModifier) {
+                ManualSetupActionBar(
+                    canStart = canStart,
+                    onCancel = onCancel,
+                    onStart = {
+                        if (canStart) {
+                            onConfirm(teamA, teamB, bench, teamA.size)
+                        } else {
+                            scope.launch { snackbarHostState.showSnackbar(errorMsg) }
+                        }
+                    }
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                ManualSetupSelectionSummary(teamACount = teamA.size, teamBCount = teamB.size)
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(players) { player ->
+                            PlayerSelectionRow(
+                                player = player,
+                                currentSelection = selectionState[player.id],
+                                showElo = showElo,
+                                onSelect = { selection ->
+                                    val newState = selectionState.toMutableMap()
+                                    if (newState[player.id] == selection) {
+                                        newState.remove(player.id)
+                                    } else {
+                                        newState[player.id] = selection
+                                    }
+                                    selectionState = newState
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ManualSetupActionBar(
+    canStart: Boolean,
+    onCancel: () -> Unit,
+    onStart: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 16.dp)
+            .padding(bottom = 8.dp)
+    ) {
+        IconButton(
+            onClick = onCancel,
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+        }
+
+        Text(
+            text = stringResource(R.string.assemble_teams),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.align(Alignment.Center)
+        )
+
+        Button(
+            onClick = onStart,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (canStart) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                contentColor = if (canStart) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            ),
+            contentPadding = if (canStart) {
+                PaddingValues(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+            } else {
+                PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+            },
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Text(stringResource(R.string.start))
+            if (canStart) {
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.Check, null)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ManualSetupSelectionSummary(
+    teamACount: Int,
+    teamBCount: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TeamCounter(
+            stringResource(R.string.team_a),
+            teamACount,
+            MaterialTheme.colorScheme.primary
+        )
+        Text(
+            stringResource(R.string.vs),
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TeamCounter(
+            stringResource(R.string.team_b),
+            teamBCount,
+            LocalExtendedColors.current.anotherPrime.color
+        )
     }
 }
 

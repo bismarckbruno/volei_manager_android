@@ -366,6 +366,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                     valueRange = 0f..eloLevels.lastIndex.toFloat(),
                     steps = eloLevels.size - 2
                 )
+                Spacer(Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     eloLevels.forEachIndexed { index, elo ->
                         val descriptionRes = when (elo) {
@@ -481,7 +482,7 @@ fun GroupConfigDialog(
                     valueRange = 2f..6f,
                     steps = 3
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
                 Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
                 Slider(
@@ -491,7 +492,7 @@ fun GroupConfigDialog(
                     steps = 4
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
                 Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
                 val modes = listOf(
                     Triple(
