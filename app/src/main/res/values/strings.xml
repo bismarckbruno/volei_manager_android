@@ -206,8 +206,8 @@
     <string name="elo_level_1300_desc">Advanced</string>
     <string name="continue_word">Continue</string>
     <string name="back">Back</string>
-    <string name="uncheck_all">Uncheck all</string>
-    <string name="check_all">Check all</string>
+    <string name="uncheck_all">Uncheck</string>
+    <string name="check_all">Check</string>
     <string name="none_selected">None selected (%1$d registered)</string>
     <string name="group_s">s</string>
     <string name="group_empty">)</string>

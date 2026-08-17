@@ -86,7 +86,7 @@
     <string name="about_code">Sobre o código</string>
     <string name="all_dates">Todas as datas</string>
     <string name="all_dates_with_player">Todas as datas com %1$s</string>
-    <string name="search_player">Buscar jogador</string>
+    <string name="search_player">Pesquisar</string>
     <string name="clear_search">Limpar busca</string>
     <string name="filter_player">Filtrar por jogador</string>
     <string name="select_player">Selecionar jogador</string>
@@ -207,8 +207,8 @@
     <string name="elo_level_1300_desc">Avançado</string>
     <string name="continue_word">Continuar</string>
     <string name="back">Voltar</string>
-    <string name="uncheck_all">Desmarcar todos</string>
-    <string name="check_all">Marcar todos</string>
+    <string name="uncheck_all">Desmarcar</string>
+    <string name="check_all">Marcar</string>
     <string name="none_selected">Nenhum selecionado (%1$d cadastro%2$s)</string>
     <string name="group_s">s</string>
     <string name="group_empty">)</string>

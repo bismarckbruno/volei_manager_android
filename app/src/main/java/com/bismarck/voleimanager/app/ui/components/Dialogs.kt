@@ -33,6 +33,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import android.view.WindowManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -47,7 +50,27 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+
+/**
+ * Forces the software keyboard to open on the given [focusRequester] when a dialog appears.
+ * AlertDialog hosts its content in a separate window whose softInputMode does not request the
+ * IME by default, so we set it explicitly and then request focus after the first frame.
+ */
+@Composable
+private fun DialogKeyboardFocus(focusRequester: FocusRequester) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val view = LocalView.current
+    LaunchedEffect(Unit) {
+        (view.parent as? DialogWindowProvider)?.window?.setSoftInputMode(
+            WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+        )
+        delay(100)
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
+}
 
 @Composable
 fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) {
@@ -71,13 +94,9 @@ fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var newName by remember { mutableStateOf(oldName) }
-    val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
-    
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboardController?.show()
-    }
+
+    DialogKeyboardFocus(focusRequester)
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -255,14 +274,10 @@ fun SubstitutionDialog(
 fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, Boolean) -> Unit) {
     var newName by remember { mutableStateOf(player.name) }
     var isPriority by remember { mutableStateOf(player.isPriority) }
-    val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val normalizedName = newName.trim().replace(Regex("\\s+"), " ")
-    
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboardController?.show()
-    }
+
+    DialogKeyboardFocus(focusRequester)
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -310,10 +325,7 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
     val normalizedName = name.trim().replace(Regex("\\s+"), " ")
     val eloValue = eloLevels[eloIndex]
 
-    LaunchedEffect(Unit) {
-        nameFocusRequester.requestFocus()
-        keyboardController?.show()
-    }
+    DialogKeyboardFocus(nameFocusRequester)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -674,13 +686,9 @@ private fun TooltipToggleRow(
 fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var text by remember { mutableStateOf("") }
     var balancingMode by remember { mutableStateOf(com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) }
-    val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
-    
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboardController?.show()
-    }
+
+    DialogKeyboardFocus(focusRequester)
 
     AlertDialog(
         onDismissRequest = onDismiss,

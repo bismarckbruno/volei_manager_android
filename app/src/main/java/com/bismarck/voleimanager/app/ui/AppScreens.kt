@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -63,6 +64,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -582,9 +585,9 @@ fun HistoryScreen(
                             val allDatesSelected2 = historyDate == null
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Spacer(Modifier.width(4.dp))
                                 IconButton(
                                     onClick = { showHistoryPlayerDialog = true },
                                     modifier = Modifier
@@ -598,6 +601,7 @@ fun HistoryScreen(
                                 ) {
                                     Icon(Icons.Default.Person, contentDescription = stringResource(R.string.player), modifier = Modifier.size(24.dp))
                                 }
+                                Spacer(Modifier.width(8.dp))
                                 ExposedDropdownMenuBox(
                                     expanded = dateExpanded2,
                                     onExpandedChange = { dateExpanded2 = !dateExpanded2 },
@@ -671,6 +675,12 @@ fun HistoryScreen(
                                         modifier = Modifier.fillMaxHeight(),
                                         selected = selectedTab == 0,
                                         onClick = { onTabChanged(0) },
+                                        colors = SegmentedButtonDefaults.colors(
+                                            activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                                            inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
                                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                                         icon = { }
                                     ) {
@@ -688,6 +698,12 @@ fun HistoryScreen(
                                         modifier = Modifier.fillMaxHeight(),
                                         selected = selectedTab == 1,
                                         onClick = { onTabChanged(1) },
+                                        colors = SegmentedButtonDefaults.colors(
+                                            activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                                            inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
                                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                                         icon = { }
                                     ) {
@@ -707,7 +723,7 @@ fun HistoryScreen(
                                     selectedTab == 0 -> when (matchSortMode) {
                                         MatchSortMode.NEWEST -> ImageVector.vectorResource(R.drawable.arrowup)
                                         MatchSortMode.OLDEST -> ImageVector.vectorResource(R.drawable.arrowdown)
-                                        MatchSortMode.ELO_DELTA -> Icons.Default.WorkspacePremium
+                                        MatchSortMode.ELO_DELTA -> ImageVector.vectorResource(R.drawable.plus_minus)
                                         MatchSortMode.SCORE_DIFF -> Icons.Outlined.Scoreboard
                                     }
                                     else -> when (playerSortMode) {
@@ -758,7 +774,7 @@ fun HistoryScreen(
                                         if (selectedTab == 0) {
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.newest_first)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.arrowup), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.oldest_first)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.arrowdown), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo_change)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo_change)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.plus_minus), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_score_diff)); Spacer(Modifier.weight(1f)); Icon(Icons.Outlined.Scoreboard, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false })
                                         } else {
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.alphabetical)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
@@ -963,6 +979,12 @@ fun HistoryScreen(
                     modifier = Modifier.fillMaxHeight(),
                     selected = selectedTab == 0,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     icon = { }
                 ) {
@@ -999,6 +1021,12 @@ fun HistoryScreen(
                     modifier = Modifier.fillMaxHeight(),
                     selected = selectedTab == 1,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     icon = { }
                 ) {
@@ -1039,7 +1067,7 @@ fun HistoryScreen(
                 selectedTab == 0 -> when (matchSortMode) {
                     MatchSortMode.NEWEST -> ImageVector.vectorResource(R.drawable.arrowup)
                     MatchSortMode.OLDEST -> ImageVector.vectorResource(R.drawable.arrowdown)
-                    MatchSortMode.ELO_DELTA -> Icons.Default.WorkspacePremium
+                    MatchSortMode.ELO_DELTA -> ImageVector.vectorResource(R.drawable.plus_minus)
                     MatchSortMode.SCORE_DIFF -> Icons.Outlined.Scoreboard
                 }
                 else -> when (playerSortMode) {
@@ -1121,7 +1149,7 @@ fun HistoryScreen(
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_elo_change))
                                     Spacer(Modifier.weight(1f))
-                                    Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(ImageVector.vectorResource(R.drawable.plus_minus), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false }
@@ -1384,7 +1412,7 @@ private fun HistoryPlayerFilterDialog(
                     .widthIn(min = 280.dp, max = 420.dp)
                     .heightIn(max = 560.dp)
             ) {
-                Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
+                Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
                     Text(
                         text = stringResource(R.string.filter_player),
                         style = MaterialTheme.typography.titleMedium,
@@ -1406,11 +1434,11 @@ private fun HistoryPlayerFilterDialog(
                             }
                         }
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(8.dp))
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 12.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     item {
@@ -1460,7 +1488,7 @@ private fun HistoryPlayerFilterDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                        .padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextButton(
@@ -1519,6 +1547,7 @@ private fun HistorySummaryItem(text: String, leadingIcon: ImageVector? = null) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HistoryPlayerCard(
     rank: Int?,
@@ -1532,28 +1561,19 @@ fun HistoryPlayerCard(
     isDeleted: Boolean = false,
     playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL
 ) {
-    var showDeletedTooltip by remember { mutableStateOf(false) }
     val showDeletedIndicator = isDeleted && playerSortMode == PlayerSortMode.ALPHABETICAL
     val deletedPlayerTooltip = stringResource(R.string.player_was_deleted)
-    val density = LocalDensity.current
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     val locale = currentLocale()
 
     LaunchedEffect(showDeletedIndicator) {
         if (!showDeletedIndicator) {
-            showDeletedTooltip = false
+            tooltipState.dismiss()
         }
     }
 
-    val victoriesText = when (victories) {
-        0 -> stringResource(R.string.no_victories)
-        1 -> stringResource(R.string.one_victory)
-        else -> stringResource(R.string.x_victories, victories)
-    }
-    val gamesLabel = when (gamesPlayed) {
-        0 -> stringResource(R.string.no_matches)
-        1 -> stringResource(R.string.one_match)
-        else -> stringResource(R.string.x_matches, gamesPlayed)
-    }
     val percentage = if (gamesPlayed > 0) {
         victories.toDouble() / gamesPlayed * 100.0
     } else 0.0
@@ -1568,38 +1588,33 @@ fun HistoryPlayerCard(
             .fillMaxWidth()
             .widthIn(min = 120.dp)
     ) {
-        if (showDeletedTooltip && showDeletedIndicator) {
-            Popup(
-                alignment = Alignment.TopCenter,
-                offset = IntOffset(0, with(density) { (-56).dp.roundToPx() }),
-                onDismissRequest = { showDeletedTooltip = false }
-            ) {
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(animationSpec = tween(180)),
-                    exit = fadeOut(animationSpec = tween(120))
-                ) {
-                    Surface(
-                        modifier = Modifier.widthIn(max = 240.dp),
-                        tonalElevation = 4.dp,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            deletedPlayerTooltip,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    }
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+            tooltip = {
+                PlainTooltip {
+                    Text(
+                        text = deletedPlayerTooltip,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
-            }
-        }
+            },
+            state = tooltipState,
+            enableUserInput = false
+        ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = CardDefaults.shape,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = showDeletedIndicator) {
-                    showDeletedTooltip = !showDeletedTooltip
-                }
+                .clip(CardDefaults.shape)
+                .combinedClickable(
+                    enabled = showDeletedIndicator,
+                    onClick = {},
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch { tooltipState.show() }
+                    }
+                )
         ) {
             Surface(
                 modifier = Modifier
@@ -1697,11 +1712,7 @@ fun HistoryPlayerCard(
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                "$victoriesText / $gamesLabel",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            VictoriesAndGamesRow(victories, gamesPlayed)
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 "$percentageFormatted%",
@@ -1767,11 +1778,7 @@ fun HistoryPlayerCard(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(
-                                "$victoriesText / $gamesLabel",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            VictoriesAndGamesRow(victories, gamesPlayed)
                             Text(
                                 "$percentageFormatted%",
                                 style = MaterialTheme.typography.bodySmall,
@@ -1783,6 +1790,39 @@ fun HistoryPlayerCard(
                 }
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun VictoriesAndGamesRow(victories: Int, gamesPlayed: Int) {
+    val iconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painter = painterResource(R.drawable.crown_icon),
+            contentDescription = null,
+            modifier = Modifier.size(iconSize),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(2.dp))
+        Text(
+            victories.toString(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            painter = painterResource(R.drawable.volei_manager_icon),
+            contentDescription = null,
+            modifier = Modifier.size(iconSize),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(2.dp))
+        Text(
+            gamesPlayed.toString(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -1849,10 +1889,13 @@ fun HistoryItem(
                 val maxWidthPx = with(density) { maxWidth.roundToPx() }
                 val dateWidthPx = textMeasurer.measure(formatLocalizedDate(match.date), style = MaterialTheme.typography.labelMedium).size.width
                 val eloWidthPx = if (showElo) {
+                    val iconAndSpacingPx = with(density) {
+                        MaterialTheme.typography.bodySmall.fontSize.toDp().roundToPx() + 2.dp.roundToPx()
+                    }
                     textMeasurer.measure(
-                        "±$formattedDelta",
+                        formattedDelta,
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                    ).size.width
+                    ).size.width + iconAndSpacingPx
                 } else 0
                 val durationWidthPx = if (durationMinutes != null) {
                     textMeasurer.measure(
@@ -1937,11 +1980,19 @@ fun HistoryItem(
                     }
 
                     if (showElo) {
-                        Text(
-                            "±$formattedDelta",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelMedium
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.plus_minus_bold),
+                                contentDescription = null,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
+                                tint = contentColor
+                            )
+                            Text(
+                                formattedDelta,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
                     }
                 }
             }

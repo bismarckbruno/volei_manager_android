@@ -206,8 +206,8 @@
     <string name="elo_level_1300_desc">Avanzado</string>
     <string name="continue_word">Continuar</string>
     <string name="back">Volver</string>
-    <string name="uncheck_all">Desmarcar todos</string>
-    <string name="check_all">Marcar todos</string>
+    <string name="uncheck_all">Desmarcar</string>
+    <string name="check_all">Marcar</string>
     <string name="none_selected">Ninguno seleccionado (%1$d registro%2$s)</string>
     <string name="group_s">s</string>
     <string name="group_empty">)</string>

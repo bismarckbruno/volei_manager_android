@@ -1,104 +1,113 @@
 package com.bismarck.voleimanager.app.ui.game
 
+import android.app.Activity
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import com.bismarck.voleimanager.app.R
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.BalancingMode
-import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_BALANCING_MODE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
+import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
+import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
@@ -109,13 +118,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.DisposableEffect
-import android.app.Activity
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.ui.Modifier
-import com.bismarck.voleimanager.app.ui.getDisplayGroupName
+
 
 @Composable
 private fun currentLocale(): Locale {
@@ -502,7 +505,9 @@ fun GameScreenContent(
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         textAlign = TextAlign.Center,
-                                                        modifier = Modifier.fillMaxWidth().padding(24.dp)
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(24.dp)
                                                     )
                                                 }
                                             }
@@ -598,7 +603,9 @@ fun GameScreenContent(
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         textAlign = TextAlign.Center,
-                                                        modifier = Modifier.fillMaxWidth().padding(24.dp)
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(24.dp)
                                                     )
                                                 }
                                             }
@@ -620,29 +627,53 @@ fun GameScreenContent(
                                 ) {
                                     val selCount = presentIds.size
                                     val totalCount = sortedPlayers.size
-                                    val text = if (selCount == 0) {
-                                        stringResource(
-                                            R.string.none_selected,
-                                            totalCount,
-                                            if (totalCount > 1) stringResource(R.string.group_s) else ""
+                                    if (totalCount == 0) {
+                                        Text(
+                                            text = stringResource(R.string.no_entries),
+                                            modifier = Modifier.padding(16.dp),
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
                                         )
                                     } else {
-                                        stringResource(
-                                            R.string.selected,
-                                            selCount,
-                                            if (selCount > 1) stringResource(R.string.group_s) else "",
-                                            totalCount,
-                                            if (totalCount > 1) stringResource(R.string.group_s) else ""
-                                        )
+                                        val iconSize = with(LocalDensity.current) {
+                                            MaterialTheme.typography.bodyLarge.fontSize.toDp()
+                                        }
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(iconSize),
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                text = selCount.toString(),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Spacer(Modifier.width(16.dp))
+                                            Icon(
+                                                Icons.Default.Groups,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(iconSize),
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                text = totalCount.toString(),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
                                     }
-                                    Text(
-                                        text = if (totalCount == 0) stringResource(R.string.no_entries) else text,
-                                        modifier = Modifier.padding(16.dp),
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
                                 }
                             }
                         }
@@ -1223,7 +1254,9 @@ fun ActiveGameView(
                                     modifier = Modifier
                                         .weight(1f)
                                         .then(
-                                            if (useCompactTeamCards) Modifier else Modifier.heightIn(min = 250.dp)
+                                            if (useCompactTeamCards) Modifier else Modifier.heightIn(
+                                                min = 250.dp
+                                            )
                                         )
                                 ) {
                                     ActiveTeamCard(
@@ -1261,7 +1294,9 @@ fun ActiveGameView(
                                     modifier = Modifier
                                         .weight(1f)
                                         .then(
-                                            if (useCompactTeamCards) Modifier else Modifier.heightIn(min = 250.dp)
+                                            if (useCompactTeamCards) Modifier else Modifier.heightIn(
+                                                min = 250.dp
+                                            )
                                         )
                                 ) {
                                     ActiveTeamCard(
@@ -1586,7 +1621,9 @@ private fun PlayerListHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 56.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             if (searchExpanded) {
@@ -1601,7 +1638,7 @@ private fun PlayerListHeader(
                         }
                     },
                     singleLine = true,
-                    placeholder = { Text(stringResource(R.string.search_player)) },
+                    placeholder = { Text(stringResource(R.string.search_player), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = null)
                     },
@@ -2288,6 +2325,14 @@ private fun GroupOnboardingNameCard(
             )
         )
     }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -2312,13 +2357,16 @@ private fun GroupOnboardingNameCard(
                     onGroupNameChange(it.text)
                 },
                 label = { Text(stringResource(R.string.group_name)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRequester(focusRequester)
                     .onFocusChanged { focusState ->
                         if (focusState.isFocused && !didSetInitialCursor) {
                             didSetInitialCursor = true
-                            textFieldValue = textFieldValue.copy(selection = TextRange(textFieldValue.text.length))
+                            textFieldValue =
+                                textFieldValue.copy(selection = TextRange(textFieldValue.text.length))
                         }
                     }
             )
@@ -3135,24 +3183,29 @@ fun PlayerCard(
                     val hasToll =
                         player.dailyToll > 0 && (player.tollDate == targetDate || player.tollDate == today)
 
-                    val gamesStr = if (actualGames == 0) {
-                        stringResource(R.string.no_games)
-                    } else {
-                        if (actualGames == 1) stringResource(R.string.one_game) else stringResource(
-                            R.string.x_matches, actualGames
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.volei_manager_icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
                         )
-                    }
-                    val info =
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            text = actualGames.toString(),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         if (showToll && hasToll) {
-                            "$gamesStr (+${player.dailyToll})"
-                        } else {
-                            gamesStr
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = "+${player.dailyToll}",
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
-                    Text(text = info,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    }
                 }
             }
         }
