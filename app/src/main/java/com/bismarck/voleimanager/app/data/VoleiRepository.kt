@@ -114,6 +114,10 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
         voleiDao.updateConfigGroupNames(oldName, newName)
         // Atualiza logs também
         voleiDao.updateEloLogGroupNames(oldName, newName)
+        voleiDao.updateTournamentTeamGroupNames(oldName, newName)
+        voleiDao.updateTournamentTeamMemberGroupNames(oldName, newName)
+        voleiDao.updateTournamentMatchGroupNames(oldName, newName)
+        voleiDao.updateGroupLogGroupNames(oldName, newName)
     }
 
     suspend fun deleteGroup(groupName: String) {
@@ -122,5 +126,47 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
         voleiDao.deleteConfigByGroup(groupName)
         // Deleta logs também
         voleiDao.deleteEloLogsByGroup(groupName)
+        voleiDao.deleteTournamentTeamsByGroup(groupName)
+        voleiDao.deleteTournamentTeamMembersByGroup(groupName)
+        voleiDao.deleteTournamentMatchesByGroup(groupName)
+        voleiDao.deleteGroupLogsByGroup(groupName)
     }
+
+    // --- Tournament Teams ---
+    fun tournamentTeamsByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.TournamentTeam>> =
+        voleiDao.getTournamentTeamsByGroup(groupName)
+
+    suspend fun getTournamentTeamsByGroupSync(groupName: String) = voleiDao.getTournamentTeamsByGroupSync(groupName)
+    suspend fun insertTournamentTeam(team: com.bismarck.voleimanager.app.data.model.TournamentTeam) = voleiDao.insertTournamentTeam(team)
+    suspend fun insertTournamentTeams(teams: List<com.bismarck.voleimanager.app.data.model.TournamentTeam>) = voleiDao.insertTournamentTeams(teams)
+    suspend fun updateTournamentTeam(team: com.bismarck.voleimanager.app.data.model.TournamentTeam) = voleiDao.updateTournamentTeam(team)
+    suspend fun deleteTournamentTeam(team: com.bismarck.voleimanager.app.data.model.TournamentTeam) = voleiDao.deleteTournamentTeam(team)
+
+    // --- Tournament Team Members ---
+    fun tournamentTeamMembersByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.TournamentTeamMember>> =
+        voleiDao.getTournamentTeamMembersByGroup(groupName)
+
+    suspend fun getTournamentTeamMembersByGroupSync(groupName: String) = voleiDao.getTournamentTeamMembersByGroupSync(groupName)
+    suspend fun insertTournamentTeamMember(member: com.bismarck.voleimanager.app.data.model.TournamentTeamMember) = voleiDao.insertTournamentTeamMember(member)
+    suspend fun insertTournamentTeamMembers(members: List<com.bismarck.voleimanager.app.data.model.TournamentTeamMember>) = voleiDao.insertTournamentTeamMembers(members)
+    suspend fun updateTournamentTeamMembers(members: List<com.bismarck.voleimanager.app.data.model.TournamentTeamMember>) = voleiDao.updateTournamentTeamMembers(members)
+    suspend fun deleteTournamentTeamMember(member: com.bismarck.voleimanager.app.data.model.TournamentTeamMember) = voleiDao.deleteTournamentTeamMember(member)
+
+    // --- Tournament Matches ---
+    fun tournamentMatchesByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.TournamentMatch>> =
+        voleiDao.getTournamentMatchesByGroup(groupName)
+
+    suspend fun getTournamentMatchesByGroupSync(groupName: String) = voleiDao.getTournamentMatchesByGroupSync(groupName)
+    suspend fun insertTournamentMatch(match: com.bismarck.voleimanager.app.data.model.TournamentMatch) = voleiDao.insertTournamentMatch(match)
+    suspend fun insertTournamentMatches(matches: List<com.bismarck.voleimanager.app.data.model.TournamentMatch>) = voleiDao.insertTournamentMatches(matches)
+    suspend fun updateTournamentMatch(match: com.bismarck.voleimanager.app.data.model.TournamentMatch) = voleiDao.updateTournamentMatch(match)
+    suspend fun updateTournamentMatches(matches: List<com.bismarck.voleimanager.app.data.model.TournamentMatch>) = voleiDao.updateTournamentMatches(matches)
+
+    // --- Group Logs ---
+    fun groupLogsByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.GroupLog>> =
+        voleiDao.getGroupLogsByGroup(groupName)
+
+    suspend fun getGroupLogsByGroupSync(groupName: String) = voleiDao.getGroupLogsByGroupSync(groupName)
+    suspend fun insertGroupLog(log: com.bismarck.voleimanager.app.data.model.GroupLog) = voleiDao.insertGroupLog(log)
+    suspend fun insertGroupLogs(logs: List<com.bismarck.voleimanager.app.data.model.GroupLog>) = voleiDao.insertGroupLogs(logs)
 }

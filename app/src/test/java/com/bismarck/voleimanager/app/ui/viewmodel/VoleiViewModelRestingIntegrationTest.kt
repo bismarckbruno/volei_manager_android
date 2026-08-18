@@ -7,10 +7,14 @@ import com.bismarck.voleimanager.app.data.VoleiDao
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 import com.bismarck.voleimanager.app.data.model.GroupConfig
+import com.bismarck.voleimanager.app.data.model.GroupLog
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
+import com.bismarck.voleimanager.app.data.model.TournamentMatch
+import com.bismarck.voleimanager.app.data.model.TournamentTeam
+import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -647,15 +651,27 @@ private class FakeVoleiDao : VoleiDao {
     private val history = mutableListOf<MatchHistory>()
     private val eloLogs = mutableListOf<PlayerEloLog>()
     private val configs = mutableMapOf<String, GroupConfig>()
+    private val tournamentTeams = mutableListOf<TournamentTeam>()
+    private val tournamentMembers = mutableListOf<TournamentTeamMember>()
+    private val tournamentMatches = mutableListOf<TournamentMatch>()
+    private val groupLogs = mutableListOf<GroupLog>()
 
     private val playersFlow = MutableStateFlow<List<Player>>(emptyList())
     private val historyFlow = MutableStateFlow<List<MatchHistory>>(emptyList())
     private val eloLogsFlow = MutableStateFlow<List<PlayerEloLog>>(emptyList())
     private val configsFlow = MutableStateFlow<List<GroupConfig>>(emptyList())
+    private val tournamentTeamsFlow = MutableStateFlow<List<TournamentTeam>>(emptyList())
+    private val tournamentMembersFlow = MutableStateFlow<List<TournamentTeamMember>>(emptyList())
+    private val tournamentMatchesFlow = MutableStateFlow<List<TournamentMatch>>(emptyList())
+    private val groupLogsFlow = MutableStateFlow<List<GroupLog>>(emptyList())
 
     private var nextPlayerId = 1
     private var nextMatchId = 1
     private var nextLogId = 1
+    private var nextTournamentTeamId = 1
+    private var nextTournamentMemberId = 1
+    private var nextTournamentMatchId = 1
+    private var nextGroupLogId = 1
 
     override fun getAllPlayers(): Flow<List<Player>> = playersFlow.asStateFlow()
     override fun getPlayersByGroup(groupName: String): Flow<List<Player>> =
@@ -807,6 +823,171 @@ private class FakeVoleiDao : VoleiDao {
     override suspend fun deleteEloLogsByGroup(groupName: String) {
         eloLogs.removeAll { it.groupName == groupName }
         eloLogsFlow.value = eloLogs.sortedBy { it.date }
+    }
+
+    // --- Tournament & group logs ---
+    override fun getTournamentTeamsByGroup(groupName: String): Flow<List<TournamentTeam>> =
+        tournamentTeamsFlow.map { list -> list.filter { it.groupName == groupName } }
+
+    override suspend fun getTournamentTeamsByGroupSync(groupName: String): List<TournamentTeam> =
+        tournamentTeams.filter { it.groupName == groupName }
+
+    override suspend fun insertTournamentTeam(team: TournamentTeam): Long {
+        val id = if (team.id == 0) nextTournamentTeamId++ else team.id
+        tournamentTeams.removeAll { it.id == id }
+        tournamentTeams.add(team.copy(id = id))
+        emitTournamentTeams()
+        return id.toLong()
+    }
+
+    override suspend fun insertTournamentTeams(teams: List<TournamentTeam>) {
+        teams.forEach { insertTournamentTeam(it) }
+    }
+
+    override suspend fun updateTournamentTeam(team: TournamentTeam) {
+        val index = tournamentTeams.indexOfFirst { it.id == team.id }
+        if (index >= 0) tournamentTeams[index] = team
+        emitTournamentTeams()
+    }
+
+    override suspend fun deleteTournamentTeam(team: TournamentTeam) {
+        tournamentTeams.removeAll { it.id == team.id }
+        emitTournamentTeams()
+    }
+
+    override fun getTournamentTeamMembersByGroup(groupName: String): Flow<List<TournamentTeamMember>> =
+        tournamentMembersFlow.map { list -> list.filter { it.groupName == groupName } }
+
+    override suspend fun getTournamentTeamMembersByGroupSync(groupName: String): List<TournamentTeamMember> =
+        tournamentMembers.filter { it.groupName == groupName }
+
+    override suspend fun insertTournamentTeamMember(member: TournamentTeamMember): Long {
+        val id = if (member.id == 0) nextTournamentMemberId++ else member.id
+        tournamentMembers.removeAll { it.id == id }
+        tournamentMembers.add(member.copy(id = id))
+        emitTournamentMembers()
+        return id.toLong()
+    }
+
+    override suspend fun insertTournamentTeamMembers(members: List<TournamentTeamMember>) {
+        members.forEach { insertTournamentTeamMember(it) }
+    }
+
+    override suspend fun updateTournamentTeamMembers(members: List<TournamentTeamMember>) {
+        members.forEach { member ->
+            val index = tournamentMembers.indexOfFirst { it.id == member.id }
+            if (index >= 0) tournamentMembers[index] = member
+        }
+        emitTournamentMembers()
+    }
+
+    override suspend fun deleteTournamentTeamMember(member: TournamentTeamMember) {
+        tournamentMembers.removeAll { it.id == member.id }
+        emitTournamentMembers()
+    }
+
+    override fun getTournamentMatchesByGroup(groupName: String): Flow<List<TournamentMatch>> =
+        tournamentMatchesFlow.map { list -> list.filter { it.groupName == groupName } }
+
+    override suspend fun getTournamentMatchesByGroupSync(groupName: String): List<TournamentMatch> =
+        tournamentMatches.filter { it.groupName == groupName }
+
+    override suspend fun insertTournamentMatch(match: TournamentMatch): Long {
+        val id = if (match.id == 0) nextTournamentMatchId++ else match.id
+        tournamentMatches.removeAll { it.id == id }
+        tournamentMatches.add(match.copy(id = id))
+        emitTournamentMatches()
+        return id.toLong()
+    }
+
+    override suspend fun insertTournamentMatches(matches: List<TournamentMatch>) {
+        matches.forEach { insertTournamentMatch(it) }
+    }
+
+    override suspend fun updateTournamentMatch(match: TournamentMatch) {
+        val index = tournamentMatches.indexOfFirst { it.id == match.id }
+        if (index >= 0) tournamentMatches[index] = match
+        emitTournamentMatches()
+    }
+
+    override suspend fun updateTournamentMatches(matches: List<TournamentMatch>) {
+        matches.forEach { updateTournamentMatch(it) }
+    }
+
+    override fun getGroupLogsByGroup(groupName: String): Flow<List<GroupLog>> =
+        groupLogsFlow.map { list -> list.filter { it.groupName == groupName } }
+
+    override suspend fun getGroupLogsByGroupSync(groupName: String): List<GroupLog> =
+        groupLogs.filter { it.groupName == groupName }
+
+    override suspend fun insertGroupLog(log: GroupLog): Long {
+        val id = if (log.id == 0) nextGroupLogId++ else log.id
+        groupLogs.removeAll { it.id == id }
+        groupLogs.add(log.copy(id = id))
+        emitGroupLogs()
+        return id.toLong()
+    }
+
+    override suspend fun insertGroupLogs(logs: List<GroupLog>) {
+        logs.forEach { insertGroupLog(it) }
+    }
+
+    override suspend fun updateTournamentTeamGroupNames(oldName: String, newName: String) {
+        tournamentTeams.replaceAll { if (it.groupName == oldName) it.copy(groupName = newName) else it }
+        emitTournamentTeams()
+    }
+
+    override suspend fun updateTournamentTeamMemberGroupNames(oldName: String, newName: String) {
+        tournamentMembers.replaceAll { if (it.groupName == oldName) it.copy(groupName = newName) else it }
+        emitTournamentMembers()
+    }
+
+    override suspend fun updateTournamentMatchGroupNames(oldName: String, newName: String) {
+        tournamentMatches.replaceAll { if (it.groupName == oldName) it.copy(groupName = newName) else it }
+        emitTournamentMatches()
+    }
+
+    override suspend fun updateGroupLogGroupNames(oldName: String, newName: String) {
+        groupLogs.replaceAll { if (it.groupName == oldName) it.copy(groupName = newName) else it }
+        emitGroupLogs()
+    }
+
+    override suspend fun deleteTournamentTeamsByGroup(groupName: String) {
+        tournamentTeams.removeAll { it.groupName == groupName }
+        emitTournamentTeams()
+    }
+
+    override suspend fun deleteTournamentTeamMembersByGroup(groupName: String) {
+        tournamentMembers.removeAll { it.groupName == groupName }
+        emitTournamentMembers()
+    }
+
+    override suspend fun deleteTournamentMatchesByGroup(groupName: String) {
+        tournamentMatches.removeAll { it.groupName == groupName }
+        emitTournamentMatches()
+    }
+
+    override suspend fun deleteGroupLogsByGroup(groupName: String) {
+        groupLogs.removeAll { it.groupName == groupName }
+        emitGroupLogs()
+    }
+
+    private fun emitTournamentTeams() {
+        tournamentTeamsFlow.value = tournamentTeams.sortedBy { it.teamKey }
+    }
+
+    private fun emitTournamentMembers() {
+        tournamentMembersFlow.value = tournamentMembers.sortedBy { it.id }
+    }
+
+    private fun emitTournamentMatches() {
+        tournamentMatchesFlow.value = tournamentMatches.sortedWith(
+            compareBy({ it.roundIndex }, { it.orderInRound })
+        )
+    }
+
+    private fun emitGroupLogs() {
+        groupLogsFlow.value = groupLogs.sortedByDescending { it.timestamp }
     }
 
     private fun emitPlayers() {

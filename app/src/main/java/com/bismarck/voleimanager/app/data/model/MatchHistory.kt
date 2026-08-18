@@ -23,5 +23,13 @@ data class MatchHistory(
     val teamAScore: Int? = null,
     val teamBScore: Int? = null,
     val startTimestamp: Long? = null,
-    val endTimestamp: Long? = null
+    val endTimestamp: Long? = null,
+    /** Id do time de campeonato (tournament_teams) que jogou como Time A, quando aplicável. */
+    val teamAId: Int? = null,
+    /** Id do time de campeonato (tournament_teams) que jogou como Time B, quando aplicável. */
+    val teamBId: Int? = null,
+    /** Nome exibido do time A no momento da partida (snapshot). */
+    val teamALabel: String? = null,
+    /** Nome exibido do time B no momento da partida (snapshot). */
+    val teamBLabel: String? = null
 )

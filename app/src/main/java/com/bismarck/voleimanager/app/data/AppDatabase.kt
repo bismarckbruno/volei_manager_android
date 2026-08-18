@@ -12,8 +12,17 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 
 @Database(
-    entities = [com.bismarck.voleimanager.app.data.model.Player::class, com.bismarck.voleimanager.app.data.model.MatchHistory::class, com.bismarck.voleimanager.app.data.model.GroupConfig::class, com.bismarck.voleimanager.app.data.model.PlayerEloLog::class],
-    version = 6,
+    entities = [
+        com.bismarck.voleimanager.app.data.model.Player::class,
+        com.bismarck.voleimanager.app.data.model.MatchHistory::class,
+        com.bismarck.voleimanager.app.data.model.GroupConfig::class,
+        com.bismarck.voleimanager.app.data.model.PlayerEloLog::class,
+        com.bismarck.voleimanager.app.data.model.TournamentTeam::class,
+        com.bismarck.voleimanager.app.data.model.TournamentTeamMember::class,
+        com.bismarck.voleimanager.app.data.model.TournamentMatch::class,
+        com.bismarck.voleimanager.app.data.model.GroupLog::class
+    ],
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -58,6 +67,103 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Posições preferidas dos jogadores (modos com posições fixas)
+                db.execSQL("ALTER TABLE players ADD COLUMN preferredPosition TEXT")
+                db.execSQL("ALTER TABLE players ADD COLUMN secondaryPosition TEXT")
+
+                // Tipo de grupo e dados de campeonato
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN groupType TEXT NOT NULL DEFAULT 'RECREATIONAL'")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN tournamentFormat TEXT")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN tournamentStarted INTEGER NOT NULL DEFAULT 0")
+
+                // Novo passo de onboarding (tipo do grupo) inserido logo após o nome do grupo
+                db.execSQL("UPDATE group_configs SET onboardingStep = onboardingStep + 1 WHERE onboardingStep >= 1")
+
+                // Identidade dos times nas partidas de campeonato
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamAId INTEGER")
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamBId INTEGER")
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamALabel TEXT")
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamBLabel TEXT")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tournament_teams` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `groupName` TEXT NOT NULL,
+                        `teamKey` TEXT NOT NULL,
+                        `customName` TEXT,
+                        `seed` INTEGER,
+                        `isActive` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tournament_teams_groupName_teamKey` ON `tournament_teams` (`groupName`, `teamKey`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tournament_team_members` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `groupName` TEXT NOT NULL,
+                        `teamId` INTEGER NOT NULL,
+                        `playerId` INTEGER NOT NULL,
+                        `position` TEXT,
+                        `isActive` INTEGER NOT NULL,
+                        `joinedAt` INTEGER NOT NULL,
+                        `leftAt` INTEGER
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tournament_team_members_groupName_teamId` ON `tournament_team_members` (`groupName`, `teamId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tournament_team_members_groupName_playerId` ON `tournament_team_members` (`groupName`, `playerId`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `tournament_matches` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `groupName` TEXT NOT NULL,
+                        `phase` TEXT NOT NULL,
+                        `phaseLabel` TEXT,
+                        `roundIndex` INTEGER NOT NULL,
+                        `orderInRound` INTEGER NOT NULL,
+                        `homeTeamId` INTEGER,
+                        `awayTeamId` INTEGER,
+                        `homeSourceMatchId` INTEGER,
+                        `awaySourceMatchId` INTEGER,
+                        `homeScore` INTEGER,
+                        `awayScore` INTEGER,
+                        `winnerTeamId` INTEGER,
+                        `status` TEXT NOT NULL,
+                        `matchHistoryId` INTEGER,
+                        `startTimestamp` INTEGER,
+                        `endTimestamp` INTEGER
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tournament_matches_groupName_phase_roundIndex_orderInRound` ON `tournament_matches` (`groupName`, `phase`, `roundIndex`, `orderInRound`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `group_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `groupName` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `message` TEXT NOT NULL,
+                        `playerId` INTEGER,
+                        `teamId` INTEGER,
+                        `relatedTeamId` INTEGER,
+                        `metadata` TEXT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_group_logs_groupName_timestamp` ON `group_logs` (`groupName`, `timestamp`)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -65,7 +171,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance

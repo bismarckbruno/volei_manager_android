@@ -17,5 +17,12 @@ data class Player(
     val isPriority: Boolean = false,
     val groupName: String,
     val dailyToll: Int = 0,
-    val tollDate: String = ""
+    val tollDate: String = "",
+    /**
+     * Posição preferida ([PlayerPosition]). Nulo = sem preferência.
+     * Jogador sem nenhuma posição indicada é considerado coringa.
+     */
+    val preferredPosition: String? = null,
+    /** Segunda posição preferida ([PlayerPosition]); usada quando não há vaga na preferida. */
+    val secondaryPosition: String? = null
 )

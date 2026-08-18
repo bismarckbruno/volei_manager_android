@@ -30,7 +30,7 @@ Screen switching is handled inside `VoleiManagerApp.kt` via `AnimatedContent`.
 
 | Path | Purpose |
 |------|---------|
-| `data/model/` | Room entities: `Player`, `MatchHistory`, `GroupConfig`, `PlayerEloLog` |
+| `data/model/` | Room entities: `Player`, `MatchHistory`, `GroupConfig`, `PlayerEloLog`, `TournamentTeam`, `TournamentTeamMember`, `TournamentMatch`, `GroupLog` |
 | `data/VoleiDao.kt` | Single DAO for all tables |
 | `data/VoleiRepository.kt` | Thin wrapper over DAO; exposes Flow properties + suspend funs |
 | `ui/viewmodel/VoleiViewModel.kt` | All business logic, game state, import/export |
@@ -64,12 +64,14 @@ When adding a new entity, always pass `groupName` explicitly. Renaming/deleting 
 - **Elo** — default 1200.0. Delta = `EloCalculator.calculateEloChange(winnerAvgElo, loserAvgElo)`.  Each match logs one `PlayerEloLog` entry per player for chart history.
 - **Streak / victoryLimit** — tracked in `_currentStreak` / `_streakOwner`. When `currentStreak >= config.victoryLimit`, winning team is split in `startNextRound()`.
 - **`MatchHistory.teamA/teamB`** — comma-separated player names (sorted alphabetically), not IDs.
+- **`GroupType`** (`GroupConfig.groupType`) — *tipo de grupo*, distinct from `BalancingMode`. Values: `RECREATIONAL` (2–6 per team), `FIXED_POSITIONS` (2–7, positions), `TOURNAMENT_RECREATIONAL` and `TOURNAMENT_PRO` (2–14, bracket-based). Tournament types are immutable after group creation and have no balancing mode; `RECREATIONAL` ↔ `FIXED_POSITIONS` convert freely and stored positions are kept even when inactive.
+- **`PlayerPosition` / `PositionRole`** — Levantador (armador), Ponteiro & Oposto (ataque), Central & Líbero (defesa). `TeamComposition.requiredSlots(teamSize)` holds the minimum composition for team sizes 2–7; líbero counts as central below 6 players. Players with no position at all are wildcards ("coringa").
 
 ---
 
 ## Database Migrations
 
-DB version is currently **12** (`AppDatabase.kt`). `exportSchema = false`.  
+DB version is currently **7** (`AppDatabase.kt`). `exportSchema = false`.  
 When adding columns, add a `Migration(old, new)` object and register it in `addMigrations(...)`.  
 `fallbackToDestructiveMigration()` is enabled as a safety net — avoid relying on it for release.
 

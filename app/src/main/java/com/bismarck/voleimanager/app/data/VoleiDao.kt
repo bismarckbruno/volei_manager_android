@@ -135,4 +135,99 @@ interface VoleiDao {
 
     @Query("DELETE FROM elo_logs WHERE groupName = :groupName")
     suspend fun deleteEloLogsByGroup(groupName: String)
+
+    // --- TOURNAMENT TEAMS ---
+    @Query("SELECT * FROM tournament_teams WHERE groupName = :groupName ORDER BY teamKey ASC")
+    fun getTournamentTeamsByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.TournamentTeam>>
+
+    @Query("SELECT * FROM tournament_teams WHERE groupName = :groupName ORDER BY teamKey ASC")
+    suspend fun getTournamentTeamsByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.TournamentTeam>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTournamentTeam(team: com.bismarck.voleimanager.app.data.model.TournamentTeam): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTournamentTeams(teams: List<com.bismarck.voleimanager.app.data.model.TournamentTeam>)
+
+    @Update
+    suspend fun updateTournamentTeam(team: com.bismarck.voleimanager.app.data.model.TournamentTeam)
+
+    @Delete
+    suspend fun deleteTournamentTeam(team: com.bismarck.voleimanager.app.data.model.TournamentTeam)
+
+    // --- TOURNAMENT TEAM MEMBERS ---
+    @Query("SELECT * FROM tournament_team_members WHERE groupName = :groupName ORDER BY id ASC")
+    fun getTournamentTeamMembersByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.TournamentTeamMember>>
+
+    @Query("SELECT * FROM tournament_team_members WHERE groupName = :groupName ORDER BY id ASC")
+    suspend fun getTournamentTeamMembersByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.TournamentTeamMember>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTournamentTeamMember(member: com.bismarck.voleimanager.app.data.model.TournamentTeamMember): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTournamentTeamMembers(members: List<com.bismarck.voleimanager.app.data.model.TournamentTeamMember>)
+
+    @Update
+    suspend fun updateTournamentTeamMembers(members: List<com.bismarck.voleimanager.app.data.model.TournamentTeamMember>)
+
+    @Delete
+    suspend fun deleteTournamentTeamMember(member: com.bismarck.voleimanager.app.data.model.TournamentTeamMember)
+
+    // --- TOURNAMENT MATCHES ---
+    @Query("SELECT * FROM tournament_matches WHERE groupName = :groupName ORDER BY roundIndex ASC, orderInRound ASC")
+    fun getTournamentMatchesByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.TournamentMatch>>
+
+    @Query("SELECT * FROM tournament_matches WHERE groupName = :groupName ORDER BY roundIndex ASC, orderInRound ASC")
+    suspend fun getTournamentMatchesByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.TournamentMatch>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTournamentMatch(match: com.bismarck.voleimanager.app.data.model.TournamentMatch): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTournamentMatches(matches: List<com.bismarck.voleimanager.app.data.model.TournamentMatch>)
+
+    @Update
+    suspend fun updateTournamentMatch(match: com.bismarck.voleimanager.app.data.model.TournamentMatch)
+
+    @Update
+    suspend fun updateTournamentMatches(matches: List<com.bismarck.voleimanager.app.data.model.TournamentMatch>)
+
+    // --- GROUP LOGS ---
+    @Query("SELECT * FROM group_logs WHERE groupName = :groupName ORDER BY timestamp DESC, id DESC")
+    fun getGroupLogsByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.GroupLog>>
+
+    @Query("SELECT * FROM group_logs WHERE groupName = :groupName ORDER BY timestamp DESC, id DESC")
+    suspend fun getGroupLogsByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.GroupLog>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGroupLog(log: com.bismarck.voleimanager.app.data.model.GroupLog): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertGroupLogs(logs: List<com.bismarck.voleimanager.app.data.model.GroupLog>)
+
+    // --- GERENCIAMENTO DE GRUPOS (tabelas de campeonato e logs) ---
+    @Query("UPDATE tournament_teams SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updateTournamentTeamGroupNames(oldName: String, newName: String)
+
+    @Query("UPDATE tournament_team_members SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updateTournamentTeamMemberGroupNames(oldName: String, newName: String)
+
+    @Query("UPDATE tournament_matches SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updateTournamentMatchGroupNames(oldName: String, newName: String)
+
+    @Query("UPDATE group_logs SET groupName = :newName WHERE groupName = :oldName")
+    suspend fun updateGroupLogGroupNames(oldName: String, newName: String)
+
+    @Query("DELETE FROM tournament_teams WHERE groupName = :groupName")
+    suspend fun deleteTournamentTeamsByGroup(groupName: String)
+
+    @Query("DELETE FROM tournament_team_members WHERE groupName = :groupName")
+    suspend fun deleteTournamentTeamMembersByGroup(groupName: String)
+
+    @Query("DELETE FROM tournament_matches WHERE groupName = :groupName")
+    suspend fun deleteTournamentMatchesByGroup(groupName: String)
+
+    @Query("DELETE FROM group_logs WHERE groupName = :groupName")
+    suspend fun deleteGroupLogsByGroup(groupName: String)
 }

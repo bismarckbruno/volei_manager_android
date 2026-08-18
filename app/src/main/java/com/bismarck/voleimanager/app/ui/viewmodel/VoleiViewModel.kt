@@ -19,14 +19,21 @@ import androidx.lifecycle.viewModelScope
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.GroupConfig
+import com.bismarck.voleimanager.app.data.model.GroupLog
+import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_BALANCING_MODE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_TYPE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
+import com.bismarck.voleimanager.app.data.model.PlayerPosition
+import com.bismarck.voleimanager.app.data.model.TournamentMatch
+import com.bismarck.voleimanager.app.data.model.TournamentTeam
+import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TollCalculator
@@ -59,7 +66,13 @@ data class BackupData(
     val date: String,
     val players: List<Player>,
     val history: List<MatchHistory>,
-    val logs: List<PlayerEloLog>
+    val logs: List<PlayerEloLog>,
+    /** Configuração do grupo exportado (inclui o tipo de grupo). Nulo em backups antigos. */
+    val groupConfig: GroupConfig? = null,
+    val tournamentTeams: List<TournamentTeam>? = null,
+    val tournamentTeamMembers: List<TournamentTeamMember>? = null,
+    val tournamentMatches: List<TournamentMatch>? = null,
+    val groupLogs: List<GroupLog>? = null
 )
 
 data class PendingMergeImportData(
@@ -950,10 +963,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val loaded = repository.getGroupConfig(name)
             val knownGroups = repository.getAllGroupNames()
             val existingGroupWithoutConfig = loaded == null && knownGroups.contains(name)
-            val normalized = loaded?.copy(
-                victoryLimit = loaded.victoryLimit.coerceIn(2, 6),
-                balancingMode = BalancingMode.fromStoredValue(loaded.balancingMode).name
-            ) ?: GroupConfig(
+            val normalized = loaded?.let {
+                val loadedType = GroupType.fromStoredValue(it.groupType)
+                it.copy(
+                    victoryLimit = it.victoryLimit.coerceIn(2, 6),
+                    balancingMode = BalancingMode.fromStoredValue(it.balancingMode).name,
+                    groupType = loadedType.name,
+                    teamSize = loadedType.coerceTeamSize(it.teamSize)
+                )
+            } ?: GroupConfig(
                 groupName = name,
                 balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
                 onboardingStep = if (existingGroupWithoutConfig) {
@@ -962,7 +980,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     ONBOARDING_STEP_GROUP_NAME
                 }
             )
-            if (loaded == null || normalized.balancingMode != loaded.balancingMode || normalized.victoryLimit != loaded.victoryLimit) {
+            if (loaded == null || normalized != loaded) {
                 repository.saveGroupConfig(normalized)
             }
             _currentGroupConfig.value = normalized
@@ -996,7 +1014,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun updateConfig(s: Int, l: Int, priorityP: Boolean, scoreEnabled: Boolean = true, balancingMode: String = _currentGroupConfig.value.balancingMode) {
-        val safeTeamSize = s.coerceIn(2, 6)
+        val safeTeamSize = _currentGroupConfig.value.type.coerceTeamSize(s)
         val safeVictoryLimit = l.coerceIn(2, 6)
         if (_currentGroupConfig.value.teamSize != safeTeamSize) {
             _currentStreak.value = 0
@@ -1025,7 +1043,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun continueCurrentGroupOnboardingWithTeamSize(teamSize: Int) {
-        val clampedTeamSize = teamSize.coerceIn(2, 6)
+        val clampedTeamSize = _currentGroupConfig.value.type.coerceTeamSize(teamSize)
         _currentGroupConfig.value = _currentGroupConfig.value.copy(
             teamSize = clampedTeamSize,
             onboardingStep = ONBOARDING_STEP_MIN_PLAYERS
@@ -1051,9 +1069,33 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         _currentGroupConfig.value = current.copy(
             groupName = normalizedName,
+            // TODO(fase UI): avançar para ONBOARDING_STEP_GROUP_TYPE quando o card do tipo de grupo existir.
             onboardingStep = ONBOARDING_STEP_BALANCING_MODE
         )
         repository.saveGroupConfig(_currentGroupConfig.value)
+    }
+
+    fun continueCurrentGroupOnboardingWithGroupType(groupType: String) {
+        val type = GroupType.fromStoredValue(groupType)
+        val current = _currentGroupConfig.value
+        _currentGroupConfig.value = current.copy(
+            groupType = type.name,
+            teamSize = type.coerceTeamSize(current.teamSize),
+            balancingMode = if (type.supportsBalancingMode) current.balancingMode else BalancingMode.REBALANCE.name,
+            onboardingStep = if (type.supportsBalancingMode) {
+                ONBOARDING_STEP_BALANCING_MODE
+            } else {
+                ONBOARDING_STEP_TEAM_SIZE
+            }
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToGroupTypeStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_GROUP_TYPE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
     }
 
     fun continueCurrentGroupOnboardingWithBalancingMode(balancingMode: String) {
@@ -1101,7 +1143,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
-    fun createGroup(name: String, balancingMode: String = BalancingMode.REBALANCE.name) = viewModelScope.launch(Dispatchers.IO) {
+    fun createGroup(
+        name: String,
+        balancingMode: String = BalancingMode.REBALANCE.name,
+        groupType: String = GroupType.RECREATIONAL.name
+    ) = viewModelScope.launch(Dispatchers.IO) {
         val normalizedName = normalizeGroupName(name)
         if (normalizedName.isBlank()) return@launch
 
@@ -1110,10 +1156,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             loadGroupConfig(normalizedName)
             return@launch
         }
+        val type = GroupType.fromStoredValue(groupType)
         val cfg = GroupConfig(
             groupName = normalizedName,
-            balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
-            onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+            balancingMode = if (type.supportsBalancingMode) {
+                BalancingMode.fromStoredValue(balancingMode).name
+            } else {
+                BalancingMode.REBALANCE.name
+            },
+            onboardingStep = ONBOARDING_STEP_TEAM_SIZE,
+            groupType = type.name
         )
         repository.saveGroupConfig(cfg)
         // Garantir que o load use o cfg salvo (faz reset e tentativa de restauração)
@@ -1171,7 +1223,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         return updatedP
     }
 
-    fun addPlayer(n: String, e: Double, g: String, isPriority: Boolean) = viewModelScope.launch {
+    fun addPlayer(
+        n: String,
+        e: Double,
+        g: String,
+        isPriority: Boolean,
+        preferredPosition: String? = null,
+        secondaryPosition: String? = null
+    ) = viewModelScope.launch {
         val normalizedName = normalizePersonName(n)
         if (normalizedName.isBlank()) return@launch
 
@@ -1191,7 +1250,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             groupName = g,
             isPriority = isPriority,
             dailyToll = 0,
-            tollDate = ""
+            tollDate = "",
+            preferredPosition = PlayerPosition.fromStoredValue(preferredPosition)?.name,
+            secondaryPosition = PlayerPosition.fromStoredValue(secondaryPosition)?.name
         )
         val newId = repository.insertPlayer(pToInsert)
         val newPlayer = pToInsert.copy(id = newId.toInt())
@@ -1216,7 +1277,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (_presentPlayerIds.value.contains(p.id)) togglePlayerPresence(p)
     }
 
-    fun editPlayer(p: Player, n: String, isPriority: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+    fun editPlayer(
+        p: Player,
+        n: String,
+        isPriority: Boolean,
+        preferredPosition: String? = p.preferredPosition,
+        secondaryPosition: String? = p.secondaryPosition
+    ) = viewModelScope.launch(Dispatchers.IO) {
         val oldName = p.name
         val normalizedName = normalizePersonName(n)
         if (normalizedName.isBlank()) return@launch
@@ -1230,7 +1297,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 return@launch
             }
         }
-        val up = p.copy(name = normalizedName, isPriority = isPriority)
+        val up = p.copy(
+            name = normalizedName,
+            isPriority = isPriority,
+            preferredPosition = PlayerPosition.fromStoredValue(preferredPosition)?.name,
+            secondaryPosition = PlayerPosition.fromStoredValue(secondaryPosition)?.name
+        )
         repository.updatePlayer(up)
         if (oldName != normalizedName) {
             repository.renamePlayerCascade(p.id, oldName, normalizedName, p.groupName)
@@ -2153,7 +2225,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                                 .toBooleanStrictOrNull() ?: false,
                                             dailyToll = cols.getOrElse(7) { "0" }.toIntOrNull()
                                                 ?: 0,
-                                            tollDate = cols.getOrElse(8) { "" }.take(20)
+                                            tollDate = cols.getOrElse(8) { "" }.take(20),
+                                            preferredPosition = PlayerPosition
+                                                .fromStoredValue(cols.getOrElse(9) { "" })?.name,
+                                            secondaryPosition = PlayerPosition
+                                                .fromStoredValue(cols.getOrElse(10) { "" })?.name
                                         )
                                     } else null
                                 } catch (e: Exception) {
@@ -2375,18 +2451,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val content = StringBuilder()
 
             if (type == CsvType.BACKUP_COMPLETO) {
+                val groupName = _currentGroupConfig.value.groupName
                 val backup = BackupData(
                     date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date()),
                     players = currentGroupPlayers.value,
                     history = currentGroupHistory.value,
-                    logs = currentGroupEloLogs.value
+                    logs = currentGroupEloLogs.value,
+                    groupConfig = _currentGroupConfig.value,
+                    tournamentTeams = repository.getTournamentTeamsByGroupSync(groupName).takeIf { it.isNotEmpty() },
+                    tournamentTeamMembers = repository.getTournamentTeamMembersByGroupSync(groupName).takeIf { it.isNotEmpty() },
+                    tournamentMatches = repository.getTournamentMatchesByGroupSync(groupName).takeIf { it.isNotEmpty() },
+                    groupLogs = repository.getGroupLogsByGroupSync(groupName).takeIf { it.isNotEmpty() }
                 )
                 val json = Gson().toJson(backup)
                 shareFile(context, finalName, json, "application/json")
             } else {
                 when (type) {
                     CsvType.JOGADORES -> {
-                        content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade,PedagioDiario,DataPedagio\n")
+                        content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade,PedagioDiario,DataPedagio,PosicaoPreferida,PosicaoSecundaria\n")
                         currentGroupPlayers.value.forEach {
                             content.append(
                                 "${it.id},\"${
@@ -2399,7 +2481,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                         "\"",
                                         "\"\""
                                     )
-                                }\",\"${it.isPriority}\",${it.dailyToll},\"${it.tollDate}\"\n"
+                                }\",\"${it.isPriority}\",${it.dailyToll},\"${it.tollDate}\",\"${it.preferredPosition.orEmpty()}\",\"${it.secondaryPosition.orEmpty()}\"\n"
                             )
                         }
                     }
