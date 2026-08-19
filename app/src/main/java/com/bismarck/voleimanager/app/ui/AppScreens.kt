@@ -319,15 +319,30 @@ private fun computeHistoryComputation(
 
     val playersById = groupPlayers.associateBy { it.id }
     val playersByCanonicalName = groupPlayers.associateBy { canonicalHistoryName(it.name) }
-    val eloDateStr = if (historyDate != null) {
+    val eloDateStr = historyDate?.let {
         try {
-            val parts = historyDate.split("/")
+            val parts = it.split("/")
             if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
         } catch (_: Exception) {
             null
         }
-    } else null
-    val filteredLogs = if (eloDateStr != null) eloLogs.filter { it.date == eloDateStr } else eloLogs
+    }
+    val restrictedEloDates = when {
+        eloDateStr != null -> setOf(eloDateStr)
+        restrictToDates != null -> restrictToDates.mapNotNull { date ->
+            try {
+                val parts = date.split("/")
+                if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
+            } catch (_: Exception) {
+                null
+            }
+        }.toSet()
+        else -> null
+    }
+    val filteredLogs = when {
+        restrictedEloDates != null -> eloLogs.filter { it.date in restrictedEloDates }
+        else -> eloLogs
+    }
     val logsByPlayerId = filteredLogs.groupBy { it.playerId }
     val logsByCanonicalName = filteredLogs.groupBy { canonicalHistoryName(it.playerNameSnapshot) }
 
