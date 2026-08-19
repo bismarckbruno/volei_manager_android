@@ -314,7 +314,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private var groupLoadToken = 0
 
     private val _currentGroupConfig = MutableStateFlow(
-        GroupConfig(DEFAULT_GROUP_NAME, onboardingStep = ONBOARDING_STEP_GROUP_NAME)
+        GroupConfig(groupName = "", onboardingStep = ONBOARDING_STEP_GROUP_NAME)
     )
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
 
@@ -638,8 +638,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         loadPreferences()
         viewModelScope.launch {
             val existingGroups = repository.getAllGroupNames()
-            val initialGroup = existingGroups.firstOrNull() ?: DEFAULT_GROUP_NAME
-            loadGroupConfig(initialGroup)
+            val initialGroup = existingGroups.firstOrNull()
+            if (initialGroup != null) {
+                loadGroupConfig(initialGroup)
+            } else {
+                // Instalação nova: não persiste nenhum grupo até o usuário confirmar um nome válido.
+                startFreshGroupOnboarding()
+            }
         }
         observeAndPersistGameState()
         viewModelScope.launch {
@@ -954,6 +959,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun isGameInProgress(): Boolean = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty()
 
     fun loadGroupConfig(name: String, balancingMode: String? = null) {
+        if (name.isBlank()) {
+            startFreshGroupOnboarding()
+            return
+        }
         val same = _currentGroupConfig.value.groupName == name
         val loadToken = ++groupLoadToken
         if (!same || !persistenceReady) {
@@ -997,6 +1006,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _isGroupDataLoading.value = false
             }
         }
+    }
+
+    /**
+     * Reseta o estado do grupo atual para "sem grupo ainda", sem persistir nada no banco.
+     * Usado quando não há nenhum grupo existente (instalação nova ou último grupo apagado):
+     * evita recriar um grupo com nome hardcoded antes do usuário confirmar um nome válido.
+     */
+    private fun startFreshGroupOnboarding() {
+        _currentGroupConfig.value = GroupConfig(groupName = "", onboardingStep = ONBOARDING_STEP_GROUP_NAME)
+        resetGameState()
+        persistenceReady = true
+        _isGroupDataLoading.value = false
     }
 
     private fun resetGameState() {
@@ -1064,7 +1085,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         val current = _currentGroupConfig.value
         val oldName = current.groupName
-        if (normalizedName != oldName) {
+        if (oldName.isNotBlank() && oldName != normalizedName) {
             repository.renameGroup(oldName, normalizedName)
         }
         _currentGroupConfig.value = current.copy(
@@ -1138,8 +1159,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun deleteGroup(name: String) = viewModelScope.launch {
         repository.deleteGroup(name)
         if (_currentGroupConfig.value.groupName == name) {
-            val fallbackGroup = repository.getAllGroupNames().firstOrNull() ?: DEFAULT_GROUP_NAME
-            loadGroupConfig(fallbackGroup)
+            val fallbackGroup = repository.getAllGroupNames().firstOrNull()
+            if (fallbackGroup != null) {
+                loadGroupConfig(fallbackGroup)
+            } else {
+                startFreshGroupOnboarding()
+            }
         }
     }
 
@@ -1231,6 +1256,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         preferredPosition: String? = null,
         secondaryPosition: String? = null
     ) = viewModelScope.launch {
+        if (g.isBlank()) return@launch
         val normalizedName = normalizePersonName(n)
         if (normalizedName.isBlank()) return@launch
 

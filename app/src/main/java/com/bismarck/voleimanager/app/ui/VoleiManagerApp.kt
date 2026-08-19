@@ -64,14 +64,7 @@ import androidx.compose.ui.res.painterResource
 
 @Composable
 fun getDisplayGroupName(groupName: String?): String {
-    val defaultName = "Geral" // Sua constante hardcoded
-    val translatedDefault = stringResource(R.string.general) // A tradução
-
-    return when {
-        groupName == null -> translatedDefault
-        groupName == defaultName -> translatedDefault
-        else -> groupName // Mostra o nome que o usuário digitou (ex: "Amigos")
-    }
+    return groupName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.general)
 }
 
 @Composable

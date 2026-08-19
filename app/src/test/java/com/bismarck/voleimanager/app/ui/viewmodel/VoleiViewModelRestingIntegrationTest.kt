@@ -10,6 +10,7 @@ import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.data.model.GroupLog
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 import com.bismarck.voleimanager.app.data.model.TournamentMatch
@@ -496,6 +497,36 @@ class VoleiViewModelRestingIntegrationTest {
         val vm = VoleiViewModel(app, repo)
         withTimeout(3_000) {
             vm.currentGroupConfig.first { it.groupName == "Amigos" }
+        }
+
+        val groupNames = repo.getAllGroupNames()
+        assertTrue(groupNames.contains("Amigos"))
+        assertTrue(!groupNames.contains(DEFAULT_GROUP_NAME))
+    }
+
+    @Test
+    fun init_withNoExistingGroups_doesNotPersistAnyGroupUntilNameConfirmed() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()
+
+        val dao = FakeVoleiDao()
+        val repo = VoleiRepository(dao)
+
+        val vm = VoleiViewModel(app, repo)
+        withTimeout(3_000) {
+            vm.currentGroupConfig.first { it.onboardingStep == ONBOARDING_STEP_GROUP_NAME }
+        }
+
+        // Fresh install: nothing should be written to the database yet.
+        assertTrue(repo.getAllGroupNames().isEmpty())
+        assertEquals("", vm.currentGroupConfig.value.groupName)
+
+        // Only after the user confirms a valid name should a GroupConfig be persisted.
+        vm.continueCurrentGroupOnboardingWithGroupName("Amigos")
+        withTimeout(3_000) {
+            while (repo.getGroupConfig("Amigos") == null) {
+                delay(20)
+            }
         }
 
         val groupNames = repo.getAllGroupNames()
