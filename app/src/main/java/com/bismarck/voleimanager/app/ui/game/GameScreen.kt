@@ -105,6 +105,7 @@ import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
+import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
@@ -1634,17 +1635,9 @@ private fun PlayerListHeader(
             contentAlignment = Alignment.CenterStart
         ) {
             if (searchExpanded) {
-                OutlinedTextField(
+                RoundedSearchTextField(
                     value = searchQuery,
-                    shape = CircleShape,
-                    onValueChange = { newValue ->
-                        onSearchQueryChange(newValue)
-                        if (newValue.isBlank()) {
-                            onSearchExpandedChange(false)
-                            focusManager.clearFocus()
-                        }
-                    },
-                    singleLine = true,
+                    onValueChange = onSearchQueryChange,
                     placeholder = { Text(stringResource(R.string.search_player), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = null)
@@ -1658,18 +1651,17 @@ private fun PlayerListHeader(
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester)
-                        .onFocusChanged { state ->
-                            if (state.isFocused) {
-                                hasFocus = true
-                            } else if (hasFocus) {
-                                hasFocus = false
-                                onSearchQueryChange("")
-                                onSearchExpandedChange(false)
-                            }
+                    modifier = Modifier.fillMaxWidth(),
+                    focusRequester = focusRequester,
+                    onFocusChanged = { state ->
+                        if (state.isFocused) {
+                            hasFocus = true
+                        } else if (hasFocus) {
+                            hasFocus = false
+                            onSearchQueryChange("")
+                            onSearchExpandedChange(false)
                         }
+                    }
                 )
             } else {
                 IconButton(
@@ -1703,6 +1695,7 @@ private fun PlayerListHeader(
         Spacer(Modifier.width(8.dp))
         TextButton(
             onClick = { onToggleAll(!allPlayersSelected) },
+            modifier = Modifier.height(48.dp),
             enabled = visiblePlayerCount > 0
         ) {
             Text(

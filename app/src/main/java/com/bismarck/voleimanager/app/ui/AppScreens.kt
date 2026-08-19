@@ -72,14 +72,13 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.Popup
 import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
@@ -500,6 +499,19 @@ fun HistoryScreen(
             }
         ).map { it.name }.sortedBy { it.lowercase(Locale.getDefault()) }
     }
+    
+    val historyPlayerDateCounts = remember(groupHistory) {
+        val counts = mutableMapOf<String, MutableSet<String>>()
+        for (match in groupHistory) {
+            val dateDay = match.date.split(" ").firstOrNull() ?: match.date
+            val playersInMatch = parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds)
+            for (player in playersInMatch) {
+                val canonical = canonicalHistoryName(player.name)
+                counts.getOrPut(canonical) { mutableSetOf() }.add(dateDay)
+            }
+        }
+        counts.mapValues { it.value.size }
+    }
     val activeHistoryPlayerFilter = historyPlayerFilter?.trim()?.ifBlank { null }
     val selectedHistoryDate = historyDate
 
@@ -583,6 +595,7 @@ fun HistoryScreen(
     if (showHistoryPlayerDialog) {
         HistoryPlayerFilterDialog(
             playerNames = historyPlayerFilterOptions,
+            playerDateCounts = historyPlayerDateCounts,
             initialSelection = tempHistoryPlayerFilter,
             searchQuery = historyPlayerSearchQuery,
             onSearchQueryChange = { historyPlayerSearchQuery = it },
@@ -691,7 +704,7 @@ fun HistoryScreen(
                                 ) {
                                     Icon(Icons.Default.Person, contentDescription = stringResource(R.string.player), modifier = Modifier.size(24.dp))
                                 }
-                                Spacer(Modifier.width(8.dp))
+                                Spacer(Modifier.width(12.dp))
                                 ExposedDropdownMenuBox(
                                     expanded = dateExpanded2,
                                     onExpandedChange = { dateExpanded2 = !dateExpanded2 },
@@ -808,7 +821,7 @@ fun HistoryScreen(
                                         }
                                     }
                                 }
-                                Spacer(Modifier.width(8.dp))
+                                Spacer(Modifier.width(12.dp))
                                 val activeSortBadgeIcon = when {
                                     selectedTab == 0 -> when (matchSortMode) {
                                         MatchSortMode.NEWEST -> ImageVector.vectorResource(R.drawable.arrowup)
@@ -960,7 +973,7 @@ fun HistoryScreen(
                 Icon(Icons.Default.Person, contentDescription = stringResource(R.string.filter_player), modifier = Modifier.size(24.dp))
             }
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(12.dp))
 
             ExposedDropdownMenuBox(
                 expanded = dateExpanded,
@@ -1150,7 +1163,7 @@ fun HistoryScreen(
                     }
                 }
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(12.dp))
 
             // Filter/sort icon button
             val activeSortBadgeIcon = when {
@@ -1470,6 +1483,7 @@ fun HistoryScreen(
 @Composable
 private fun HistoryPlayerFilterDialog(
     playerNames: List<String>,
+    playerDateCounts: Map<String, Int>,
     initialSelection: String?,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
@@ -1478,16 +1492,23 @@ private fun HistoryPlayerFilterDialog(
     onConfirm: (String?) -> Unit
 ) {
     var selectedPlayer by remember { mutableStateOf(initialSelection) }
+    var sortByDates by remember { mutableStateOf(false) }
 
     LaunchedEffect(initialSelection) {
         selectedPlayer = initialSelection
     }
 
-    val filteredPlayers = remember(playerNames, searchQuery) {
-        if (searchQuery.isBlank()) {
+    val filteredPlayers = remember(playerNames, searchQuery, sortByDates, playerDateCounts) {
+        val filtered = if (searchQuery.isBlank()) {
             playerNames
         } else {
             playerNames.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
+        }
+        
+        if (sortByDates) {
+            filtered.sortedByDescending { playerDateCounts[canonicalHistoryName(it)] ?: 0 }
+        } else {
+            filtered.sortedBy { it.lowercase(Locale.getDefault()) }
         }
     }
 
@@ -1509,22 +1530,37 @@ private fun HistoryPlayerFilterDialog(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = CircleShape,
-                        placeholder = { Text(stringResource(R.string.search_player)) },
-                        trailingIcon = {
-                            if (searchQuery.isNotBlank()) {
-                                IconButton(onClick = { onSearchQueryChange("") }) {
-                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RoundedSearchTextField(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text(stringResource(R.string.search_player)) },
+                            trailingIcon = {
+                                if (searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { onSearchQueryChange("") }) {
+                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                                    }
                                 }
                             }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        OutlinedIconButton(
+                            onClick = { sortByDates = !sortByDates },
+                            modifier = Modifier.size(48.dp),
+                            shape = CircleShape,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Icon(
+                                imageVector = if (sortByDates) Icons.Default.DateRange else Icons.Default.SortByAlpha,
+                                contentDescription = if (sortByDates) stringResource(R.string.by_played_time) else stringResource(R.string.alphabetical)
+                            )
                         }
-                    )
-                    Spacer(Modifier.height(8.dp))
+                    }
+                    Spacer(Modifier.height(12.dp))
                 }
                 LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -1537,11 +1573,11 @@ private fun HistoryPlayerFilterDialog(
                                 .fillMaxWidth()
                                 .clip(CircleShape)
                                 .clickable { selectedPlayer = null }
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                .padding(start = 4.dp, end = 16.dp, top = 0.dp, bottom = 0.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = selectedPlayer == null, onClick = { selectedPlayer = null })
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(2.dp))
                             Text(stringResource(R.string.all_players))
                         }
                     }
@@ -1551,17 +1587,32 @@ private fun HistoryPlayerFilterDialog(
                                 .fillMaxWidth()
                                 .clip(CircleShape)
                                 .clickable { selectedPlayer = player }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                .padding(start = 4.dp, end = 16.dp, top = 0.dp, bottom = 0.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = selectedPlayer == player, onClick = { selectedPlayer = player })
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(2.dp))
                             Text(
                                 text = player,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
+                            val count = playerDateCounts[canonicalHistoryName(player)] ?: 0
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = count.toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                     if (filteredPlayers.isEmpty()) {
@@ -1714,7 +1765,9 @@ fun HistoryPlayerCard(
                 color = Color.Transparent
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
                     verticalAlignment = if (useSideBySide) Alignment.CenterVertically else Alignment.Top
                 ) {
                     Box(
@@ -1801,23 +1854,15 @@ fun HistoryPlayerCard(
                             }
                         }
                         Spacer(Modifier.width(12.dp))
-                        Column(horizontalAlignment = Alignment.End) {
+                        Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.End) {
                             VictoriesAndGamesRow(victories, gamesPlayed)
-                            Spacer(Modifier.height(4.dp))
                             Text(
                                 "$percentageFormatted%",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.End)
                             )
-                            if (showElo) {
-                                Text(
-                                    "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(Modifier.height(2.dp))
-                            }
                         }
                     } else {
                         // Narrow layout: everything stacked vertically
