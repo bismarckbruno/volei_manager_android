@@ -39,6 +39,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -70,6 +71,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
@@ -81,6 +83,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
@@ -161,6 +164,7 @@ fun GameScreenContent(
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
     val rebalancedPlayerIds by viewModel.rebalancedPlayerIds.collectAsState()
+    val autoSelectedLoserPlayerIds by viewModel.autoSelectedLoserPlayerIds.collectAsState()
     val guaranteedNextMatchPlayerIds by viewModel.guaranteedNextMatchPlayerIds.collectAsState()
     val manualStreakAdjustments by viewModel.manualStreakAdjustments.collectAsState()
     val manualSubstitutions by viewModel.manualSubstitutions.collectAsState()
@@ -391,6 +395,7 @@ fun GameScreenContent(
                             showToll,
                             showScore,
                             rebalancedPlayerIds,
+                            autoSelectedLoserPlayerIds,
                             { showCancel = true },
                             { subOut = it },
                             { confirmWinTeam = it },
@@ -709,6 +714,7 @@ fun ActiveGameView(
     showToll: Boolean,
     showScore: Boolean,
     rebalancedPlayerIds: Set<Int>,
+    autoSelectedLoserPlayerIds: Set<Int>,
     onCancelRequest: () -> Unit,
     onSubRequest: (Player) -> Unit,
     onWinRequest: (String) -> Unit,
@@ -1281,6 +1287,7 @@ fun ActiveGameView(
                                         targetDate,
                                         gamesPlayedMap,
                                         rebalancedPlayerIds,
+                                        autoSelectedLoserPlayerIds,
                                         score = firstScore,
                                         showScore = showScore,
                                         showLatestPointBorder = firstShowLatestPointBorder,
@@ -1321,6 +1328,7 @@ fun ActiveGameView(
                                         targetDate,
                                         gamesPlayedMap,
                                         rebalancedPlayerIds,
+                                        autoSelectedLoserPlayerIds,
                                         score = secondScore,
                                         showScore = showScore,
                                         showLatestPointBorder = secondShowLatestPointBorder,
@@ -1413,6 +1421,7 @@ fun ActiveGameView(
                             targetDate,
                             gamesPlayedMap,
                             rebalancedPlayerIds,
+                            autoSelectedLoserPlayerIds,
                             score = firstScore,
                             showScore = showScore,
                             showLatestPointBorder = firstShowLatestPointBorder,
@@ -1448,6 +1457,7 @@ fun ActiveGameView(
                             targetDate,
                             gamesPlayedMap,
                             rebalancedPlayerIds,
+                            autoSelectedLoserPlayerIds,
                             score = secondScore,
                             showScore = showScore,
                             showLatestPointBorder = secondShowLatestPointBorder,
@@ -1853,6 +1863,7 @@ fun ActiveTeamCard(
     targetDate: String,
     gamesPlayedMap: Map<Int, Int>,
     rebalancedPlayerIds: Set<Int>,
+    autoSelectedLoserPlayerIds: Set<Int>,
     score: Int,
     showScore: Boolean = true,
     showLatestPointBorder: Boolean = false,
@@ -1868,6 +1879,10 @@ fun ActiveTeamCard(
     val contentColor = if (cardColor.luminance() < 0.5f) Color.White else Color.Black
     val dividerColor = contentColor.copy(alpha = 0.2f)
     val haptic = LocalHapticFeedback.current
+    val avgEloTooltipState = rememberTooltipState(isPersistent = true)
+    val avgEloTooltipScope = rememberCoroutineScope()
+    val avgEloTooltipText = stringResource(R.string.average_elo_indicator_tooltip)
+    val avgEloIndicatorCd = stringResource(R.string.average_elo_indicator_cd)
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -1891,25 +1906,52 @@ fun ActiveTeamCard(
                     Modifier
                         .fillMaxWidth()
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .defaultMinSize(minHeight = 48.dp)
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text(
+                                    text = avgEloTooltipText,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        },
+                        state = avgEloTooltipState,
+                        enableUserInput = false
                     ) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.WorkspacePremium,
-                            contentDescription = null,
-                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
-                            tint = contentColor.copy(alpha = 0.7f)
-                        )
-                        Spacer(Modifier.width(2.dp))
-                        Text(
-                            EloCalculator.formatElo(avgElo),
-                            fontSize = 12.sp,
-                            color = contentColor.copy(alpha = 0.7f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .clip(RoundedCornerShape(48.dp))
+                                .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
+                                .combinedClickable(
+                                    onClick = {
+                                        avgEloTooltipState.dismiss()
+                                    },
+                                    onLongClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        avgEloTooltipScope.launch {
+                                            avgEloTooltipState.dismiss()
+                                            avgEloTooltipState.show()
+                                        }
+                                    }
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = avgEloIndicatorCd,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
+                                tint = contentColor.copy(alpha = 0.7f)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                EloCalculator.formatElo(avgElo),
+                                fontSize = 12.sp,
+                                color = contentColor.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -2015,6 +2057,7 @@ fun ActiveTeamCard(
                 players.forEach { p ->
                     key(p.id) {
                         val isRebalancedPlayer = rebalancedPlayerIds.contains(p.id)
+                        val isAutoSelectedLoser = autoSelectedLoserPlayerIds.contains(p.id)
                         val tooltipState = rememberTooltipState(isPersistent = true)
                         val playerRowScope = rememberCoroutineScope()
                         Row(
@@ -2026,7 +2069,7 @@ fun ActiveTeamCard(
                                 .clip(RoundedCornerShape(40.dp))
                                 .combinedClickable(
                                     onClick = {
-                                        if (isRebalancedPlayer) {
+                                        if (isRebalancedPlayer || isAutoSelectedLoser) {
                                             playerRowScope.launch { tooltipState.show() }
                                         }
                                     },
@@ -2050,6 +2093,7 @@ fun ActiveTeamCard(
                                 PlayerIdentityInlineRow(
                                     name = p.name,
                                     isRebalancedPlayer = isRebalancedPlayer,
+                                    isAutoSelectedLoser = isAutoSelectedLoser,
                                     isPriority = p.isPriority,
                                     showElo = showElo,
                                     eloText = EloCalculator.formatElo(p.elo),
@@ -2122,6 +2166,7 @@ fun ActiveTeamCard(
 private fun PlayerIdentityInlineRow(
     name: String,
     isRebalancedPlayer: Boolean,
+    isAutoSelectedLoser: Boolean,
     isPriority: Boolean,
     showElo: Boolean,
     eloText: String,
@@ -2132,7 +2177,17 @@ private fun PlayerIdentityInlineRow(
     val inlineIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
     val rebalancedTooltip = stringResource(R.string.rebalanced_player_tooltip)
     val rebalancedIconCd = stringResource(R.string.rebalanced_player_icon_cd)
+    val autoSelectedLoserTooltip = stringResource(R.string.auto_selected_loser_player_tooltip)
+    val autoSelectedLoserIconCd = stringResource(R.string.auto_selected_loser_player_icon_cd)
+    val rebalancedAndAutoSelectedLoserTooltip =
+        stringResource(R.string.rebalanced_and_auto_selected_loser_player_tooltip)
     val priorityCd = stringResource(R.string.priority)
+    val inlineTooltipText = when {
+        isRebalancedPlayer && isAutoSelectedLoser -> rebalancedAndAutoSelectedLoserTooltip
+        isRebalancedPlayer -> rebalancedTooltip
+        isAutoSelectedLoser -> autoSelectedLoserTooltip
+        else -> null
+    }
 
     SubcomposeLayout(modifier = modifier) { constraints ->
         val suffixPlaceable = subcompose("suffix") {
@@ -2178,6 +2233,15 @@ private fun PlayerIdentityInlineRow(
                         )
                         Spacer(Modifier.width(4.dp))
                     }
+                    if (isAutoSelectedLoser) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(R.drawable.arrowdown),
+                            contentDescription = autoSelectedLoserIconCd,
+                            tint = contentColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(inlineIconSize)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
                     Text(
                         text = name,
                         style = MaterialTheme.typography.bodyMedium,
@@ -2188,13 +2252,13 @@ private fun PlayerIdentityInlineRow(
                 }
             }
 
-            if (isRebalancedPlayer) {
+            if (!inlineTooltipText.isNullOrBlank()) {
                 TooltipBox(
                     positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                     tooltip = {
                         PlainTooltip {
                             Text(
-                                text = rebalancedTooltip,
+                                text = inlineTooltipText,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }

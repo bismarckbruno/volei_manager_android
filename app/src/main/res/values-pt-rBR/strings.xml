@@ -144,6 +144,9 @@
     <string name="streak_history_cleared">Zerada para %1$s</string>
     <string name="rebalanced_player_icon_cd">Pessoa rebalanceada após atingir o limite de vitórias seguidas</string>
     <string name="rebalanced_player_tooltip">Esta pessoa foi rebalanceada por limite de vitórias seguidas.</string>
+    <string name="auto_selected_loser_player_icon_cd">Pessoa que perdeu a rodada anterior, mas foi selecionada automaticamente para continuar jogando</string>
+    <string name="auto_selected_loser_player_tooltip">Esta pessoa perdeu a rodada anterior, mas foi selecionada automaticamente para continuar jogando.</string>
+    <string name="rebalanced_and_auto_selected_loser_player_tooltip">Esta pessoa foi rebalanceada por limite de vitórias seguidas e também perdeu a rodada anterior, mas foi selecionada automaticamente para continuar jogando.</string>
     <string name="substitution_history_title">Substituições recentes</string>
     <string name="substitution_history_from_waiting">%1$s entrou no %2$s vindo da fila de espera; %3$s foi para a fila</string>
     <string name="substitution_history_team_swap">%1$s entrou no %2$s vindo do %3$s; %4$s foi para o %3$s</string>
@@ -271,6 +274,8 @@
     <string name="matches">partidas</string>
     <string name="average_duration">Duração média: %1$s</string>
     <string name="average_elo">Elo médio: %1$s</string>
+    <string name="average_elo_indicator_cd">Indicador de Elo médio do time</string>
+    <string name="average_elo_indicator_tooltip">Nível médio de habilidade do time calculado pela metodologia Elo.</string>
     <string name="time_played">Tempo: %1$s</string>
     <string name="sort_newest_first">Ordenação: Mais recentes primeiro</string>
     <string name="sort_oldest_first">Ordenação: Mais antigos primeiro</string>

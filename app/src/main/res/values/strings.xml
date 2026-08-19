@@ -144,6 +144,9 @@
     <string name="streak_history_cleared">Cleared for %1$s</string>
     <string name="rebalanced_player_icon_cd">Player rebalanced after reaching the win streak limit</string>
     <string name="rebalanced_player_tooltip">This player was rebalanced after the win streak limit was reached.</string>
+    <string name="auto_selected_loser_player_icon_cd">Player lost the previous round but was automatically selected to keep playing</string>
+    <string name="auto_selected_loser_player_tooltip">This player lost the previous round but was automatically selected to keep playing.</string>
+    <string name="rebalanced_and_auto_selected_loser_player_tooltip">This player was rebalanced after the win streak limit and also lost the previous round but was automatically selected to keep playing.</string>
     <string name="substitution_history_title">Recent substitutions</string>
     <string name="substitution_history_from_waiting">%1$s entered %2$s from the waiting list; %3$s moved to the queue</string>
     <string name="substitution_history_team_swap">%1$s entered %2$s from %3$s; %4$s moved to %3$s</string>
@@ -264,6 +267,8 @@
     <string name="matches">matches</string>
     <string name="average_duration">Average duration: %1$s</string>
     <string name="average_elo">Average Elo: %1$s</string>
+    <string name="average_elo_indicator_cd">Average team Elo indicator</string>
+    <string name="average_elo_indicator_tooltip">Average team skill level calculated with Elo methodology.</string>
     <string name="time_played">Time: %1$s</string>
     <string name="sort_newest_first">Sort: Newest first</string>
     <string name="sort_oldest_first">Sort: Oldest first</string>

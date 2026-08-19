@@ -101,6 +101,7 @@ data class GameStateSnapshot(
     val roundCounter: Int = 0,
     val restingPlayers: Map<Int, Int> = emptyMap(),
     val rebalancedPlayerIds: List<Int> = emptyList(),
+    val autoSelectedLoserPlayerIds: List<Int> = emptyList(),
     val guaranteedNextMatchPlayerIds: List<Int> = emptyList(),
     val lastScoringTeam: String? = null,
     val rotationRequiredForTeam: String? = null
@@ -556,6 +557,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         // Preserva os perdedores da rodada anterior na fila antes de agendar a partida imediata.
+        val previousLoserIds = lastLosers
+            .filter { _presentPlayerIds.value.contains(it.id) }
+            .map { it.id }
+            .toSet()
         val returningTeamIds = returningTeamPlayers.map { it.id }.toSet()
         val opposingTeamIds = opposingTeamPlayers.map { it.id }.toSet()
         val previousLosers = lastLosers
@@ -581,6 +586,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _teamA.value = sortTeamPlayers(opposingTeamPlayers)
             _teamB.value = sortTeamPlayers(returningTeamPlayers)
         }
+        _autoSelectedLoserPlayerIds.value = (_teamA.value + _teamB.value)
+            .map { it.id }
+            .filter { previousLoserIds.contains(it) }
+            .toSet()
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
         if (replacedMissingWinnerWithWaitingPlayer) {
@@ -620,6 +629,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val lastWinners = _lastWinners.asStateFlow()
     private val _rebalancedPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
     val rebalancedPlayerIds = _rebalancedPlayerIds.asStateFlow()
+    private val _autoSelectedLoserPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
+    val autoSelectedLoserPlayerIds = _autoSelectedLoserPlayerIds.asStateFlow()
     private val _guaranteedNextMatchPlayerIds = MutableStateFlow<List<Int>>(emptyList())
     val guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.asStateFlow()
     private val _manualStreakAdjustments = MutableStateFlow<List<ManualStreakAdjustmentLog>>(emptyList())
@@ -677,8 +688,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _restingPlayers,
                 _roundCounter,
                 _rebalancedPlayerIds,
+                _autoSelectedLoserPlayerIds,
                 _guaranteedNextMatchPlayerIds
-            ) { _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
+            ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
         }
 
         // Sempre que os times mudarem, remove esses jogadores do mapa de descanso e garante que a waitingList não tenha duplicados nem jogadores em quadra
@@ -721,6 +733,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             roundCounter = _roundCounter.value,
             restingPlayers = _restingPlayers.value,
             rebalancedPlayerIds = _rebalancedPlayerIds.value.toList(),
+            autoSelectedLoserPlayerIds = _autoSelectedLoserPlayerIds.value.toList(),
             guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.value,
             lastScoringTeam = _lastScoringTeam.value,
             rotationRequiredForTeam = _rotationRequiredForTeam.value
@@ -764,6 +777,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _roundCounter.value = snapshot.roundCounter
             _restingPlayers.value = snapshot.restingPlayers
             _rebalancedPlayerIds.value = snapshot.rebalancedPlayerIds.toSet()
+            _autoSelectedLoserPlayerIds.value = snapshot.autoSelectedLoserPlayerIds.toSet()
             _guaranteedNextMatchPlayerIds.value = snapshot.guaranteedNextMatchPlayerIds
             _lastScoringTeam.value = snapshot.lastScoringTeam
             _rotationRequiredForTeam.value = snapshot.rotationRequiredForTeam
@@ -936,6 +950,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         clearManualSubstitutionLogs()
         clearManualStreakLogs()
         _rebalancedPlayerIds.value = emptySet()
+        _autoSelectedLoserPlayerIds.value = emptySet()
     }
 
     private fun loadPreferences() {
@@ -1819,6 +1834,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun startNextRoundRebalance(conf: GroupConfig) {
         if (conf.teamSize <= 0) return
         _rebalancedPlayerIds.value = emptySet()
+        _autoSelectedLoserPlayerIds.value = emptySet()
         val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
         val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
 
@@ -1982,6 +1998,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _streakOwner.value = null
             }
         }
+        _autoSelectedLoserPlayerIds.value = (_teamA.value + _teamB.value)
+            .map { it.id }
+            .filter { loserIds.contains(it) }
+            .toSet()
 
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
@@ -1991,6 +2011,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun startNextRoundRest(conf: GroupConfig) {
         if (conf.teamSize <= 0) return
         _rebalancedPlayerIds.value = emptySet()
+        _autoSelectedLoserPlayerIds.value = emptySet()
         _roundCounter.value += 1
         if (tryScheduleReturningTeamMatchIfAny(conf)) return
 
@@ -2112,6 +2133,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 }
             }
         }
+        _autoSelectedLoserPlayerIds.value = (_teamA.value + _teamB.value)
+            .map { it.id }
+            .filter { loserIds.contains(it) }
+            .toSet()
 
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
