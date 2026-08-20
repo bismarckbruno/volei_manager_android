@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -690,21 +689,21 @@ fun HistoryScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Spacer(Modifier.width(4.dp))
-                                IconButton(
+                                OutlinedIconButton(
                                     onClick = { showHistoryPlayerDialog = true },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .border(if (activePersonFilterText != null) 2.dp else 1.dp,
-                                            if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                            CircleShape),
-                                    colors = IconButtonDefaults.iconButtonColors(
+                                    modifier = Modifier.size(48.dp),
+                                    shape = CircleShape,
+                                    border = BorderStroke(
+                                        if (activePersonFilterText != null) 2.dp else 1.dp,
+                                        if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                    ),
+                                    colors = IconButtonDefaults.outlinedIconButtonColors(
                                         contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 ) {
                                     Icon(Icons.Default.Person, contentDescription = stringResource(R.string.player), modifier = Modifier.size(24.dp))
                                 }
-                                Spacer(Modifier.width(12.dp))
+                                Spacer(Modifier.width(8.dp))
                                 ExposedDropdownMenuBox(
                                     expanded = dateExpanded2,
                                     onExpandedChange = { dateExpanded2 = !dateExpanded2 },
@@ -821,7 +820,7 @@ fun HistoryScreen(
                                         }
                                     }
                                 }
-                                Spacer(Modifier.width(12.dp))
+                                Spacer(Modifier.width(8.dp))
                                 val activeSortBadgeIcon = when {
                                     selectedTab == 0 -> when (matchSortMode) {
                                         MatchSortMode.NEWEST -> ImageVector.vectorResource(R.drawable.arrowup)
@@ -839,15 +838,11 @@ fun HistoryScreen(
                                     }
                                 }
                                 Box {
-                                    IconButton(
+                                    OutlinedIconButton(
                                         onClick = { expandedFilter = true },
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .border(
-                                                1.dp,
-                                                MaterialTheme.colorScheme.outline,
-                                                CircleShape
-                                            )
+                                        modifier = Modifier.size(48.dp),
+                                        shape = CircleShape,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                                     ) {
                                         Icon(Icons.AutoMirrored.Filled.Sort,
                                             contentDescription = stringResource(R.string.sort_word),
@@ -856,7 +851,6 @@ fun HistoryScreen(
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .offset(x = 4.dp, y = 4.dp)
                                             .size(24.dp)
                                             .background(MaterialTheme.colorScheme.outline, CircleShape),
                                         contentAlignment = Alignment.Center
@@ -871,7 +865,7 @@ fun HistoryScreen(
                                     DropdownMenu(
                                         expanded = expandedFilter,
                                         onDismissRequest = { expandedFilter = false },
-                                        offset = DpOffset(x = 0.dp, y = 8.dp),
+                                        offset = DpOffset(x = 0.dp, y = 4.dp),
                                         modifier = Modifier.widthIn(min = 260.dp)
                                     ) {
                                         if (selectedTab == 0) {
@@ -889,7 +883,6 @@ fun HistoryScreen(
                                         }
                                     }
                                 }
-                                Spacer(Modifier.width(4.dp))
                             }
                         }
 
@@ -956,24 +949,22 @@ fun HistoryScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.width(4.dp))
-            IconButton(
+            OutlinedIconButton(
                 onClick = { showHistoryPlayerDialog = true },
-                modifier = Modifier
-                    .size(40.dp)
-                    .border(
-                        if (activePersonFilterText != null) 2.dp else 1.dp,
-                        if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        CircleShape
-                    ),
-                colors = IconButtonDefaults.iconButtonColors(
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                border = BorderStroke(
+                    if (activePersonFilterText != null) 2.dp else 1.dp,
+                    if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                ),
+                colors = IconButtonDefaults.outlinedIconButtonColors(
                     contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
                 Icon(Icons.Default.Person, contentDescription = stringResource(R.string.filter_player), modifier = Modifier.size(24.dp))
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
 
             ExposedDropdownMenuBox(
                 expanded = dateExpanded,
@@ -1163,7 +1154,7 @@ fun HistoryScreen(
                     }
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
 
             // Filter/sort icon button
             val activeSortBadgeIcon = when {
@@ -1183,15 +1174,11 @@ fun HistoryScreen(
                 }
             }
             Box {
-                IconButton(
+                OutlinedIconButton(
                     onClick = { expandedFilter = true },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .border(
-                            1.dp,
-                             MaterialTheme.colorScheme.outline,
-                            CircleShape
-                        )
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
@@ -1202,7 +1189,6 @@ fun HistoryScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(x = 4.dp, y = 4.dp)
                         .size(24.dp)
                         .background(MaterialTheme.colorScheme.outline, CircleShape),
                     contentAlignment = Alignment.Center
@@ -1217,7 +1203,7 @@ fun HistoryScreen(
                 DropdownMenu(
                     expanded = expandedFilter,
                     onDismissRequest = { expandedFilter = false },
-                    offset = DpOffset(x = 0.dp, y = 8.dp),
+                    offset = DpOffset(x = 0.dp, y = 4.dp),
                     modifier = Modifier.widthIn(min = 260.dp)
                 ) {
                     if (selectedTab == 0) {
@@ -1345,8 +1331,6 @@ fun HistoryScreen(
                     }
                 }
             }
-            Spacer(Modifier.width(4.dp))
-
         }
         Spacer(Modifier.height(12.dp))
 
