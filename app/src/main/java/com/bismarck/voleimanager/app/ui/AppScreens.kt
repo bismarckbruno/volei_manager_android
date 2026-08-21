@@ -98,7 +98,7 @@ data class HistoryPlayerInfo(
     val isDeleted: Boolean = false
 )
 
-enum class PlayerSortMode { ALPHABETICAL, ELO, GAMES, VICTORIES, PERCENTAGE, PLAYED_TIME }
+enum class PlayerSortMode { ALPHABETICAL, ELO, PLAYED_TIME, GAMES, VICTORIES, PERCENTAGE }
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 
 internal data class PlayerIdentifier(val id: Int?, val name: String)
@@ -151,6 +151,12 @@ private fun SortModeIcon(
                 modifier = modifier,
                 tint = tint
             )
+            PlayerSortMode.PLAYED_TIME -> Icon(
+                imageVector = Icons.Default.AccessTime,
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
             PlayerSortMode.GAMES -> Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.volei_manager_icon),
                 contentDescription = null,
@@ -165,12 +171,6 @@ private fun SortModeIcon(
             )
             PlayerSortMode.PERCENTAGE -> Icon(
                 imageVector = Icons.Default.Percent,
-                contentDescription = null,
-                modifier = modifier,
-                tint = tint
-            )
-            PlayerSortMode.PLAYED_TIME -> Icon(
-                imageVector = Icons.Default.AccessTime,
                 contentDescription = null,
                 modifier = modifier,
                 tint = tint
@@ -375,10 +375,22 @@ private fun computeHistoryComputation(
     fun HistoryPlayerInfo.winRate(): Double = if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
 
     val sortedPlayers = when (playerSortMode) {
+        PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
+            compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
+                .thenByDescending { it.winRate() }
+                .thenByDescending { it.gamesPlayed }
+                .thenByDescending { it.displayElo }
+        )
         PlayerSortMode.ELO -> playerDataList.sortedWith(
             compareByDescending<HistoryPlayerInfo> { it.displayElo }
                 .thenByDescending { it.winRate() }
                 .thenByDescending { it.gamesPlayed }
+        )
+        PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
+            compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
+                .thenByDescending { it.winRate() }
+                .thenByDescending { it.gamesPlayed }
+                .thenByDescending { it.displayElo }
         )
         PlayerSortMode.GAMES -> playerDataList.sortedWith(
             compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
@@ -392,19 +404,6 @@ private fun computeHistoryComputation(
         )
         PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
             compareByDescending<HistoryPlayerInfo> { it.winRate() }
-                .thenByDescending { it.gamesPlayed }
-                .thenByDescending { it.displayElo }
-        )
-        PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
-            compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
-                .thenByDescending { it.winRate() }
-                .thenByDescending { it.gamesPlayed }
-                .thenByDescending { it.displayElo }
-
-        )
-        PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
-            compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
-                .thenByDescending { it.winRate() }
                 .thenByDescending { it.gamesPlayed }
                 .thenByDescending { it.displayElo }
         )
@@ -716,7 +715,7 @@ fun HistoryScreen(
                                             color = MaterialTheme.colorScheme.outline
                                         ),
                                         modifier = Modifier.menuAnchor().fillMaxWidth().height(48.dp),
-                                        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
+                                        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 12.dp)
                                     ) {
                                         Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.width(8.dp))
@@ -831,10 +830,10 @@ fun HistoryScreen(
                                     else -> when (playerSortMode) {
                                         PlayerSortMode.ALPHABETICAL -> Icons.Default.SortByAlpha
                                         PlayerSortMode.ELO -> Icons.Default.WorkspacePremium
+                                        PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
                                         PlayerSortMode.GAMES -> ImageVector.vectorResource(R.drawable.volei_manager_icon)
                                         PlayerSortMode.VICTORIES -> ImageVector.vectorResource(R.drawable.crown_icon)
                                         PlayerSortMode.PERCENTAGE -> Icons.Default.Percent
-                                        PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
                                     }
                                 }
                                 Box {
@@ -876,10 +875,10 @@ fun HistoryScreen(
                                         } else {
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.alphabetical)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_played_time)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_matches)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.volei_manager_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_victories)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.crown_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_percentage)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Percent, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_played_time)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
                                         }
                                     }
                                 }
@@ -981,7 +980,7 @@ fun HistoryScreen(
                         .menuAnchor()
                         .fillMaxWidth()
                         .height(48.dp),
-                    contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
+                    contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 12.dp)
                 ) {
                     Icon(
                         Icons.Default.DateRange,
@@ -1167,10 +1166,10 @@ fun HistoryScreen(
                 else -> when (playerSortMode) {
                     PlayerSortMode.ALPHABETICAL -> Icons.Default.SortByAlpha
                     PlayerSortMode.ELO -> Icons.Default.WorkspacePremium
+                    PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
                     PlayerSortMode.GAMES -> ImageVector.vectorResource(R.drawable.volei_manager_icon)
                     PlayerSortMode.VICTORIES -> ImageVector.vectorResource(R.drawable.crown_icon)
                     PlayerSortMode.PERCENTAGE -> Icons.Default.Percent
-                    PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
                 }
             }
             Box {
@@ -1283,6 +1282,18 @@ fun HistoryScreen(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.by_played_time))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            },
+                            onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.by_matches))
@@ -1315,18 +1326,6 @@ fun HistoryScreen(
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_played_time))
-                                    Spacer(Modifier.weight(1f))
-                                    Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            },
-                            onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false }
                         )
                     }
                 }
@@ -1787,7 +1786,83 @@ fun HistoryPlayerCard(
 
                     if (useSideBySide) {
                         // Wide layout: name+elo left, stats right
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        player.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (player.isPriority) {
+                                        Spacer(Modifier.width(2.dp))
+                                        Icon(
+                                            Icons.Default.Star,
+                                            contentDescription = stringResource(R.string.priority),
+                                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                VictoriesAndGamesRow(victories, gamesPlayed)
+                            }
+
+                            if (showElo) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.WorkspacePremium,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        EloCalculator.formatElo(displayElo),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween){
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(Modifier.width(1.dp))
+                                    Icon(
+                                        Icons.Default.AccessTime,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        playedTimeText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically){
+                                    Text(
+                                        "$percentageFormatted",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Icon(
+                                        Icons.Default.Percent,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                        }
+
+                    } else {
+                        // Narrow layout: everything stacked vertically
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     player.name,
@@ -1819,7 +1894,6 @@ fun HistoryPlayerCard(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Spacer(Modifier.height(2.dp))
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Spacer(Modifier.width(1.dp))
@@ -1836,74 +1910,23 @@ fun HistoryPlayerCard(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.End) {
+
                             VictoriesAndGamesRow(victories, gamesPlayed)
-                            Text(
-                                "$percentageFormatted%",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.align(Alignment.End)
-                            )
-                        }
-                    } else {
-                        // Narrow layout: everything stacked vertically
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                            Row(verticalAlignment = Alignment.CenterVertically){
                                 Text(
-                                    player.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                if (player.isPriority) {
-                                    Spacer(Modifier.width(2.dp))
-                                    Icon(
-                                        Icons.Default.Star,
-                                        contentDescription = stringResource(R.string.priority),
-                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            if (showElo) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Default.WorkspacePremium,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        EloCalculator.formatElo(displayElo),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.AccessTime,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    playedTimeText,
+                                    "$percentageFormatted",
                                     style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                Icon(
+                                    Icons.Default.Percent,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                            VictoriesAndGamesRow(victories, gamesPlayed)
-                            Text(
-                                "$percentageFormatted%",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
                 }
@@ -1929,7 +1952,7 @@ private fun VictoriesAndGamesRow(victories: Int, gamesPlayed: Int) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(12.dp))
         Icon(
             painter = painterResource(R.drawable.volei_manager_icon),
             contentDescription = null,
@@ -2697,12 +2720,12 @@ fun ExportableImageContent(
                 else -> ""
             }
             players != null -> when (playerSortMode) {
+                PlayerSortMode.ALPHABETICAL -> stringResource(R.string.sort_alphabetical_order)
                 PlayerSortMode.ELO -> stringResource(R.string.sort_highest_elo)
+                PlayerSortMode.PLAYED_TIME -> stringResource(R.string.sort_most_played_time)
                 PlayerSortMode.GAMES -> stringResource(R.string.sort_most_matches)
                 PlayerSortMode.VICTORIES -> stringResource(R.string.sort_most_victories)
                 PlayerSortMode.PERCENTAGE -> stringResource(R.string.sort_highest_percentage)
-                PlayerSortMode.PLAYED_TIME -> stringResource(R.string.sort_most_played_time)
-                PlayerSortMode.ALPHABETICAL -> stringResource(R.string.sort_alphabetical_order)
                 else -> ""
             }
             else -> ""

@@ -600,6 +600,7 @@ private fun WaitingListPlayerItem(
                             }
                         }
                         if (showElo) {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.WorkspacePremium,
@@ -772,6 +773,7 @@ private fun InactivePlayerItem(
                         }
                     }
                     if (showElo) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.WorkspacePremium,

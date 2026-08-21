@@ -264,11 +264,6 @@ fun GameScreenContent(
     }
 
     confirmWinTeam?.let { team ->
-        val selectedTeamLabel = if (team == "B") {
-            stringResource(R.string.team_b)
-        } else {
-            stringResource(R.string.team_a)
-        }
         val selectedTeamNames = if (team == "B") {
             teamB.joinToString(", ") { it.name }
         } else {
@@ -279,7 +274,7 @@ fun GameScreenContent(
             title = { Text(stringResource(R.string.victorious_team, team)) },
             text = {
                 Text(
-                    text = "$selectedTeamLabel: $selectedTeamNames.",
+                    text = "$selectedTeamNames.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1696,8 +1691,8 @@ private fun PlayerListHeader(
             }
             androidx.compose.animation.AnimatedVisibility(
                 visible = !searchExpanded,
-                enter = fadeIn(animationSpec = tween(180)),
-                exit = fadeOut(animationSpec = tween(120)),
+                enter = fadeIn(animationSpec = tween(100)),
+                exit = fadeOut(animationSpec = tween(5)),
                 modifier = Modifier.padding(start = 54.dp)
             ) {
                 Text(
@@ -1916,7 +1911,9 @@ fun ActiveTeamCard(
                         TooltipBox(
                             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                             tooltip = {
-                                PlainTooltip {
+                                PlainTooltip(
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                ) {
                                     Text(
                                         text = avgEloTooltipText,
                                         style = MaterialTheme.typography.bodySmall
@@ -2286,7 +2283,9 @@ private fun PlayerStatusIcons(
         TooltipBox(
             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
             tooltip = {
-                PlainTooltip {
+                PlainTooltip(
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
                     Text(
                         text = inlineTooltipText,
                         style = MaterialTheme.typography.bodySmall
@@ -3293,6 +3292,7 @@ fun PlayerCard(
                         }
                     }
                     if (showElo) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.WorkspacePremium,
@@ -3444,6 +3444,7 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                         }
                     }
                     if (showElo) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.WorkspacePremium,
