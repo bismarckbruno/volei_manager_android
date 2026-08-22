@@ -47,6 +47,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.text.Normalizer
+import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,6 +56,7 @@ import com.bismarck.voleimanager.app.data.model.BalancingMode
 const val DEFAULT_GROUP_NAME = "Geral"
 const val MAX_GROUP_NAME_LENGTH = 20
 const val MAX_PLAYER_NAME_LENGTH = 24
+private const val AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS = 12L * 60L * 60L * 1000L
 
 enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -755,6 +757,39 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .edit().remove("game_state_$groupName").apply()
     }
 
+    private suspend fun shouldAutoClearCurrentGameByInactivity(groupName: String): Boolean {
+        val latestMatchTimestamp = repository.getHistoryByGroupSync(groupName)
+            .asSequence()
+            .mapNotNull { match ->
+                match.endTimestamp ?: match.startTimestamp ?: parseLegacyMatchDate(match.date)
+            }
+            .maxOrNull()
+            ?: return false
+        return (System.currentTimeMillis() - latestMatchTimestamp) >= AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS
+    }
+
+    private fun parseLegacyMatchDate(rawDate: String): Long? {
+        val text = rawDate.trim()
+        if (text.isBlank()) return null
+        val patterns = listOf(
+            "dd/MM/yyyy HH:mm",
+            "dd/MM/yyyy",
+            "yyyy-MM-dd HH:mm",
+            "yyyy-MM-dd"
+        )
+        for (pattern in patterns) {
+            try {
+                val parsed = SimpleDateFormat(pattern, Locale.getDefault()).apply {
+                    isLenient = false
+                }.parse(text)
+                if (parsed != null) return parsed.time
+            } catch (_: ParseException) {
+                // Ignore and try the next legacy format.
+            }
+        }
+        return null
+    }
+
     private fun tryRestoreGameState(groupName: String): Boolean {
         val json = getApplication<Application>()
             .getSharedPreferences("volei", Context.MODE_PRIVATE)
@@ -1008,7 +1043,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 repository.saveGroupConfig(normalized)
             }
             _currentGroupConfig.value = normalized
-            if (!same) {
+            if (shouldAutoClearCurrentGameByInactivity(name)) {
+                resetGameState()
+                clearSavedGameState(name)
+            } else if (!same) {
                 // Switching groups: reset current state, then try to restore saved state for new group
                 resetGameState()
                 tryRestoreGameState(name)

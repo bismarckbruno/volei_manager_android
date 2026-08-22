@@ -16,6 +16,7 @@ import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 import com.bismarck.voleimanager.app.data.model.TournamentMatch
 import com.bismarck.voleimanager.app.data.model.TournamentTeam
 import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -592,6 +593,118 @@ class VoleiViewModelRestingIntegrationTest {
 
         assertEquals(listOf("MaisRecente", "MaisAntigo"), groups.take(2))
         assertEquals("SemHistorico", groups.last())
+    }
+
+    @Test
+    fun init_withSavedGameStateAndLastMatchOlderThan12Hours_clearsCurrentGameState() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val prefs = app.getSharedPreferences("volei", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+
+        val dao = FakeVoleiDao()
+        val repo = VoleiRepository(dao)
+        repo.saveGroupConfig(
+            GroupConfig(
+                groupName = DEFAULT_GROUP_NAME,
+                onboardingStep = ONBOARDING_STEP_COMPLETE
+            )
+        )
+        repo.insertMatch(
+            MatchHistory(
+                date = "01/01/2026 10:00",
+                teamA = "A1",
+                teamB = "B1",
+                winner = "A",
+                eloPoints = 16.0,
+                groupName = DEFAULT_GROUP_NAME,
+                endTimestamp = System.currentTimeMillis() - (13L * 60L * 60L * 1000L)
+            )
+        )
+
+        val savedSnapshot = GameStateSnapshot(
+            groupName = DEFAULT_GROUP_NAME,
+            teamA = listOf(player(301, "A1")),
+            teamB = listOf(player(302, "B1")),
+            waitingList = emptyList(),
+            presentPlayerIds = listOf(301, 302),
+            scoreA = 11,
+            scoreB = 9,
+            currentStreak = 1,
+            streakOwner = "A",
+            hasPreviousMatch = true,
+            lastWinners = listOf(player(301, "A1")),
+            lastLosers = listOf(player(302, "B1"))
+        )
+        prefs.edit()
+            .putString("game_state_$DEFAULT_GROUP_NAME", Gson().toJson(savedSnapshot))
+            .apply()
+
+        val vm = VoleiViewModel(app, repo)
+        withTimeout(3_000) {
+            vm.isGroupDataLoading.first { !it }
+        }
+
+        assertTrue(vm.teamA.value.isEmpty())
+        assertTrue(vm.teamB.value.isEmpty())
+        assertTrue(vm.presentPlayerIds.value.isEmpty())
+        assertNull(prefs.getString("game_state_$DEFAULT_GROUP_NAME", null))
+    }
+
+    @Test
+    fun init_withSavedGameStateAndRecentLastMatch_restoresCurrentGameState() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val prefs = app.getSharedPreferences("volei", Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+
+        val dao = FakeVoleiDao()
+        val repo = VoleiRepository(dao)
+        repo.saveGroupConfig(
+            GroupConfig(
+                groupName = DEFAULT_GROUP_NAME,
+                onboardingStep = ONBOARDING_STEP_COMPLETE
+            )
+        )
+        repo.insertMatch(
+            MatchHistory(
+                date = "01/01/2026 10:00",
+                teamA = "A1",
+                teamB = "B1",
+                winner = "A",
+                eloPoints = 16.0,
+                groupName = DEFAULT_GROUP_NAME,
+                endTimestamp = System.currentTimeMillis() - (2L * 60L * 60L * 1000L)
+            )
+        )
+
+        val savedSnapshot = GameStateSnapshot(
+            groupName = DEFAULT_GROUP_NAME,
+            teamA = listOf(player(401, "A1")),
+            teamB = listOf(player(402, "B1")),
+            waitingList = listOf(player(403, "W1")),
+            presentPlayerIds = listOf(401, 402, 403),
+            scoreA = 7,
+            scoreB = 6,
+            currentStreak = 1,
+            streakOwner = "A",
+            hasPreviousMatch = true,
+            lastWinners = listOf(player(401, "A1")),
+            lastLosers = listOf(player(402, "B1"))
+        )
+        prefs.edit()
+            .putString("game_state_$DEFAULT_GROUP_NAME", Gson().toJson(savedSnapshot))
+            .apply()
+
+        val vm = VoleiViewModel(app, repo)
+        withTimeout(3_000) {
+            vm.isGroupDataLoading.first { !it }
+        }
+
+        assertEquals(setOf(401), vm.teamA.value.map { it.id }.toSet())
+        assertEquals(setOf(402), vm.teamB.value.map { it.id }.toSet())
+        assertEquals(setOf(401, 402, 403), vm.presentPlayerIds.value)
+        assertEquals(7, vm.scoreA.value)
+        assertEquals(6, vm.scoreB.value)
+        assertTrue(prefs.getString("game_state_$DEFAULT_GROUP_NAME", null) != null)
     }
 
     private fun forceStreak(vm: VoleiViewModel, streak: Int, owner: String?) {
