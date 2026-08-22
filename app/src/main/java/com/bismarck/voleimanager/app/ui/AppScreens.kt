@@ -66,10 +66,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -511,6 +514,7 @@ fun HistoryScreen(
         counts.mapValues { it.value.size }
     }
     val activeHistoryPlayerFilter = historyPlayerFilter?.trim()?.ifBlank { null }
+    val activeHistoryPlayerFilterCanonical = activeHistoryPlayerFilter?.let(::canonicalHistoryName)
     val selectedHistoryDate = historyDate
 
     val dateOptionsForPlayer = remember(groupHistory, availableDates, activeHistoryPlayerFilter) {
@@ -589,6 +593,17 @@ fun HistoryScreen(
     val uniquePlayerCount = historyComputation?.uniquePlayerCount ?: 0
     val historyPlayerList = historyComputation?.historyPlayerList.orEmpty()
     val averagePlayersEloText = historyComputation?.averagePlayersEloText
+    fun matchContainsActiveFilteredPlayer(match: MatchHistory): Boolean {
+        val canonical = activeHistoryPlayerFilterCanonical ?: return false
+        val participants = parseTeamIdentifiers(match.teamA, match.teamAIds) +
+            parseTeamIdentifiers(match.teamB, match.teamBIds)
+        return participants.any { canonicalHistoryName(it.name) == canonical }
+    }
+
+    fun isActiveFilteredPlayer(playerName: String): Boolean {
+        val canonical = activeHistoryPlayerFilterCanonical ?: return false
+        return canonicalHistoryName(playerName) == canonical
+    }
 
     if (showHistoryPlayerDialog) {
         HistoryPlayerFilterDialog(
@@ -894,7 +909,15 @@ fun HistoryScreen(
                                 }
                             }
                             items(sortedHistory, key = { it.id }) { match ->
-                                HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo, showScore = showScore, durationMinutes = matchDurationsMinutes[match.id])
+                                HistoryItem(
+                                    match = match,
+                                    isDarkTheme = isDarkTheme,
+                                    showElo = showElo,
+                                    showScore = showScore,
+                                    durationMinutes = matchDurationsMinutes[match.id],
+                                    highlightFilteredPlayer = matchContainsActiveFilteredPlayer(match),
+                                    highlightedPlayerName = activeHistoryPlayerFilter
+                                )
                             }
                             if (sortedHistory.isEmpty()) item {
                                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -923,7 +946,8 @@ fun HistoryScreen(
                                         playedMinutes = info.playedMinutes,
                                         useSideBySide = playersSideBySide,
                                         isDeleted = info.isDeleted,
-                                        playerSortMode = playerSortMode
+                                        playerSortMode = playerSortMode,
+                                        highlightFilterBorder = isActiveFilteredPlayer(info.name)
                                     )
                                 }
                             }
@@ -1373,7 +1397,9 @@ fun HistoryScreen(
                                     isDarkTheme = isDarkTheme,
                                     showElo = showElo,
                                     showScore = showScore,
-                                    durationMinutes = matchDurationsMinutes[match.id]
+                                    durationMinutes = matchDurationsMinutes[match.id],
+                                    highlightFilteredPlayer = matchContainsActiveFilteredPlayer(match),
+                                    highlightedPlayerName = activeHistoryPlayerFilter
                                 )
                             }
                             if (sortedHistory.isEmpty()) item {
@@ -1436,7 +1462,8 @@ fun HistoryScreen(
                                         playedMinutes = info.playedMinutes,
                                         useSideBySide = playersSideBySide,
                                         isDeleted = info.isDeleted,
-                                        playerSortMode = playerSortMode
+                                        playerSortMode = playerSortMode,
+                                        highlightFilterBorder = isActiveFilteredPlayer(info.name)
                                     )
                                 }
                             }
@@ -1683,7 +1710,8 @@ fun HistoryPlayerCard(
     playedMinutes: Int = 0,
     useSideBySide: Boolean = true,
     isDeleted: Boolean = false,
-    playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL
+    playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL,
+    highlightFilterBorder: Boolean = false
 ) {
     val showDeletedIndicator = isDeleted && playerSortMode == PlayerSortMode.ALPHABETICAL
     val deletedPlayerTooltip = stringResource(R.string.player_was_deleted)
@@ -1728,6 +1756,7 @@ fun HistoryPlayerCard(
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = CardDefaults.shape,
+            border = if (highlightFilterBorder) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(CardDefaults.shape)
@@ -1975,19 +2004,36 @@ fun HistoryItem(
     isDarkTheme: Boolean,
     showElo: Boolean,
     showScore: Boolean = true,
-    durationMinutes: Int? = null
+    durationMinutes: Int? = null,
+    highlightFilteredPlayer: Boolean = false,
+    highlightedPlayerName: String? = null
 ) {
     val isTeamAWin = match.winner == "A" || match.winner == "Time A"
-    val teamANames = remember(match.teamA) {
+    val teamANameList = remember(match.teamA) {
         match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             .sortedBy { it.lowercase() }
-            .joinToString(", ")
     }
-    val teamBNames = remember(match.teamB) {
+    val teamBNameList = remember(match.teamB) {
         match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             .sortedBy { it.lowercase() }
-            .joinToString(", ")
     }
+    val highlightedCanonicalName = remember(highlightedPlayerName) {
+        highlightedPlayerName?.let(::canonicalHistoryName)
+    }
+    fun buildTeamNamesText(names: List<String>) = buildAnnotatedString {
+        names.forEachIndexed { index, name ->
+            if (index > 0) append(", ")
+            val shouldHighlight = highlightedCanonicalName != null &&
+                canonicalHistoryName(name) == highlightedCanonicalName
+            if (shouldHighlight) {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(name) }
+            } else {
+                append(name)
+            }
+        }
+    }
+    val teamANamesText = remember(teamANameList, highlightedCanonicalName) { buildTeamNamesText(teamANameList) }
+    val teamBNamesText = remember(teamBNameList, highlightedCanonicalName) { buildTeamNamesText(teamBNameList) }
 
     val cardBgColor = if (isTeamAWin) {
         MaterialTheme.colorScheme.primaryContainer
@@ -2024,7 +2070,8 @@ fun HistoryItem(
         colors = CardDefaults.cardColors(
             containerColor = cardBgColor,
             contentColor = contentColor
-        )
+        ),
+        border = if (highlightFilteredPlayer) BorderStroke(1.dp, if (isTeamAWin) MaterialTheme.colorScheme.primary else LocalExtendedColors.current.anotherPrime.color) else null
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -2226,7 +2273,7 @@ fun HistoryItem(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        teamANames,
+                        teamANamesText,
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center
                     )
@@ -2283,7 +2330,7 @@ fun HistoryItem(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        teamBNames,
+                        teamBNamesText,
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center
                     )
