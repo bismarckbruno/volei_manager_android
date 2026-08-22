@@ -203,6 +203,39 @@
     <string name="onboarding_elo_description">- Change it only if you already know the player’s level well.\n- If unsure, keep 1200.</string>
     <string name="onboarding_priority_title">Set as priority</string>
     <string name="onboarding_priority_description">- Use it for profiles that should be spread between teams (e.g., setters).\n- If your group does not need this, leave it unchecked.</string>
+
+    <!-- Group type (mode of operation) -->
+    <string name="group_type_title">Group type</string>
+    <string name="group_type_recreational">Recreational</string>
+    <string name="group_type_recreational_desc">Two teams of 2 to 6 players, no fixed positions. Balancing uses Elo and the priority flag.</string>
+    <string name="group_type_fixed_positions">Fixed positions</string>
+    <string name="group_type_fixed_positions_desc">Two teams of 2 to 7 players. Each player registers a preferred and a second position, and teams respect the minimum composition.</string>
+    <string name="onboarding_group_type_question">How will the group play?</string>
+    <string name="onboarding_group_type_hint">You can change it later in \"Group rules\".</string>
+    <string name="group_type_change_confirm_title">Change group type?</string>
+    <string name="group_type_change_confirm_message">The match in progress will be cancelled and the number of players per team may be adjusted. Registered positions are kept and become active again if you return to Fixed positions.</string>
+
+    <!-- Court positions -->
+    <string name="position_setter">Setter</string>
+    <string name="position_outside_hitter">Outside hitter</string>
+    <string name="position_middle_blocker">Middle blocker</string>
+    <string name="position_opposite">Opposite</string>
+    <string name="position_libero">Libero</string>
+    <string name="position_none">No preference</string>
+    <string name="position_short_setter">SET</string>
+    <string name="position_short_outside_hitter">OH</string>
+    <string name="position_short_middle_blocker">MB</string>
+    <string name="position_short_opposite">OPP</string>
+    <string name="position_short_libero">LIB</string>
+    <string name="preferred_position">Preferred position</string>
+    <string name="secondary_position">Second position</string>
+    <string name="wildcard_hint">Without a preferred position the player becomes a wildcard and fills whatever slot is left over.</string>
+    <string name="onboarding_positions_title">Positions</string>
+    <string name="onboarding_positions_description">- Choose the preferred position and, if you want, a second one.\n- Leave both empty to make the player a wildcard.</string>
+    <string name="composition_incomplete_warning">Incomplete composition: some slots were improvised.</string>
+    <string name="composition_missing_slot">Missing: %1$s</string>
+    <string name="composition_title">Team composition</string>
+    <string name="composition_slot_empty">Empty</string>
     <string name="elo_level_1100_desc">Beginner</string>
     <string name="elo_level_1200_desc">Default</string>
     <string name="elo_level_1250_desc">" "</string>

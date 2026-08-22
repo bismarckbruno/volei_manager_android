@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.data.model.GroupType
+import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import kotlinx.coroutines.launch
@@ -271,9 +273,16 @@ fun SubstitutionDialog(
 }
 
 @Composable
-fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, Boolean) -> Unit) {
+fun EditPlayerDialog(
+    player: Player,
+    usesPositions: Boolean = false,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Boolean, String?, String?) -> Unit
+) {
     var newName by remember { mutableStateOf(player.name) }
     var isPriority by remember { mutableStateOf(player.isPriority) }
+    var preferredPosition by remember { mutableStateOf(PlayerPosition.fromStoredValue(player.preferredPosition)) }
+    var secondaryPosition by remember { mutableStateOf(PlayerPosition.fromStoredValue(player.secondaryPosition)) }
     val focusRequester = remember { FocusRequester() }
     val normalizedName = newName.trim().replace(Regex("\\s+"), " ")
 
@@ -293,11 +302,23 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
                     modifier = Modifier.focusRequester(focusRequester)
                 )
                 Spacer(Modifier.height(24.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(40.dp)).clickable { isPriority = !isPriority }) {
-                    Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
-                    Text(stringResource(R.string.priority))
+                if (usesPositions) {
+                    PositionPreferenceSection(
+                        preferredPosition = preferredPosition,
+                        secondaryPosition = secondaryPosition,
+                        onPreferredChange = {
+                            preferredPosition = it
+                            if (it == null || it == secondaryPosition) secondaryPosition = null
+                        },
+                        onSecondaryChange = { secondaryPosition = it }
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(40.dp)).clickable { isPriority = !isPriority }) {
+                        Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
+                        Text(stringResource(R.string.priority))
+                    }
                 }
             }
         },
@@ -305,7 +326,9 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
             Button(onClick = {
                 if (normalizedName.isNotBlank()) onConfirm(
                     normalizedName,
-                    isPriority
+                    isPriority,
+                    preferredPosition?.name,
+                    secondaryPosition?.name
                 )
             }) { Text(stringResource(R.string.save)) }
         },
@@ -313,8 +336,94 @@ fun EditPlayerDialog(player: Player, onDismiss: () -> Unit, onConfirm: (String, 
     )
 }
 
+/** Seletores de posição preferida e segunda posição, com opção "sem preferência" (coringa). */
 @Composable
-fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) -> Unit) {
+private fun PositionPreferenceSection(
+    preferredPosition: PlayerPosition?,
+    secondaryPosition: PlayerPosition?,
+    onPreferredChange: (PlayerPosition?) -> Unit,
+    onSecondaryChange: (PlayerPosition?) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        PositionDropdown(
+            label = stringResource(R.string.preferred_position),
+            selected = preferredPosition,
+            options = PlayerPosition.entries,
+            onSelect = onPreferredChange
+        )
+        Spacer(Modifier.height(16.dp))
+        PositionDropdown(
+            label = stringResource(R.string.secondary_position),
+            selected = secondaryPosition,
+            // A segunda posição nunca repete a primeira.
+            options = PlayerPosition.entries.filter { it != preferredPosition },
+            enabled = preferredPosition != null,
+            onSelect = onSecondaryChange
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.wildcard_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PositionDropdown(
+    label: String,
+    selected: PlayerPosition?,
+    options: List<PlayerPosition>,
+    onSelect: (PlayerPosition?) -> Unit,
+    enabled: Boolean = true
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val noneLabel = stringResource(R.string.position_none)
+    val selectedLabel = selected?.let { positionLabel(it) } ?: noneLabel
+
+    ExposedDropdownMenuBox(
+        expanded = expanded && enabled,
+        onExpandedChange = { if (enabled) expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+        )
+        ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(noneLabel) },
+                onClick = {
+                    expanded = false
+                    onSelect(null)
+                }
+            )
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(positionLabel(option)) },
+                    onClick = {
+                        expanded = false
+                        onSelect(option)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AddPlayerDialog(
+    usesPositions: Boolean = false,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Double, Boolean, String?, String?) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
     val nameFocusRequester = remember { FocusRequester() }
@@ -322,6 +431,8 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
     val scrollState = rememberScrollState()
     var eloIndex by rememberSaveable { mutableIntStateOf(2) }
     var isPriority by remember { mutableStateOf(false) }
+    var preferredPosition by remember { mutableStateOf<PlayerPosition?>(null) }
+    var secondaryPosition by remember { mutableStateOf<PlayerPosition?>(null) }
     val normalizedName = name.trim().replace(Regex("\\s+"), " ")
     val eloValue = eloLevels[eloIndex]
 
@@ -403,33 +514,45 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                     }
                 }
                 Spacer(Modifier.height(40.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 40.dp)
-                        .border(
-                            width = 1.dp,
-                            color = if (isPriority) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            shape = RoundedCornerShape(40.dp)
+                if (usesPositions) {
+                    PositionPreferenceSection(
+                        preferredPosition = preferredPosition,
+                        secondaryPosition = secondaryPosition,
+                        onPreferredChange = {
+                            preferredPosition = it
+                            if (it == null || it == secondaryPosition) secondaryPosition = null
+                        },
+                        onSecondaryChange = { secondaryPosition = it }
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 40.dp)
+                            .border(
+                                width = 1.dp,
+                                color = if (isPriority) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                shape = RoundedCornerShape(40.dp)
+                            )
+                            .clip(RoundedCornerShape(40.dp))
+                            .clickable { isPriority = !isPriority }) {
+                        val priorityColor = if (isPriority) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        Spacer(Modifier.width(10.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
+                            tint = priorityColor
                         )
-                        .clip(RoundedCornerShape(40.dp))
-                        .clickable { isPriority = !isPriority }) {
-                    val priorityColor = if (isPriority) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    Spacer(Modifier.width(10.dp))
-                    Icon(
-                        Icons.Default.Star,
-                        contentDescription = null,
-                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
-                        tint = priorityColor
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.set_priority),
-                        color = priorityColor,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium
-                    )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.set_priority),
+                            color = priorityColor,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         },
@@ -438,7 +561,13 @@ fun AddPlayerDialog(onDismiss: () -> Unit, onConfirm: (String, Double, Boolean) 
                 onClick = {
                     if (normalizedName.isNotBlank()) {
                         keyboardController?.hide()
-                        onConfirm(normalizedName, eloValue.toDouble(), isPriority)
+                        onConfirm(
+                            normalizedName,
+                            eloValue.toDouble(),
+                            isPriority,
+                            preferredPosition?.name,
+                            secondaryPosition?.name
+                        )
                     }
                 },
                 enabled = normalizedName.isNotBlank()
@@ -460,14 +589,54 @@ fun GroupConfigDialog(
     initialPriorityEnabled: Boolean,
     initialScoreEnabled: Boolean = true,
     initialBalancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
+    initialGroupType: String = GroupType.RECREATIONAL.name,
+    isGameInProgress: Boolean = false,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int, Boolean, Boolean, String) -> Unit
+    onConfirm: (Int, Int, Boolean, Boolean, String, String) -> Unit
 ) {
+    val initialType = GroupType.fromStoredValue(initialGroupType)
+    var groupType by remember { mutableStateOf(initialType) }
     var teamSize by remember { mutableFloatStateOf(initialTeamSize.toFloat()) }
     var victoryLimit by remember { mutableFloatStateOf(initialVictoryLimit.toFloat()) }
     var priorityEnabled by remember { mutableStateOf(initialPriorityEnabled) }
     var scoreEnabled by remember { mutableStateOf(initialScoreEnabled) }
     var balancingMode by remember { mutableStateOf(initialBalancingMode) }
+    var showTypeChangeConfirmation by remember { mutableStateOf(false) }
+
+    val typeChanged = groupType != initialType
+    // Trocar o tipo é destrutivo quando cancela uma partida ou reduz o time além do novo limite.
+    val changeIsLossy = typeChanged && (isGameInProgress || initialTeamSize > groupType.maxTeamSize)
+
+    fun save() {
+        onConfirm(
+            teamSize.roundToInt(),
+            victoryLimit.roundToInt(),
+            priorityEnabled && groupType.supportsPriority,
+            scoreEnabled,
+            balancingMode,
+            groupType.name
+        )
+    }
+
+    if (showTypeChangeConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showTypeChangeConfirmation = false },
+            title = { Text(stringResource(R.string.group_type_change_confirm_title)) },
+            text = { Text(stringResource(R.string.group_type_change_confirm_message)) },
+            confirmButton = {
+                Button(onClick = {
+                    showTypeChangeConfirmation = false
+                    save()
+                }) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTypeChangeConfirmation = false }) {
+                    Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
+        return
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -475,24 +644,25 @@ fun GroupConfigDialog(
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
-                Slider(
-                    value = teamSize,
-                    onValueChange = { teamSize = it },
-                    valueRange = 2f..6f,
-                    steps = 3
-                )
-                Spacer(Modifier.height(24.dp))
+                Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                GroupType.selectableTypes.forEach { type ->
+                    GroupTypeOptionRow(
+                        type = type,
+                        selected = groupType == type,
+                        onSelect = {
+                            groupType = type
+                            teamSize = type.coerceTeamSize(teamSize.roundToInt()).toFloat()
+                            if (!type.supportsPriority) priorityEnabled = false
+                        }
+                    )
+                }
 
-                Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
-                Slider(
-                    value = victoryLimit,
-                    onValueChange = { victoryLimit = it.coerceIn(2f, 6f) },
-                    valueRange = 2f..6f,
-                    steps = 3
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
                 )
 
-                Spacer(Modifier.height(24.dp))
                 Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
                 val modes = listOf(
                     Triple(
@@ -527,18 +697,40 @@ fun GroupConfigDialog(
                     )
                 }
 
+                Spacer(Modifier.height(24.dp))
+                Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
+                Slider(
+                    value = teamSize,
+                    onValueChange = {
+                        teamSize = groupType.coerceTeamSize(it.roundToInt()).toFloat()
+                    },
+                    valueRange = groupType.minTeamSize.toFloat()..groupType.maxTeamSize.toFloat(),
+                    steps = (groupType.maxTeamSize - groupType.minTeamSize) - 1
+                )
+                Spacer(Modifier.height(24.dp))
+
+                Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
+                Slider(
+                    value = victoryLimit,
+                    onValueChange = { victoryLimit = it.coerceIn(2f, 6f) },
+                    valueRange = 2f..6f,
+                    steps = 3
+                )
+
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
                 )
 
-                TooltipToggleRow(
-                    label = stringResource(R.string.min_priority),
-                    tooltip = stringResource(R.string.min_priority_tooltip),
-                    checked = priorityEnabled,
-                    onCheckedChange = { priorityEnabled = it }
-                )
-                Spacer(Modifier.height(8.dp))
+                if (groupType.supportsPriority) {
+                    TooltipToggleRow(
+                        label = stringResource(R.string.min_priority),
+                        tooltip = stringResource(R.string.min_priority_tooltip),
+                        checked = priorityEnabled,
+                        onCheckedChange = { priorityEnabled = it }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 TooltipToggleRow(
                     label = stringResource(R.string.use_score),
                     tooltip = stringResource(R.string.use_score_tooltip),
@@ -550,13 +742,7 @@ fun GroupConfigDialog(
         },
         confirmButton = {
             Button(onClick = {
-                onConfirm(
-                    teamSize.roundToInt(),
-                    victoryLimit.roundToInt(),
-                    priorityEnabled,
-                    scoreEnabled,
-                    balancingMode
-                )
+                if (changeIsLossy) showTypeChangeConfirmation = true else save()
             }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
@@ -686,7 +872,7 @@ private fun TooltipToggleRow(
 @Composable
 fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var text by remember { mutableStateOf("") }
-    var balancingMode by remember { mutableStateOf(com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) }
+    var groupType by remember { mutableStateOf(GroupType.RECREATIONAL.name) }
     val focusRequester = remember { FocusRequester() }
 
     DialogKeyboardFocus(focusRequester)
@@ -705,47 +891,51 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                     modifier = Modifier.focusRequester(focusRequester)
                 )
                 Spacer(Modifier.height(24.dp))
-                Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
-                val modes = listOf(
-                    Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
-                        stringResource(R.string.mode_rebalance),
-                        stringResource(R.string.mode_rebalance_tooltip)
-                    ),
-                    Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name,
-                        stringResource(R.string.mode_rest),
-                        stringResource(R.string.mode_rest_tooltip)
-                    )
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.balance_mode_long_press_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
-                modes.forEach { (value, label, tooltip) ->
-                    BalancingModeOptionRow(
-                        label = label,
-                        tooltip = tooltip,
-                        selected = balancingMode == value,
-                        onSelect = { balancingMode = value },
-                        iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
-                            R.drawable.arrowsbothsides
-                        } else {
-                            R.drawable.zzz_rest
-                        }
+                GroupType.selectableTypes.forEach { type ->
+                    GroupTypeOptionRow(
+                        type = type,
+                        selected = groupType == type.name,
+                        onSelect = { groupType = type.name }
                     )
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = { if (text.isNotBlank()) onConfirm(text, balancingMode) },
+                onClick = { if (text.isNotBlank()) onConfirm(text, groupType) },
                 enabled = text.isNotBlank()
             ) { Text(stringResource(R.string.create)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
+}
+
+/** Opção de tipo de grupo com título e descrição curta. */
+@Composable
+fun GroupTypeOptionRow(
+    type: GroupType,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onSelect)
+            .padding(vertical = 4.dp)
+    ) {
+        RadioButton(selected = selected, onClick = onSelect)
+        Spacer(Modifier.width(4.dp))
+        Column(modifier = Modifier.padding(top = 12.dp)) {
+            Text(text = groupTypeLabel(type), fontWeight = FontWeight.Medium)
+            Text(
+                text = groupTypeDescription(type),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }

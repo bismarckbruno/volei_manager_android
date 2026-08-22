@@ -202,6 +202,39 @@
     <string name="onboarding_elo_description">- Cámbialo solo si ya conoces bien el nivel de la persona.\n- Si tienes dudas, deja 1200.</string>
     <string name="onboarding_priority_title">Definir como prioridad</string>
     <string name="onboarding_priority_description">- Úsalo para perfiles que deben repartirse entre los equipos (por ejemplo, armadores).\n- Si tu grupo no lo necesita, déjalo desmarcado.</string>
+
+    <!-- Tipo de grupo (modo de funcionamiento) -->
+    <string name="group_type_title">Tipo de grupo</string>
+    <string name="group_type_recreational">Recreativo</string>
+    <string name="group_type_recreational_desc">Dos equipos de 2 a 6 jugadores, sin posiciones fijas. El balanceo usa el Elo y la marca de prioridad.</string>
+    <string name="group_type_fixed_positions">Posiciones fijas</string>
+    <string name="group_type_fixed_positions_desc">Dos equipos de 2 a 7 jugadores. Cada jugador registra una posición preferida y una segunda, y los equipos respetan la composición mínima.</string>
+    <string name="onboarding_group_type_question">¿Cómo va a jugar el grupo?</string>
+    <string name="onboarding_group_type_hint">Puedes cambiarlo después en \"Reglas del grupo\".</string>
+    <string name="group_type_change_confirm_title">¿Cambiar el tipo de grupo?</string>
+    <string name="group_type_change_confirm_message">El partido en curso se cancelará y la cantidad de jugadores por equipo puede ajustarse. Las posiciones registradas se conservan y vuelven a valer si regresas a Posiciones fijas.</string>
+
+    <!-- Posiciones en cancha -->
+    <string name="position_setter">Armador</string>
+    <string name="position_outside_hitter">Punta</string>
+    <string name="position_middle_blocker">Central</string>
+    <string name="position_opposite">Opuesto</string>
+    <string name="position_libero">Líbero</string>
+    <string name="position_none">Sin preferencia</string>
+    <string name="position_short_setter">ARM</string>
+    <string name="position_short_outside_hitter">PUN</string>
+    <string name="position_short_middle_blocker">CEN</string>
+    <string name="position_short_opposite">OPU</string>
+    <string name="position_short_libero">LIB</string>
+    <string name="preferred_position">Posición preferida</string>
+    <string name="secondary_position">Segunda posición</string>
+    <string name="wildcard_hint">Sin posición preferida el jugador se vuelve comodín y ocupa la vacante que quede.</string>
+    <string name="onboarding_positions_title">Posiciones</string>
+    <string name="onboarding_positions_description">- Elige la posición preferida y, si quieres, una segunda.\n- Deja ambas en blanco para que el jugador sea comodín.</string>
+    <string name="composition_incomplete_warning">Composición incompleta: algunas vacantes se improvisaron.</string>
+    <string name="composition_missing_slot">Falta: %1$s</string>
+    <string name="composition_title">Composición del equipo</string>
+    <string name="composition_slot_empty">Vacía</string>
     <string name="elo_level_1100_desc">Principiante</string>
     <string name="elo_level_1150_desc">" "</string>
     <string name="elo_level_1200_desc">Predeterminado</string>

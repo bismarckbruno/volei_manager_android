@@ -102,14 +102,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.BalancingMode
+import com.bismarck.voleimanager.app.data.model.GroupType
+import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_BALANCING_MODE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_TYPE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
+import com.bismarck.voleimanager.app.ui.components.GroupTypeOptionRow
+import com.bismarck.voleimanager.app.ui.components.PositionBadge
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
@@ -256,10 +261,11 @@ fun GameScreenContent(
     }
     editP?.let { p ->
         EditPlayerDialog(
-            p,
-            { editP = null },
-            { name, prio ->
-                viewModel.editPlayer(p, name, prio)
+            player = p,
+            usesPositions = config.type.usesPositions,
+            onDismiss = { editP = null },
+            onConfirm = { name, prio, preferred, secondary ->
+                viewModel.editPlayer(p, name, prio, preferred, secondary)
                 editP = null
             })
     }
@@ -323,12 +329,15 @@ fun GameScreenContent(
     var onboardingBalanceMode by rememberSaveable(selectedGroup) {
         mutableStateOf(config.balancingMode)
     }
+    var onboardingGroupType by rememberSaveable(selectedGroup) {
+        mutableStateOf(config.type)
+    }
     var wentThroughBalanceMode by rememberSaveable(selectedGroup) {
         mutableStateOf(false)
     }
     var onboardingTeamSizeSelection: Int? by rememberSaveable(selectedGroup) {
         mutableStateOf(
-            if (onboardingStep == ONBOARDING_STEP_TEAM_SIZE) null else config.teamSize.coerceIn(2, 6)
+            if (onboardingStep == ONBOARDING_STEP_TEAM_SIZE) null else config.type.coerceTeamSize(config.teamSize)
         )
     }
     LaunchedEffect(onboardingStep, config.groupName) {
@@ -350,9 +359,10 @@ fun GameScreenContent(
         ) { inSetup ->
             if (inSetup) {
                 ManualSetupScreen(
-                    presentPlayers,
-                    showElo,
-                    { tA, tB, b, teamSize ->
+                    players = presentPlayers,
+                    showElo = showElo,
+                    groupType = config.type,
+                    onConfirm = { tA, tB, b, teamSize ->
                         viewModel.updateConfig(
                             teamSize,
                             config.victoryLimit,
@@ -362,7 +372,7 @@ fun GameScreenContent(
                         viewModel.startManualGame(tA, tB, b)
                         onSetupModeChange(false)
                     },
-                    { onSetupModeChange(false) }
+                    onCancel = { onSetupModeChange(false) }
                 )
             } else {
                 AnimatedContent(
@@ -436,12 +446,25 @@ fun GameScreenContent(
                                         }
                                     }
 
+                                    ONBOARDING_STEP_GROUP_TYPE -> {
+                                        item {
+                                            GroupOnboardingGroupTypeCard(
+                                                selectedType = onboardingGroupType,
+                                                onTypeSelected = { onboardingGroupType = it },
+                                                onBack = { viewModel.returnCurrentGroupOnboardingToGroupNameStep() },
+                                                onContinue = {
+                                                    viewModel.continueCurrentGroupOnboardingWithGroupType(onboardingGroupType.name)
+                                                }
+                                            )
+                                        }
+                                    }
+
                                     ONBOARDING_STEP_BALANCING_MODE -> {
                                         item {
                                             GroupOnboardingBalanceModeCard(
                                                 selectedMode = onboardingBalanceMode,
                                                 onModeSelected = { onboardingBalanceMode = it },
-                                                onBack = { viewModel.returnCurrentGroupOnboardingToGroupNameStep() },
+                                                onBack = { viewModel.returnCurrentGroupOnboardingToGroupTypeStep() },
                                                 onContinue = {
                                                     wentThroughBalanceMode = true
                                                     viewModel.continueCurrentGroupOnboardingWithBalancingMode(onboardingBalanceMode)
@@ -456,6 +479,7 @@ fun GameScreenContent(
                                                 selectedTeamSize = onboardingTeamSizeSelection,
                                                 onTeamSizeSelected = { onboardingTeamSizeSelection = it },
                                                 showBack = wentThroughBalanceMode,
+                                                groupType = config.type,
                                                 onBack = { viewModel.returnCurrentGroupOnboardingToBalancingModeStep() },
                                                 onContinue = {
                                                     val chosenTeamSize = onboardingTeamSizeSelection
@@ -473,7 +497,7 @@ fun GameScreenContent(
                                                 minimumPlayers = minimumPlayersNeeded,
                                                 currentPlayers = sortedPlayers.size,
                                                 onBack = {
-                                                    onboardingTeamSizeSelection = config.teamSize.coerceIn(2, 6)
+                                                    onboardingTeamSizeSelection = config.type.coerceTeamSize(config.teamSize)
                                                     viewModel.returnCurrentGroupOnboardingToTeamSizeStep()
                                                 },
                                                 onContinue = { viewModel.completeCurrentGroupOnboarding() }
@@ -503,6 +527,7 @@ fun GameScreenContent(
                                                     showElo,
                                                     showToll,
                                                     !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase(Locale.ROOT)),
+                                                    config.type.usesPositions,
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
@@ -601,6 +626,7 @@ fun GameScreenContent(
                                                     showElo,
                                                     showToll,
                                                     !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase(Locale.ROOT)),
+                                                    config.type.usesPositions,
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
@@ -720,6 +746,8 @@ fun ActiveGameView(
 ) {
     val resources = LocalResources.current
     val locale = currentLocale()
+    val assignedPositions by viewModel.assignedPositions.collectAsState()
+    val compositionIncomplete by viewModel.compositionIncomplete.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.undo)
@@ -1284,6 +1312,8 @@ fun ActiveGameView(
                                         gamesPlayedMap,
                                         rebalancedPlayerIds,
                                         autoSelectedLoserPlayerIds,
+                                        assignedPositions = assignedPositions,
+                                        compositionIncomplete = compositionIncomplete,
                                         score = firstScore,
                                         showScore = showScore,
                                         showLatestPointBorder = firstShowLatestPointBorder,
@@ -1326,6 +1356,8 @@ fun ActiveGameView(
                                         gamesPlayedMap,
                                         rebalancedPlayerIds,
                                         autoSelectedLoserPlayerIds,
+                                        assignedPositions = assignedPositions,
+                                        compositionIncomplete = compositionIncomplete,
                                         score = secondScore,
                                         showScore = showScore,
                                         showLatestPointBorder = secondShowLatestPointBorder,
@@ -1420,6 +1452,8 @@ fun ActiveGameView(
                             gamesPlayedMap,
                             rebalancedPlayerIds,
                             autoSelectedLoserPlayerIds,
+                            assignedPositions = assignedPositions,
+                            compositionIncomplete = compositionIncomplete,
                             score = firstScore,
                             showScore = showScore,
                             showLatestPointBorder = firstShowLatestPointBorder,
@@ -1457,6 +1491,8 @@ fun ActiveGameView(
                             gamesPlayedMap,
                             rebalancedPlayerIds,
                             autoSelectedLoserPlayerIds,
+                            assignedPositions = assignedPositions,
+                            compositionIncomplete = compositionIncomplete,
                             score = secondScore,
                             showScore = showScore,
                             showLatestPointBorder = secondShowLatestPointBorder,
@@ -1864,6 +1900,8 @@ fun ActiveTeamCard(
     gamesPlayedMap: Map<Int, Int>,
     rebalancedPlayerIds: Set<Int>,
     autoSelectedLoserPlayerIds: Set<Int>,
+    assignedPositions: Map<Int, PlayerPosition> = emptyMap(),
+    compositionIncomplete: Boolean = false,
     score: Int,
     showScore: Boolean = true,
     showLatestPointBorder: Boolean = false,
@@ -2089,6 +2127,16 @@ fun ActiveTeamCard(
 
             if (!showScore) {HorizontalDivider(Modifier.padding(top = 8.dp), color = dividerColor)}
 
+            if (compositionIncomplete) {
+                Text(
+                    text = stringResource(R.string.composition_incomplete_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 6.dp, start = 8.dp, end = 8.dp)
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2126,14 +2174,28 @@ fun ActiveTeamCard(
                             val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
 
                             val leadingPlaceable = subcompose("statusIcons") {
-                                if (isRebalancedPlayer || isAutoSelectedLoser) {
-                                    PlayerStatusIcons(
-                                        isRebalancedPlayer = isRebalancedPlayer,
-                                        isAutoSelectedLoser = isAutoSelectedLoser,
-                                        contentColor = contentColor,
-                                        tooltipState = tooltipState,
+                                val position = assignedPositions[p.id]
+                                if (isRebalancedPlayer || isAutoSelectedLoser || position != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(start = 8.dp)
-                                    )
+                                    ) {
+                                        if (position != null) {
+                                            PositionBadge(
+                                                position = position,
+                                                contentColor = contentColor.copy(alpha = 0.7f)
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                        }
+                                        if (isRebalancedPlayer || isAutoSelectedLoser) {
+                                            PlayerStatusIcons(
+                                                isRebalancedPlayer = isRebalancedPlayer,
+                                                isAutoSelectedLoser = isAutoSelectedLoser,
+                                                contentColor = contentColor,
+                                                tooltipState = tooltipState
+                                            )
+                                        }
+                                    }
                                 } else {
                                     Spacer(Modifier)
                                 }
@@ -2524,6 +2586,62 @@ private fun GroupOnboardingNameCard(
 }
 
 @Composable
+private fun GroupOnboardingGroupTypeCard(
+    selectedType: GroupType,
+    onTypeSelected: (GroupType) -> Unit,
+    onBack: () -> Unit,
+    onContinue: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(R.string.onboarding_group_type_question),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(16.dp))
+            GroupType.selectableTypes.forEach { type ->
+                GroupTypeOptionRow(
+                    type = type,
+                    selected = selectedType == type,
+                    onSelect = { onTypeSelected(type) }
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.onboarding_group_type_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
+                    )
+                }
+                Button(onClick = onContinue) {
+                    Text(stringResource(R.string.continue_word))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun GroupOnboardingBalanceModeCard(
     selectedMode: String,
     onModeSelected: (String) -> Unit,
@@ -2674,10 +2792,11 @@ private fun GroupOnboardingTeamSizeCard(
     selectedTeamSize: Int?,
     onTeamSizeSelected: (Int) -> Unit,
     showBack: Boolean,
+    groupType: GroupType,
     onBack: () -> Unit,
     onContinue: () -> Unit
 ) {
-    val options = remember { (2..6).toList() }
+    val options = remember(groupType) { groupType.teamSizeRange.toList() }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -2696,7 +2815,7 @@ private fun GroupOnboardingTeamSizeCard(
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 options.forEach { teamSize ->
                     val isSelected = selectedTeamSize == teamSize
@@ -3225,6 +3344,7 @@ fun PlayerCard(
     showElo: Boolean,
     showToll: Boolean,
     isWithoutHistory: Boolean,
+    usesPositions: Boolean = false,
     onTogglePresence: () -> Unit,
     onToggleGuaranteedNextMatch: () -> Unit,
     onDelete: () -> Unit,
@@ -3280,7 +3400,12 @@ fun PlayerCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = player.name, fontWeight = FontWeight.Bold)
-                        if (player.isPriority) {
+                        if (usesPositions) {
+                            PlayerPosition.fromStoredValue(player.preferredPosition)?.let { preferred ->
+                                Spacer(Modifier.width(6.dp))
+                                PositionBadge(position = preferred)
+                            }
+                        } else if (player.isPriority) {
                             Spacer(Modifier.width(4.dp))
                             Icon(
                                 Icons.Default.Star,

@@ -696,30 +696,35 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 initialPriorityEnabled = groupConfig.priorityEnabled,
                 initialScoreEnabled = groupConfig.scoreEnabled,
                 initialBalancingMode = groupConfig.balancingMode,
+                initialGroupType = groupConfig.groupType,
+                isGameInProgress = viewModel.isGameInProgress(),
                 onDismiss = { showConfigDialog = false },
-                onConfirm = { size, limit, prior, scoreEn, balancingMode ->
-                    viewModel.updateConfig(size, limit, prior, scoreEn, balancingMode)
+                onConfirm = { size, limit, prior, scoreEn, balancingMode, groupType ->
+                    viewModel.updateConfig(size, limit, prior, scoreEn, balancingMode, groupType)
                     showConfigDialog = false
                 }
             )
         }
         if (showCreateGroupDialog) CreateGroupDialog(
             { showCreateGroupDialog = false },
-            { newName, balancingMode ->
+            { newName, groupType ->
                 val normalizedGroupName = newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
                 selectedGroup = normalizedGroupName
-                viewModel.createGroup(normalizedGroupName, balancingMode)
+                viewModel.createGroup(normalizedGroupName, groupType = groupType)
                 showCreateGroupDialog = false
                 scope.launch { drawerState.close() }
             })
         if (showAddPlayerDialog) AddPlayerDialog(
-            { showAddPlayerDialog = false },
-            { name, elo, isPriority ->
+            usesPositions = groupConfig.type.usesPositions,
+            onDismiss = { showAddPlayerDialog = false },
+            onConfirm = { name, elo, isPriority, preferred, secondary ->
                 viewModel.addPlayer(
                     name,
                     elo,
                     selectedGroup ?: groupConfig.groupName,
-                    isPriority
+                    isPriority,
+                    preferred,
+                    secondary
                 )
                 showAddPlayerDialog = false
             })

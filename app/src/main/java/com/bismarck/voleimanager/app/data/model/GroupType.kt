@@ -40,9 +40,13 @@ enum class GroupType {
     val supportsBalancingMode: Boolean
         get() = !isTournament
 
-    /** Prioridade ("distribuir por igual") existe em todos, exceto no campeonato profissional. */
+    /** Prioridade ("distribuir por igual") não existe nos tipos com posições fixas. */
     val supportsPriority: Boolean
-        get() = this != TOURNAMENT_PRO
+        get() = !usesPositions
+
+    /** Tipos já implementados na UI. Os tipos de campeonato ainda não são ofertáveis. */
+    val isImplemented: Boolean
+        get() = !isTournament
 
     /** Garantir jogador na próxima partida só faz sentido fora dos campeonatos. */
     val supportsGuaranteedNextMatch: Boolean
@@ -69,6 +73,10 @@ enum class GroupType {
         fun fromStoredValue(value: String?): GroupType {
             return entries.firstOrNull { it.name == value } ?: RECREATIONAL
         }
+
+        /** Tipos que o usuário pode escolher na criação do grupo e no diálogo de regras. */
+        val selectableTypes: List<GroupType>
+            get() = entries.filter { it.isImplemented }
     }
 }
 

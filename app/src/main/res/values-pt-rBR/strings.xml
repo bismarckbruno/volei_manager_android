@@ -203,6 +203,39 @@
     <string name="onboarding_elo_description">- Ajuste só se já conhecer bem o nível da pessoa.\n- Se houver dúvida, mantenha 1200.</string>
     <string name="onboarding_priority_title">Definir como prioridade</string>
     <string name="onboarding_priority_description">- Use para perfis que precisam ser distribuídos entre os times (ex.: levantadores).\n- Se seu grupo não precisa disso, deixe desmarcado.</string>
+
+    <!-- Tipo de grupo (modo de funcionamento) -->
+    <string name="group_type_title">Tipo de grupo</string>
+    <string name="group_type_recreational">Recreativo</string>
+    <string name="group_type_recreational_desc">Dois times de 2 a 6 jogadores, sem posições fixas. O balanceamento usa o Elo e a marcação de prioridade.</string>
+    <string name="group_type_fixed_positions">Posições fixas</string>
+    <string name="group_type_fixed_positions_desc">Dois times de 2 a 7 jogadores. Cada jogador cadastra uma posição preferida e uma segunda, e os times respeitam a composição mínima.</string>
+    <string name="onboarding_group_type_question">Como o grupo vai jogar?</string>
+    <string name="onboarding_group_type_hint">Você pode alterar depois em \"Regras do grupo\".</string>
+    <string name="group_type_change_confirm_title">Trocar o tipo do grupo?</string>
+    <string name="group_type_change_confirm_message">A partida em andamento será cancelada e o número de jogadores por time pode ser ajustado. As posições cadastradas continuam guardadas e voltam a valer se você retornar para Posições fixas.</string>
+
+    <!-- Posições em quadra -->
+    <string name="position_setter">Levantador</string>
+    <string name="position_outside_hitter">Ponteiro</string>
+    <string name="position_middle_blocker">Central</string>
+    <string name="position_opposite">Oposto</string>
+    <string name="position_libero">Líbero</string>
+    <string name="position_none">Sem preferência</string>
+    <string name="position_short_setter">LEV</string>
+    <string name="position_short_outside_hitter">PON</string>
+    <string name="position_short_middle_blocker">CEN</string>
+    <string name="position_short_opposite">OPO</string>
+    <string name="position_short_libero">LIB</string>
+    <string name="preferred_position">Posição preferida</string>
+    <string name="secondary_position">Segunda posição</string>
+    <string name="wildcard_hint">Sem posição preferida o jogador vira coringa e ocupa a vaga que sobrar.</string>
+    <string name="onboarding_positions_title">Posições</string>
+    <string name="onboarding_positions_description">- Escolha a posição preferida e, se quiser, uma segunda.\n- Deixe as duas em branco para o jogador ser coringa.</string>
+    <string name="composition_incomplete_warning">Composição incompleta: algumas vagas foram improvisadas.</string>
+    <string name="composition_missing_slot">Falta: %1$s</string>
+    <string name="composition_title">Composição do time</string>
+    <string name="composition_slot_empty">Vazia</string>
     <string name="elo_level_1100_desc">Iniciante</string>
     <string name="elo_level_1150_desc">" "</string>
     <string name="elo_level_1200_desc">Padrão</string>

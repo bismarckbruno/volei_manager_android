@@ -66,6 +66,9 @@ When adding a new entity, always pass `groupName` explicitly. Renaming/deleting 
 - **`MatchHistory.teamA/teamB`** — comma-separated player names (sorted alphabetically), not IDs.
 - **`GroupType`** (`GroupConfig.groupType`) — *tipo de grupo*, distinct from `BalancingMode`. Values: `RECREATIONAL` (2–6 per team), `FIXED_POSITIONS` (2–7, positions), `TOURNAMENT_RECREATIONAL` and `TOURNAMENT_PRO` (2–14, bracket-based). Tournament types are immutable after group creation and have no balancing mode; `RECREATIONAL` ↔ `FIXED_POSITIONS` convert freely and stored positions are kept even when inactive.
 - **`PlayerPosition` / `PositionRole`** — Levantador (armador), Ponteiro & Oposto (ataque), Central & Líbero (defesa). `TeamComposition.requiredSlots(teamSize)` holds the minimum composition for team sizes 2–7; líbero counts as central below 6 players. Players with no position at all are wildcards ("coringa").
+- **`GroupType.supportsPriority` = `!usesPositions`** — `isPriority` only applies to `RECREATIONAL` / `TOURNAMENT_RECREATIONAL`; in position-based types the composition rules replace it. `GroupType.selectableTypes` filters which types the UI may offer (currently `RECREATIONAL` and `FIXED_POSITIONS`; tournament types exist in the DB but are not implemented yet).
+- **`PositionAssigner`** (`util/`) — engine for `FIXED_POSITIONS`. Fills required slots from most-restrictive to least, in tiers (preferred → secondary → wildcard → any), breaking ties by Elo balance. Slots filled below the secondary tier are reported in `unfilledSlots`, which drives the non-blocking "composição incompleta" warning. `assignPositionsToExistingTeam` recomputes the map after substitutions/side swaps; `describeComposition` feeds the manual setup indicator.
+- **Assigned positions** — `VoleiViewModel._assignedPositions` (`playerId -> PlayerPosition`) and `_compositionIncomplete` are populated only when `config.type.usesPositions`; they are persisted in `GameStateSnapshot` and cleared on reset. The `RECREATIONAL` code path in `startNextRound*` is branched explicitly so it stays unchanged.
 
 ---
 
@@ -115,4 +118,7 @@ User settings are persisted in `SharedPreferences("volei")` directly from the Vi
 - Dialog visibility is managed by local `var show* by remember { mutableStateOf(false) }` in `VoleiManagerApp`.
 - Export/import uses `FileProvider` (`${context.packageName}.fileprovider`) — see `AndroidManifest.xml` for the provider declaration.
 - CSV parsing uses the custom `smartSplit()` function (handles quoted commas); don't use `.split(",")` on raw CSV lines.
+- `CreateGroupDialog` asks for **name + group type**; the balancing mode is chosen later, in the onboarding flow (`ONBOARDING_STEP_GROUP_TYPE` → `ONBOARDING_STEP_BALANCING_MODE` → team size → ...).
+- `GroupConfigDialog` field order is: group type → balancing mode → players per team → victory limit → min one priority (**only when the type supports priority**) → scoreboard. Destructive type changes (team size clamp or match in progress) require an explicit confirmation and cancel the running match.
+- Position labels/badges live in `ui/components/PositionUi.kt` (`positionLabel`, `positionShortLabel`, `PositionBadge`, `TeamCompositionIndicator`) — reuse them instead of formatting enum names inline.
 

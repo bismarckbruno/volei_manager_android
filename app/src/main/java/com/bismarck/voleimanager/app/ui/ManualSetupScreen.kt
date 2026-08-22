@@ -27,8 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.data.model.GroupType
+import com.bismarck.voleimanager.app.ui.components.TeamCompositionIndicator
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.util.EloCalculator
+import com.bismarck.voleimanager.app.util.PositionAssigner
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +44,7 @@ import kotlinx.coroutines.launch
 fun ManualSetupScreen(
     players: List<Player>, // Jogadores do grupo selecionado
     showElo: Boolean, // Passado do ViewModel para respeitar a configuração
+    groupType: GroupType = GroupType.RECREATIONAL,
     onConfirm: (List<Player>, List<Player>, List<Player>, Int) -> Unit, // Retorna (TimeA, TimeB, Resto, TeamSize)
     onCancel: () -> Unit
 ) {
@@ -61,7 +65,23 @@ fun ManualSetupScreen(
     val teamB = players.filter { selectionState[it.id] == "B" }
     val bench = players.filter { selectionState[it.id] == null }
 
-    val canStart = teamA.size == teamB.size && teamA.size in 2..6
+    val canStart = teamA.size == teamB.size && teamA.size in groupType.teamSizeRange
+
+    // Indicador de composição: só faz sentido nos tipos com posições fixas e não bloqueia o início.
+    val compositionA = remember(teamA, groupType) {
+        if (groupType.usesPositions && teamA.isNotEmpty()) {
+            PositionAssigner.describeComposition(teamA, teamA.size)
+        } else {
+            emptyList()
+        }
+    }
+    val compositionB = remember(teamB, groupType) {
+        if (groupType.usesPositions && teamB.isNotEmpty()) {
+            PositionAssigner.describeComposition(teamB, teamB.size)
+        } else {
+            emptyList()
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -97,6 +117,9 @@ fun ManualSetupScreen(
                 }
                 item {
                     ManualSetupSelectionSummary(teamACount = teamA.size, teamBCount = teamB.size)
+                }
+                item {
+                    ManualSetupCompositionSummary(compositionA, compositionB)
                 }
                 item {
                     HorizontalDivider(
@@ -140,6 +163,7 @@ fun ManualSetupScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
                 ManualSetupSelectionSummary(teamACount = teamA.size, teamBCount = teamB.size)
+                ManualSetupCompositionSummary(compositionA, compositionB)
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -249,6 +273,23 @@ private fun ManualSetupSelectionSummary(
             teamBCount,
             LocalExtendedColors.current.anotherPrime.color
         )
+    }
+}
+
+@Composable
+private fun ManualSetupCompositionSummary(
+    compositionA: List<PositionAssigner.FilledSlot>,
+    compositionB: List<PositionAssigner.FilledSlot>
+) {
+    if (compositionA.isEmpty() && compositionB.isEmpty()) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        TeamCompositionIndicator(compositionA, Modifier.weight(1f))
+        TeamCompositionIndicator(compositionB, Modifier.weight(1f))
     }
 }
 
