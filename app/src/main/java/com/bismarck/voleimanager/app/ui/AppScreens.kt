@@ -636,6 +636,7 @@ fun HistoryScreen(
     // --- Compute layout mode once for all player cards ---
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+    val locale = currentLocale()
     val nameTextStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
     val statsTextStyle = MaterialTheme.typography.bodySmall
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
@@ -643,33 +644,59 @@ fun HistoryScreen(
     val contentOverheadPx = with(density) { 104.dp.roundToPx() }
     val availableContentPx = screenWidthPx - contentOverheadPx
     val minNamePx = with(density) { 80.dp.roundToPx() }
+    val iconBodyMediumPx = with(density) { MaterialTheme.typography.bodyMedium.fontSize.toDp().roundToPx() }
+    val iconBodySmallPx = with(density) { MaterialTheme.typography.bodySmall.fontSize.toDp().roundToPx() }
+    val rowGapPx = with(density) { 12.dp.roundToPx() }
+    val starGapPx = with(density) { 2.dp.roundToPx() }
+    val smallSpacingPx = with(density) { 4.dp.roundToPx() }
+    val tinySpacingPx = with(density) { 2.dp.roundToPx() }
+    val iconSpacingPx = with(density) { 12.dp.roundToPx() }
 
-    val playersSideBySide = remember(historyPlayerList, availableContentPx, showElo, resources) {
+    val playersSideBySide = remember(
+        historyPlayerList,
+        availableContentPx,
+        showElo,
+        locale,
+        iconBodyMediumPx,
+        iconBodySmallPx
+    ) {
         if (historyPlayerList.isEmpty() || availableContentPx <= 0) true
         else historyPlayerList.all { info ->
-            // Left column width (name + optional star)
             val nameW = textMeasurer.measure(info.player.name, nameTextStyle).size.width +
-                    (if (info.player.isPriority) with(density) { 14.dp.roundToPx() } else 0)
+                if (info.player.isPriority) starGapPx + iconBodyMediumPx else 0
+
             val eloW = if (showElo) {
-                textMeasurer.measure(EloCalculator.formatElo(info.displayElo), statsTextStyle).size.width +
-                        with(density) { 16.dp.roundToPx() }
+                iconBodyMediumPx +
+                    smallSpacingPx +
+                    textMeasurer.measure(EloCalculator.formatElo(info.displayElo), statsTextStyle).size.width
             } else 0
-            val playedTimeW = textMeasurer.measure(
+
+            val playedTimeW = iconBodySmallPx +
+                smallSpacingPx +
+                textMeasurer.measure(
                 formatPlayedDuration(info.playedMinutes),
                 statsTextStyle
-            ).size.width + with(density) { 16.dp.roundToPx() }
-            val leftW = maxOf(nameW, eloW, playedTimeW)
+            ).size.width
 
-            // Right column width (stats line is always the widest)
-            val vText = when (info.victories) {
-                0 -> resources.getString(R.string.no_victories)
-                1 -> resources.getString(R.string.one_victory)
-                else -> resources.getString(R.string.x_victories, info.victories)
-            }
-            val gLabel = if (info.gamesPlayed == 1) resources.getString(R.string.game) else resources.getString(R.string.games)
-            val rightW = textMeasurer.measure("$vText / ${info.gamesPlayed} $gLabel", statsTextStyle).size.width
+            val victoriesGamesW = iconBodyMediumPx +
+                tinySpacingPx +
+                textMeasurer.measure(info.victories.toString(), statsTextStyle).size.width +
+                iconSpacingPx +
+                iconBodyMediumPx +
+                tinySpacingPx +
+                textMeasurer.measure(info.gamesPlayed.toString(), statsTextStyle).size.width
 
-            (leftW + rightW <= availableContentPx) && (availableContentPx - rightW >= minNamePx)
+            val percentageFormatted = NumberFormat.getInstance(locale).apply {
+                maximumFractionDigits = 2
+                minimumFractionDigits = 0
+            }.format(if (info.gamesPlayed > 0) info.victories.toDouble() / info.gamesPlayed * 100.0 else 0.0)
+            val percentageW = textMeasurer.measure(percentageFormatted, statsTextStyle).size.width + iconBodyMediumPx
+
+            val topRowRequired = nameW + rowGapPx + victoriesGamesW
+            val bottomRowRequired = playedTimeW + rowGapPx + percentageW
+            val widestRowRequired = maxOf(topRowRequired, eloW, bottomRowRequired)
+
+            (widestRowRequired <= availableContentPx) && (availableContentPx - victoriesGamesW >= minNamePx)
         }
     }
 
