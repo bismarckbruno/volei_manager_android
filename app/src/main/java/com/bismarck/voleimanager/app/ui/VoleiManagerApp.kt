@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
@@ -456,7 +457,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             } else {
                                 0.57f
                             }
-                            val groupMaxMenuHeight = (groupConfiguration.screenHeightDp * groupHeightFraction).dp
+                            val groupContainerHeightDp = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
+                            val groupMaxMenuHeight = groupContainerHeightDp * groupHeightFraction
                             ExposedDropdownMenuBox(
                                 expanded = groupExpanded,
                                 onExpandedChange = { groupExpanded = !groupExpanded }) {
@@ -479,7 +481,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         )
                                     },
                                     modifier = Modifier
-                                        .menuAnchor()
+                                        .menuAnchor(
+                                            type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                            enabled = true
+                                        )
                                         .onGloballyPositioned { coordinates ->
                                             groupAnchorWidth = with(density) { coordinates.size.width.toDp() }
                                         }
@@ -1292,7 +1297,7 @@ private fun FlexibleDrawerItem(
             itemContent()
         } else {
             TooltipBox(
-                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                 tooltip = {
                     PlainTooltip {
                         Text(tooltipText)

@@ -61,10 +61,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -250,6 +250,13 @@ private data class HistoryComputationResult(
     val uniquePlayerCount: Int,
     val historyPlayerList: List<HistoryPlayerInfo>,
     val averagePlayersEloText: String?
+)
+
+private data class HistoryFilterIndex(
+    val playerOptions: List<String>,
+    val playerDateCounts: Map<String, Int>,
+    val datesByCanonicalPlayer: Map<String, Set<String>>,
+    val canonicalPlayersByMatchId: Map<Int, Set<String>>
 )
 
 private fun computeHistoryComputation(
@@ -482,7 +489,6 @@ fun HistoryScreen(
     onPlayerSortModeChanged: (PlayerSortMode) -> Unit = {},
     onContentReady: () -> Unit = {}
 ) {
-    val resources = LocalResources.current
     val groupHistory by viewModel.currentGroupHistory.collectAsState()
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates by viewModel.availableHistoryDates.collectAsState()
@@ -493,43 +499,47 @@ fun HistoryScreen(
     var showHistoryPlayerDialog by remember { mutableStateOf(false) }
     var tempHistoryPlayerFilter by remember { mutableStateOf<String?>(null) }
     var historyPlayerSearchQuery by remember { mutableStateOf("") }
-    val historyPlayerFilterOptions = remember(groupHistory) {
-        buildUniqueHistoryIdentifiers(
-            groupHistory.flatMap { match ->
-                parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds)
-            }
-        ).map { it.name }.sortedBy { it.lowercase(Locale.getDefault()) }
-    }
-    
-    val historyPlayerDateCounts = remember(groupHistory) {
-        val counts = mutableMapOf<String, MutableSet<String>>()
-        for (match in groupHistory) {
-            val dateDay = match.date.split(" ").firstOrNull() ?: match.date
-            val playersInMatch = parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds)
-            for (player in playersInMatch) {
-                val canonical = canonicalHistoryName(player.name)
-                counts.getOrPut(canonical) { mutableSetOf() }.add(dateDay)
+    val historyFilterIndex = remember(groupHistory) {
+        val allIdentifiers = mutableListOf<PlayerIdentifier>()
+        val datesByCanonical = mutableMapOf<String, MutableSet<String>>()
+        val canonicalByMatchId = mutableMapOf<Int, Set<String>>()
+
+        groupHistory.forEach { match ->
+            val participants = parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds)
+            val canonicalParticipants = participants.map { canonicalHistoryName(it.name) }
+                .filter { it.isNotBlank() }
+                .toSet()
+            val dateDay = match.date.substringBefore(' ')
+
+            allIdentifiers.addAll(participants)
+            canonicalByMatchId[match.id] = canonicalParticipants
+            canonicalParticipants.forEach { canonical ->
+                datesByCanonical.getOrPut(canonical) { mutableSetOf() }.add(dateDay)
             }
         }
-        counts.mapValues { it.value.size }
+
+        HistoryFilterIndex(
+            playerOptions = buildUniqueHistoryIdentifiers(allIdentifiers)
+                .map { it.name }
+                .sortedBy { it.lowercase(Locale.getDefault()) },
+            playerDateCounts = datesByCanonical.mapValues { it.value.size },
+            datesByCanonicalPlayer = datesByCanonical.mapValues { it.value.toSet() },
+            canonicalPlayersByMatchId = canonicalByMatchId
+        )
     }
+    val historyPlayerFilterOptions = historyFilterIndex.playerOptions
+    val historyPlayerDateCounts = historyFilterIndex.playerDateCounts
     val activeHistoryPlayerFilter = historyPlayerFilter?.trim()?.ifBlank { null }
     val activeHistoryPlayerFilterCanonical = activeHistoryPlayerFilter?.let(::canonicalHistoryName)
     val selectedHistoryDate = historyDate
 
-    val dateOptionsForPlayer = remember(groupHistory, availableDates, activeHistoryPlayerFilter) {
+    val dateOptionsForPlayer = remember(availableDates, activeHistoryPlayerFilterCanonical, historyFilterIndex) {
         val targetPlayer = activeHistoryPlayerFilter.orEmpty()
         if (targetPlayer.isBlank()) {
             availableDates
         } else {
-            val canonical = canonicalHistoryName(targetPlayer)
-            availableDates.filter { date ->
-                groupHistory.any { match ->
-                    val namesInMatch = (parseTeamIdentifiers(match.teamA, match.teamAIds) + parseTeamIdentifiers(match.teamB, match.teamBIds))
-                        .map { canonicalHistoryName(it.name) }
-                    match.date.startsWith(date) && namesInMatch.any { it == canonical }
-                }
-            }
+            val datesWithPlayer = historyFilterIndex.datesByCanonicalPlayer[activeHistoryPlayerFilterCanonical].orEmpty()
+            availableDates.filter { date -> datesWithPlayer.contains(date) }
         }
     }
 
@@ -593,12 +603,6 @@ fun HistoryScreen(
     val uniquePlayerCount = historyComputation?.uniquePlayerCount ?: 0
     val historyPlayerList = historyComputation?.historyPlayerList.orEmpty()
     val averagePlayersEloText = historyComputation?.averagePlayersEloText
-    fun matchContainsActiveFilteredPlayer(match: MatchHistory): Boolean {
-        val canonical = activeHistoryPlayerFilterCanonical ?: return false
-        val participants = parseTeamIdentifiers(match.teamA, match.teamAIds) +
-            parseTeamIdentifiers(match.teamB, match.teamBIds)
-        return participants.any { canonicalHistoryName(it.name) == canonical }
-    }
 
     fun isActiveFilteredPlayer(playerName: String): Boolean {
         val canonical = activeHistoryPlayerFilterCanonical ?: return false
@@ -702,7 +706,20 @@ fun HistoryScreen(
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val maxMenuHeight = (configuration.screenHeightDp * if (isLandscape) 0.33f else 0.57f).dp
+    val containerHeightPx = LocalWindowInfo.current.containerSize.height
+    val containerHeightDp = with(density) { containerHeightPx.toDp() }
+    val maxMenuHeight = containerHeightDp * if (isLandscape) 0.33f else 0.57f
+
+    val highlightedMatchIds = remember(sortedHistory, activeHistoryPlayerFilterCanonical, historyFilterIndex) {
+        val canonicalFilter = activeHistoryPlayerFilterCanonical ?: return@remember emptySet()
+        sortedHistory
+            .asSequence()
+            .filter { match ->
+                historyFilterIndex.canonicalPlayersByMatchId[match.id]?.contains(canonicalFilter) == true
+            }
+            .map { it.id }
+            .toSet()
+    }
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -756,7 +773,13 @@ fun HistoryScreen(
                                             width = 1.dp,
                                             color = MaterialTheme.colorScheme.outline
                                         ),
-                                        modifier = Modifier.menuAnchor().fillMaxWidth().height(48.dp),
+                                        modifier = Modifier
+                                            .menuAnchor(
+                                                type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                                enabled = true
+                                            )
+                                            .fillMaxWidth()
+                                            .height(48.dp),
                                         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 12.dp)
                                     ) {
                                         Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -942,7 +965,7 @@ fun HistoryScreen(
                                     showElo = showElo,
                                     showScore = showScore,
                                     durationMinutes = matchDurationsMinutes[match.id],
-                                    highlightFilteredPlayer = matchContainsActiveFilteredPlayer(match),
+                                    highlightFilteredPlayer = highlightedMatchIds.contains(match.id),
                                     highlightedPlayerName = activeHistoryPlayerFilter
                                 )
                             }
@@ -1028,7 +1051,10 @@ fun HistoryScreen(
                         color = MaterialTheme.colorScheme.outline
                     ),
                     modifier = Modifier
-                        .menuAnchor()
+                        .menuAnchor(
+                            type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                            enabled = true
+                        )
                         .fillMaxWidth()
                         .height(48.dp),
                     contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 12.dp)
@@ -1425,7 +1451,7 @@ fun HistoryScreen(
                                     showElo = showElo,
                                     showScore = showScore,
                                     durationMinutes = matchDurationsMinutes[match.id],
-                                    highlightFilteredPlayer = matchContainsActiveFilteredPlayer(match),
+                                    highlightFilteredPlayer = highlightedMatchIds.contains(match.id),
                                     highlightedPlayerName = activeHistoryPlayerFilter
                                 )
                             }
@@ -1768,7 +1794,7 @@ fun HistoryPlayerCard(
             .widthIn(min = 120.dp)
     ) {
         TooltipBox(
-            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
             tooltip = {
                 PlainTooltip {
                     Text(

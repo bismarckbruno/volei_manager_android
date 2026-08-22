@@ -81,6 +81,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -735,9 +736,7 @@ fun ActiveGameView(
         if (!sheetSettled) {
             0f
         } else {
-            val screenHeightPx = with(LocalDensity.current) {
-                LocalConfiguration.current.screenHeightDp.dp.toPx()
-            }
+            val screenHeightPx = LocalWindowInfo.current.containerSize.height.toFloat().coerceAtLeast(1f)
             val offset = try {
                 waitingSheetState.requireOffset()
             } catch (_: Exception) {
@@ -1909,7 +1908,7 @@ fun ActiveTeamCard(
 
                     val leadingPlaceable = subcompose("avgElo") {
                         TooltipBox(
-                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                             tooltip = {
                                 PlainTooltip(
                                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -2281,7 +2280,7 @@ private fun PlayerStatusIcons(
 
     if (!inlineTooltipText.isNullOrBlank()) {
         TooltipBox(
-            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
             tooltip = {
                 PlainTooltip(
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -2417,7 +2416,7 @@ private fun ScoreValueIndicator(
     }
 
     TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = {
             PlainTooltip {
                 Text(
@@ -2622,7 +2621,7 @@ private fun OnboardingBalanceModeRow(
     val haptic = LocalHapticFeedback.current
 
     TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = {
             PlainTooltip {
                 Text(text = tooltip, style = MaterialTheme.typography.bodySmall)
