@@ -175,6 +175,10 @@
     <string name="faq_a10">Visible when the \"Show Elo\" option is enabled, these values show the match\'s impact on Elo. Values close to 16 indicate well-balanced teams. Well below 16 usually means the favored team won. Above 16 indicates a victory by a team with a lower average Elo (an upset).</string>
     <string name="faq_q2">How does Priority (Star) work?</string>
     <string name="faq_a2">It serves to ensure that certain positions or skill levels are well distributed. For example, if you mark the setters with \"Priority\", the app will try to place a setter on each side when generating teams automatically.</string>
+    <string name="faq_q11">What do the position abbreviations mean in Fixed Positions mode?</string>
+    <string name="faq_a11">SET = Setter, OH = Outside Hitter, MB = Middle Blocker, OPP = Opposite, LIB = Libero. These abbreviations appear on player badges and on court slots.</string>
+    <string name="faq_q12">Which positions make up each team size in Fixed Positions mode?</string>
+    <string name="faq_a12">2x2: 1 setter + 1 attacker. 3x3: 1 setter + 1 attacker + 1 defender. 4x4: 1 setter + 2 attackers + 1 defender. 5x5: 1 setter + 2 attackers + 2 defenders. 6x6: 1 setter, 2 outside hitters, 1 middle blocker, 1 opposite, 1 libero (or another middle blocker if there is no libero). 7x7: 1 setter, 2 outside hitters, 2 middle blockers, 1 opposite, 1 libero (or another middle blocker if there is no libero).</string>
     <string name="faq_q3">What is Show Delay?</string>
     <string name="faq_a3">When activated, it shows how many fictitious games were added to those who arrived late, according to what the court has already played. This prevents those who arrive at the end from passing in front of those who wait from the beginning. Those who arrive together with the class start with zero delay. Only values from one appear.</string>
     <string name="faq_a1">Elo is a scoring system that evaluates the skill level of each player. You earn points when you win and lose when you are defeated, based on the difficulty of the match. The average Elo is simply the sum of a team\'s points divided by the number of players.</string>
@@ -236,6 +240,14 @@
     <string name="composition_missing_slot">Missing: %1$s</string>
     <string name="composition_title">Team composition</string>
     <string name="composition_slot_empty">Empty</string>
+    <string name="guarantee_setter">Guarantee a setter</string>
+    <string name="guarantee_setter_tooltip">Keeps one slot for a setter on every team. If nobody in the queue plays as a setter, the setter from the losing team stays on court; otherwise the slot is filled by an attacker and, as a last resort, by a defender.</string>
+    <string name="guarantee_setter_locked_tooltip">Mandatory for teams of 6 or 7 players, since the setter slot has a specific position in these compositions. It can only be turned off for teams of 2 to 5 players.</string>
+    <string name="position_badge_secondary_tooltip">%1$s: playing in the second position they chose.</string>
+    <string name="position_badge_improvised_tooltip">%1$s: playing outside their chosen positions.</string>
+    <string name="group_type_long_press_hint">Long press a type to see a quick tip.</string>
+    <string name="position_preferred_label">Preferred position: %1$s</string>
+    <string name="position_secondary_label">Second position: %1$s</string>
     <string name="elo_level_1100_desc">Beginner</string>
     <string name="elo_level_1200_desc">Default</string>
     <string name="elo_level_1250_desc">" "</string>

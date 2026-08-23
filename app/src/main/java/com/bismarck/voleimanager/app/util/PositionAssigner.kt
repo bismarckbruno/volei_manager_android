@@ -2,6 +2,7 @@ package com.bismarck.voleimanager.app.util
 
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
+import com.bismarck.voleimanager.app.data.model.PositionRole
 import com.bismarck.voleimanager.app.data.model.TeamComposition
 import com.bismarck.voleimanager.app.data.model.TeamSlot
 import kotlin.math.abs
@@ -28,48 +29,73 @@ object PositionAssigner {
         val positions: Map<Int, PlayerPosition>,
         val slots: List<FilledSlot>
     ) {
+        /** Vagas vazias ou preenchidas por encaixe imperfeito (usado só para exibição detalhada). */
         val missingSlots: List<TeamSlot>
             get() = slots.filter { it.player == null || it.isImprovised }.map { it.slot }
 
+        /**
+         * `false` apenas quando alguma vaga foi preenchida por encaixe imperfeito (coringa ou
+         * realocação). Uma vaga vazia (time ainda incompleto por falta de gente na fila) não conta
+         * aqui, pois não há indicador de posição incorreto a mostrar nesse caso.
+         */
         val isComplete: Boolean
-            get() = missingSlots.isEmpty()
+            get() = slots.none { it.isImprovised }
     }
 
     data class PositionAssignment(
         val teamA: List<Player>,
         val teamB: List<Player>,
         val positions: Map<Int, PlayerPosition>,
-        val unfilledSlots: List<TeamSlot>
+        val unfilledSlots: List<TeamSlot>,
+        /** Vagas preenchidas por encaixe imperfeito (coringa ou realocação), subconjunto de [unfilledSlots]. */
+        val improvisedSlots: List<TeamSlot> = emptyList()
     ) {
+        /**
+         * `false` apenas quando alguma vaga foi preenchida por encaixe imperfeito. Uma vaga vazia
+         * (sem gente suficiente na fila) não conta aqui — não há indicador de posição incorreto a
+         * mostrar nesse caso.
+         */
         val isComplete: Boolean
-            get() = unfilledSlots.isEmpty()
+            get() = improvisedSlots.isEmpty()
     }
 
     private const val TIER_PREFERRED = 0
     private const val TIER_SECONDARY = 1
     private const val TIER_WILDCARD = 2
-    private const val TIER_ANY = 3
+    private const val TIER_ATTACK = 3
+    private const val TIER_DEFENSE = 4
 
     /**
      * Monta dois times de [teamSize] jogadores a partir de [pool], cumprindo a composição mínima
      * e equilibrando o Elo. Jogadores excedentes não entram em nenhum time e devem ser tratados
      * pelo chamador (fila de espera).
      */
-    fun buildBalancedTeams(pool: List<Player>, teamSize: Int): PositionAssignment {
+    fun buildBalancedTeams(
+        pool: List<Player>,
+        teamSize: Int,
+        guaranteeSetter: Boolean = true
+    ): PositionAssignment {
         val hasLibero = TeamComposition.hasLibero(pool)
-        val slotsA = requiredSlots(teamSize, hasLibero)
-        val slotsB = requiredSlots(teamSize, hasLibero)
+        val slotsA = requiredSlots(teamSize, hasLibero, guaranteeSetter)
+        val slotsB = requiredSlots(teamSize, hasLibero, guaranteeSetter)
 
         val remaining = pool.toMutableList()
         val teamA = mutableListOf<Player>()
         val teamB = mutableListOf<Player>()
         val positions = mutableMapOf<Int, PlayerPosition>()
         val unfilled = mutableListOf<TeamSlot>()
+        val improvised = mutableListOf<TeamSlot>()
 
         // Vagas dos dois times entrelaçadas, da mais restritiva para a menos restritiva: assim uma
         // vaga com poucos candidatos é resolvida antes que um coringa a ocupe desnecessariamente.
+        // Com a garantia de levantador ligada, a vaga de armador é sempre a primeira a ser resolvida.
         val pendingSlots = (slotsA.map { it to teamA } + slotsB.map { it to teamB })
-            .sortedBy { (slot, _) -> candidateCount(slot, pool, teamSize) }
+            .sortedWith(
+                compareBy(
+                    { (slot, _) -> setterFirstRank(slot, guaranteeSetter) },
+                    { (slot, _) -> candidateCount(slot, pool, teamSize) }
+                )
+            )
 
         pendingSlots.forEach { (slot, team) ->
             if (team.size >= teamSize) return@forEach
@@ -82,7 +108,10 @@ object PositionAssigner {
             remaining.remove(choice.player)
             team.add(choice.player)
             positions[choice.player.id] = choice.position
-            if (choice.tier > TIER_SECONDARY) unfilled.add(slot)
+            if (choice.tier > TIER_SECONDARY) {
+                unfilled.add(slot)
+                improvised.add(slot)
+            }
         }
 
         // Sobra defensiva: se alguma vaga ficou vazia por falta de jogadores elegíveis na etapa
@@ -104,7 +133,8 @@ object PositionAssigner {
             teamA = teamA,
             teamB = teamB,
             positions = positions,
-            unfilledSlots = unfilled
+            unfilledSlots = unfilled,
+            improvisedSlots = improvised
         )
     }
 
@@ -112,16 +142,25 @@ object PositionAssigner {
      * Recalcula as posições de um time já formado, sem remontá-lo. Usado após substituições,
      * trocas de lado e rebalanceamentos.
      */
-    fun assignPositionsToExistingTeam(team: List<Player>, teamSize: Int): TeamAssignment {
+    fun assignPositionsToExistingTeam(
+        team: List<Player>,
+        teamSize: Int,
+        guaranteeSetter: Boolean = true
+    ): TeamAssignment {
         val effectiveSize = maxOf(teamSize, team.size).coerceAtMost(TeamComposition.MAX_TEAM_SIZE)
         val hasLibero = TeamComposition.hasLibero(team)
-        val slots = requiredSlots(effectiveSize, hasLibero)
+        val slots = requiredSlots(effectiveSize, hasLibero, guaranteeSetter)
 
         val remaining = team.toMutableList()
         val positions = mutableMapOf<Int, PlayerPosition>()
         val filled = mutableListOf<FilledSlot>()
 
-        slots.sortedBy { candidateCount(it, team, effectiveSize) }.forEach { slot ->
+        slots.sortedWith(
+            compareBy(
+                { setterFirstRank(it, guaranteeSetter) },
+                { candidateCount(it, team, effectiveSize) }
+            )
+        ).forEach { slot ->
             val choice = pickForSlot(slot, remaining, effectiveSize)
             if (choice == null) {
                 filled.add(FilledSlot(slot, null))
@@ -143,16 +182,32 @@ object PositionAssigner {
     }
 
     /** Composição de um time para exibição (vagas preenchidas e faltando). */
-    fun describeComposition(team: List<Player>, teamSize: Int): List<FilledSlot> =
-        assignPositionsToExistingTeam(team, teamSize).slots
+    fun describeComposition(
+        team: List<Player>,
+        teamSize: Int,
+        guaranteeSetter: Boolean = true
+    ): List<FilledSlot> = assignPositionsToExistingTeam(team, teamSize, guaranteeSetter).slots
 
     /**
-     * Escolhe [count] jogadores de [pool] priorizando os que cobrem as vagas ainda descobertas
-     * considerando [teams] times de [teamSize] jogadores, tendo [base] como já escalados.
+     * Escolhe [count] jogadores de [pool] para cobrir as vagas ainda descobertas, considerando
+     * [teams] times de [teamSize] jogadores e [base] como já escalados.
      *
-     * A ordem de [pool] é a ordem de justiça definida pelo chamador (menos jogos primeiro): entre
-     * candidatos que cobrem a mesma vaga, o primeiro do pool vence. Quando nenhuma vaga descoberta
-     * tem candidato, cai para o próximo jogador do pool.
+     * **Encaixe posicional valorizado**: para cada vaga em aberto busca-se o melhor encaixe em
+     * toda a fila (1ª opção → 2ª opção → coringa → realocação como último recurso), com empate
+     * resolvido pela ordem de chegada em [pool].
+     *
+     * **Justiça mínima da fila**: pelo menos metade (arredondada pra cima) das vagas preenchidas
+     * nesta operação vai obrigatoriamente para quem está no topo da fila, mesmo sem encaixe
+     * perfeito — evita que alguém fique travado indefinidamente enquanto o time novo é sempre
+     * montado só pelo melhor encaixe. A vaga já resolvida pela busca de levantador (abaixo) conta
+     * dentro dessa metade.
+     *
+     * **Limite para o time que acabou de perder**: [losers] identifica quem acabou de sair de
+     * quadra. No máximo um desses jogadores pode ser reaproveitado por encaixar melhor numa vaga,
+     * e apenas quando o restante da fila (sem contar os perdedores) já tiver gente suficiente para
+     * fechar sozinho as [count] vagas — do contrário não há limite, pois não haveria alternativa.
+     * Isso evita o ciclo vicioso de um perdedor voltar direto pra quadra rodada após rodada só
+     * porque encaixa bem numa posição.
      *
      * @return os escolhidos e o pool restante, ambos preservando a ordem original.
      */
@@ -161,33 +216,70 @@ object PositionAssigner {
         pool: List<Player>,
         count: Int,
         teamSize: Int,
-        teams: Int = 2
+        teams: Int = 2,
+        guaranteeSetter: Boolean = true,
+        losers: List<Player> = emptyList()
     ): Pair<List<Player>, List<Player>> {
         if (count <= 0 || pool.isEmpty()) return emptyList<Player>() to pool
         val hasLibero = TeamComposition.hasLibero(base + pool)
         val needs = (1..teams)
-            .flatMap { requiredSlots(teamSize, hasLibero) }
+            .flatMap { requiredSlots(teamSize, hasLibero, guaranteeSetter) }
             .toMutableList()
 
         // Vagas já cobertas por quem está escalado saem da lista de necessidades.
         base.forEach { player -> consumeSlotFor(needs, player, teamSize) }
 
+        val loserIds = losers.map { it.id }.toSet()
         val remaining = pool.toMutableList()
         val picked = mutableListOf<Player>()
-        repeat(count) {
-            if (remaining.isEmpty()) return@repeat
-            val candidate = needs
-                .sortedBy { candidateCount(it, remaining, teamSize) }
-                .firstNotNullOfOrNull { slot ->
-                    remaining.firstOrNull { player ->
-                        slot.accepts(effectivePreferred(player, teamSize)) ||
-                            slot.accepts(effectiveSecondary(player, teamSize))
-                    }
+        var losersPicked = 0
+        val nonLoserTotal = pool.count { it.id !in loserIds }
+        // Sem gente suficiente na fila "de verdade", não há como limitar quantos perdedores voltam.
+        val maxLosersAllowed = if (nonLoserTotal >= count) 1 else Int.MAX_VALUE
+
+        fun take(player: Player) {
+            remaining.remove(player)
+            picked.add(player)
+            consumeSlotFor(needs, player, teamSize)
+            if (player.id in loserIds) losersPicked++
+        }
+
+        // Único caso em que se pode "furar fila" incondicionalmente: buscar um levantador para a
+        // vaga de armador ainda descoberta, quando a garantia estiver ligada (1ª opção, depois 2ª).
+        if (guaranteeSetter && picked.size < count) {
+            val playmakerIndex = needs.indexOfFirst { it.role == PositionRole.PLAYMAKER }
+            if (playmakerIndex >= 0) {
+                val slot = needs[playmakerIndex]
+                val allowLoser = losersPicked < maxLosersAllowed
+                val setter = remaining.firstOrNull { (allowLoser || it.id !in loserIds) && slot.accepts(effectivePreferred(it, teamSize)) }
+                    ?: remaining.firstOrNull { (allowLoser || it.id !in loserIds) && slot.accepts(effectiveSecondary(it, teamSize)) }
+                if (setter != null) {
+                    needs.removeAt(playmakerIndex)
+                    take(setter)
                 }
-                ?: remaining.first()
-            remaining.remove(candidate)
-            picked.add(candidate)
-            consumeSlotFor(needs, candidate, teamSize)
+            }
+        }
+
+        // Justiça mínima: pelo menos metade (arredondada pra cima) das vagas preenchidas nesta
+        // operação é garantida a quem está no topo da fila, independentemente do encaixe.
+        val guaranteedFrontCount = (count + 1) / 2
+        while (picked.size < guaranteedFrontCount && remaining.isNotEmpty()) {
+            take(remaining.first())
+        }
+
+        // Demais vagas: melhor encaixe posicional em toda a fila restante, respeitando o limite
+        // de reaproveitamento de perdedores.
+        while (picked.size < count && remaining.isNotEmpty()) {
+            val allowLoser = losersPicked < maxLosersAllowed
+            val candidates = if (allowLoser) remaining else remaining.filterNot { it.id in loserIds }
+            val searchPool = candidates.ifEmpty { remaining }
+            val chosen = searchPool.withIndex().minWithOrNull(
+                compareBy(
+                    { (_, player) -> bestTierForOpenNeeds(needs, player, teamSize) },
+                    { (index, _) -> index }
+                )
+            )!!.value
+            take(chosen)
         }
         return picked to remaining
     }
@@ -201,21 +293,187 @@ object PositionAssigner {
         if (index >= 0) needs.removeAt(index)
     }
 
+    /** Melhor camada de encaixe de [player] entre as vagas ainda abertas em [needs]. */
+    private fun bestTierForOpenNeeds(needs: List<TeamSlot>, player: Player, teamSize: Int): Int {
+        if (needs.isEmpty()) return TIER_WILDCARD
+        val preferred = effectivePreferred(player, teamSize)
+        if (needs.any { it.accepts(preferred) }) return TIER_PREFERRED
+        val secondary = effectiveSecondary(player, teamSize)
+        if (needs.any { it.accepts(secondary) }) return TIER_SECONDARY
+        if (TeamComposition.isWildcard(player)) return TIER_WILDCARD
+        val role = (preferred ?: secondary)?.role
+        return if (role == PositionRole.ATTACK) TIER_ATTACK else TIER_DEFENSE
+    }
+
+    /**
+     * Ordena um grupo de jogadores que cai junto na fila de espera (Modo Posições Fixas) seguindo
+     * o padrão ideal de composição de [teamSize]: armador primeiro (quando [guaranteeSetter]),
+     * depois as demais vagas se revezando, repetindo o ciclo para o restante do grupo. Dentro da
+     * mesma vaga, prioriza quem jogou menos partidas no dia, via [effectiveGames].
+     *
+     * De 2 a 5 jogadores só o papel importa (ataque e defesa se intercalando, líbero tratado como
+     * central). Com 6 ou 7 jogadores as posições específicas entram no revezamento, na ordem
+     * canônica ponteiro → central → oposto → líbero (quando houver), repetindo o ciclo para as
+     * vagas duplicadas (2º ponteiro, 2º central).
+     */
+    fun orderByIdealComposition(
+        players: List<Player>,
+        teamSize: Int,
+        guaranteeSetter: Boolean,
+        effectiveGames: (Player) -> Int
+    ): List<Player> {
+        if (players.size <= 1) return players
+        val hasLibero = TeamComposition.hasLibero(players)
+        val pattern = slotPattern(teamSize, hasLibero, guaranteeSetter)
+        val remaining = players.toMutableList()
+        val ordered = mutableListOf<Player>()
+        var step = 0
+        while (remaining.isNotEmpty()) {
+            val slot = pattern[step % pattern.size]
+            step++
+            val chosen = pickBestForSlot(remaining, slot, teamSize, effectiveGames)
+            remaining.remove(chosen)
+            ordered.add(chosen)
+        }
+        return ordered
+    }
+
+    /** Ordem canônica de revezamento das posições específicas nos times de 6 e 7 jogadores. */
+    private val canonicalPositionOrder = listOf(
+        PlayerPosition.OUTSIDE_HITTER,
+        PlayerPosition.MIDDLE_BLOCKER,
+        PlayerPosition.OPPOSITE,
+        PlayerPosition.LIBERO
+    )
+
+    /**
+     * Sequência ideal de vagas de um time: armador primeiro (se [guaranteeSetter] e a vaga
+     * existir), seguido das demais vagas revezando. De 2 a 5 jogadores intercala por papel
+     * (ataque/defesa); com 6 ou 7 revezam-se as posições específicas na ordem canônica.
+     */
+    private fun slotPattern(teamSize: Int, hasLibero: Boolean, guaranteeSetter: Boolean): List<TeamSlot> {
+        val slots = requiredSlots(teamSize, hasLibero, guaranteeSetter)
+        val playmaker = slots.filter { it.role == PositionRole.PLAYMAKER }
+
+        val rest = if (teamSize >= 6) {
+            // Sem garantia de levantador, a vaga de armador já virou uma vaga de ataque genérica
+            // (sem posição específica) — entra logo no início do rodízio das posições específicas.
+            val genericFromDisabledSetter = if (!guaranteeSetter) {
+                slots.filter { it.role != PositionRole.PLAYMAKER && it.position == null }
+            } else {
+                emptyList()
+            }
+            genericFromDisabledSetter + roundRobinBySpecificPosition(slots.filter { it.position != null })
+        } else {
+            val attack = slots.filter { it.role == PositionRole.ATTACK }
+            val defense = slots.filter { it.role == PositionRole.DEFENSE }
+            interleaveBySlotCount(attack, defense)
+        }
+
+        val pattern = playmaker + rest
+        return pattern.ifEmpty { listOf(TeamSlot(PositionRole.ATTACK)) }
+    }
+
+    /**
+     * Revezamento por posição específica: visita cada posição distinta uma vez, na ordem
+     * canônica (ponteiro, central, oposto, líbero), e repete o ciclo para as vagas duplicadas.
+     */
+    private fun roundRobinBySpecificPosition(slots: List<TeamSlot>): List<TeamSlot> {
+        val buckets = canonicalPositionOrder.associateWith { pos ->
+            slots.filter { it.position == pos }.toMutableList()
+        }
+        val ordered = mutableListOf<TeamSlot>()
+        while (buckets.values.any { it.isNotEmpty() }) {
+            canonicalPositionOrder.forEach { pos ->
+                val bucket = buckets.getValue(pos)
+                if (bucket.isNotEmpty()) ordered.add(bucket.removeAt(0))
+            }
+        }
+        return ordered
+    }
+
+    /**
+     * Intercala [attack] e [defense] o mais uniformemente possível (algoritmo estilo Bresenham),
+     * em vez de agrupar todas as vagas de um papel antes de passar para o outro.
+     */
+    private fun interleaveBySlotCount(attack: List<TeamSlot>, defense: List<TeamSlot>): List<TeamSlot> {
+        val result = mutableListOf<TeamSlot>()
+        var ai = 0
+        var di = 0
+        val attackCount = attack.size
+        val defenseCount = defense.size
+        repeat(attackCount + defenseCount) {
+            if (ai * defenseCount <= di * attackCount) {
+                result.add(attack[ai]); ai++
+            } else {
+                result.add(defense[di]); di++
+            }
+        }
+        return result
+    }
+
+    /**
+     * Escolhe, dentro de [remaining], quem melhor cobre [slot] (preferida > secundária > coringa
+     * > realocação), priorizando quem jogou menos partidas ([effectiveGames]) dentro do mesmo
+     * nível de encaixe.
+     */
+    private fun pickBestForSlot(
+        remaining: List<Player>,
+        slot: TeamSlot,
+        teamSize: Int,
+        effectiveGames: (Player) -> Int
+    ): Player {
+        val bestTier = remaining.minOf { tierFor(slot, it, teamSize)!!.first }
+        return remaining
+            .filter { tierFor(slot, it, teamSize)!!.first == bestTier }
+            .minWithOrNull(compareBy({ effectiveGames(it) }, { -it.elo }))!!
+    }
+
     // --- internos ---
 
     private data class Choice(val player: Player, val position: PlayerPosition, val tier: Int)
 
-    private fun requiredSlots(teamSize: Int, hasLibero: Boolean): List<TeamSlot> {
-        val slots = TeamComposition.requiredSlots(teamSize)
-        if (hasLibero) return slots
-        // Sem líbero presente, a vaga garantida do líbero é ocupada por outro central.
-        return slots.map { slot ->
-            if (slot.position == PlayerPosition.LIBERO) {
-                TeamSlot(slot.role, PlayerPosition.MIDDLE_BLOCKER)
-            } else {
-                slot
+    private fun requiredSlots(
+        teamSize: Int,
+        hasLibero: Boolean,
+        guaranteeSetter: Boolean
+    ): List<TeamSlot> {
+        val slots = TeamComposition.requiredSlots(teamSize).map { slot ->
+            when {
+                // Sem garantia de levantador, a vaga de armador vira mais uma vaga de ataque.
+                !guaranteeSetter && slot.role == PositionRole.PLAYMAKER -> TeamSlot(PositionRole.ATTACK)
+                // Sem líbero presente, a vaga garantida do líbero é ocupada por outro central.
+                !hasLibero && slot.position == PlayerPosition.LIBERO ->
+                    TeamSlot(slot.role, PlayerPosition.MIDDLE_BLOCKER)
+                else -> slot
             }
         }
+        return slots
+    }
+
+    /** Ordena a vaga de armador antes das demais quando a garantia de levantador está ligada. */
+    private fun setterFirstRank(slot: TeamSlot, guaranteeSetter: Boolean): Int =
+        if (guaranteeSetter && slot.role == PositionRole.PLAYMAKER) 0 else 1
+
+    /**
+     * Divide [players] em duas metades com somas de Elo próximas, preservando tamanhos iguais
+     * (ou diferença de um). Usado no rebalanceamento por quebra de sequência.
+     */
+    fun splitByElo(players: List<Player>): Pair<List<Player>, List<Player>> {
+        if (players.isEmpty()) return emptyList<Player>() to emptyList()
+        val targetA = (players.size + 1) / 2
+        val targetB = players.size / 2
+        val teamA = mutableListOf<Player>()
+        val teamB = mutableListOf<Player>()
+        players.sortedByDescending { it.elo }.forEach { player ->
+            val toA = when {
+                teamA.size >= targetA -> false
+                teamB.size >= targetB -> true
+                else -> eloOf(teamA) <= eloOf(teamB)
+            }
+            if (toA) teamA.add(player) else teamB.add(player)
+        }
+        return teamA to teamB
     }
 
     private fun eloOf(team: List<Player>): Double = team.sumOf { it.elo }
@@ -252,7 +510,10 @@ object PositionAssigner {
 
         if (TeamComposition.isWildcard(player)) return TIER_WILDCARD to fallbackPosition(slot)
 
-        return TIER_ANY to fallbackPosition(slot)
+        // Realocar um atacante custa menos que realocar um defensor.
+        val role = (preferred ?: secondary)?.role
+        val tier = if (role == PositionRole.ATTACK) TIER_ATTACK else TIER_DEFENSE
+        return tier to fallbackPosition(slot)
     }
 
     private fun slotPosition(slot: TeamSlot, matched: PlayerPosition?): PlayerPosition =

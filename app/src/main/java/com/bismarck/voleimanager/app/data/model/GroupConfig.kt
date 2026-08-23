@@ -40,7 +40,12 @@ data class GroupConfig(
     /** Formato do chaveamento ([TournamentFormat]); nulo fora dos tipos de campeonato. */
     val tournamentFormat: String? = null,
     /** Indica que o campeonato saiu da primeira fase e não aceita mais novos times. */
-    val tournamentStarted: Boolean = false
+    val tournamentStarted: Boolean = false,
+    /**
+     * Nos tipos com posições fixas, garante que a vaga de levantador seja preenchida antes das
+     * demais. Desligado, essa vaga vira uma vaga de ataque. Irrelevante nos tipos recreativos.
+     */
+    val guaranteeSetter: Boolean = true
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)

@@ -174,6 +174,10 @@
     <string name="faq_a10">Visibles cuando la opción \"Mostrar Elo\" está activada, estos valores muestran el impacto del partido en el Elo. Un valor cercano a 16 indica equipos bien equilibrados. Muy por debajo de 16 generalmente significa que ganó el equipo favorito. Por encima de 16 indica la victoria de un equipo con un Elo promedio menor (una sorpresa).</string>
     <string name="faq_q2">¿Cómo funciona la Prioridad (Estrella)?</string>
     <string name="faq_a2">Sirve para distribuir mejor los niveles o posiciones en la cancha. Por ejemplo, si etiquetas a los levantadores con \"Prioridad\", el sistema intentará colocar a uno en cada lado para que los equipos queden equilibrados al generarlos automáticamente.</string>
+    <string name="faq_q11">¿Qué significan las abreviaturas de las posiciones en el modo Posiciones Fijas?</string>
+    <string name="faq_a11">ARM = Armador, PUN = Punta, CEN = Central, OPU = Opuesto, LIB = Líbero. Estas abreviaturas aparecen en las insignias de los jugadores y en los puestos de cancha.</string>
+    <string name="faq_q12">¿Qué posiciones componen cada tamaño de equipo en el modo Posiciones Fijas?</string>
+    <string name="faq_a12">2x2: 1 armador + 1 atacante. 3x3: 1 armador + 1 atacante + 1 defensor. 4x4: 1 armador + 2 atacantes + 1 defensor. 5x5: 1 armador + 2 atacantes + 2 defensores. 6x6: 1 armador, 2 puntas, 1 central, 1 opuesto, 1 líbero (u otro central, si no hay líbero). 7x7: 1 armador, 2 puntas, 2 centrales, 1 opuesto, 1 líbero (u otro central, si no hay líbero).</string>
     <string name="faq_q3">¿Qué es Mostrar Retraso?</string>
     <string name="faq_a3">Esta función muestra los partidos ficticios asignados a quienes llegan tarde, basándose en los partidos ya realizados en la cancha. Así, garantizamos que quienes están desde el inicio mantengan su prioridad. Quienes llegan con el grupo inicial no tienen retraso; el sistema solo muestra valores a partir de uno.</string>
     <string name="faq_a1">Elo es un sistema de calificación de habilidad. Ganas puntos por tus victorias y pierdes por tus derrotas, según la dificultad del encuentro. El Elo promedio se obtiene sumando los puntos del equipo e dividiéndolos por el número de integrantes.</string>
@@ -235,6 +239,14 @@
     <string name="composition_missing_slot">Falta: %1$s</string>
     <string name="composition_title">Composición del equipo</string>
     <string name="composition_slot_empty">Vacía</string>
+    <string name="guarantee_setter">Garantizar armador</string>
+    <string name="guarantee_setter_tooltip">Reserva un puesto de armador en cada equipo. Si no hay armador en la cola, el armador del equipo perdedor sigue en cancha; si no hay ninguno, el puesto lo ocupa alguien de ataque y, como último recurso, alguien de defensa.</string>
+    <string name="guarantee_setter_locked_tooltip">Obligatorio en equipos de 6 o 7 jugadores, ya que el puesto de armador tiene posición específica en esas composiciones. Solo se puede desactivar en equipos de 2 a 5 jugadores.</string>
+    <string name="position_badge_secondary_tooltip">%1$s: juega en la segunda posición que eligió.</string>
+    <string name="position_badge_improvised_tooltip">%1$s: juega fuera de las posiciones que eligió.</string>
+    <string name="group_type_long_press_hint">Mantén pulsado un tipo para ver un consejo rápido.</string>
+    <string name="position_preferred_label">Posición preferida: %1$s</string>
+    <string name="position_secondary_label">Segunda posición: %1$s</string>
     <string name="elo_level_1100_desc">Principiante</string>
     <string name="elo_level_1150_desc">" "</string>
     <string name="elo_level_1200_desc">Predeterminado</string>

@@ -32,6 +32,10 @@ class PositionAssignerTest {
         positions: Map<Int, PlayerPosition>
     ): List<PositionRole> = team.map { positions.getValue(it.id).role }
 
+    /** Papel derivado da posição preferida cadastrada do jogador (usado nos testes de ordenação). */
+    private fun roleOf(player: Player): PositionRole =
+        PlayerPosition.fromStoredValue(player.preferredPosition)!!.role
+
     @Test
     fun twoVsTwo_requiresPlaymakerAndAttackOnBothTeams() {
         val pool = listOf(
@@ -253,6 +257,385 @@ class PositionAssignerTest {
         assertEquals(TeamComposition.requiredSlots(3).size, slots.size)
         assertTrue(slots.all { it.player != null })
         assertTrue(slots.none { it.isImprovised })
+    }
+
+    @Test
+    fun pickToCoverComposition_prefersSetterFromQueueWhenGuaranteeSetterEnabled() {
+        // Time perdedor ficou com um atacante só; falta o levantador. A fila tem um atacante e um
+        // levantador — com a garantia ligada, o levantador da fila deve ser priorizado.
+        val losingTeam = listOf(player(PlayerPosition.OPPOSITE))
+        val queue = listOf(
+            player(PlayerPosition.OUTSIDE_HITTER, name = "QueueAttacker"),
+            player(PlayerPosition.SETTER, name = "QueueSetter")
+        )
+
+        val (picked, _) = PositionAssigner.pickToCoverComposition(
+            base = losingTeam,
+            pool = queue,
+            count = 1,
+            teamSize = 2,
+            teams = 1,
+            guaranteeSetter = true
+        )
+
+        assertEquals(1, picked.size)
+        assertEquals("QueueSetter", picked.first().name)
+    }
+
+    @Test
+    fun pickToCoverComposition_withGuaranteeSetterDisabled_convertsPlaymakerSlotToAttack() {
+        // Sem garantia de levantador, a vaga de armador vira vaga de ataque, então quem estiver
+        // no topo da fila entra, mesmo sendo atacante.
+        val losingTeam = listOf(player(PlayerPosition.OPPOSITE))
+        val queue = listOf(
+            player(PlayerPosition.OUTSIDE_HITTER, name = "QueueAttacker"),
+            player(PlayerPosition.SETTER, name = "QueueSetter")
+        )
+
+        val (picked, _) = PositionAssigner.pickToCoverComposition(
+            base = losingTeam,
+            pool = queue,
+            count = 1,
+            teamSize = 2,
+            teams = 1,
+            guaranteeSetter = false
+        )
+
+        assertEquals(1, picked.size)
+        assertEquals("QueueAttacker", picked.first().name)
+    }
+
+    @Test
+    fun pickToCoverComposition_singleSlotFillsStrictlyFromFrontOfQueue() {
+        // Para uma única vaga em aberto, a garantia de justiça mínima (metade arredondada pra
+        // cima = 1) cobre 100% da vaga: o topo da fila entra mesmo quando alguém mais atrás
+        // encaixaria melhor na posição.
+        val losingTeam = listOf(player(PlayerPosition.SETTER))
+        val queue = listOf(
+            player(name = "FrontOfQueueWildcard"), // sem posição cadastrada, no topo da fila
+            player(PlayerPosition.OUTSIDE_HITTER, name = "BetterFitDeeperInQueue")
+        )
+
+        val (picked, remaining) = PositionAssigner.pickToCoverComposition(
+            base = losingTeam,
+            pool = queue,
+            count = 1,
+            teamSize = 2,
+            teams = 1,
+            guaranteeSetter = true
+        )
+
+        assertEquals(1, picked.size)
+        assertEquals("FrontOfQueueWildcard", picked.first().name)
+        assertEquals(listOf("BetterFitDeeperInQueue"), remaining.map { it.name })
+    }
+
+    @Test
+    fun pickToCoverComposition_capsLoserReentryToOneWhenWaitingQueueHasEnoughNonLosers() {
+        // Dois atacantes do time que acabou de perder encaixam perfeitamente nas duas vagas de
+        // ataque, mas a fila de espera "de verdade" (sem os perdedores) já tem gente suficiente
+        // para fechar as duas vagas sozinha. Por isso, no máximo 1 perdedor pode voltar direto.
+        val waiting1 = player(name = "Waiting1")
+        val waiting2 = player(name = "Waiting2")
+        val loser1 = player(PlayerPosition.OUTSIDE_HITTER, name = "Loser1")
+        val loser2 = player(PlayerPosition.OUTSIDE_HITTER, name = "Loser2")
+        val losers = listOf(loser1, loser2)
+        val pool = listOf(waiting1, waiting2, loser1, loser2)
+
+        val (picked, remaining) = PositionAssigner.pickToCoverComposition(
+            base = emptyList(),
+            pool = pool,
+            count = 2,
+            teamSize = 2,
+            teams = 1,
+            guaranteeSetter = false,
+            losers = losers
+        )
+
+        val pickedLosers = picked.count { it.id in losers.map { l -> l.id } }
+        assertEquals(1, pickedLosers)
+        assertTrue(picked.any { it.name == "Waiting1" })
+        assertEquals(2, remaining.size)
+    }
+
+    @Test
+    fun pickToCoverComposition_allowsMultipleLosersWhenWaitingQueueLacksDepth() {
+        // Se a fila "de verdade" não tem gente suficiente para fechar o time sozinha, não há
+        // motivo para limitar quantos perdedores voltam — não existe alternativa mesmo. Usa
+        // count=4 para que a garantia de justiça mínima (2 vagas) não consuma sozinha todas as
+        // vagas restantes, deixando a busca de melhor encaixe (sem limite de perdedores) decidir
+        // o resto.
+        val waiting1 = player(name = "Waiting1")
+        val loser1 = player(PlayerPosition.OUTSIDE_HITTER, name = "Loser1")
+        val loser2 = player(PlayerPosition.OUTSIDE_HITTER, name = "Loser2")
+        val loser3 = player(PlayerPosition.OUTSIDE_HITTER, name = "Loser3")
+        val loser4 = player(PlayerPosition.OUTSIDE_HITTER, name = "Loser4")
+        val loser5 = player(PlayerPosition.OUTSIDE_HITTER, name = "Loser5")
+        val losers = listOf(loser1, loser2, loser3, loser4, loser5)
+        val pool = listOf(waiting1) + losers
+
+        val (picked, remaining) = PositionAssigner.pickToCoverComposition(
+            base = emptyList(),
+            pool = pool,
+            count = 4,
+            teamSize = 2,
+            teams = 1,
+            guaranteeSetter = false,
+            losers = losers
+        )
+
+        val pickedLosers = picked.count { it.id in losers.map { l -> l.id } }
+        assertEquals(3, pickedLosers)
+        assertEquals(listOf("Waiting1", "Loser1", "Loser2", "Loser3"), picked.map { it.name })
+        assertEquals(listOf("Loser4", "Loser5"), remaining.map { it.name })
+    }
+
+    @Test
+    fun pickToCoverComposition_guaranteesAtLeastHalfRoundedUpFromFrontOfQueue_threeSlots() {
+        // Em um time de 3x3, pelo menos 2 das 3 vagas preenchidas nesta operação (metade
+        // arredondada pra cima) precisam ir para quem está no topo da fila, mesmo que outro
+        // jogador mais atrás encaixe melhor na posição em aberto.
+        val front1 = player(name = "Front1")
+        val front2 = player(name = "Front2")
+        val betterFitDeeper = player(PlayerPosition.MIDDLE_BLOCKER, name = "BetterFitDeeper")
+        val pool = listOf(front1, front2, betterFitDeeper)
+
+        val (picked, remaining) = PositionAssigner.pickToCoverComposition(
+            base = emptyList(),
+            pool = pool,
+            count = 3,
+            teamSize = 3,
+            teams = 1,
+            guaranteeSetter = false
+        )
+
+        assertEquals(listOf("Front1", "Front2", "BetterFitDeeper"), picked.map { it.name })
+        assertTrue(remaining.isEmpty())
+    }
+
+    @Test
+    fun pickToCoverComposition_guaranteesAtLeastHalfRoundedUpFromFrontOfQueue_fiveSlots() {
+        // Em um time de 5x5, pelo menos 3 das 5 vagas (metade de 5 arredondada pra cima) vão
+        // obrigatoriamente para o topo da fila; só as 2 vagas restantes usam o melhor encaixe.
+        val front1 = player(name = "Front1")
+        val front2 = player(name = "Front2")
+        val front3 = player(name = "Front3")
+        val betterFitDeeper1 = player(PlayerPosition.MIDDLE_BLOCKER, name = "BetterFitDeeper1")
+        val betterFitDeeper2 = player(PlayerPosition.MIDDLE_BLOCKER, name = "BetterFitDeeper2")
+        val pool = listOf(front1, front2, front3, betterFitDeeper1, betterFitDeeper2)
+
+        val (picked, remaining) = PositionAssigner.pickToCoverComposition(
+            base = emptyList(),
+            pool = pool,
+            count = 5,
+            teamSize = 5,
+            teams = 1,
+            guaranteeSetter = false
+        )
+
+        assertEquals(
+            listOf("Front1", "Front2", "Front3", "BetterFitDeeper1", "BetterFitDeeper2"),
+            picked.map { it.name }
+        )
+        assertTrue(remaining.isEmpty())
+    }
+
+    @Test
+    fun pickToCoverComposition_frontGuaranteeStillRespectsBestFitForRemainingSlots() {
+        // Com 5 vagas e 8 candidatos: a busca de levantador (incondicional) resolve 1 vaga, as 2
+        // primeiras pessoas da fila (garantia de justiça mínima) resolvem mais 2, e as 2 vagas
+        // finais (ataque/defesa) usam o melhor encaixe posicional entre quem sobrou — mesmo que
+        // isso signifique pular coringas sem posição cadastrada em favor de especialistas mais
+        // atrás na fila.
+        val front1 = player(name = "Front1")
+        val front2 = player(name = "Front2")
+        val front3 = player(name = "Front3")
+        val wildcard1 = player(name = "Wildcard1")
+        val wildcard2 = player(name = "Wildcard2")
+        val setterDeep = player(PlayerPosition.SETTER, name = "SetterDeep")
+        val attackerDeep = player(PlayerPosition.OUTSIDE_HITTER, name = "AttackerDeep")
+        val defenderDeep = player(PlayerPosition.MIDDLE_BLOCKER, name = "DefenderDeep")
+        val pool = listOf(front1, front2, front3, wildcard1, wildcard2, setterDeep, attackerDeep, defenderDeep)
+
+        val (picked, remaining) = PositionAssigner.pickToCoverComposition(
+            base = emptyList(),
+            pool = pool,
+            count = 5,
+            teamSize = 5,
+            teams = 1,
+            guaranteeSetter = true
+        )
+
+        assertEquals(
+            setOf("SetterDeep", "Front1", "Front2", "AttackerDeep", "DefenderDeep"),
+            picked.map { it.name }.toSet()
+        )
+        assertEquals(setOf("Front3", "Wildcard1", "Wildcard2"), remaining.map { it.name }.toSet())
+    }
+
+    @Test
+    fun assignPositionsToExistingTeam_keepsExistingSetterInPlaymakerSlot() {
+        // Confirma que o levantador já presente no time (por exemplo, o levantador perdedor que
+        // permaneceu) é mantido na vaga de armador quando a garantia está ligada.
+        val setter = player(PlayerPosition.SETTER, name = "LosingSetter")
+        val team = listOf(setter, player(PlayerPosition.OUTSIDE_HITTER))
+
+        val assignment = PositionAssigner.assignPositionsToExistingTeam(team, teamSize = 2, guaranteeSetter = true)
+
+        assertEquals(PlayerPosition.SETTER, assignment.positions[setter.id])
+        assertTrue(assignment.isComplete)
+    }
+
+    @Test
+    fun splitByElo_producesBalancedHalvesWithEqualOrOffByOneSizes() {
+        val players = listOf(
+            player(elo = 1500.0), player(elo = 1400.0),
+            player(elo = 1300.0), player(elo = 1200.0),
+            player(elo = 1100.0)
+        )
+
+        val (halfA, halfB) = PositionAssigner.splitByElo(players)
+
+        assertTrue(Math.abs(halfA.size - halfB.size) <= 1)
+        assertEquals(players.size, halfA.size + halfB.size)
+        val gap = Math.abs(halfA.sumOf { it.elo } - halfB.sumOf { it.elo })
+        // A diferença não deve exceder o Elo do jogador mais forte (garantia frouxa de equilíbrio).
+        assertTrue(gap <= players.maxOf { it.elo })
+    }
+
+    @Test
+    fun orderByIdealComposition_fourVsFour_followsPlaymakerThenAttackDefenseAttackPattern() {
+        // Para 4x4 a composição é 1 armador, 2 ataques e 1 defesa: a ordem ideal de quem cai
+        // junto na fila deve ser armador, ataque, defesa, ataque.
+        val setter = player(PlayerPosition.SETTER, name = "Setter")
+        val attacker1 = player(PlayerPosition.OUTSIDE_HITTER, name = "Attacker1")
+        val attacker2 = player(PlayerPosition.OPPOSITE, name = "Attacker2")
+        val defender = player(PlayerPosition.MIDDLE_BLOCKER, name = "Defender")
+        val group = listOf(defender, attacker2, setter, attacker1) // ordem de chegada embaralhada
+
+        val ordered = PositionAssigner.orderByIdealComposition(group, teamSize = 4, guaranteeSetter = true) { 0 }
+
+        assertEquals(PositionRole.PLAYMAKER, roleOf(ordered[0]))
+        assertEquals(PositionRole.ATTACK, roleOf(ordered[1]))
+        assertEquals(PositionRole.DEFENSE, roleOf(ordered[2]))
+        assertEquals(PositionRole.ATTACK, roleOf(ordered[3]))
+    }
+
+    @Test
+    fun orderByIdealComposition_prefersWhoPlayedFewerGamesWithinTheSameRole() {
+        // Dois atacantes disputam a mesma posição na sequência ideal: quem jogou menos partidas
+        // hoje deve ficar mais acima na fila (mais perto de voltar a jogar).
+        val setter = player(PlayerPosition.SETTER, name = "Setter")
+        val defender = player(PlayerPosition.MIDDLE_BLOCKER, name = "Defender")
+        val attackerPlayedMore = player(PlayerPosition.OUTSIDE_HITTER, name = "PlayedMore")
+        val attackerPlayedLess = player(PlayerPosition.OPPOSITE, name = "PlayedLess")
+        val effectiveGames = mapOf(attackerPlayedMore.id to 3, attackerPlayedLess.id to 0)
+        val group = listOf(setter, attackerPlayedMore, defender, attackerPlayedLess)
+
+        val ordered = PositionAssigner.orderByIdealComposition(group, teamSize = 4, guaranteeSetter = true) {
+            effectiveGames[it.id] ?: 0
+        }
+
+        // Padrão: armador, ataque, defesa, ataque — entre os dois ataques, quem jogou menos vem
+        // primeiro (posição 1), deixando quem jogou mais para a última vaga (posição 3).
+        assertEquals("PlayedLess", ordered[1].name)
+        assertEquals("PlayedMore", ordered[3].name)
+    }
+
+    @Test
+    fun orderByIdealComposition_withGuaranteeSetterDisabled_hasNoDedicatedPlaymakerSlot() {
+        val setter = player(PlayerPosition.SETTER, name = "Setter")
+        val attacker = player(PlayerPosition.OUTSIDE_HITTER, name = "Attacker")
+        val group = listOf(attacker, setter)
+
+        val ordered = PositionAssigner.orderByIdealComposition(group, teamSize = 2, guaranteeSetter = false) { 0 }
+
+        // Sem garantia de levantador, a vaga de armador vira vaga de ataque — o atacante (encaixe
+        // preferido) fica na frente do levantador (que só serve como coringa/realocação aqui).
+        assertEquals("Attacker", ordered[0].name)
+    }
+
+    @Test
+    fun orderByIdealComposition_sixVsSix_withLibero_followsSpecificPositionRoundRobin() {
+        // Para 6x6 com líbero disponível a ordem ideal é: levantador, ponteiro, central, oposto,
+        // líbero, ponteiro (2º ponteiro fecha o ciclo).
+        val setter = player(PlayerPosition.SETTER, name = "Setter")
+        val outside1 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside1")
+        val outside2 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside2")
+        val middle = player(PlayerPosition.MIDDLE_BLOCKER, name = "Middle")
+        val opposite = player(PlayerPosition.OPPOSITE, name = "Opposite")
+        val libero = player(PlayerPosition.LIBERO, name = "Libero")
+        val group = listOf(libero, opposite, middle, outside2, setter, outside1)
+
+        val ordered = PositionAssigner.orderByIdealComposition(group, teamSize = 6, guaranteeSetter = true) { 0 }
+
+        assertEquals(
+            listOf("Setter", "Outside2", "Middle", "Opposite", "Libero", "Outside1"),
+            ordered.map { it.name }
+        )
+    }
+
+    @Test
+    fun orderByIdealComposition_sixVsSix_withoutLibero_convertsLiberoSlotToMiddleBlocker() {
+        // Sem líbero disponível, a vaga do líbero vira mais uma vaga de central: levantador,
+        // ponteiro, central, oposto, central, ponteiro.
+        val setter = player(PlayerPosition.SETTER, name = "Setter")
+        val outside1 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside1")
+        val outside2 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside2")
+        val middle1 = player(PlayerPosition.MIDDLE_BLOCKER, name = "Middle1")
+        val middle2 = player(PlayerPosition.MIDDLE_BLOCKER, name = "Middle2")
+        val opposite = player(PlayerPosition.OPPOSITE, name = "Opposite")
+        val group = listOf(middle2, opposite, middle1, outside2, setter, outside1)
+
+        val ordered = PositionAssigner.orderByIdealComposition(group, teamSize = 6, guaranteeSetter = true) { 0 }
+
+        assertEquals(
+            listOf("Setter", "Outside2", "Middle2", "Opposite", "Outside1", "Middle1"),
+            ordered.map { it.name }
+        )
+    }
+
+    @Test
+    fun orderByIdealComposition_sevenVsSeven_withLibero_repeatsOutsideThenMiddleToCloseTheCycle() {
+        // Para 7x7 com líbero: levantador, ponteiro, central, oposto, líbero, ponteiro, central
+        // (2º ponteiro e 2º central fecham o ciclo).
+        val setter = player(PlayerPosition.SETTER, name = "Setter")
+        val outside1 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside1")
+        val outside2 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside2")
+        val middle1 = player(PlayerPosition.MIDDLE_BLOCKER, name = "Middle1")
+        val middle2 = player(PlayerPosition.MIDDLE_BLOCKER, name = "Middle2")
+        val opposite = player(PlayerPosition.OPPOSITE, name = "Opposite")
+        val libero = player(PlayerPosition.LIBERO, name = "Libero")
+        val group = listOf(middle2, libero, opposite, middle1, outside2, setter, outside1)
+
+        val ordered = PositionAssigner.orderByIdealComposition(group, teamSize = 7, guaranteeSetter = true) { 0 }
+
+        assertEquals(
+            listOf("Setter", "Outside2", "Middle2", "Opposite", "Libero", "Outside1", "Middle1"),
+            ordered.map { it.name }
+        )
+    }
+
+    @Test
+    fun orderByIdealComposition_sixVsSix_withGuaranteeSetterDisabled_startsWithGenericAttackSlot() {
+        // Sem garantia de levantador, a vaga de armador vira ataque genérico e entra no início do
+        // padrão, antes do revezamento das posições específicas.
+        val setter = player(PlayerPosition.SETTER, name = "Setter")
+        val outside1 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside1")
+        val outside2 = player(PlayerPosition.OUTSIDE_HITTER, name = "Outside2")
+        val middle = player(PlayerPosition.MIDDLE_BLOCKER, name = "Middle")
+        val opposite = player(PlayerPosition.OPPOSITE, name = "Opposite")
+        val libero = player(PlayerPosition.LIBERO, name = "Libero")
+        val group = listOf(libero, opposite, middle, outside2, setter, outside1)
+
+        val ordered = PositionAssigner.orderByIdealComposition(group, teamSize = 6, guaranteeSetter = false) { 0 }
+
+        // A vaga genérica de ataque vai para o melhor encaixe entre os que têm papel de ataque
+        // (oposto é o primeiro da lista original a se qualificar); o levantador, sem mais papel
+        // reservado, só entra como último recurso.
+        assertEquals("Opposite", ordered[0].name)
+        assertEquals(listOf("Outside2", "Middle", "Outside1", "Libero"), ordered.subList(1, 5).map { it.name })
+        assertEquals("Setter", ordered[5].name)
     }
 
     @Test

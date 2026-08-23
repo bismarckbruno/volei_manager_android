@@ -175,6 +175,10 @@
     <string name="faq_a10">Visíveis quando a opção \"Mostrar Elo\" está ativada, esses valores mostram o impacto da partida no Elo. Perto de 16 indica times bem equilibrados. Bem abaixo de 16 geralmente significa que venceu o time mais cotado. Acima de 16 indica uma vitória de um time com Elo médio menor (um resultado inesperado).</string>
     <string name="faq_q2">Como funciona a Prioridade (Estrela)?</string>
     <string name="faq_a2">Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com \"Prioridade\", o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente.</string>
+    <string name="faq_q11">O que significam as abreviações das posições no modo Posições Fixas?</string>
+    <string name="faq_a11">LEV = Levantador, PON = Ponteiro, CEN = Central, OPO = Oposto, LIB = Líbero. Essas abreviações aparecem nos selos dos jogadores e nas vagas de quadra.</string>
+    <string name="faq_q12">Quais posições compõem cada tamanho de time no modo Posições Fixas?</string>
+    <string name="faq_a12">2x2: 1 levantador + 1 atacante. 3x3: 1 levantador + 1 atacante + 1 defensor. 4x4: 1 levantador + 2 atacantes + 1 defensor. 5x5: 1 levantador + 2 atacantes + 2 defensores. 6x6: 1 levantador, 2 ponteiros, 1 central, 1 oposto, 1 líbero (ou outro central, se não houver líbero). 7x7: 1 levantador, 2 ponteiros, 2 centrais, 1 oposto, 1 líbero (ou outro central, se não houver líbero).</string>
     <string name="faq_q3">O que é Mostrar Atraso?</string>
     <string name="faq_a3">Quando ativado, mostra quantos jogos fictícios foram somados a quem chegou atrasado, de acordo com o que a quadra já jogou. Isso evita que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa com atraso zero. Só aparecem valores a partir de um.</string>
     <string name="faq_a1">O Elo é um sistema de pontuação que avalia o nível de habilidade de cada jogador. Você ganha pontos ao vencer e perde ao ser derrotado, baseado na dificuldade da partida. O Elo médio é simplesmente a soma dos pontos de uma equipe dividida pelo número de jogadores.</string>
@@ -236,6 +240,14 @@
     <string name="composition_missing_slot">Falta: %1$s</string>
     <string name="composition_title">Composição do time</string>
     <string name="composition_slot_empty">Vazia</string>
+    <string name="guarantee_setter">Garantir levantador</string>
+    <string name="guarantee_setter_tooltip">Reserva uma vaga de levantador em cada time. Se não houver levantador na fila de espera, o levantador do time perdedor continua em quadra; se não houver nenhum, a vaga é preenchida por alguém de ataque e, em último caso, por alguém de defesa.</string>
+    <string name="guarantee_setter_locked_tooltip">Obrigatório em times de 6 ou 7 jogadores, pois a vaga de levantador tem posição específica nessas composições. Só é possível desligar em times de 2 a 5 jogadores.</string>
+    <string name="position_badge_secondary_tooltip">%1$s: escalado na segunda posição que escolheu.</string>
+    <string name="position_badge_improvised_tooltip">%1$s: escalado fora das posições que escolheu.</string>
+    <string name="group_type_long_press_hint">Mantenha um tipo pressionado para ver uma dica rápida.</string>
+    <string name="position_preferred_label">Posição preferida: %1$s</string>
+    <string name="position_secondary_label">Segunda posição: %1$s</string>
     <string name="elo_level_1100_desc">Iniciante</string>
     <string name="elo_level_1150_desc">" "</string>
     <string name="elo_level_1200_desc">Padrão</string>

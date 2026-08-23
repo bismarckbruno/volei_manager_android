@@ -90,6 +90,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.LazyListFastScroller
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
@@ -125,6 +126,8 @@ internal fun WaitingListContent(
 ) {
     val resources = LocalResources.current
     val restingMap by viewModel.restingPlayers.collectAsState()
+    val groupConfig by viewModel.currentGroupConfig.collectAsState()
+    val usesPositions = groupConfig.type.usesPositions
 
     val absentPlayers = remember(allPlayers, presentPlayerIds) {
         allPlayers.filter { !presentPlayerIds.contains(it.id) }.sortedBy { it.name.lowercase() }
@@ -297,6 +300,7 @@ internal fun WaitingListContent(
                         player = player,
                         isResting = restingMap.containsKey(player.id),
                         showElo = showElo,
+                        usesPositions = usesPositions,
                         highlightPulse = if (highlightedPlayerId == player.id) highlightPulse else 0,
                         onMoveUp = {
                             if (index > 0) {
@@ -398,6 +402,7 @@ internal fun WaitingListContent(
                             modifier = Modifier.animateItem(),
                             player = player,
                             showElo = showElo,
+                            usesPositions = usesPositions,
                             onMoveToBeginning = {
                                 val targetIndex = 0
                                 undoAction = UndoAction.Add(player, targetIndex)
@@ -515,6 +520,7 @@ private fun WaitingListPlayerItem(
     player: Player,
     isResting: Boolean,
     showElo: Boolean,
+    usesPositions: Boolean = false,
     highlightPulse: Int,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
@@ -578,7 +584,13 @@ private fun WaitingListPlayerItem(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            if (player.isPriority) {
+                            if (usesPositions) {
+                                PlayerPositionBadges(
+                                    player = player,
+                                    usesPositions = true,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            } else if (player.isPriority) {
                                 Spacer(Modifier.width(2.dp))
                                 Icon(
                                     Icons.Default.Star,
@@ -713,6 +725,7 @@ private fun InactivePlayerItem(
     modifier: Modifier = Modifier,
     player: Player,
     showElo: Boolean,
+    usesPositions: Boolean = false,
     onMoveToBeginning: () -> Unit,
     onMoveToEnd: () -> Unit
 ) {
@@ -762,7 +775,13 @@ private fun InactivePlayerItem(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (player.isPriority) {
+                        if (usesPositions) {
+                            PlayerPositionBadges(
+                                player = player,
+                                usesPositions = true,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        } else if (player.isPriority) {
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,

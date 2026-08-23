@@ -697,10 +697,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 initialScoreEnabled = groupConfig.scoreEnabled,
                 initialBalancingMode = groupConfig.balancingMode,
                 initialGroupType = groupConfig.groupType,
+                initialGuaranteeSetter = groupConfig.guaranteeSetter,
                 isGameInProgress = viewModel.isGameInProgress(),
                 onDismiss = { showConfigDialog = false },
-                onConfirm = { size, limit, prior, scoreEn, balancingMode, groupType ->
-                    viewModel.updateConfig(size, limit, prior, scoreEn, balancingMode, groupType)
+                onConfirm = { size, limit, prior, scoreEn, balancingMode, groupType, guaranteeSetter ->
+                    viewModel.updateConfig(size, limit, prior, scoreEn, balancingMode, groupType, guaranteeSetter)
                     showConfigDialog = false
                 }
             )

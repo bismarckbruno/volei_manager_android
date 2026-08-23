@@ -114,7 +114,9 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
 import com.bismarck.voleimanager.app.ui.components.GroupTypeOptionRow
-import com.bismarck.voleimanager.app.ui.components.PositionBadge
+import com.bismarck.voleimanager.app.ui.components.AssignedPositionBadge
+import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
+import com.bismarck.voleimanager.app.ui.components.assignedPositionTooltip
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
@@ -246,6 +248,7 @@ fun GameScreenContent(
             waitingList,
             teamA,
             teamB,
+            config.type.usesPositions,
             { subOut = null },
             { replacement ->
                 viewModel.substitutePlayer(p, replacement)
@@ -748,6 +751,8 @@ fun ActiveGameView(
     val locale = currentLocale()
     val assignedPositions by viewModel.assignedPositions.collectAsState()
     val compositionIncomplete by viewModel.compositionIncomplete.collectAsState()
+    val groupConfig by viewModel.currentGroupConfig.collectAsState()
+    val usesPositions = groupConfig.type.usesPositions
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.undo)
@@ -1313,6 +1318,7 @@ fun ActiveGameView(
                                         rebalancedPlayerIds,
                                         autoSelectedLoserPlayerIds,
                                         assignedPositions = assignedPositions,
+                                        positionTeamSize = groupConfig.teamSize,
                                         compositionIncomplete = compositionIncomplete,
                                         score = firstScore,
                                         showScore = showScore,
@@ -1357,6 +1363,7 @@ fun ActiveGameView(
                                         rebalancedPlayerIds,
                                         autoSelectedLoserPlayerIds,
                                         assignedPositions = assignedPositions,
+                                        positionTeamSize = groupConfig.teamSize,
                                         compositionIncomplete = compositionIncomplete,
                                         score = secondScore,
                                         showScore = showScore,
@@ -1453,6 +1460,7 @@ fun ActiveGameView(
                             rebalancedPlayerIds,
                             autoSelectedLoserPlayerIds,
                             assignedPositions = assignedPositions,
+                            positionTeamSize = groupConfig.teamSize,
                             compositionIncomplete = compositionIncomplete,
                             score = firstScore,
                             showScore = showScore,
@@ -1492,6 +1500,7 @@ fun ActiveGameView(
                             rebalancedPlayerIds,
                             autoSelectedLoserPlayerIds,
                             assignedPositions = assignedPositions,
+                            positionTeamSize = groupConfig.teamSize,
                             compositionIncomplete = compositionIncomplete,
                             score = secondScore,
                             showScore = showScore,
@@ -1578,6 +1587,7 @@ fun ActiveGameView(
                                         p,
                                         showElo,
                                         restingMap.containsKey(p.id),
+                                        usesPositions = usesPositions,
                                         onClick = ::openWaitingSheet
                                     )
                                 }
@@ -1902,6 +1912,7 @@ fun ActiveTeamCard(
     autoSelectedLoserPlayerIds: Set<Int>,
     assignedPositions: Map<Int, PlayerPosition> = emptyMap(),
     compositionIncomplete: Boolean = false,
+    positionTeamSize: Int = 6,
     score: Int,
     showScore: Boolean = true,
     showLatestPointBorder: Boolean = false,
@@ -2127,15 +2138,15 @@ fun ActiveTeamCard(
 
             if (!showScore) {HorizontalDivider(Modifier.padding(top = 8.dp), color = dividerColor)}
 
-            if (compositionIncomplete) {
-                Text(
-                    text = stringResource(R.string.composition_incomplete_warning),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 6.dp, start = 8.dp, end = 8.dp)
-                )
-            }
+//            if (compositionIncomplete) {
+//                Text(
+//                    text = stringResource(R.string.composition_incomplete_warning),
+//                    style = MaterialTheme.typography.bodySmall,
+//                    color = contentColor.copy(alpha = 0.7f),
+//                    textAlign = TextAlign.Center,
+//                    modifier = Modifier.padding(top = 6.dp, start = 8.dp, end = 8.dp)
+//                )
+//            }
 
             Column(
                 modifier = Modifier
@@ -2148,6 +2159,15 @@ fun ActiveTeamCard(
                     key(p.id) {
                         val isRebalancedPlayer = rebalancedPlayerIds.contains(p.id)
                         val isAutoSelectedLoser = autoSelectedLoserPlayerIds.contains(p.id)
+                        val assignedPosition = assignedPositions[p.id]
+                        val positionTooltip = assignedPosition?.let {
+                            assignedPositionTooltip(p, it, positionTeamSize)
+                        }
+                        val statusTooltip = playerStatusTooltipText(isRebalancedPlayer, isAutoSelectedLoser)
+                        // Tooltip única da linha: a explicação da borda vem antes do status.
+                        val rowTooltipText = listOfNotNull(positionTooltip, statusTooltip)
+                            .joinToString("\n\n")
+                            .ifBlank { null }
                         val tooltipState = rememberTooltipState(isPersistent = true)
                         val playerRowScope = rememberCoroutineScope()
                         val actualGamesToday = gamesPlayedMap[p.id] ?: 0
@@ -2160,7 +2180,7 @@ fun ActiveTeamCard(
                                 .clip(RoundedCornerShape(40.dp))
                                 .combinedClickable(
                                     onClick = {
-                                        if (isRebalancedPlayer || isAutoSelectedLoser) {
+                                        if (rowTooltipText != null) {
                                             playerRowScope.launch { tooltipState.show() }
                                         }
                                     },
@@ -2174,27 +2194,50 @@ fun ActiveTeamCard(
                             val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
 
                             val leadingPlaceable = subcompose("statusIcons") {
-                                val position = assignedPositions[p.id]
-                                if (isRebalancedPlayer || isAutoSelectedLoser || position != null) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(start = 8.dp)
-                                    ) {
-                                        if (position != null) {
-                                            PositionBadge(
-                                                position = position,
-                                                contentColor = contentColor.copy(alpha = 0.7f)
-                                            )
-                                            Spacer(Modifier.width(4.dp))
+                                if (isRebalancedPlayer || isAutoSelectedLoser || assignedPosition != null) {
+                                    val leadingRow: @Composable () -> Unit = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        ) {
+                                            if (assignedPosition != null) {
+                                                AssignedPositionBadge(
+                                                    player = p,
+                                                    position = assignedPosition,
+                                                    teamSize = positionTeamSize,
+                                                    contentColor = contentColor.copy(alpha = 0.7f)
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                            }
+                                            if (isRebalancedPlayer || isAutoSelectedLoser) {
+                                                PlayerStatusIcons(
+                                                    isRebalancedPlayer = isRebalancedPlayer,
+                                                    isAutoSelectedLoser = isAutoSelectedLoser,
+                                                    contentColor = contentColor
+                                                )
+                                            }
                                         }
-                                        if (isRebalancedPlayer || isAutoSelectedLoser) {
-                                            PlayerStatusIcons(
-                                                isRebalancedPlayer = isRebalancedPlayer,
-                                                isAutoSelectedLoser = isAutoSelectedLoser,
-                                                contentColor = contentColor,
-                                                tooltipState = tooltipState
-                                            )
+                                    }
+                                    if (rowTooltipText != null) {
+                                        TooltipBox(
+                                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                                TooltipAnchorPosition.Above
+                                            ),
+                                            tooltip = {
+                                                PlainTooltip(modifier = Modifier.padding(horizontal = 8.dp)) {
+                                                    Text(
+                                                        text = rowTooltipText,
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                }
+                                            },
+                                            state = tooltipState,
+                                            enableUserInput = false
+                                        ) {
+                                            leadingRow()
                                         }
+                                    } else {
+                                        leadingRow()
                                     }
                                 } else {
                                     Spacer(Modifier)
@@ -2295,71 +2338,49 @@ fun ActiveTeamCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Texto de status do jogador (rebalanceado / perdedor reaproveitado), ou `null` se não houver. */
+@Composable
+private fun playerStatusTooltipText(
+    isRebalancedPlayer: Boolean,
+    isAutoSelectedLoser: Boolean
+): String? = when {
+    isRebalancedPlayer && isAutoSelectedLoser ->
+        stringResource(R.string.rebalanced_and_auto_selected_loser_player_tooltip)
+    isRebalancedPlayer -> stringResource(R.string.rebalanced_player_tooltip)
+    isAutoSelectedLoser -> stringResource(R.string.auto_selected_loser_player_tooltip)
+    else -> null
+}
+
+/** Ícones de status. A tooltip é responsabilidade da linha do jogador, que a unifica. */
 @Composable
 private fun PlayerStatusIcons(
     isRebalancedPlayer: Boolean,
     isAutoSelectedLoser: Boolean,
     contentColor: Color,
-    tooltipState: TooltipState,
     modifier: Modifier = Modifier
 ) {
     val inlineIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
-    val rebalancedTooltip = stringResource(R.string.rebalanced_player_tooltip)
     val rebalancedIconCd = stringResource(R.string.rebalanced_player_icon_cd)
-    val autoSelectedLoserTooltip = stringResource(R.string.auto_selected_loser_player_tooltip)
     val autoSelectedLoserIconCd = stringResource(R.string.auto_selected_loser_player_icon_cd)
-    val rebalancedAndAutoSelectedLoserTooltip =
-        stringResource(R.string.rebalanced_and_auto_selected_loser_player_tooltip)
-    val inlineTooltipText = when {
-        isRebalancedPlayer && isAutoSelectedLoser -> rebalancedAndAutoSelectedLoserTooltip
-        isRebalancedPlayer -> rebalancedTooltip
-        isAutoSelectedLoser -> autoSelectedLoserTooltip
-        else -> null
-    }
 
-    val content: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-            if (isRebalancedPlayer) {
-                Icon(
-                    painter = painterResource(R.drawable.arrowsbothsides),
-                    contentDescription = rebalancedIconCd,
-                    tint = contentColor.copy(alpha = 0.7f),
-                    modifier = Modifier.size(inlineIconSize)
-                )
-                Spacer(Modifier.width(4.dp))
-            }
-            if (isAutoSelectedLoser) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.arrowdown),
-                    contentDescription = autoSelectedLoserIconCd,
-                    tint = contentColor.copy(alpha = 0.7f),
-                    modifier = Modifier.size(inlineIconSize)
-                )
-            }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
+        if (isRebalancedPlayer) {
+            Icon(
+                painter = painterResource(R.drawable.arrowsbothsides),
+                contentDescription = rebalancedIconCd,
+                tint = contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(inlineIconSize)
+            )
+            Spacer(Modifier.width(4.dp))
         }
-    }
-
-    if (!inlineTooltipText.isNullOrBlank()) {
-        TooltipBox(
-            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-            tooltip = {
-                PlainTooltip(
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text(
-                        text = inlineTooltipText,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            },
-            state = tooltipState,
-            enableUserInput = false
-        ) {
-            content()
+        if (isAutoSelectedLoser) {
+            Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.arrowdown),
+                contentDescription = autoSelectedLoserIconCd,
+                tint = contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(inlineIconSize)
+            )
         }
-    } else {
-        content()
     }
 }
 
@@ -3401,10 +3422,11 @@ fun PlayerCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = player.name, fontWeight = FontWeight.Bold)
                         if (usesPositions) {
-                            PlayerPosition.fromStoredValue(player.preferredPosition)?.let { preferred ->
-                                Spacer(Modifier.width(6.dp))
-                                PositionBadge(position = preferred)
-                            }
+                            PlayerPositionBadges(
+                                player = player,
+                                usesPositions = true,
+                                modifier = Modifier.padding(start = 6.dp)
+                            )
                         } else if (player.isPriority) {
                             Spacer(Modifier.width(4.dp))
                             Icon(
@@ -3511,7 +3533,14 @@ fun PlayerCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: Boolean, onClick: () -> Unit)
+fun WaitingPlayerCard(
+    index: Int,
+    player: Player,
+    showElo: Boolean,
+    isResting: Boolean,
+    usesPositions: Boolean = false,
+    onClick: () -> Unit
+)
 {    Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
@@ -3546,7 +3575,13 @@ fun WaitingPlayerCard(index: Int, player: Player, showElo: Boolean, isResting: B
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (player.isPriority) {
+                        if (usesPositions) {
+                            PlayerPositionBadges(
+                                player = player,
+                                usesPositions = true,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        } else if (player.isPriority) {
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,

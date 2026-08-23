@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.ui.components.TeamCompositionIndicator
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
@@ -132,6 +133,7 @@ fun ManualSetupScreen(
                         player = player,
                         currentSelection = selectionState[player.id],
                         showElo = showElo,
+                        usesPositions = groupType.usesPositions,
                         onSelect = { selection ->
                             val newState = selectionState.toMutableMap()
                             if (newState[player.id] == selection) {
@@ -178,6 +180,7 @@ fun ManualSetupScreen(
                                 player = player,
                                 currentSelection = selectionState[player.id],
                                 showElo = showElo,
+                                usesPositions = groupType.usesPositions,
                                 onSelect = { selection ->
                                     val newState = selectionState.toMutableMap()
                                     if (newState[player.id] == selection) {
@@ -306,6 +309,7 @@ fun PlayerSelectionRow(
     player: Player,
     currentSelection: String?, // "A", "B" ou null
     showElo: Boolean,
+    usesPositions: Boolean = false,
     onSelect: (String) -> Unit
 ) {
     Row(
@@ -334,7 +338,13 @@ fun PlayerSelectionRow(
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    if (player.isPriority) {
+                    if (usesPositions) {
+                        PlayerPositionBadges(
+                            player = player,
+                            usesPositions = true,
+                            modifier = Modifier.padding(start = 6.dp)
+                        )
+                    } else if (player.isPriority) {
                         Spacer(Modifier.width(4.dp))
                         Icon(
                             Icons.Default.Star,

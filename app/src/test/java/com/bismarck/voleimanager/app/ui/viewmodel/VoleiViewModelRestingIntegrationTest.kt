@@ -13,6 +13,7 @@ import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
+import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.data.model.TournamentMatch
 import com.bismarck.voleimanager.app.data.model.TournamentTeam
 import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
@@ -84,6 +85,68 @@ class VoleiViewModelRestingIntegrationTest {
 
         val waitingIds = vm.waitingList.value.map { it.id }.toSet()
         assertTrue("Losers must move to the waiting list", waitingIds.containsAll(losers.map { it.id }))
+    }
+
+    @Test
+    fun finishGame_thenStartNextRound_fixedPositions_splitsWinnersByEloAndFillsFromQueueInFairOrder() = runBlocking {
+        val env = createViewModel(
+            mode = BalancingMode.REBALANCE,
+            groupType = com.bismarck.voleimanager.app.data.model.GroupType.FIXED_POSITIONS.name,
+            teamSize = 2,
+            guaranteeSetter = true
+        )
+        val vm = env.vm
+
+        val allPlayers = listOf(
+            player(1, "A1", elo = 1500.0, preferredPosition = PlayerPosition.SETTER.name),
+            player(2, "A2", elo = 1400.0, preferredPosition = PlayerPosition.OUTSIDE_HITTER.name),
+            player(3, "B1", elo = 1000.0, preferredPosition = PlayerPosition.OPPOSITE.name),
+            player(4, "B2", elo = 900.0, preferredPosition = PlayerPosition.MIDDLE_BLOCKER.name),
+            player(5, "C1", elo = 1300.0, preferredPosition = PlayerPosition.SETTER.name),
+            player(6, "C2", elo = 1250.0, preferredPosition = PlayerPosition.OUTSIDE_HITTER.name)
+        )
+
+        val byName = insertPlayers(env, allPlayers)
+        val winners = listOf(byName.getValue("A1"), byName.getValue("A2"))
+        val losers = listOf(byName.getValue("B1"), byName.getValue("B2"))
+        val queue = listOf(byName.getValue("C1"), byName.getValue("C2"))
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+
+        vm.startManualGame(winners, losers, queue)
+        vm.finishGame("A")
+        awaitFinishGamePersistence(vm)
+
+        // Força a quebra de sequência para acionar o rebalanceamento (dividir vencedores por Elo
+        // e completar as vagas de posição faltantes com o topo da fila de espera).
+        forceStreak(vm, streak = 2, owner = "A")
+        vm.startNextRound()
+
+        val a1 = byName.getValue("A1")
+        val a2 = byName.getValue("A2")
+        val b1 = byName.getValue("B1")
+        val b2 = byName.getValue("B2")
+        val c1 = byName.getValue("C1")
+        val c2 = byName.getValue("C2")
+
+        // Para uma única vaga em aberto por time, a garantia de justiça mínima (metade
+        // arredondada pra cima = 1) cobre 100% da vaga: o topo "de verdade" da fila de espera
+        // entra estritamente por ordem de chegada, mesmo que outro jogador mais atrás encaixasse
+        // melhor na posição. Por isso C1 (topo da fila) completa o time A, e C2 completa o time B.
+        assertEquals(setOf(a1.id, c1.id), vm.teamA.value.map { it.id }.toSet())
+        assertEquals(setOf(a2.id, c2.id), vm.teamB.value.map { it.id }.toSet())
+
+        // Os perdedores vão para a fila de espera.
+        val waitingIds = vm.waitingList.value.map { it.id }.toSet()
+        assertEquals(setOf(b1.id, b2.id), waitingIds)
+
+        // A1 mantém a vaga de armador; C1 (também levantador) preenche a vaga de ataque restante
+        // do time A. No time B, ninguém encaixa de fato na vaga de armador (A2 e C2 são ambos
+        // ponteiros); o encaixe final escala C2 na vaga de ataque e força A2 na vaga de armador
+        // como último recurso, deixando a composição do time B incompleta.
+        assertEquals(PlayerPosition.SETTER, vm.assignedPositions.value[a1.id])
+        assertEquals(PlayerPosition.OUTSIDE_HITTER, vm.assignedPositions.value[c2.id])
+        assertEquals(PlayerPosition.SETTER, vm.assignedPositions.value[a2.id])
+        assertTrue(vm.compositionIncomplete.value)
     }
 
     @Test
@@ -738,7 +801,12 @@ class VoleiViewModelRestingIntegrationTest {
         return loaded.associateBy { it.name }
     }
 
-    private fun createViewModel(mode: BalancingMode): TestEnv {
+    private fun createViewModel(
+        mode: BalancingMode,
+        groupType: String = com.bismarck.voleimanager.app.data.model.GroupType.RECREATIONAL.name,
+        teamSize: Int = 2,
+        guaranteeSetter: Boolean = true
+    ): TestEnv {
         val app = ApplicationProvider.getApplicationContext<Application>()
         app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()
 
@@ -750,16 +818,26 @@ class VoleiViewModelRestingIntegrationTest {
             repo.saveGroupConfig(
                 GroupConfig(
                     groupName = DEFAULT_GROUP_NAME,
-                    teamSize = 2,
+                    teamSize = teamSize,
                     victoryLimit = 2,
                     priorityEnabled = false,
                     scoreEnabled = true,
-                    balancingMode = mode.name
+                    balancingMode = mode.name,
+                    groupType = groupType,
+                    guaranteeSetter = guaranteeSetter
                 )
             )
         }
         vm.loadGroupConfig(DEFAULT_GROUP_NAME)
-        vm.updateConfig(s = 2, l = 2, priorityP = false, scoreEnabled = true, balancingMode = mode.name)
+        vm.updateConfig(
+            s = teamSize,
+            l = 2,
+            priorityP = false,
+            scoreEnabled = true,
+            balancingMode = mode.name,
+            groupType = groupType,
+            guaranteeSetter = guaranteeSetter
+        )
         return TestEnv(vm, repo)
     }
 
@@ -775,13 +853,17 @@ class VoleiViewModelRestingIntegrationTest {
         id: Int,
         name: String,
         elo: Double = 1200.0,
-        isPriority: Boolean = false
+        isPriority: Boolean = false,
+        preferredPosition: String? = null,
+        secondaryPosition: String? = null
     ): Player = Player(
         id = id,
         name = name,
         elo = elo,
         isPriority = isPriority,
-        groupName = DEFAULT_GROUP_NAME
+        groupName = DEFAULT_GROUP_NAME,
+        preferredPosition = preferredPosition,
+        secondaryPosition = secondaryPosition
     )
 }
 

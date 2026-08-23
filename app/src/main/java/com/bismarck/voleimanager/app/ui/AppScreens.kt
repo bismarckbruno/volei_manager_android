@@ -1,4 +1,4 @@
-﻿package com.bismarck.voleimanager.app.ui
+package com.bismarck.voleimanager.app.ui
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -80,6 +80,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
@@ -494,6 +495,8 @@ fun HistoryScreen(
     val availableDates by viewModel.availableHistoryDates.collectAsState()
     val eloLogs by viewModel.currentGroupEloLogs.collectAsState()
     val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
+    val groupConfig by viewModel.currentGroupConfig.collectAsState()
+    val usesPositions = groupConfig.type.usesPositions
 
     var historyPlayerFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var showHistoryPlayerDialog by remember { mutableStateOf(false) }
@@ -662,12 +665,18 @@ fun HistoryScreen(
         showElo,
         locale,
         iconBodyMediumPx,
-        iconBodySmallPx
+        iconBodySmallPx,
+        usesPositions
     ) {
         if (historyPlayerList.isEmpty() || availableContentPx <= 0) true
         else historyPlayerList.all { info ->
+            val badgeCount = if (usesPositions) {
+                listOfNotNull(info.player.preferredPosition, info.player.secondaryPosition).size
+            } else 0
             val nameW = textMeasurer.measure(info.player.name, nameTextStyle).size.width +
-                if (info.player.isPriority) starGapPx + iconBodyMediumPx else 0
+                if (usesPositions) {
+                    if (badgeCount > 0) badgeCount * (starGapPx + iconBodyMediumPx) else 0
+                } else if (info.player.isPriority) starGapPx + iconBodyMediumPx else 0
 
             val eloW = if (showElo) {
                 iconBodyMediumPx +
@@ -997,7 +1006,8 @@ fun HistoryScreen(
                                         useSideBySide = playersSideBySide,
                                         isDeleted = info.isDeleted,
                                         playerSortMode = playerSortMode,
-                                        highlightFilterBorder = isActiveFilteredPlayer(info.name)
+                                        highlightFilterBorder = isActiveFilteredPlayer(info.name),
+                                        usesPositions = usesPositions
                                     )
                                 }
                             }
@@ -1516,7 +1526,8 @@ fun HistoryScreen(
                                         useSideBySide = playersSideBySide,
                                         isDeleted = info.isDeleted,
                                         playerSortMode = playerSortMode,
-                                        highlightFilterBorder = isActiveFilteredPlayer(info.name)
+                                        highlightFilterBorder = isActiveFilteredPlayer(info.name),
+                                        usesPositions = usesPositions
                                     )
                                 }
                             }
@@ -1764,7 +1775,8 @@ fun HistoryPlayerCard(
     useSideBySide: Boolean = true,
     isDeleted: Boolean = false,
     playerSortMode: PlayerSortMode = PlayerSortMode.ALPHABETICAL,
-    highlightFilterBorder: Boolean = false
+    highlightFilterBorder: Boolean = false,
+    usesPositions: Boolean = false
 ) {
     val showDeletedIndicator = isDeleted && playerSortMode == PlayerSortMode.ALPHABETICAL
     val deletedPlayerTooltip = stringResource(R.string.player_was_deleted)
@@ -1876,7 +1888,13 @@ fun HistoryPlayerCard(
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium
                                     )
-                                    if (player.isPriority) {
+                                    if (usesPositions) {
+                                        PlayerPositionBadges(
+                                            player = player,
+                                            usesPositions = true,
+                                            modifier = Modifier.padding(start = 4.dp)
+                                        )
+                                        } else if (player.isPriority) {
                                         Spacer(Modifier.width(2.dp))
                                         Icon(
                                             Icons.Default.Star,
@@ -1951,7 +1969,13 @@ fun HistoryPlayerCard(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
-                                if (player.isPriority) {
+                                if (usesPositions) {
+                                    PlayerPositionBadges(
+                                        player = player,
+                                        usesPositions = true,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                    } else if (player.isPriority) {
                                     Spacer(Modifier.width(2.dp))
                                     Icon(
                                         Icons.Default.Star,
@@ -2406,7 +2430,9 @@ fun FAQScreen() {
         stringResource(R.string.faq_q7) to stringResource(R.string.faq_a7),
         stringResource(R.string.faq_q6) to stringResource(R.string.faq_a6),
         stringResource(R.string.faq_q8) to stringResource(R.string.faq_a8),
-        stringResource(R.string.faq_q9) to stringResource(R.string.faq_a9)
+        stringResource(R.string.faq_q9) to stringResource(R.string.faq_a9),
+        stringResource(R.string.faq_q11) to stringResource(R.string.faq_a11),
+        stringResource(R.string.faq_q12) to stringResource(R.string.faq_a12)
     )
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
@@ -2765,7 +2791,8 @@ fun ExportableImageContent(
     showScore: Boolean,
     matchDurationsMinutes: Map<Int, Int>? = null,
     averagePlayersEloText: String? = null,
-    averageMatchDurationText: String? = null
+    averageMatchDurationText: String? = null,
+    usesPositions: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -2908,7 +2935,8 @@ fun ExportableImageContent(
                 victories = info.victories,
                 playedMinutes = info.playedMinutes,
                 isDeleted = info.isDeleted,
-                playerSortMode = playerSortMode ?: PlayerSortMode.ALPHABETICAL
+                playerSortMode = playerSortMode ?: PlayerSortMode.ALPHABETICAL,
+                usesPositions = usesPositions
             )
         }
     }

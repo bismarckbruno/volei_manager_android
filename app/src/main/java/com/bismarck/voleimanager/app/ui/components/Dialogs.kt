@@ -130,6 +130,7 @@ fun SubstitutionDialog(
     waitingList: List<Player>,
     teamA: List<Player>,
     teamB: List<Player>,
+    usesPositions: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (Player) -> Unit
 ) {
@@ -211,7 +212,12 @@ fun SubstitutionDialog(
                                                     playerIn.name,
                                                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
                                                 )
-                                                if (playerIn.isPriority) {
+                                                if (usesPositions) {
+                                                    PlayerPositionBadges(
+                                                        player = playerIn,
+                                                        usesPositions = true
+                                                    )
+                                                } else if (playerIn.isPriority) {
                                                     Icon(
                                                         Icons.Default.Star,
                                                         contentDescription = null,
@@ -590,9 +596,10 @@ fun GroupConfigDialog(
     initialScoreEnabled: Boolean = true,
     initialBalancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
     initialGroupType: String = GroupType.RECREATIONAL.name,
+    initialGuaranteeSetter: Boolean = true,
     isGameInProgress: Boolean = false,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int, Boolean, Boolean, String, String) -> Unit
+    onConfirm: (Int, Int, Boolean, Boolean, String, String, Boolean) -> Unit
 ) {
     val initialType = GroupType.fromStoredValue(initialGroupType)
     var groupType by remember { mutableStateOf(initialType) }
@@ -601,7 +608,15 @@ fun GroupConfigDialog(
     var priorityEnabled by remember { mutableStateOf(initialPriorityEnabled) }
     var scoreEnabled by remember { mutableStateOf(initialScoreEnabled) }
     var balancingMode by remember { mutableStateOf(initialBalancingMode) }
+    var guaranteeSetter by remember { mutableStateOf(initialGuaranteeSetter) }
     var showTypeChangeConfirmation by remember { mutableStateOf(false) }
+
+    // De 6 a 7 jogadores por time, garantir levantador é obrigatório (vaga de levantador tem
+    // posição específica reservada nessas composições); só é possível desligar de 2 a 5.
+    val forcesGuaranteeSetter = groupType.usesPositions && teamSize.roundToInt() >= 6
+    LaunchedEffect(forcesGuaranteeSetter) {
+        if (forcesGuaranteeSetter) guaranteeSetter = true
+    }
 
     val typeChanged = groupType != initialType
     // Trocar o tipo é destrutivo quando cancela uma partida ou reduz o time além do novo limite.
@@ -614,7 +629,8 @@ fun GroupConfigDialog(
             priorityEnabled && groupType.supportsPriority,
             scoreEnabled,
             balancingMode,
-            groupType.name
+            groupType.name,
+            guaranteeSetter || forcesGuaranteeSetter
         )
     }
 
@@ -645,6 +661,12 @@ fun GroupConfigDialog(
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.group_type_long_press_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(8.dp))
                 GroupType.selectableTypes.forEach { type ->
                     GroupTypeOptionRow(
@@ -728,6 +750,19 @@ fun GroupConfigDialog(
                         tooltip = stringResource(R.string.min_priority_tooltip),
                         checked = priorityEnabled,
                         onCheckedChange = { priorityEnabled = it }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                } else if (groupType.usesPositions) {
+                    TooltipToggleRow(
+                        label = stringResource(R.string.guarantee_setter),
+                        tooltip = if (forcesGuaranteeSetter) {
+                            stringResource(R.string.guarantee_setter_locked_tooltip)
+                        } else {
+                            stringResource(R.string.guarantee_setter_tooltip)
+                        },
+                        checked = guaranteeSetter || forcesGuaranteeSetter,
+                        onCheckedChange = { guaranteeSetter = it },
+                        enabled = !forcesGuaranteeSetter
                     )
                     Spacer(Modifier.height(8.dp))
                 }
@@ -823,7 +858,8 @@ private fun TooltipToggleRow(
     label: String,
     tooltip: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -847,6 +883,7 @@ private fun TooltipToggleRow(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(32.dp))
                 .combinedClickable(
+                    enabled = enabled,
                     onClick = {
                         tooltipState.dismiss()
                         onCheckedChange(!checked)
@@ -859,7 +896,7 @@ private fun TooltipToggleRow(
                     }
                 )
         ) {
-            Switch(checked = checked, onCheckedChange = {
+            Switch(checked = checked, enabled = enabled, onCheckedChange = {
                 tooltipState.dismiss()
                 onCheckedChange(it)
             })
@@ -892,6 +929,12 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.group_type_long_press_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(8.dp))
                 GroupType.selectableTypes.forEach { type ->
                     GroupTypeOptionRow(
@@ -912,30 +955,58 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
     )
 }
 
-/** Opção de tipo de grupo com título e descrição curta. */
+/** Opção de tipo de grupo com título e tooltip (toque longo) explicando o modo. */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun GroupTypeOptionRow(
     type: GroupType,
     selected: Boolean,
     onSelect: () -> Unit
 ) {
-    Row(
-        verticalAlignment = Alignment.Top,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onSelect)
-            .padding(vertical = 4.dp)
+    val scope = rememberCoroutineScope()
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val haptic = LocalHapticFeedback.current
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = {
+            PlainTooltip {
+                Text(
+                    text = groupTypeDescription(type),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        state = tooltipState
     ) {
-        RadioButton(selected = selected, onClick = onSelect)
-        Spacer(Modifier.width(4.dp))
-        Column(modifier = Modifier.padding(top = 12.dp)) {
-            Text(text = groupTypeLabel(type), fontWeight = FontWeight.Medium)
-            Text(
-                text = groupTypeDescription(type),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .combinedClickable(
+                    onClick = {
+                        tooltipState.dismiss()
+                        onSelect()
+                    },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            tooltipState.show()
+                        }
+                    }
+                )
+                .padding(vertical = 4.dp)
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = {
+                    tooltipState.dismiss()
+                    onSelect()
+                }
             )
+            Spacer(Modifier.width(8.dp))
+            Text(text = groupTypeLabel(type), fontWeight = FontWeight.Medium)
         }
     }
 }
