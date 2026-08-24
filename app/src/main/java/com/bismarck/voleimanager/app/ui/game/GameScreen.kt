@@ -40,7 +40,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -2179,38 +2178,6 @@ fun ActiveTeamCard(
     }
 
     @Composable
-    fun PortraitScoreAndWin() {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = 48.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (showScore) {
-                ScoreCounter()
-            }
-            Button(
-                onClick = onWin,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .widthIn(min = 80.dp, max = 160.dp)
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.victory_short),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = buttonTextColor
-                )
-            }
-        }
-    }
-
-    @Composable
     fun TeamPlayers() {
         Column(
             modifier = Modifier
@@ -2416,12 +2383,11 @@ fun ActiveTeamCard(
                 } else {
                     HorizontalDivider(Modifier.padding(top = 8.dp), color = dividerColor)
                 }
-                TeamPlayers()
                 Button(
                     onClick = onWin,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp),
+                        .height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
                     contentPadding = PaddingValues(0.dp)
                 ) {
@@ -2432,17 +2398,74 @@ fun ActiveTeamCard(
                         color = buttonTextColor
                     )
                 }
+                TeamPlayers()
+
             } else {
                 if (portraitPlayersFirst) {
                     TeamPlayers()
                     Spacer(Modifier.height(4.dp))
-                    PortraitScoreAndWin()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 48.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Button(
+                            onClick = onWin,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.victory_short),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = buttonTextColor
+                            )
+                        }
+
+                        if (showScore) {
+                            ScoreCounter()
+                        }
+                    }
                     Spacer(Modifier.height(4.dp))
                     TeamHeader()
                 } else {
                     TeamHeader()
                     Spacer(Modifier.height(4.dp))
-                    PortraitScoreAndWin()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 48.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (showScore) {
+                            ScoreCounter()
+                        }
+                        Button(
+                            onClick = onWin,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.victory_short),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = buttonTextColor
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(4.dp))
                     TeamPlayers()
                 }
