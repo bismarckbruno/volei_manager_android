@@ -16,6 +16,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -142,6 +143,18 @@ private fun currentLocale(): Locale {
     }
 }
 
+private fun orderedActiveTeamPlayers(
+    players: List<Player>,
+    assignedSlotIndices: Map<Int, Int>?,
+    reverseOrder: Boolean
+): List<Player> {
+    if (assignedSlotIndices.isNullOrEmpty()) return players
+    val ordered = players.sortedWith(
+        compareBy<Player>({ assignedSlotIndices[it.id] ?: Int.MAX_VALUE }, { it.name.lowercase(Locale.ROOT) })
+    )
+    return if (reverseOrder) ordered.asReversed() else ordered
+}
+
 @Composable
 fun GameScreenContent(
     viewModel: VoleiViewModel,
@@ -169,6 +182,8 @@ fun GameScreenContent(
     val presentIds by viewModel.presentPlayerIds.collectAsState()
     val hasPrev by viewModel.hasPreviousMatch.collectAsState()
     val config by viewModel.currentGroupConfig.collectAsState()
+    val assignedPositions by viewModel.assignedPositions.collectAsState()
+    val assignedSlotIndices by viewModel.assignedSlotIndices.collectAsState()
     val streak by viewModel.currentStreak.collectAsState()
     val owner by viewModel.streakOwner.collectAsState()
     val winners by viewModel.lastWinners.collectAsState()
@@ -249,6 +264,9 @@ fun GameScreenContent(
             teamA,
             teamB,
             config.type.usesPositions,
+            config.teamSize,
+            assignedPositions,
+            assignedSlotIndices,
             { subOut = null },
             { replacement ->
                 viewModel.substitutePlayer(p, replacement)
@@ -750,6 +768,7 @@ fun ActiveGameView(
     val resources = LocalResources.current
     val locale = currentLocale()
     val assignedPositions by viewModel.assignedPositions.collectAsState()
+    val assignedSlotIndices by viewModel.assignedSlotIndices.collectAsState()
     val compositionIncomplete by viewModel.compositionIncomplete.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val usesPositions = groupConfig.type.usesPositions
@@ -935,15 +954,20 @@ fun ActiveGameView(
         val timeLabel = SimpleDateFormat("HH:mm", locale).format(Date(log.timestamp))
         val targetTeamLabel = substitutionLocationLabel(log.targetTeam)
         val sourceLabel = substitutionLocationLabel(log.incomingSource)
-        val description = if (log.incomingSource == "WAIT") {
-            resources.getString(
+        val description = when (log.incomingSource) {
+            "WAIT" -> resources.getString(
                 R.string.substitution_history_from_waiting,
                 log.playerInName,
                 targetTeamLabel,
                 log.playerOutName
             )
-        } else {
-            resources.getString(
+            "BENCH" -> resources.getString(
+                R.string.substitution_history_from_team_bench,
+                log.playerInName,
+                targetTeamLabel,
+                log.playerOutName
+            )
+            else -> resources.getString(
                 R.string.substitution_history_team_swap,
                 log.playerInName,
                 targetTeamLabel,
@@ -1246,6 +1270,28 @@ fun ActiveGameView(
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val orderedFirstPlayers = remember(firstPlayers, assignedSlotIndices, isLandscape, usesPositions) {
+        if (usesPositions) {
+            orderedActiveTeamPlayers(
+                players = firstPlayers,
+                assignedSlotIndices = assignedSlotIndices,
+                reverseOrder = !isLandscape
+            )
+        } else {
+            firstPlayers
+        }
+    }
+    val orderedSecondPlayers = remember(secondPlayers, assignedSlotIndices, isLandscape, usesPositions) {
+        if (usesPositions) {
+            orderedActiveTeamPlayers(
+                players = secondPlayers,
+                assignedSlotIndices = assignedSlotIndices,
+                reverseOrder = false
+            )
+        } else {
+            secondPlayers
+        }
+    }
 
     val view = LocalView.current
     val navBarColor = MaterialTheme.colorScheme.surfaceContainerLow.toArgb()
@@ -1304,7 +1350,7 @@ fun ActiveGameView(
                                     ActiveTeamCard(
                                         firstName,
                                         firstTeamId,
-                                        firstPlayers,
+                                        orderedFirstPlayers,
                                         firstCardColor,
                                         firstBtnColor,
                                         firstBtnTextColor,
@@ -1318,8 +1364,10 @@ fun ActiveGameView(
                                         rebalancedPlayerIds,
                                         autoSelectedLoserPlayerIds,
                                         assignedPositions = assignedPositions,
+                                        usesPositions = usesPositions,
                                         positionTeamSize = groupConfig.teamSize,
                                         compositionIncomplete = compositionIncomplete,
+                                        portraitPlayersFirst = true,
                                         score = firstScore,
                                         showScore = showScore,
                                         showLatestPointBorder = firstShowLatestPointBorder,
@@ -1349,7 +1397,7 @@ fun ActiveGameView(
                                     ActiveTeamCard(
                                         secondName,
                                         secondTeamId,
-                                        secondPlayers,
+                                        orderedSecondPlayers,
                                         secondCardColor,
                                         secondBtnColor,
                                         secondBtnTextColor,
@@ -1363,8 +1411,10 @@ fun ActiveGameView(
                                         rebalancedPlayerIds,
                                         autoSelectedLoserPlayerIds,
                                         assignedPositions = assignedPositions,
+                                        usesPositions = usesPositions,
                                         positionTeamSize = groupConfig.teamSize,
                                         compositionIncomplete = compositionIncomplete,
+                                        portraitPlayersFirst = false,
                                         score = secondScore,
                                         showScore = showScore,
                                         showLatestPointBorder = secondShowLatestPointBorder,
@@ -1446,7 +1496,7 @@ fun ActiveGameView(
                         ActiveTeamCard(
                             firstName,
                             firstTeamId,
-                            firstPlayers,
+                            orderedFirstPlayers,
                             firstCardColor,
                             firstBtnColor,
                             firstBtnTextColor,
@@ -1460,8 +1510,10 @@ fun ActiveGameView(
                             rebalancedPlayerIds,
                             autoSelectedLoserPlayerIds,
                             assignedPositions = assignedPositions,
+                            usesPositions = usesPositions,
                             positionTeamSize = groupConfig.teamSize,
                             compositionIncomplete = compositionIncomplete,
+                            portraitPlayersFirst = true,
                             score = firstScore,
                             showScore = showScore,
                             showLatestPointBorder = firstShowLatestPointBorder,
@@ -1486,7 +1538,7 @@ fun ActiveGameView(
                         ActiveTeamCard(
                             secondName,
                             secondTeamId,
-                            secondPlayers,
+                            orderedSecondPlayers,
                             secondCardColor,
                             secondBtnColor,
                             secondBtnTextColor,
@@ -1500,8 +1552,10 @@ fun ActiveGameView(
                             rebalancedPlayerIds,
                             autoSelectedLoserPlayerIds,
                             assignedPositions = assignedPositions,
+                            usesPositions = usesPositions,
                             positionTeamSize = groupConfig.teamSize,
                             compositionIncomplete = compositionIncomplete,
+                            portraitPlayersFirst = false,
                             score = secondScore,
                             showScore = showScore,
                             showLatestPointBorder = secondShowLatestPointBorder,
@@ -1911,8 +1965,10 @@ fun ActiveTeamCard(
     rebalancedPlayerIds: Set<Int>,
     autoSelectedLoserPlayerIds: Set<Int>,
     assignedPositions: Map<Int, PlayerPosition> = emptyMap(),
+    usesPositions: Boolean = false,
     compositionIncomplete: Boolean = false,
     positionTeamSize: Int = 6,
+    portraitPlayersFirst: Boolean = false,
     score: Int,
     showScore: Boolean = true,
     showLatestPointBorder: Boolean = false,
@@ -1937,6 +1993,407 @@ fun ActiveTeamCard(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val teamNameStyle = if (!isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium
 
+    @Composable
+    fun TeamHeader() {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            SubcomposeLayout(modifier = Modifier.fillMaxWidth()) { constraints ->
+                val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
+
+                val leadingPlaceable = subcompose("avgElo") {
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                        tooltip = {
+                            PlainTooltip(
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Text(
+                                    text = avgEloTooltipText,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        },
+                        state = avgEloTooltipState,
+                        enableUserInput = false
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(48.dp))
+                                .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
+                                .combinedClickable(
+                                    onClick = { avgEloTooltipState.dismiss() },
+                                    onLongClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        avgEloTooltipScope.launch {
+                                            avgEloTooltipState.dismiss()
+                                            avgEloTooltipState.show()
+                                        }
+                                    }
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = avgEloIndicatorCd,
+                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
+                                tint = contentColor.copy(alpha = 0.7f)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                EloCalculator.formatElo(avgElo),
+                                fontSize = 12.sp,
+                                color = contentColor.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }.first().measure(looseConstraints)
+
+                val trailingPlaceable = subcompose("streak") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(48.dp))
+                            .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
+                            .combinedClickable(
+                                onClick = { },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onStreakLongClick(streakTeamId)
+                                }
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Spacer(Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = stringResource(R.string.edit_streak_cd),
+                            tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() })
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            text = if (streak > 0) streak.toString() else "--",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f)
+                        )
+                    }
+                }.first().measure(looseConstraints)
+
+                val sideReserve = maxOf(leadingPlaceable.width, trailingPlaceable.width)
+                val centerMaxWidth = (constraints.maxWidth - sideReserve * 2).coerceAtLeast(0)
+
+                val unboundedConstraints = Constraints(
+                    minWidth = 0,
+                    minHeight = 0,
+                    maxWidth = Constraints.Infinity,
+                    maxHeight = Constraints.Infinity
+                )
+                val fullNameNaturalWidth = subcompose("nameMeasure") {
+                    Text(
+                        name,
+                        style = teamNameStyle,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }.first().measure(unboundedConstraints).width
+                val displayName = if (fullNameNaturalWidth > centerMaxWidth) shortName else name
+
+                val centerPlaceable = subcompose("name") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Text(
+                            displayName,
+                            style = teamNameStyle,
+                            fontWeight = FontWeight.Bold,
+                            color = buttonColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }.first().measure(looseConstraints.copy(maxWidth = centerMaxWidth))
+
+                val layoutWidth = constraints.maxWidth
+                val layoutHeight = maxOf(leadingPlaceable.height, trailingPlaceable.height, centerPlaceable.height)
+
+                layout(layoutWidth, layoutHeight) {
+                    leadingPlaceable.placeRelative(0, (layoutHeight - leadingPlaceable.height) / 2)
+                    trailingPlaceable.placeRelative(
+                        layoutWidth - trailingPlaceable.width,
+                        (layoutHeight - trailingPlaceable.height) / 2
+                    )
+                    centerPlaceable.placeRelative(
+                        (layoutWidth - centerPlaceable.width) / 2,
+                        (layoutHeight - centerPlaceable.height) / 2
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun ScoreCounter() {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .background(buttonColor.copy(alpha = 0.1f), shape = CircleShape)
+                .padding(horizontal = 0.dp, vertical = 0.dp)
+        ) {
+            RepeatingScoreButton(
+                onClick = onDecrementScore,
+                canRepeat = { score > 0 },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Remove,
+                    contentDescription = stringResource(R.string.decrease_score),
+                    tint = buttonColor
+                )
+            }
+            Spacer(Modifier.width(4.dp))
+            ScoreValueIndicator(
+                score = score,
+                textColor = buttonColor,
+                indicatorColor = buttonColor,
+                showLatestPointBorder = showLatestPointBorder,
+                showRotationIndicator = showRotationIndicator,
+                tooltipText = scoreIndicatorTooltip
+            )
+            Spacer(Modifier.width(4.dp))
+            RepeatingScoreButton(
+                onClick = onIncrementScore,
+                canRepeat = { score < 99 },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = stringResource(R.string.increase_score),
+                    tint = buttonColor
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun PortraitScoreAndWin() {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (showScore) {
+                ScoreCounter()
+            }
+            Button(
+                onClick = onWin,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .widthIn(min = 80.dp, max = 160.dp)
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.victory_short),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = buttonTextColor
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun TeamPlayers() {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.SpaceEvenly,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            players.forEach { p ->
+                key(p.id) {
+                    val isRebalancedPlayer = rebalancedPlayerIds.contains(p.id)
+                    val isAutoSelectedLoser = autoSelectedLoserPlayerIds.contains(p.id)
+                    val assignedPosition = assignedPositions[p.id]
+                    val isBenchLibero = usesPositions && positionTeamSize == 7 && assignedPosition == PlayerPosition.LIBERO
+                    val positionTooltip = listOfNotNull(
+                        if (isBenchLibero) stringResource(R.string.team_bench_libero_tooltip) else null,
+                        assignedPosition?.let { assignedPositionTooltip(p, it, positionTeamSize) }
+                    ).joinToString("\n\n").ifBlank { null }
+                    val statusTooltip = playerStatusTooltipText(isRebalancedPlayer, isAutoSelectedLoser)
+                    val rowTooltipText = listOfNotNull(positionTooltip, statusTooltip)
+                        .joinToString("\n\n")
+                        .ifBlank { null }
+                    val tooltipState = rememberTooltipState(isPersistent = true)
+                    val playerRowScope = rememberCoroutineScope()
+                    val actualGamesToday = gamesPlayedMap[p.id] ?: 0
+                    val hasToll = p.dailyToll > 0 && p.tollDate == targetDate
+
+                    SubcomposeLayout(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 40.dp)
+                            .clip(RoundedCornerShape(40.dp))
+                            .then(
+                                if (isBenchLibero) {
+                                    Modifier.border(1.dp, contentColor.copy(alpha = 0.4f), RoundedCornerShape(40.dp))
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .combinedClickable(
+                                onClick = {
+                                    if (rowTooltipText != null) {
+                                        playerRowScope.launch { tooltipState.show() }
+                                    }
+                                },
+                                onLongClick = {
+                                    tooltipState.dismiss()
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onPlayerClick(p)
+                                }
+                            )
+                    ) { constraints ->
+                        val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
+
+                        val leadingPlaceable = subcompose("statusIcons") {
+                            if (isRebalancedPlayer || isAutoSelectedLoser || assignedPosition != null) {
+                                val leadingRow: @Composable () -> Unit = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    ) {
+                                        if (assignedPosition != null) {
+                                            AssignedPositionBadge(
+                                                player = p,
+                                                position = assignedPosition,
+                                                teamSize = positionTeamSize,
+                                                contentColor = contentColor.copy(alpha = 0.7f)
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                        }
+                                        if (isRebalancedPlayer || isAutoSelectedLoser) {
+                                            PlayerStatusIcons(
+                                                isRebalancedPlayer = isRebalancedPlayer,
+                                                isAutoSelectedLoser = isAutoSelectedLoser,
+                                                contentColor = contentColor
+                                            )
+                                        }
+                                    }
+                                }
+                                if (rowTooltipText != null) {
+                                    TooltipBox(
+                                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                            TooltipAnchorPosition.Above
+                                        ),
+                                        tooltip = {
+                                            PlainTooltip(modifier = Modifier.padding(horizontal = 8.dp)) {
+                                                Text(
+                                                    text = rowTooltipText,
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                        },
+                                        state = tooltipState,
+                                        enableUserInput = false
+                                    ) {
+                                        leadingRow()
+                                    }
+                                } else {
+                                    leadingRow()
+                                }
+                            } else {
+                                Spacer(Modifier)
+                            }
+                        }.first().measure(looseConstraints)
+
+                        val trailingPlaceable = subcompose("toll") {
+                            if (showToll) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.volei_manager_icon),
+                                        contentDescription = null,
+                                        tint = contentColor.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(
+                                            with(LocalDensity.current) {
+                                                MaterialTheme.typography.bodyMedium.fontSize.toDp()
+                                            }
+                                        )
+                                    )
+                                    Spacer(Modifier.width(2.dp))
+                                    Text(
+                                        text = actualGamesToday.toString(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = contentColor.copy(alpha = 0.7f),
+                                        maxLines = 1
+                                    )
+                                    if (hasToll) {
+                                        Spacer(Modifier.width(2.dp))
+                                        Text(
+                                            text = "+${p.dailyToll}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = contentColor.copy(alpha = 0.7f),
+                                            maxLines = 1
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                            } else {
+                                Spacer(Modifier)
+                            }
+                        }.first().measure(looseConstraints)
+
+                        val sideReserve = maxOf(leadingPlaceable.width, trailingPlaceable.width)
+                        val centerMaxWidth = (constraints.maxWidth - sideReserve * 2).coerceAtLeast(0)
+
+                        val centerPlaceable = subcompose("identity") {
+                            PlayerIdentityInlineRow(
+                                name = p.name,
+                                showPriority = !usesPositions && p.isPriority,
+                                showElo = showElo,
+                                eloText = EloCalculator.formatElo(p.elo),
+                                contentColor = contentColor,
+                                enableMarquee = isLandscape
+                            )
+                        }.first().measure(looseConstraints.copy(maxWidth = centerMaxWidth))
+
+                        val layoutWidth = constraints.maxWidth
+                        val layoutHeight = maxOf(
+                            leadingPlaceable.height,
+                            trailingPlaceable.height,
+                            centerPlaceable.height,
+                            constraints.minHeight
+                        )
+
+                        layout(layoutWidth, layoutHeight) {
+                            leadingPlaceable.placeRelative(0, (layoutHeight - leadingPlaceable.height) / 2)
+                            trailingPlaceable.placeRelative(
+                                layoutWidth - trailingPlaceable.width,
+                                (layoutHeight - trailingPlaceable.height) / 2
+                            )
+                            centerPlaceable.placeRelative(
+                                (layoutWidth - centerPlaceable.width) / 2,
+                                (layoutHeight - centerPlaceable.height) / 2
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1951,388 +2408,44 @@ fun ActiveTeamCard(
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                SubcomposeLayout(modifier = Modifier.fillMaxWidth()) { constraints ->
-                    val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-
-                    val leadingPlaceable = subcompose("avgElo") {
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                            tooltip = {
-                                PlainTooltip(
-                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                ) {
-                                    Text(
-                                        text = avgEloTooltipText,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            },
-                            state = avgEloTooltipState,
-                            enableUserInput = false
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(48.dp))
-                                    .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
-                                    .combinedClickable(
-                                        onClick = {
-                                            avgEloTooltipState.dismiss()
-                                        },
-                                        onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            avgEloTooltipScope.launch {
-                                                avgEloTooltipState.dismiss()
-                                                avgEloTooltipState.show()
-                                            }
-                                        }
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.WorkspacePremium,
-                                    contentDescription = avgEloIndicatorCd,
-                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
-                                    tint = contentColor.copy(alpha = 0.7f)
-                                )
-                                Spacer(Modifier.width(2.dp))
-                                Text(
-                                    EloCalculator.formatElo(avgElo),
-                                    fontSize = 12.sp,
-                                    color = contentColor.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                    }.first().measure(looseConstraints)
-
-                    val trailingPlaceable = subcompose("streak") {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(48.dp))
-                                .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
-                                .combinedClickable(
-                                    onClick = { },
-                                    onLongClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onStreakLongClick(streakTeamId)
-                                    }
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Spacer(Modifier.width(2.dp))
-                            Icon(
-                                imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = stringResource(R.string.edit_streak_cd),
-                                tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
-                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() })
-                            )
-                            Spacer(Modifier.width(2.dp))
-                            Text(
-                                text = if (streak > 0) streak.toString() else "--",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f)
-                            )
-                        }
-                    }.first().measure(looseConstraints)
-
-                    val sideReserve = maxOf(leadingPlaceable.width, trailingPlaceable.width)
-                    val centerMaxWidth = (constraints.maxWidth - sideReserve * 2).coerceAtLeast(0)
-
-                    val unboundedConstraints = Constraints(
-                        minWidth = 0,
-                        minHeight = 0,
-                        maxWidth = Constraints.Infinity,
-                        maxHeight = Constraints.Infinity
-                    )
-                    val fullNameNaturalWidth = subcompose("nameMeasure") {
-                        Text(
-                            name,
-                            style = teamNameStyle,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }.first().measure(unboundedConstraints).width
-                    val displayName = if (fullNameNaturalWidth > centerMaxWidth) shortName else name
-
-                    val centerPlaceable = subcompose("name") {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                        ) {
-                            Text(
-                                displayName,
-                                style = teamNameStyle,
-                                fontWeight = FontWeight.Bold,
-                                color = buttonColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }.first().measure(looseConstraints.copy(maxWidth = centerMaxWidth))
-
-                    val layoutWidth = constraints.maxWidth
-                    val layoutHeight = maxOf(leadingPlaceable.height, trailingPlaceable.height, centerPlaceable.height)
-
-                    layout(layoutWidth, layoutHeight) {
-                        leadingPlaceable.placeRelative(0, (layoutHeight - leadingPlaceable.height) / 2)
-                        trailingPlaceable.placeRelative(
-                            layoutWidth - trailingPlaceable.width,
-                            (layoutHeight - trailingPlaceable.height) / 2
-                        )
-                        centerPlaceable.placeRelative(
-                            (layoutWidth - centerPlaceable.width) / 2,
-                            (layoutHeight - centerPlaceable.height) / 2
-                        )
-                    }
+            if (isLandscape) {
+                TeamHeader()
+                if (showScore) {
+                    Spacer(Modifier.height(4.dp))
+                    ScoreCounter()
+                } else {
+                    HorizontalDivider(Modifier.padding(top = 8.dp), color = dividerColor)
                 }
-            }
-
-            // Score Counter
-            if (showScore) {
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
+                TeamPlayers()
+                Button(
+                    onClick = onWin,
                     modifier = Modifier
-                        .background(buttonColor.copy(alpha = 0.1f), shape = CircleShape)
-                        .padding(horizontal = 0.dp, vertical = 0.dp)
+                        .fillMaxWidth()
+                        .height(40.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    RepeatingScoreButton(
-                        onClick = onDecrementScore,
-                        canRepeat = { score > 0 },
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Remove,
-                            contentDescription = stringResource(R.string.decrease_score),
-                            tint = buttonColor
-                        )
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    ScoreValueIndicator(
-                        score = score,
-                        textColor = buttonColor,
-                        indicatorColor = buttonColor,
-                        showLatestPointBorder = showLatestPointBorder,
-                        showRotationIndicator = showRotationIndicator,
-                        tooltipText = scoreIndicatorTooltip
+                    Text(
+                        stringResource(R.string.victory),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = buttonTextColor
                     )
-                    Spacer(Modifier.width(4.dp))
-                    RepeatingScoreButton(
-                        onClick = onIncrementScore,
-                        canRepeat = { score < 99 },
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = stringResource(R.string.increase_score),
-                            tint = buttonColor
-                        )
-                    }
                 }
-            }
-
-            if (!showScore) {HorizontalDivider(Modifier.padding(top = 8.dp), color = dividerColor)}
-
-//            if (compositionIncomplete) {
-//                Text(
-//                    text = stringResource(R.string.composition_incomplete_warning),
-//                    style = MaterialTheme.typography.bodySmall,
-//                    color = contentColor.copy(alpha = 0.7f),
-//                    textAlign = TextAlign.Center,
-//                    modifier = Modifier.padding(top = 6.dp, start = 8.dp, end = 8.dp)
-//                )
-//            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.SpaceEvenly,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                players.forEach { p ->
-                    key(p.id) {
-                        val isRebalancedPlayer = rebalancedPlayerIds.contains(p.id)
-                        val isAutoSelectedLoser = autoSelectedLoserPlayerIds.contains(p.id)
-                        val assignedPosition = assignedPositions[p.id]
-                        val positionTooltip = assignedPosition?.let {
-                            assignedPositionTooltip(p, it, positionTeamSize)
-                        }
-                        val statusTooltip = playerStatusTooltipText(isRebalancedPlayer, isAutoSelectedLoser)
-                        // Tooltip única da linha: a explicação da borda vem antes do status.
-                        val rowTooltipText = listOfNotNull(positionTooltip, statusTooltip)
-                            .joinToString("\n\n")
-                            .ifBlank { null }
-                        val tooltipState = rememberTooltipState(isPersistent = true)
-                        val playerRowScope = rememberCoroutineScope()
-                        val actualGamesToday = gamesPlayedMap[p.id] ?: 0
-                        val hasToll = p.dailyToll > 0 && p.tollDate == targetDate
-
-                        SubcomposeLayout(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .defaultMinSize(minHeight = 40.dp)
-                                .clip(RoundedCornerShape(40.dp))
-                                .combinedClickable(
-                                    onClick = {
-                                        if (rowTooltipText != null) {
-                                            playerRowScope.launch { tooltipState.show() }
-                                        }
-                                    },
-                                    onLongClick = {
-                                        tooltipState.dismiss()
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onPlayerClick(p)
-                                    }
-                                )
-                        ) { constraints ->
-                            val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-
-                            val leadingPlaceable = subcompose("statusIcons") {
-                                if (isRebalancedPlayer || isAutoSelectedLoser || assignedPosition != null) {
-                                    val leadingRow: @Composable () -> Unit = {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(start = 8.dp)
-                                        ) {
-                                            if (assignedPosition != null) {
-                                                AssignedPositionBadge(
-                                                    player = p,
-                                                    position = assignedPosition,
-                                                    teamSize = positionTeamSize,
-                                                    contentColor = contentColor.copy(alpha = 0.7f)
-                                                )
-                                                Spacer(Modifier.width(4.dp))
-                                            }
-                                            if (isRebalancedPlayer || isAutoSelectedLoser) {
-                                                PlayerStatusIcons(
-                                                    isRebalancedPlayer = isRebalancedPlayer,
-                                                    isAutoSelectedLoser = isAutoSelectedLoser,
-                                                    contentColor = contentColor
-                                                )
-                                            }
-                                        }
-                                    }
-                                    if (rowTooltipText != null) {
-                                        TooltipBox(
-                                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                                                TooltipAnchorPosition.Above
-                                            ),
-                                            tooltip = {
-                                                PlainTooltip(modifier = Modifier.padding(horizontal = 8.dp)) {
-                                                    Text(
-                                                        text = rowTooltipText,
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                }
-                                            },
-                                            state = tooltipState,
-                                            enableUserInput = false
-                                        ) {
-                                            leadingRow()
-                                        }
-                                    } else {
-                                        leadingRow()
-                                    }
-                                } else {
-                                    Spacer(Modifier)
-                                }
-                            }.first().measure(looseConstraints)
-
-                            val trailingPlaceable = subcompose("toll") {
-                                if (showToll) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.volei_manager_icon),
-                                            contentDescription = null,
-                                            tint = contentColor.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(
-                                                with(LocalDensity.current) {
-                                                    MaterialTheme.typography.bodyMedium.fontSize.toDp()
-                                                }
-                                            )
-                                        )
-                                        Spacer(Modifier.width(2.dp))
-                                        Text(
-                                            text = actualGamesToday.toString(),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = contentColor.copy(alpha = 0.7f),
-                                            maxLines = 1
-                                        )
-                                        if (hasToll) {
-                                            Spacer(Modifier.width(2.dp))
-                                            Text(
-                                                text = "+${p.dailyToll}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = contentColor.copy(alpha = 0.7f),
-                                                maxLines = 1
-                                            )
-                                        }
-                                        Spacer(Modifier.width(8.dp))
-                                    }
-                                } else {
-                                    Spacer(Modifier)
-                                }
-                            }.first().measure(looseConstraints)
-
-                            val sideReserve = maxOf(leadingPlaceable.width, trailingPlaceable.width)
-                            val centerMaxWidth = (constraints.maxWidth - sideReserve * 2).coerceAtLeast(0)
-
-                            val centerPlaceable = subcompose("identity") {
-                                PlayerIdentityInlineRow(
-                                    name = p.name,
-                                    isPriority = p.isPriority,
-                                    showElo = showElo,
-                                    eloText = EloCalculator.formatElo(p.elo),
-                                    contentColor = contentColor
-                                )
-                            }.first().measure(looseConstraints.copy(maxWidth = centerMaxWidth))
-
-                            val layoutWidth = constraints.maxWidth
-                            val layoutHeight = maxOf(
-                                leadingPlaceable.height,
-                                trailingPlaceable.height,
-                                centerPlaceable.height,
-                                constraints.minHeight
-                            )
-
-                            layout(layoutWidth, layoutHeight) {
-                                leadingPlaceable.placeRelative(0, (layoutHeight - leadingPlaceable.height) / 2)
-                                trailingPlaceable.placeRelative(
-                                    layoutWidth - trailingPlaceable.width,
-                                    (layoutHeight - trailingPlaceable.height) / 2
-                                )
-                                centerPlaceable.placeRelative(
-                                    (layoutWidth - centerPlaceable.width) / 2,
-                                    (layoutHeight - centerPlaceable.height) / 2
-                                )
-                            }
-                        }
-                    }
+            } else {
+                if (portraitPlayersFirst) {
+                    TeamPlayers()
+                    Spacer(Modifier.height(4.dp))
+                    PortraitScoreAndWin()
+                    Spacer(Modifier.height(4.dp))
+                    TeamHeader()
+                } else {
+                    TeamHeader()
+                    Spacer(Modifier.height(4.dp))
+                    PortraitScoreAndWin()
+                    Spacer(Modifier.height(4.dp))
+                    TeamPlayers()
                 }
-            }
-            Button(
-                onClick = onWin,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text(
-                    stringResource(R.string.victory),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = if (!isLandscape) 14.sp else 12.sp,
-                    color = buttonTextColor
-                )
             }
         }
     }
@@ -2387,10 +2500,11 @@ private fun PlayerStatusIcons(
 @Composable
 private fun PlayerIdentityInlineRow(
     name: String,
-    isPriority: Boolean,
+    showPriority: Boolean,
     showElo: Boolean,
     eloText: String,
     contentColor: Color,
+    enableMarquee: Boolean,
     modifier: Modifier = Modifier
 ) {
     val inlineIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
@@ -2398,16 +2512,26 @@ private fun PlayerIdentityInlineRow(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
         modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (enableMarquee) {
+                    Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Text(
             text = name,
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
+            overflow = if (enableMarquee) TextOverflow.Clip else TextOverflow.Ellipsis,
             color = contentColor
         )
-        if (isPriority) {
+        if (showPriority) {
             Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.Star,
@@ -3374,6 +3498,7 @@ fun PlayerCard(
     var showMenu by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val locale = currentLocale()
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val cardShape = RoundedCornerShape(12.dp)
     val border = when {
         isGuaranteedNextMatch -> BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary)
@@ -3419,8 +3544,23 @@ fun PlayerCard(
                     )
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = player.name, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.then(
+                            if (isLandscape && usesPositions) {
+                                Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                            } else {
+                                Modifier
+                            }
+                        )
+                    ) {
+                        Text(
+                            text = player.name,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = if (isLandscape && usesPositions) TextOverflow.Clip else TextOverflow.Ellipsis
+                        )
                         if (usesPositions) {
                             PlayerPositionBadges(
                                 player = player,
@@ -3540,12 +3680,12 @@ fun WaitingPlayerCard(
     isResting: Boolean,
     usesPositions: Boolean = false,
     onClick: () -> Unit
-)
-{    Card(
+) {
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(min = 120.dp)
+            .widthIn(min = 100.dp, max = 220.dp)
             .clickable(onClick = onClick)
     ) {
         Box(
@@ -3566,14 +3706,26 @@ fun WaitingPlayerCard(
                     fontSize = 16.sp
                 )
                 Spacer(Modifier.width(8.dp))
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (isLandscape) {
+                                    Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
                         Text(
                             player.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            softWrap = false,
+                            overflow = if (isLandscape) TextOverflow.Clip else TextOverflow.Ellipsis
                         )
                         if (usesPositions) {
                             PlayerPositionBadges(

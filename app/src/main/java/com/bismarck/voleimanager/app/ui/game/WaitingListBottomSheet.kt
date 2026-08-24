@@ -86,8 +86,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
@@ -531,6 +534,7 @@ private fun WaitingListPlayerItem(
     val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
     val highlightAlpha = remember { Animatable(0f) }
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     LaunchedEffect(highlightPulse) {
         if (highlightPulse <= 0) return@LaunchedEffect
@@ -576,13 +580,25 @@ private fun WaitingListPlayerItem(
                         fontSize = 16.sp
                     )
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (isLandscape) {
+                                        Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                        ) {
                             Text(
                                 player.name,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                softWrap = !isLandscape,
+                                overflow = if (isLandscape) TextOverflow.Clip else TextOverflow.Ellipsis
                             )
                             if (usesPositions) {
                                 PlayerPositionBadges(
@@ -732,6 +748,7 @@ private fun InactivePlayerItem(
     LocalDensity.current
     val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Box(modifier = modifier.fillMaxWidth()) {
         Card(
@@ -767,13 +784,25 @@ private fun InactivePlayerItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (isLandscape) {
+                                    Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
                         Text(
                             player.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            softWrap = !isLandscape,
+                            overflow = if (isLandscape) TextOverflow.Clip else TextOverflow.Ellipsis
                         )
                         if (usesPositions) {
                             PlayerPositionBadges(

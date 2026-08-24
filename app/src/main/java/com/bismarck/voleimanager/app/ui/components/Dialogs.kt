@@ -131,25 +131,51 @@ fun SubstitutionDialog(
     teamA: List<Player>,
     teamB: List<Player>,
     usesPositions: Boolean,
+    teamSize: Int,
+    assignedPositions: Map<Int, PlayerPosition>,
+    assignedSlotIndices: Map<Int, Int>,
     onDismiss: () -> Unit,
     onConfirm: (Player) -> Unit
 ) {
     val waiting_parentheses = stringResource(R.string.waiting_parentheses)
     val team_a_parentheses = stringResource(R.string.team_a_parentheses)
     val team_b_parentheses = stringResource(R.string.team_b_parentheses)
-    val allOptions = remember(waitingList, teamA, teamB, playerOut) {
+    val team_bench_parentheses = stringResource(R.string.team_bench_parentheses)
+    val allOptions = remember(waitingList, teamA, teamB, playerOut, usesPositions, teamSize, assignedPositions, assignedSlotIndices) {
         val list = mutableListOf<Pair<Player, String>>()
         val isTeamA = teamA.any { it.id == playerOut.id }
         val isTeamB = teamB.any { it.id == playerOut.id }
+        val activeTeam = when {
+            isTeamA -> teamA
+            isTeamB -> teamB
+            else -> emptyList()
+        }
+        val benchLibero = if (usesPositions && teamSize == 7) {
+            activeTeam
+                .firstOrNull { it.id != playerOut.id && assignedPositions[it.id] == PlayerPosition.LIBERO }
+        } else {
+            null
+        }
+        benchLibero?.let { list.add(it to team_bench_parentheses) }
         waitingList.forEach { list.add(it to waiting_parentheses) }
         if (isTeamA) teamB.forEach { list.add(it to team_b_parentheses) }
         else if (isTeamB) teamA.forEach { list.add(it to team_a_parentheses) }
         else {
             teamA.forEach { list.add(it to team_a_parentheses) }; teamB.forEach { list.add(it to team_b_parentheses) }
         }
-        list
+        list.sortedWith(
+            compareBy<Pair<Player, String>>(
+                { if (it.second == team_bench_parentheses) 0 else 1 },
+                { assignedSlotIndices[it.first.id] ?: Int.MAX_VALUE },
+                { it.first.name.lowercase() }
+            )
+        )
     }
-    var selectedPlayerId by remember(playerOut.id, allOptions) { mutableStateOf<Int?>(null) }
+    var selectedPlayerId by remember(playerOut.id, allOptions) {
+        mutableStateOf(
+            allOptions.firstOrNull { it.second == team_bench_parentheses }?.first?.id
+        )
+    }
     val selectedOption = remember(selectedPlayerId, allOptions) {
         allOptions.firstOrNull { it.first.id == selectedPlayerId }
     }

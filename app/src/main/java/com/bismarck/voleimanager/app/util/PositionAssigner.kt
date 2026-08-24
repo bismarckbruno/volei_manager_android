@@ -155,20 +155,22 @@ object PositionAssigner {
         val positions = mutableMapOf<Int, PlayerPosition>()
         val filled = mutableListOf<FilledSlot>()
 
-        slots.sortedWith(
+        val orderedSlots = slots.withIndex().sortedWith(
             compareBy(
-                { setterFirstRank(it, guaranteeSetter) },
-                { candidateCount(it, team, effectiveSize) }
+                { (_, slot) -> setterFirstRank(slot, guaranteeSetter) },
+                { (_, slot) -> candidateCount(slot, team, effectiveSize) }
             )
-        ).forEach { slot ->
+        )
+        val filledByIndex = arrayOfNulls<FilledSlot>(slots.size)
+        orderedSlots.forEach { (slotIndex, slot) ->
             val choice = pickForSlot(slot, remaining, effectiveSize)
             if (choice == null) {
-                filled.add(FilledSlot(slot, null))
+                filledByIndex[slotIndex] = FilledSlot(slot, null)
                 return@forEach
             }
             remaining.remove(choice.player)
             positions[choice.player.id] = choice.position
-            filled.add(FilledSlot(slot, choice.player, isImprovised = choice.tier > TIER_SECONDARY))
+            filledByIndex[slotIndex] = FilledSlot(slot, choice.player, isImprovised = choice.tier > TIER_SECONDARY)
         }
 
         // Jogadores além da composição mínima mantêm a posição preferida, quando houver.
@@ -178,6 +180,7 @@ object PositionAssigner {
                 ?: PlayerPosition.OUTSIDE_HITTER
         }
 
+        filled.addAll(filledByIndex.map { it ?: FilledSlot(TeamSlot(PositionRole.ATTACK), null) })
         return TeamAssignment(players = team, positions = positions, slots = filled)
     }
 
@@ -338,79 +341,10 @@ object PositionAssigner {
         return ordered
     }
 
-    /** Ordem canônica de revezamento das posições específicas nos times de 6 e 7 jogadores. */
-    private val canonicalPositionOrder = listOf(
-        PlayerPosition.OUTSIDE_HITTER,
-        PlayerPosition.MIDDLE_BLOCKER,
-        PlayerPosition.OPPOSITE,
-        PlayerPosition.LIBERO
-    )
-
-    /**
-     * Sequência ideal de vagas de um time: armador primeiro (se [guaranteeSetter] e a vaga
-     * existir), seguido das demais vagas revezando. De 2 a 5 jogadores intercala por papel
-     * (ataque/defesa); com 6 ou 7 revezam-se as posições específicas na ordem canônica.
-     */
-    private fun slotPattern(teamSize: Int, hasLibero: Boolean, guaranteeSetter: Boolean): List<TeamSlot> {
-        val slots = requiredSlots(teamSize, hasLibero, guaranteeSetter)
-        val playmaker = slots.filter { it.role == PositionRole.PLAYMAKER }
-
-        val rest = if (teamSize >= 6) {
-            // Sem garantia de levantador, a vaga de armador já virou uma vaga de ataque genérica
-            // (sem posição específica) — entra logo no início do rodízio das posições específicas.
-            val genericFromDisabledSetter = if (!guaranteeSetter) {
-                slots.filter { it.role != PositionRole.PLAYMAKER && it.position == null }
-            } else {
-                emptyList()
-            }
-            genericFromDisabledSetter + roundRobinBySpecificPosition(slots.filter { it.position != null })
-        } else {
-            val attack = slots.filter { it.role == PositionRole.ATTACK }
-            val defense = slots.filter { it.role == PositionRole.DEFENSE }
-            interleaveBySlotCount(attack, defense)
-        }
-
-        val pattern = playmaker + rest
-        return pattern.ifEmpty { listOf(TeamSlot(PositionRole.ATTACK)) }
-    }
-
-    /**
-     * Revezamento por posição específica: visita cada posição distinta uma vez, na ordem
-     * canônica (ponteiro, central, oposto, líbero), e repete o ciclo para as vagas duplicadas.
-     */
-    private fun roundRobinBySpecificPosition(slots: List<TeamSlot>): List<TeamSlot> {
-        val buckets = canonicalPositionOrder.associateWith { pos ->
-            slots.filter { it.position == pos }.toMutableList()
-        }
-        val ordered = mutableListOf<TeamSlot>()
-        while (buckets.values.any { it.isNotEmpty() }) {
-            canonicalPositionOrder.forEach { pos ->
-                val bucket = buckets.getValue(pos)
-                if (bucket.isNotEmpty()) ordered.add(bucket.removeAt(0))
-            }
-        }
-        return ordered
-    }
-
-    /**
-     * Intercala [attack] e [defense] o mais uniformemente possível (algoritmo estilo Bresenham),
-     * em vez de agrupar todas as vagas de um papel antes de passar para o outro.
-     */
-    private fun interleaveBySlotCount(attack: List<TeamSlot>, defense: List<TeamSlot>): List<TeamSlot> {
-        val result = mutableListOf<TeamSlot>()
-        var ai = 0
-        var di = 0
-        val attackCount = attack.size
-        val defenseCount = defense.size
-        repeat(attackCount + defenseCount) {
-            if (ai * defenseCount <= di * attackCount) {
-                result.add(attack[ai]); ai++
-            } else {
-                result.add(defense[di]); di++
-            }
-        }
-        return result
-    }
+    /** Sequência ideal de vagas de um time segue a ordem canônica declarada em [TeamComposition]. */
+    private fun slotPattern(teamSize: Int, hasLibero: Boolean, guaranteeSetter: Boolean): List<TeamSlot> =
+        requiredSlots(teamSize, hasLibero, guaranteeSetter)
+            .ifEmpty { listOf(TeamSlot(PositionRole.ATTACK)) }
 
     /**
      * Escolhe, dentro de [remaining], quem melhor cobre [slot] (preferida > secundária > coringa
@@ -438,12 +372,10 @@ object PositionAssigner {
         hasLibero: Boolean,
         guaranteeSetter: Boolean
     ): List<TeamSlot> {
-        val slots = TeamComposition.requiredSlots(teamSize).map { slot ->
+        val slots = TeamComposition.requiredSlots(teamSize, guaranteeSetter).map { slot ->
             when {
-                // Sem garantia de levantador, a vaga de armador vira mais uma vaga de ataque.
-                !guaranteeSetter && slot.role == PositionRole.PLAYMAKER -> TeamSlot(PositionRole.ATTACK)
-                // Sem líbero presente, a vaga garantida do líbero é ocupada por outro central.
-                !hasLibero && slot.position == PlayerPosition.LIBERO ->
+                // No 6x6, sem líbero presente, a última vaga vira mais uma vaga de central.
+                !hasLibero && teamSize < 7 && slot.position == PlayerPosition.LIBERO ->
                     TeamSlot(slot.role, PlayerPosition.MIDDLE_BLOCKER)
                 else -> slot
             }
@@ -517,7 +449,7 @@ object PositionAssigner {
     }
 
     private fun slotPosition(slot: TeamSlot, matched: PlayerPosition?): PlayerPosition =
-        matched ?: fallbackPosition(slot)
+        slot.assignedPositionOverride ?: matched ?: fallbackPosition(slot)
 
     private fun fallbackPosition(slot: TeamSlot): PlayerPosition =
         slot.position ?: defaultPositionForRole(slot)

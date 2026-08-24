@@ -44,10 +44,13 @@ enum class PlayerPosition(val role: PositionRole) {
 data class TeamSlot(
     val role: PositionRole,
     val position: PlayerPosition? = null,
-    val fallbackPosition: PlayerPosition? = null
+    val fallbackPosition: PlayerPosition? = null,
+    val acceptedPositions: Set<PlayerPosition>? = null,
+    val assignedPositionOverride: PlayerPosition? = null
 ) {
     fun accepts(playerPosition: PlayerPosition?): Boolean {
         if (playerPosition == null) return false
+        acceptedPositions?.let { return playerPosition in it }
         if (position == null) return playerPosition.role == role
         return playerPosition == position || playerPosition == fallbackPosition
     }
@@ -65,51 +68,91 @@ object TeamComposition {
     const val MIN_TEAM_SIZE = 2
     const val MAX_TEAM_SIZE = 7
 
-    fun requiredSlots(teamSize: Int): List<TeamSlot> = when (teamSize.coerceIn(MIN_TEAM_SIZE, MAX_TEAM_SIZE)) {
-        2 -> listOf(
-            TeamSlot(PositionRole.PLAYMAKER),
-            TeamSlot(PositionRole.ATTACK)
+    fun requiredSlots(
+        teamSize: Int,
+        guaranteeSetter: Boolean = true
+    ): List<TeamSlot> {
+        val attackCore = TeamSlot(
+            role = PositionRole.ATTACK,
+            acceptedPositions = setOf(PlayerPosition.OUTSIDE_HITTER, PlayerPosition.OPPOSITE)
         )
+        val attackFlex = TeamSlot(
+            role = PositionRole.ATTACK,
+            acceptedPositions = setOf(
+                PlayerPosition.SETTER,
+                PlayerPosition.OUTSIDE_HITTER,
+                PlayerPosition.OPPOSITE
+            )
+        )
+        val defenseFlex = TeamSlot(
+            role = PositionRole.DEFENSE,
+            acceptedPositions = setOf(
+                PlayerPosition.OUTSIDE_HITTER,
+                PlayerPosition.MIDDLE_BLOCKER,
+                PlayerPosition.LIBERO
+            )
+        )
+        val defenseCore = TeamSlot(
+            role = PositionRole.DEFENSE,
+            acceptedPositions = setOf(PlayerPosition.MIDDLE_BLOCKER, PlayerPosition.LIBERO)
+        )
+        val leadingSlot = if (guaranteeSetter) {
+            TeamSlot(PositionRole.PLAYMAKER, PlayerPosition.SETTER)
+        } else {
+            attackFlex
+        }
 
-        3 -> listOf(
-            TeamSlot(PositionRole.PLAYMAKER),
-            TeamSlot(PositionRole.ATTACK),
-            TeamSlot(PositionRole.DEFENSE)
-        )
+        return when (teamSize.coerceIn(MIN_TEAM_SIZE, MAX_TEAM_SIZE)) {
+            2 -> listOf(
+                leadingSlot,
+                if (guaranteeSetter) attackCore else defenseCore
+            )
 
-        4 -> listOf(
-            TeamSlot(PositionRole.PLAYMAKER),
-            TeamSlot(PositionRole.ATTACK),
-            TeamSlot(PositionRole.ATTACK),
-            TeamSlot(PositionRole.DEFENSE)
-        )
+            3 -> listOf(
+                leadingSlot,
+                attackCore,
+                defenseCore
+            )
 
-        5 -> listOf(
-            TeamSlot(PositionRole.PLAYMAKER),
-            TeamSlot(PositionRole.ATTACK),
-            TeamSlot(PositionRole.ATTACK),
-            TeamSlot(PositionRole.DEFENSE),
-            TeamSlot(PositionRole.DEFENSE)
-        )
+            4 -> listOf(
+                leadingSlot,
+                attackCore,
+                defenseFlex,
+                defenseCore
+            )
 
-        6 -> listOf(
-            TeamSlot(PositionRole.PLAYMAKER, PlayerPosition.SETTER),
-            TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
-            TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
-            TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
-            TeamSlot(PositionRole.ATTACK, PlayerPosition.OPPOSITE),
-            TeamSlot(PositionRole.DEFENSE, PlayerPosition.LIBERO, PlayerPosition.MIDDLE_BLOCKER)
-        )
+            5 -> listOf(
+                leadingSlot,
+                attackCore,
+                attackCore,
+                defenseFlex,
+                defenseCore
+            )
 
-        else -> listOf(
-            TeamSlot(PositionRole.PLAYMAKER, PlayerPosition.SETTER),
-            TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
-            TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
-            TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
-            TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
-            TeamSlot(PositionRole.ATTACK, PlayerPosition.OPPOSITE),
-            TeamSlot(PositionRole.DEFENSE, PlayerPosition.LIBERO, PlayerPosition.MIDDLE_BLOCKER)
-        )
+            6 -> listOf(
+                leadingSlot,
+                TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
+                TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
+                TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
+                TeamSlot(PositionRole.ATTACK, PlayerPosition.OPPOSITE),
+                TeamSlot(PositionRole.DEFENSE, PlayerPosition.LIBERO, PlayerPosition.MIDDLE_BLOCKER)
+            )
+
+            else -> listOf(
+                leadingSlot,
+                TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
+                TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
+                TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
+                TeamSlot(PositionRole.ATTACK, PlayerPosition.OPPOSITE),
+                TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
+                TeamSlot(
+                    role = PositionRole.DEFENSE,
+                    position = PlayerPosition.LIBERO,
+                    fallbackPosition = PlayerPosition.MIDDLE_BLOCKER,
+                    assignedPositionOverride = PlayerPosition.LIBERO
+                )
+            )
+        }
     }
 
     /** Em times de 2 a 5 jogadores o líbero é tratado como central. */

@@ -68,11 +68,16 @@ fun positionShortLabel(position: PlayerPosition): String = stringResource(
  */
 @Composable
 fun slotLabel(slot: TeamSlot): String {
-    val position = slot.position ?: when (slot.role) {
-        PositionRole.PLAYMAKER -> PlayerPosition.SETTER
-        PositionRole.ATTACK -> PlayerPosition.OUTSIDE_HITTER
-        PositionRole.DEFENSE -> PlayerPosition.MIDDLE_BLOCKER
+    if (slot.position == null) {
+        return stringResource(
+            when (slot.role) {
+                PositionRole.PLAYMAKER -> R.string.position_role_playmaker
+                PositionRole.ATTACK -> R.string.position_role_attack
+                PositionRole.DEFENSE -> R.string.position_role_defense
+            }
+        )
     }
+    val position = slot.position
     return positionLabel(position)
 }
 
@@ -231,13 +236,14 @@ fun AssignedPositionBadge(
     position: PlayerPosition,
     teamSize: Int,
     modifier: Modifier = Modifier,
-    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    overrideBorder: BadgeBorder? = null
 ) {
     PositionBadge(
         position = position,
         modifier = modifier,
         contentColor = contentColor,
-        border = assignedPositionBorder(player, position, teamSize)
+        border = overrideBorder ?: assignedPositionBorder(player, position, teamSize)
     )
 }
 

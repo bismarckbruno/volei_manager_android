@@ -2432,7 +2432,8 @@ fun FAQScreen() {
         stringResource(R.string.faq_q8) to stringResource(R.string.faq_a8),
         stringResource(R.string.faq_q9) to stringResource(R.string.faq_a9),
         stringResource(R.string.faq_q11) to stringResource(R.string.faq_a11),
-        stringResource(R.string.faq_q12) to stringResource(R.string.faq_a12)
+        stringResource(R.string.faq_q12) to stringResource(R.string.faq_a12),
+        stringResource(R.string.faq_q13) to stringResource(R.string.faq_a13)
     )
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 

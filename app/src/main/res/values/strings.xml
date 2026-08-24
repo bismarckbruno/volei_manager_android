@@ -123,6 +123,7 @@
     <string name="by_elo">By Elo</string>
     <string name="start">Start</string>
     <string name="victory">VICTORY</string>
+    <string name="victory_short">VICTORY</string>
     <string name="team_a">Team A</string>
     <string name="team_b">Team B</string>
     <string name="vs">VS</string>
@@ -150,6 +151,7 @@
     <string name="substitution_history_title">Recent substitutions</string>
     <string name="substitution_history_from_waiting">%1$s entered %2$s from the waiting list; %3$s moved to the queue</string>
     <string name="substitution_history_team_swap">%1$s entered %2$s from %3$s; %4$s moved to %3$s</string>
+    <string name="substitution_history_from_team_bench">%1$s entered %2$s from their own team bench; %3$s moved to the libero bench role</string>
     <string name="waiting_list_label">waiting list</string>
     <string name="save">Save</string>
     <string name="edit">Edit</string>
@@ -177,8 +179,10 @@
     <string name="faq_a2">It serves to ensure that certain positions or skill levels are well distributed. For example, if you mark the setters with \"Priority\", the app will try to place a setter on each side when generating teams automatically.</string>
     <string name="faq_q11">What do the position abbreviations mean in Fixed Positions mode?</string>
     <string name="faq_a11">SET = Setter, OH = Outside Hitter, MB = Middle Blocker, OPP = Opposite, LIB = Libero. These abbreviations appear on player badges and on court slots.</string>
-    <string name="faq_q12">Which positions make up each team size in Fixed Positions mode?</string>
-    <string name="faq_a12">2x2: 1 setter + 1 attacker. 3x3: 1 setter + 1 attacker + 1 defender. 4x4: 1 setter + 2 attackers + 1 defender. 5x5: 1 setter + 2 attackers + 2 defenders. 6x6: 1 setter, 2 outside hitters, 1 middle blocker, 1 opposite, 1 libero (or another middle blocker if there is no libero). 7x7: 1 setter, 2 outside hitters, 2 middle blockers, 1 opposite, 1 libero (or another middle blocker if there is no libero).</string>
+    <string name="faq_q12">Which positions and roles make up each team size in Fixed Positions mode?</string>
+    <string name="faq_a12">2x2: with \"Guarantee a setter\", it is 1 setter + 1 attacker (outside hitter or opposite). Without that guarantee, the first slot becomes attack (setter, outside hitter or opposite) and the other becomes defense (middle blocker or libero). 3x3: the first slot follows the same setter rule; then come 1 attacker (outside hitter or opposite) and 1 defender (middle blocker or libero). 4x4: the first slot follows the same setter rule; then 1 attacker (outside hitter or opposite) and 2 defenders, with at most 1 outside hitter on defense. 5x5: the first slot follows the same setter rule; then 2 attackers (outside hitters or opposites) and 2 defenders, with at most 1 outside hitter on defense. 6x6: setter, attacking outside hitter, defending outside hitter, first middle blocker, opposite and libero (or a second middle blocker if there is no libero). 7x7: the same 6x6 base plus 1 more middle blocker, with the libero on the bench and eligible to swap with any middle blocker on that team.</string>
+    <string name="faq_q13">What is the role of each position in Fixed Positions mode?</string>
+    <string name="faq_a13">The setter is the team\'s playmaker/strategist; in 2x2 to 5x5, if the setter guarantee is off and no setter is available, that slot can be filled by an attacking player. Outside hitters can count as either attack or defense: if there is only one on the team, they count as attack; if there are two, one becomes the attacking outside hitter and the other the defending outside hitter. Opposites count as attack. Middle blockers and liberos count as defense.</string>
     <string name="faq_q3">What is Show Delay?</string>
     <string name="faq_a3">When activated, it shows how many fictitious games were added to those who arrived late, according to what the court has already played. This prevents those who arrive at the end from passing in front of those who wait from the beginning. Those who arrive together with the class start with zero delay. Only values from one appear.</string>
     <string name="faq_a1">Elo is a scoring system that evaluates the skill level of each player. You earn points when you win and lose when you are defeated, based on the difficulty of the match. The average Elo is simply the sum of a team\'s points divided by the number of players.</string>
@@ -231,6 +235,9 @@
     <string name="position_short_middle_blocker">MB</string>
     <string name="position_short_opposite">OPP</string>
     <string name="position_short_libero">LIB</string>
+    <string name="position_role_playmaker">Setter</string>
+    <string name="position_role_attack">Attack</string>
+    <string name="position_role_defense">Defense</string>
     <string name="preferred_position">Preferred position</string>
     <string name="secondary_position">Second position</string>
     <string name="wildcard_hint">Without a preferred position the player becomes a wildcard and fills whatever slot is left over.</string>
@@ -245,6 +252,8 @@
     <string name="guarantee_setter_locked_tooltip">Mandatory for teams of 6 or 7 players, since the setter slot has a specific position in these compositions. It can only be turned off for teams of 2 to 5 players.</string>
     <string name="position_badge_secondary_tooltip">%1$s: playing in the second position they chose.</string>
     <string name="position_badge_improvised_tooltip">%1$s: playing outside their chosen positions.</string>
+    <string name="team_bench_libero_tooltip">Bench libero: can swap with any middle blocker on the same team.</string>
+    <string name="team_bench_parentheses">(team bench)</string>
     <string name="group_type_long_press_hint">Long press a type to see a quick tip.</string>
     <string name="position_preferred_label">Preferred position: %1$s</string>
     <string name="position_secondary_label">Second position: %1$s</string>

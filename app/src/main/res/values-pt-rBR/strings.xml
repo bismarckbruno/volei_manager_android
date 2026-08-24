@@ -123,6 +123,7 @@
     <string name="by_elo">Por Elo</string>
     <string name="start">Iniciar</string>
     <string name="victory">VITÓRIA</string>
+    <string name="victory_short">VITÓRIA</string>
     <string name="team_a">Time A</string>
     <string name="team_b">Time B</string>
     <string name="vs">VS</string>
@@ -150,6 +151,7 @@
     <string name="substitution_history_title">Substituições recentes</string>
     <string name="substitution_history_from_waiting">%1$s entrou no %2$s vindo da fila de espera; %3$s foi para a fila</string>
     <string name="substitution_history_team_swap">%1$s entrou no %2$s vindo do %3$s; %4$s foi para o %3$s</string>
+    <string name="substitution_history_from_team_bench">%1$s entrou no %2$s vindo do banco do próprio time; %3$s foi para a função de líbero no banco</string>
     <string name="waiting_list_label">fila de espera</string>
     <string name="save">Salvar</string>
     <string name="edit">Editar</string>
@@ -177,8 +179,10 @@
     <string name="faq_a2">Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com \"Prioridade\", o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente.</string>
     <string name="faq_q11">O que significam as abreviações das posições no modo Posições Fixas?</string>
     <string name="faq_a11">LEV = Levantador, PON = Ponteiro, CEN = Central, OPO = Oposto, LIB = Líbero. Essas abreviações aparecem nos selos dos jogadores e nas vagas de quadra.</string>
-    <string name="faq_q12">Quais posições compõem cada tamanho de time no modo Posições Fixas?</string>
-    <string name="faq_a12">2x2: 1 levantador + 1 atacante. 3x3: 1 levantador + 1 atacante + 1 defensor. 4x4: 1 levantador + 2 atacantes + 1 defensor. 5x5: 1 levantador + 2 atacantes + 2 defensores. 6x6: 1 levantador, 2 ponteiros, 1 central, 1 oposto, 1 líbero (ou outro central, se não houver líbero). 7x7: 1 levantador, 2 ponteiros, 2 centrais, 1 oposto, 1 líbero (ou outro central, se não houver líbero).</string>
+    <string name="faq_q12">Quais posições e papéis compõem cada tamanho de time no modo Posições Fixas?</string>
+    <string name="faq_a12">2x2: com \"Garantir levantador\", fica 1 levantador + 1 atacante (ponteiro ou oposto). Sem a garantia, a primeira vaga vira ataque (levantador, ponteiro ou oposto) e a outra vira defesa (central ou líbero). 3x3: a primeira vaga segue a mesma regra do levantador; depois vem 1 atacante (ponteiro ou oposto) e 1 defensor (central ou líbero). 4x4: a primeira vaga segue a mesma regra do levantador; depois 1 atacante (ponteiro ou oposto) e 2 defensores, com no máximo 1 ponteiro na defesa. 5x5: a primeira vaga segue a mesma regra do levantador; depois 2 atacantes (ponteiros ou opostos) e 2 defensores, com no máximo 1 ponteiro na defesa. 6x6: levantador, ponteiro de ataque, ponteiro de defesa, primeiro central, oposto e líbero (ou segundo central, se não houver líbero). 7x7: a mesma base do 6x6, com mais 1 central e o líbero no banco, podendo ser substituído por qualquer central do próprio time.</string>
+    <string name="faq_q13">Qual é o papel de cada posição no modo Posições Fixas?</string>
+    <string name="faq_a13">O levantador é o armador/estrategista do time; nas configurações 2x2 a 5x5, se a garantia estiver desligada e não houver levantador disponível, essa vaga pode ser ocupada por alguém de ataque. Os ponteiros podem atuar tanto no ataque quanto na defesa: se houver só um no time, ele conta como ataque; se houver dois, um vira ponteiro de ataque e o outro, ponteiro de defesa. Os opostos contam como ataque. Centrais e líberos contam como defesa.</string>
     <string name="faq_q3">O que é Mostrar Atraso?</string>
     <string name="faq_a3">Quando ativado, mostra quantos jogos fictícios foram somados a quem chegou atrasado, de acordo com o que a quadra já jogou. Isso evita que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa com atraso zero. Só aparecem valores a partir de um.</string>
     <string name="faq_a1">O Elo é um sistema de pontuação que avalia o nível de habilidade de cada jogador. Você ganha pontos ao vencer e perde ao ser derrotado, baseado na dificuldade da partida. O Elo médio é simplesmente a soma dos pontos de uma equipe dividida pelo número de jogadores.</string>
@@ -231,6 +235,9 @@
     <string name="position_short_middle_blocker">CEN</string>
     <string name="position_short_opposite">OPO</string>
     <string name="position_short_libero">LIB</string>
+    <string name="position_role_playmaker">Levantador</string>
+    <string name="position_role_attack">Ataque</string>
+    <string name="position_role_defense">Defesa</string>
     <string name="preferred_position">Posição preferida</string>
     <string name="secondary_position">Segunda posição</string>
     <string name="wildcard_hint">Sem posição preferida o jogador vira coringa e ocupa a vaga que sobrar.</string>
@@ -245,6 +252,8 @@
     <string name="guarantee_setter_locked_tooltip">Obrigatório em times de 6 ou 7 jogadores, pois a vaga de levantador tem posição específica nessas composições. Só é possível desligar em times de 2 a 5 jogadores.</string>
     <string name="position_badge_secondary_tooltip">%1$s: escalado na segunda posição que escolheu.</string>
     <string name="position_badge_improvised_tooltip">%1$s: escalado fora das posições que escolheu.</string>
+    <string name="team_bench_libero_tooltip">Líbero no banco: pode ser substituído por qualquer central do próprio time.</string>
+    <string name="team_bench_parentheses">(banco do time)</string>
     <string name="group_type_long_press_hint">Mantenha um tipo pressionado para ver uma dica rápida.</string>
     <string name="position_preferred_label">Posição preferida: %1$s</string>
     <string name="position_secondary_label">Segunda posição: %1$s</string>

@@ -110,6 +110,8 @@ data class GameStateSnapshot(
     val rotationRequiredForTeam: String? = null,
     /** Posição ocupada por cada jogador na partida (Modo Posições Fixas). playerId -> nome do enum. */
     val assignedPositions: Map<Int, String> = emptyMap(),
+    /** Índice da vaga ocupada por cada jogador dentro do próprio time (0 = topo do card base). */
+    val assignedSlotIndices: Map<Int, Int> = emptyMap(),
     val compositionIncomplete: Boolean = false
 )
 
@@ -620,6 +622,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     /** Posição ocupada por cada jogador na partida atual. Vazio fora do Modo Posições Fixas. */
     private val _assignedPositions = MutableStateFlow<Map<Int, PlayerPosition>>(emptyMap())
     val assignedPositions = _assignedPositions.asStateFlow()
+    private val _assignedSlotIndices = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    val assignedSlotIndices = _assignedSlotIndices.asStateFlow()
 
     /** `true` quando algum time em quadra não cumpre a composição mínima de posições. */
     private val _compositionIncomplete = MutableStateFlow(false)
@@ -707,6 +711,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _guaranteedNextMatchPlayerIds
             ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
         }
+        viewModelScope.launch {
+            combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { _, _, _ -> }
+                .collect { if (persistenceReady) saveGameState() }
+        }
 
         // Sempre que os times mudarem, remove esses jogadores do mapa de descanso e garante que a waitingList não tenha duplicados nem jogadores em quadra
         viewModelScope.launch {
@@ -753,6 +761,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             lastScoringTeam = _lastScoringTeam.value,
             rotationRequiredForTeam = _rotationRequiredForTeam.value,
             assignedPositions = _assignedPositions.value.mapValues { it.value.name },
+            assignedSlotIndices = _assignedSlotIndices.value,
             compositionIncomplete = _compositionIncomplete.value
         )
         // If nothing meaningful is happening, clear instead of saving
@@ -831,11 +840,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _guaranteedNextMatchPlayerIds.value = snapshot.guaranteedNextMatchPlayerIds
             _lastScoringTeam.value = snapshot.lastScoringTeam
             _rotationRequiredForTeam.value = snapshot.rotationRequiredForTeam
-            _assignedPositions.value = snapshot.assignedPositions
+            _assignedPositions.value = (snapshot.assignedPositions ?: emptyMap())
                 .mapNotNull { (id, name) ->
                     PlayerPosition.fromStoredValue(name)?.let { id to it }
                 }
                 .toMap()
+            _assignedSlotIndices.value = snapshot.assignedSlotIndices ?: emptyMap()
             _compositionIncomplete.value = snapshot.compositionIncomplete
             Log.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
             true
@@ -1115,6 +1125,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun clearPositionAssignments() {
         _assignedPositions.value = emptyMap()
+        _assignedSlotIndices.value = emptyMap()
         _compositionIncomplete.value = false
     }
 
@@ -1132,20 +1143,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val a = PositionAssigner.assignPositionsToExistingTeam(_teamA.value, teamSize, conf.guaranteeSetter)
         val b = PositionAssigner.assignPositionsToExistingTeam(_teamB.value, teamSize, conf.guaranteeSetter)
         _assignedPositions.value = a.positions + b.positions
-        _compositionIncomplete.value = !a.isComplete || !b.isComplete
-    }
-
-    /** Aplica um mapa já calculado pelo [PositionAssigner] (evita recalcular após a montagem). */
-    private fun applyPositionAssignment(
-        positions: Map<Int, PlayerPosition>,
-        incomplete: Boolean
-    ) {
-        if (!usesPositions()) {
-            clearPositionAssignments()
-            return
+        _assignedSlotIndices.value = buildMap {
+            a.slots.forEachIndexed { index, slot -> slot.player?.let { put(it.id, index) } }
+            b.slots.forEachIndexed { index, slot -> slot.player?.let { put(it.id, index) } }
         }
-        _assignedPositions.value = positions
-        _compositionIncomplete.value = incomplete
+        _compositionIncomplete.value = !a.isComplete || !b.isComplete
     }
 
     fun updateConfig(
@@ -1674,9 +1676,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         val (finalA, finalB) = if (usesPositions) {
-            val assignment = PositionAssigner.buildBalancedTeams(selectedPlayers, size, config.guaranteeSetter)
-            applyPositionAssignment(assignment.positions, !assignment.isComplete)
-            assignment.teamA to assignment.teamB
+            PositionAssigner.buildBalancedTeams(selectedPlayers, size, config.guaranteeSetter).let {
+                it.teamA to it.teamB
+            }
         } else {
             clearPositionAssignments()
             balanceTeamsWithPriority(
@@ -1691,6 +1693,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         resetScoresAndPointIndicator()
         _currentMatchStartTimestamp.value = System.currentTimeMillis()
         _guaranteedNextMatchPlayerIds.value = emptyList()
+        refreshPositionAssignments()
     }
 
     private fun shouldApplyPriorityRule(priorityEnabled: Boolean, players: List<Player>): Boolean {
@@ -1811,9 +1814,40 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         var resetStreak = false
         var substitutionLog: ManualSubstitutionLog? = null
 
+        fun swapAssignedSlotsWithinSameTeam(targetTeam: String) {
+            val positions = _assignedPositions.value.toMutableMap()
+            val slots = _assignedSlotIndices.value.toMutableMap()
+            val outPosition = positions[out.id]
+            val inPosition = positions[inWithToll.id]
+            val outSlot = slots[out.id]
+            val inSlot = slots[inWithToll.id]
+            if (outPosition != null && inPosition != null) {
+                positions[out.id] = inPosition
+                positions[inWithToll.id] = outPosition
+                _assignedPositions.value = positions
+            }
+            if (outSlot != null && inSlot != null) {
+                slots[out.id] = inSlot
+                slots[inWithToll.id] = outSlot
+                _assignedSlotIndices.value = slots
+            }
+            substitutionLog = ManualSubstitutionLog(
+                timestamp = System.currentTimeMillis(),
+                groupName = _currentGroupConfig.value.groupName,
+                playerOutName = out.name,
+                playerInName = inWithToll.name,
+                targetTeam = targetTeam,
+                incomingSource = "BENCH"
+            )
+        }
+
         if (idxOutA != -1) {
-            nA[idxOutA] = inWithToll
             if (_streakOwner.value == "A") resetStreak = true
+            if (idxInA != -1) {
+                swapAssignedSlotsWithinSameTeam("A")
+            } else {
+                nA[idxOutA] = inWithToll
+            }
             if (idxInWait != -1) {
                 wait[idxInWait] = out
                 substitutionLog = ManualSubstitutionLog(
@@ -1836,8 +1870,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 )
             }
         } else if (idxOutB != -1) {
-            nB[idxOutB] = inWithToll
             if (_streakOwner.value == "B") resetStreak = true
+            if (idxInB != -1) {
+                swapAssignedSlotsWithinSameTeam("B")
+            } else {
+                nB[idxOutB] = inWithToll
+            }
             if (idxInWait != -1) {
                 wait[idxInWait] = out
                 substitutionLog = ManualSubstitutionLog(
@@ -1870,6 +1908,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         _teamA.value = sortTeamPlayers(nA); _teamB.value = sortTeamPlayers(nB); _waitingList.value =
             wait
+        if (idxInA != -1 && idxOutA != -1 || idxInB != -1 && idxOutB != -1) return
         refreshPositionAssignments()
     }
 
@@ -2042,20 +2081,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
                 val finalA = completeTeam(halfA)
                 val finalB = completeTeam(halfB)
-                val assignmentA = PositionAssigner.assignPositionsToExistingTeam(
-                    finalA,
-                    conf.teamSize,
-                    conf.guaranteeSetter
-                )
-                val assignmentB = PositionAssigner.assignPositionsToExistingTeam(
-                    finalB,
-                    conf.teamSize,
-                    conf.guaranteeSetter
-                )
-                applyPositionAssignment(
-                    assignmentA.positions + assignmentB.positions,
-                    !assignmentA.isComplete || !assignmentB.isComplete
-                )
                 _teamA.value = sortTeamPlayers(finalA)
                 _teamB.value = sortTeamPlayers(finalB)
                 _waitingList.value = pool
@@ -2064,6 +2089,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     .map { it.id }
                     .filter { keptIds.contains(it) }
                     .toSet()
+                refreshPositionAssignments()
                 finishRoundSetup(loserIds)
                 return
             }
