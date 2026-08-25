@@ -163,6 +163,8 @@
     <string name="yes">Yes</string>
     <string name="faq_q4">How to create or manage Groups?</string>
     <string name="faq_a4">In the side menu, you can create different \"Groups\". This is useful if you play in different places or with different classes (eg Saturday Volleyball and Company Volleyball). Each group has its own history and list of players.</string>
+    <string name="faq_q14">What are the group types?</string>
+    <string name="faq_a14">Recreational: two teams of 2 to 6 players, no fixed positions. Balancing uses Elo and the priority flag. Fixed Positions: two teams of 2 to 7 players; each player registers a preferred and a second position, and teams respect the minimum composition for that team size. Tournament modes (recreational and pro) already exist in the app but are not available to choose yet.</string>
     <string name="faq_q5">How does the app choose who plays the next match?</string>
     <string name="faq_a5">The app picks the top players from the queue, which are ordered in alternating skill levels, to create balanced teams with a mix of abilities. If needed, you can manually reorder the queue.</string>
     <string name="faq_q6">What is the difference between balancing modes?</string>
@@ -184,7 +186,7 @@
     <string name="faq_q12">Which positions and roles make up each team size in Fixed Positions mode?</string>
     <string name="faq_a12_col1">Size</string>
     <string name="faq_a12_col2">Composition</string>
-    <string name="faq_a12_table">2x2|With \"Guarantee a setter\": 1 setter + 1 attacker (outside hitter or opposite). Without it: 1st slot is attack (setter, outside hitter or opposite) + 1 defense (middle blocker or libero).\n3x3|1st slot follows the setter rule + 1 attacker (outside hitter or opposite) + 1 defender (middle blocker or libero).\n4x4|1st slot follows the setter rule + 1 attacker (outside hitter or opposite) + 2 defenders (max 1 outside hitter on defense).\n5x5|1st slot follows the setter rule + 2 attackers (outside hitters or opposites) + 2 defenders (max 1 outside hitter on defense).\n6x6|Setter, attacking outside hitter, defending outside hitter, 1st middle blocker, opposite and libero (or a 2nd middle blocker if there is no libero).\n7x7|Same base as 6x6 plus 1 extra middle blocker; the libero stays on the bench and can swap with any middle blocker on the team.</string>
+    <string name="faq_a12_table">2x2|With \"Guarantee a setter\": 1 setter + 1 player in any other position (outside hitter, opposite, middle blocker or libero). Without it: 1st slot is attack (setter, outside hitter or opposite) + 1 defense (middle blocker or libero).\n3x3|1st slot follows the setter rule + 1 attacker (outside hitter or opposite) + 1 defender (middle blocker or libero).\n4x4|1st slot follows the setter rule + 1 attacker (outside hitter or opposite) + 2 defenders (max 1 outside hitter on defense).\n5x5|1st slot follows the setter rule + 2 attackers (outside hitters or opposites) + 2 defenders (max 1 outside hitter on defense).\n6x6|Setter, attacking outside hitter, defending outside hitter, 1st middle blocker, opposite and libero (or a 2nd middle blocker if there is no libero).\n7x7|Same base as 6x6 plus 1 extra middle blocker; the libero stays on the bench and can swap with any middle blocker on the team.</string>
     <string name="faq_q13">What is the role of each position in Fixed Positions mode?</string>
     <string name="faq_a13_col1">Position</string>
     <string name="faq_a13_col2">Role</string>
@@ -206,6 +208,7 @@
     <string name="to_start_add_players">To get started, add players using the \"+\" button in the top‑right corner of the screen</string>
     <string name="onboarding_team_size_question">How many people will play on each team?</string>
     <string name="onboarding_team_size_hint">You can change this setting later in the side menu under \"Group rules\".</string>
+    <string name="onboarding_team_size_seven_bench_hint">With 7 per team, one player (the libero or a middle blocker) stays on the bench for substitutions.</string>
     <string name="onboarding_add_players_instruction">Add at least %1$d people with the \"+\" button or import them from Data > Import</string>
     <string name="onboarding_group_name_question">What will the group name be?</string>
     <string name="onboarding_group_name_hint">You can edit it later in the side panel > \"Current group\" > by clicking the pencil icon next to the group name.</string>
@@ -259,6 +262,7 @@
     <string name="position_badge_secondary_tooltip">%1$s: playing in the second position they chose.</string>
     <string name="position_badge_improvised_tooltip">%1$s: playing outside their chosen positions.</string>
     <string name="team_bench_libero_tooltip">Bench libero: can swap with any middle blocker on the same team.</string>
+    <string name="header_scroll_tooltip">Tip: rotate the screen to switch views, or double-tap here to re-center the teams.</string>
     <string name="team_bench_parentheses">(team bench)</string>
     <string name="group_type_long_press_hint">Long press a type to see a quick tip.</string>
     <string name="position_preferred_label">Preferred position: %1$s</string>

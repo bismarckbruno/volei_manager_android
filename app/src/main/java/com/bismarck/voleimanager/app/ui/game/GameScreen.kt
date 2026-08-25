@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -143,7 +144,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 
@@ -179,7 +179,8 @@ fun GameScreenContent(
     isSetupMode: Boolean,
     onSetupModeChange: (Boolean) -> Unit,
     onDeleteRequest: (Player) -> Unit,
-    onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit
+    onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit,
+    headerDoubleTapTick: Int = 0
 ) {
     val resources = LocalResources.current
     val focusManager = LocalFocusManager.current
@@ -440,7 +441,8 @@ fun GameScreenContent(
                             { subOut = it },
                             { confirmWinTeam = it },
                             presentIds,
-                            sortedPlayers
+                            sortedPlayers,
+                            headerDoubleTapTick
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -775,7 +777,8 @@ fun ActiveGameView(
     onSubRequest: (Player) -> Unit,
     onWinRequest: (String) -> Unit,
     presentPlayerIds: Set<Int>,
-    allPlayers: List<Player>
+    allPlayers: List<Player>,
+    headerDoubleTapTick: Int = 0
 ) {
     val resources = LocalResources.current
     val locale = currentLocale()
@@ -1282,24 +1285,30 @@ fun ActiveGameView(
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val orderedFirstPlayers = remember(firstPlayers, assignedSlotIndices, isLandscape, usesPositions) {
+    val orderedFirstPlayers = remember(firstPlayers, assignedSlotIndices, isLandscape, usesPositions, gamesPlayedMap) {
         if (usesPositions) {
             orderedActiveTeamPlayers(
                 players = firstPlayers,
                 assignedSlotIndices = assignedSlotIndices,
                 reverseOrder = !isLandscape
             )
+        } else if (!isLandscape) {
+            // Portrait, top card: fewest games played today first.
+            firstPlayers.sortedBy { gamesPlayedMap[it.id] ?: 0 }
         } else {
             firstPlayers
         }
     }
-    val orderedSecondPlayers = remember(secondPlayers, assignedSlotIndices, isLandscape, usesPositions) {
+    val orderedSecondPlayers = remember(secondPlayers, assignedSlotIndices, isLandscape, usesPositions, gamesPlayedMap) {
         if (usesPositions) {
             orderedActiveTeamPlayers(
                 players = secondPlayers,
                 assignedSlotIndices = assignedSlotIndices,
                 reverseOrder = false
             )
+        } else if (!isLandscape) {
+            // Portrait, bottom card: most games played today first.
+            secondPlayers.sortedByDescending { gamesPlayedMap[it.id] ?: 0 }
         } else {
             secondPlayers
         }
@@ -1324,16 +1333,15 @@ fun ActiveGameView(
         if (isLandscape) showWaitingListSheet = false
     }
 
-    // Portrait auto-centering: keeps the "VS" button roughly at the vertical center of the
-    // screen. Opens centered, then re-centers slowly after a period of user inactivity.
+    // Portrait: centers the "VS" button roughly at the vertical center of the screen when the
+    // screen is entered or rotated back to portrait. Landscape: keeps the players/cards column
+    // scrolled to the top so the TeamControlPanel stays in view. No more time-based auto-scroll.
     val portraitScrollState = rememberScrollState()
+    val landscapeScrollState = rememberScrollState()
     var portraitViewportHeightPx by remember { mutableFloatStateOf(0f) }
     var portraitViewportTopInRootPx by remember { mutableFloatStateOf(0f) }
     var vsContentPositionPx by remember { mutableFloatStateOf(-1f) }
     var vsHeightPx by remember { mutableFloatStateOf(0f) }
-    var isAutoCenteringScroll by remember { mutableStateOf(false) }
-    var lastScrollInteractionMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val autoRecenterIdleMillis = 45_000L
 
     val portraitVsTargetScrollPx by remember {
         derivedStateOf {
@@ -1347,42 +1355,30 @@ fun ActiveGameView(
         }
     }
 
-    LaunchedEffect(portraitScrollState) {
-        // Center on the VS button as soon as its position is known, without animating.
-        val target = snapshotFlow { portraitVsTargetScrollPx }.filterNotNull().first()
-        portraitScrollState.scrollTo(target.roundToInt())
-        lastScrollInteractionMillis = System.currentTimeMillis()
-    }
-
-    LaunchedEffect(portraitScrollState) {
-        snapshotFlow { portraitScrollState.isScrollInProgress }.collect {
-            lastScrollInteractionMillis = System.currentTimeMillis()
+    // Recenter/scroll-to-top on entering the screen and whenever the orientation flips.
+    LaunchedEffect(isLandscape) {
+        if (isLandscape) {
+            landscapeScrollState.scrollTo(0)
+        } else {
+            val target = snapshotFlow { portraitVsTargetScrollPx }.filterNotNull().first()
+            portraitScrollState.scrollTo(target.roundToInt())
         }
     }
 
-    LaunchedEffect(portraitScrollState) {
-        while (true) {
-            delay(1_000)
-            val target = portraitVsTargetScrollPx ?: continue
-            val idleFor = System.currentTimeMillis() - lastScrollInteractionMillis
-            if (isAutoCenteringScroll || portraitScrollState.isScrollInProgress || idleFor < autoRecenterIdleMillis) continue
-
-            val distance = abs(target - portraitScrollState.value)
-            if (distance <= 2f) continue
-
-            isAutoCenteringScroll = true
-            try {
-                portraitScrollState.animateScrollTo(
-                    target.roundToInt(),
-                    animationSpec = tween(
-                        durationMillis = (distance / 0.05f).roundToInt().coerceIn(2_000, 6_000),
-                        easing = LinearEasing
-                    )
-                )
-            } finally {
-                isAutoCenteringScroll = false
-                lastScrollInteractionMillis = System.currentTimeMillis()
-            }
+    // Double-tap on the app header: quick recenter (portrait), with a small
+    // overshoot-and-settle bounce, or a clean slide-to-top (landscape), no bounce.
+    val headerTapPortraitAnimationSpec = spring<Float>(
+        dampingRatio = Spring.DampingRatioMediumBouncy,
+        stiffness = Spring.StiffnessMediumLow
+    )
+    val headerTapLandscapeAnimationSpec = tween<Float>(durationMillis = 350, easing = FastOutSlowInEasing)
+    LaunchedEffect(headerDoubleTapTick) {
+        if (headerDoubleTapTick <= 0) return@LaunchedEffect
+        if (isLandscape) {
+            landscapeScrollState.animateScrollTo(0, animationSpec = headerTapLandscapeAnimationSpec)
+        } else {
+            val target = portraitVsTargetScrollPx?.roundToInt() ?: return@LaunchedEffect
+            portraitScrollState.animateScrollTo(target, animationSpec = headerTapPortraitAnimationSpec)
         }
     }
 
@@ -1406,7 +1402,7 @@ fun ActiveGameView(
                             modifier = Modifier
                                 .weight(0.75f)
                                 .fillMaxHeight()
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(landscapeScrollState)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -3188,6 +3184,13 @@ private fun GroupOnboardingTeamSizeCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (groupType.usesPositions && selectedTeamSize == 7) {
+                Text(
+                    text = stringResource(R.string.onboarding_team_size_seven_bench_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

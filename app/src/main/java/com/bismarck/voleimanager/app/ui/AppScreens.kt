@@ -2446,6 +2446,7 @@ fun FAQScreen() {
         FaqEntry(stringResource(R.string.faq_q2), answer = stringResource(R.string.faq_a2)),
         FaqEntry(stringResource(R.string.faq_q3), answer = stringResource(R.string.faq_a3)),
         FaqEntry(stringResource(R.string.faq_q4), answer = stringResource(R.string.faq_a4)),
+        FaqEntry(stringResource(R.string.faq_q14), answer = stringResource(R.string.faq_a14)),
         FaqEntry(stringResource(R.string.faq_q5), answer = stringResource(R.string.faq_a5)),
         FaqEntry(stringResource(R.string.faq_q7), answer = stringResource(R.string.faq_a7)),
         FaqEntry(stringResource(R.string.faq_q6), answer = stringResource(R.string.faq_a6)),

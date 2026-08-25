@@ -890,6 +890,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .putString("team_color", theme.name).apply()
     }
 
+    /** Usado pela dica de rolagem do cabeçalho (rotação/duplo toque), exibida uma vez por grupo. */
+    fun hasSeenHeaderScrollTooltip(groupName: String): Boolean {
+        return getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+            .getBoolean("seen_header_scroll_tooltip_$groupName", false)
+    }
+
+    fun markHeaderScrollTooltipSeen(groupName: String) {
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putBoolean("seen_header_scroll_tooltip_$groupName", true).apply()
+    }
+
     fun incrementScoreA() {
         if (_scoreA.value < 99) {
             _scoreA.value++
@@ -1056,7 +1067,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val normalized = loaded?.let {
                 val loadedType = GroupType.fromStoredValue(it.groupType)
                 it.copy(
-                    victoryLimit = it.victoryLimit.coerceIn(2, 6),
+                    victoryLimit = it.victoryLimit.coerceIn(2, loadedType.maxTeamSize),
                     balancingMode = BalancingMode.fromStoredValue(it.balancingMode).name,
                     groupType = loadedType.name,
                     teamSize = loadedType.coerceTeamSize(it.teamSize)
@@ -1164,7 +1175,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val newType = if (current.type.canConvertTo(requestedType)) requestedType else current.type
         val typeChanged = newType != current.type
         val safeTeamSize = newType.coerceTeamSize(s)
-        val safeVictoryLimit = l.coerceIn(2, 6)
+        val safeVictoryLimit = l.coerceIn(2, newType.maxTeamSize)
         if (current.teamSize != safeTeamSize) {
             _currentStreak.value = 0
             _streakOwner.value = null

@@ -16,9 +16,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.*
@@ -56,6 +58,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.ui.viewmodel.PendingMergeImportData
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -110,6 +113,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var historySelectedTab by rememberSaveable { mutableStateOf(0) }
     var historyPlayerSortMode by rememberSaveable { mutableStateOf(PlayerSortMode.ALPHABETICAL) }
     var historyMatchSortMode by rememberSaveable { mutableStateOf(MatchSortMode.NEWEST) }
+
+    // Incremented on every double-tap on the app header while on the game screen, so
+    // GameScreenContent can react by recentering (portrait) or scrolling to top (landscape).
+    var headerDoubleTapTick by remember { mutableIntStateOf(0) }
+    val headerTooltipTeamA by viewModel.teamA.collectAsState()
+    val headerTooltipTeamB by viewModel.teamB.collectAsState()
 
     var showConfigDialog by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -833,16 +842,52 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
+                val headerTooltipState = rememberTooltipState(isPersistent = true)
+                val headerTooltipScope = rememberCoroutineScope()
+                val headerTooltipGameInProgress = headerTooltipTeamA.isNotEmpty() || headerTooltipTeamB.isNotEmpty()
+                LaunchedEffect(currentScreen, groupConfig.groupName, headerTooltipGameInProgress) {
+                    if (currentScreen == Screen.GAME &&
+                        groupConfig.groupName.isNotBlank() &&
+                        headerTooltipGameInProgress &&
+                        !viewModel.hasSeenHeaderScrollTooltip(groupConfig.groupName)
+                    ) {
+                        viewModel.markHeaderScrollTooltipSeen(groupConfig.groupName)
+                        delay(600)
+                        headerTooltipState.show()
+                        delay(4_000)
+                        headerTooltipState.dismiss()
+                    }
+                }
                 FlexibleTopAppBar(
+                    onTap = { headerTooltipScope.launch { headerTooltipState.dismiss() } },
+                    onDoubleTap = if (currentScreen == Screen.GAME) {
+                        { headerDoubleTapTick++ }
+                    } else {
+                        null
+                    },
                     title = {
-                        Column {
-                            Text(stringResource(R.string.app_name))
-                            selectedGroup?.let {
-                                Text(
-                                    getDisplayGroupWithMode(groupConfig.groupName, groupConfig.balancingMode, groupConfig.teamSize),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+                            tooltip = {
+                                PlainTooltip {
+                                    Text(
+                                        stringResource(R.string.header_scroll_tooltip),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            },
+                            state = headerTooltipState,
+                            enableUserInput = false
+                        ) {
+                            Column {
+                                Text(stringResource(R.string.app_name))
+                                selectedGroup?.let {
+                                    Text(
+                                        getDisplayGroupWithMode(groupConfig.groupName, groupConfig.balancingMode, groupConfig.teamSize),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
                     },
@@ -1192,6 +1237,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 isSetupMode = isSetupMode,
                                 onSetupModeChange = { isSetupMode = it },
                                 onDeleteRequest = { playerToDelete = it },
+                                headerDoubleTapTick = headerDoubleTapTick,
                                 onShowSnackbar = { msg, actionLabel, onAction ->
                                     scope.launch {
                                         val result = snackbarHostState.showSnackbar(
@@ -1323,7 +1369,9 @@ private fun FlexibleDrawerItem(
 private fun FlexibleTopAppBar(
     title: @Composable () -> Unit,
     navigationIcon: @Composable () -> Unit = {},
-    actions: @Composable RowScope.() -> Unit = {}
+    actions: @Composable RowScope.() -> Unit = {},
+    onTap: (() -> Unit)? = null,
+    onDoubleTap: (() -> Unit)? = null
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -1333,7 +1381,19 @@ private fun FlexibleTopAppBar(
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                 .padding(vertical = 8.dp)
-                .heightIn(min = 64.dp),
+                .heightIn(min = 64.dp)
+                .then(
+                    if (onTap != null || onDoubleTap != null) {
+                        Modifier.pointerInput(onTap, onDoubleTap) {
+                            detectTapGestures(
+                                onTap = { onTap?.invoke() },
+                                onDoubleTap = { onDoubleTap?.invoke() }
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.padding(horizontal = 4.dp)) {

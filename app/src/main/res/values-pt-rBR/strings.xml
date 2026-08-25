@@ -163,6 +163,8 @@
     <string name="yes">Sim</string>
     <string name="faq_q4">Como criar ou gerenciar Grupos?</string>
     <string name="faq_a4">No menu lateral, você pode criar diferentes \"Grupos\". Isso é útil se você joga em lugares ou com turmas diferentes (ex: Vôlei de Sábado e Vôlei da Empresa). Cada grupo tem seu próprio histórico e lista de jogadores.</string>
+    <string name="faq_q14">Como funcionam os tipos de grupo?</string>
+    <string name="faq_a14">Recreativo: dois times de 2 a 6 jogadores, sem posições fixas. O balanceamento usa o Elo e a marcação de prioridade. Posições Fixas: dois times de 2 a 7 jogadores; cada jogador cadastra uma posição preferida e uma segunda, e os times respeitam a composição mínima daquele tamanho de time. Os tipos de campeonato (recreativo e pro) já existem no app, mas ainda não podem ser escolhidos.</string>
     <string name="faq_q5">Como o app escolhe quem joga a próxima partida?</string>
     <string name="faq_a5">O app seleciona os primeiros jogadores da fila de espera, organizados de forma alternada por nível de habilidade. Isso garante times equilibrados, mesclando diferentes níveis de jogo. Se precisar, você pode reorganizar a fila manualmente.</string>
     <string name="faq_q6">Qual é a diferença entre os modos de balanceamento?</string>
@@ -184,7 +186,7 @@
     <string name="faq_q12">Quais posições e papéis compõem cada tamanho de time no modo Posições Fixas?</string>
     <string name="faq_a12_col1">Tamanho</string>
     <string name="faq_a12_col2">Composição</string>
-    <string name="faq_a12_table">2x2|Com \"Garantir levantador\": 1 levantador + 1 atacante (ponteiro ou oposto). Sem a garantia: 1ª vaga de ataque (levantador, ponteiro ou oposto) + 1 defesa (central ou líbero).\n3x3|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 1 defensor (central ou líbero).\n4x4|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 2 defensores (máx. 1 ponteiro na defesa).\n5x5|A 1ª vaga segue a regra do levantador + 2 atacantes (ponteiros ou opostos) + 2 defensores (máx. 1 ponteiro na defesa).\n6x6|Levantador, ponteiro de ataque, ponteiro de defesa, 1º central, oposto e líbero (ou 2º central, se não houver líbero).\n7x7|Mesma base do 6x6, com mais 1 central; o líbero fica no banco e pode substituir qualquer central do próprio time.</string>
+    <string name="faq_a12_table">2x2|Com \"Garantir levantador\": 1 levantador + 1 jogador de qualquer outra posição (ponteiro, oposto, central ou líbero). Sem a garantia: 1ª vaga de ataque (levantador, ponteiro ou oposto) + 1 defesa (central ou líbero).\n3x3|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 1 defensor (central ou líbero).\n4x4|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 2 defensores (máx. 1 ponteiro na defesa).\n5x5|A 1ª vaga segue a regra do levantador + 2 atacantes (ponteiros ou opostos) + 2 defensores (máx. 1 ponteiro na defesa).\n6x6|Levantador, ponteiro de ataque, ponteiro de defesa, 1º central, oposto e líbero (ou 2º central, se não houver líbero).\n7x7|Mesma base do 6x6, com mais 1 central; o líbero fica no banco e pode substituir qualquer central do próprio time.</string>
     <string name="faq_q13">Qual é o papel de cada posição no modo Posições Fixas?</string>
     <string name="faq_a13_col1">Posição</string>
     <string name="faq_a13_col2">Papel</string>
@@ -206,6 +208,7 @@
     <string name="to_start_add_players">Para começar, adicione jogadores no botão \"+\" no canto superior direito da tela</string>
     <string name="onboarding_team_size_question">Quantas pessoas vão jogar em cada time?</string>
     <string name="onboarding_team_size_hint">Você pode alterar essa configuração depois na aba lateral em \"Regras do grupo\".</string>
+    <string name="onboarding_team_size_seven_bench_hint">Com 7 por time, um jogador (o líbero ou um central) fica no banco de reserva para substituições.</string>
     <string name="onboarding_add_players_instruction">Adicione no mínimo %1$d pessoas no botão \"+\" ou importe em Dados > Importar</string>
     <string name="onboarding_group_name_question">Qual será o nome do grupo?</string>
     <string name="onboarding_group_name_hint">Você pode editar depois na aba lateral > \"Grupo atual\" > clicando no ícone de lápis ao lado do nome do grupo.</string>
@@ -259,6 +262,7 @@
     <string name="position_badge_secondary_tooltip">%1$s: escalado na segunda posição que escolheu.</string>
     <string name="position_badge_improvised_tooltip">%1$s: escalado fora das posições que escolheu.</string>
     <string name="team_bench_libero_tooltip">Líbero no banco: pode ser substituído por qualquer central do próprio time.</string>
+    <string name="header_scroll_tooltip">Dica: gire a tela para trocar de visão, ou toque duas vezes aqui para centralizar os times.</string>
     <string name="team_bench_parentheses">(banco do time)</string>
     <string name="group_type_long_press_hint">Mantenha um tipo pressionado para ver uma dica rápida.</string>
     <string name="position_preferred_label">Posição preferida: %1$s</string>

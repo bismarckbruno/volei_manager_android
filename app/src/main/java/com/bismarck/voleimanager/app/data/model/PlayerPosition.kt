@@ -96,6 +96,17 @@ object TeamComposition {
             role = PositionRole.DEFENSE,
             acceptedPositions = setOf(PlayerPosition.MIDDLE_BLOCKER, PlayerPosition.LIBERO)
         )
+        // Vaga livre: aceita qualquer posição que não seja levantador. Usada no 2x2 com
+        // "garantir levantador" ativado, já que a dupla do levantador pode ser qualquer outra posição.
+        val anyNonSetter = TeamSlot(
+            role = PositionRole.ATTACK,
+            acceptedPositions = setOf(
+                PlayerPosition.OUTSIDE_HITTER,
+                PlayerPosition.OPPOSITE,
+                PlayerPosition.MIDDLE_BLOCKER,
+                PlayerPosition.LIBERO
+            )
+        )
         val leadingSlot = if (guaranteeSetter) {
             TeamSlot(PositionRole.PLAYMAKER, PlayerPosition.SETTER)
         } else {
@@ -105,7 +116,7 @@ object TeamComposition {
         return when (teamSize.coerceIn(MIN_TEAM_SIZE, MAX_TEAM_SIZE)) {
             2 -> listOf(
                 leadingSlot,
-                if (guaranteeSetter) attackCore else defenseCore
+                if (guaranteeSetter) anyNonSetter else defenseCore
             )
 
             3 -> listOf(

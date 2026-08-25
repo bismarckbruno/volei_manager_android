@@ -163,6 +163,8 @@
     <string name="yes">Sí</string>
     <string name="faq_q4">¿Cómo crear o administrar Grupos?</string>
     <string name="faq_a4">Desde el menú lateral puedes organizar varios grupos. Es ideal para separar tus partidos en diferentes lugares (por ejemplo: \"Vóley con amigos\" o \"Vóley del trabajo\"). Cada grupo cuenta con su lista de jugadores e historial propio.</string>
+    <string name="faq_q14">¿Cómo funcionan los tipos de grupo?</string>
+    <string name="faq_a14">Recreativo: dos equipos de 2 a 6 jugadores, sin posiciones fijas. El balanceo usa el Elo y la marca de prioridad. Posiciones Fijas: dos equipos de 2 a 7 jugadores; cada jugador registra una posición preferida y una segunda, y los equipos respetan la composición mínima de ese tamaño. Los tipos de campeonato (recreativo y pro) ya existen en la app, pero todavía no se pueden elegir.</string>
     <string name="faq_q5">¿Cómo elige la app quién juega el próximo partido?</string>
     <string name="faq_a5">La app selecciona a los primeros jugadores de la fila de espera, ordenados de forma alternada según su nivel. Esto garantiza equipos equilibrados con diferentes niveles de habilidad. Si lo necesitas, puedes reordenar la fila manualmente.</string>
     <string name="faq_q6">¿Cuál es la diferencia entre los modos de balance?</string>
@@ -183,7 +185,7 @@
     <string name="faq_q12">¿Qué posiciones y papeles componen cada tamaño de equipo en el modo Posiciones Fijas?</string>
     <string name="faq_a12_col1">Tamaño</string>
     <string name="faq_a12_col2">Composición</string>
-    <string name="faq_a12_table">2x2|Con \"Garantizar armador\": 1 armador + 1 atacante (punta u opuesto). Sin esa garantía: el 1er puesto pasa a ataque (armador, punta u opuesto) + 1 defensa (central o líbero).\n3x3|El 1er puesto sigue la misma regla del armador + 1 atacante (punta u opuesto) + 1 defensor (central o líbero).\n4x4|El 1er puesto sigue la misma regla del armador + 1 atacante (punta u opuesto) + 2 defensores (máx. 1 punta en defensa).\n5x5|El 1er puesto sigue la misma regla del armador + 2 atacantes (puntas u opuestos) + 2 defensores (máx. 1 punta en defensa).\n6x6|Armador, punta de ataque, punta de defensa, 1er central, opuesto y líbero (o un 2º central si no hay líbero).\n7x7|Misma base que el 6x6, con 1 central más; el líbero queda en el banco y puede cambiar con cualquier central del propio equipo.</string>
+    <string name="faq_a12_table">2x2|Con \"Garantizar armador\": 1 armador + 1 jugador en cualquier otra posición (punta, opuesto, central o líbero). Sin esa garantía: el 1er puesto pasa a ataque (armador, punta u opuesto) + 1 defensa (central o líbero).\n3x3|El 1er puesto sigue la misma regla del armador + 1 atacante (punta u opuesto) + 1 defensor (central o líbero).\n4x4|El 1er puesto sigue la misma regla del armador + 1 atacante (punta u opuesto) + 2 defensores (máx. 1 punta en defensa).\n5x5|El 1er puesto sigue la misma regla del armador + 2 atacantes (puntas u opuestos) + 2 defensores (máx. 1 punta en defensa).\n6x6|Armador, punta de ataque, punta de defensa, 1er central, opuesto y líbero (o un 2º central si no hay líbero).\n7x7|Misma base que el 6x6, con 1 central más; el líbero queda en el banco y puede cambiar con cualquier central del propio equipo.</string>
     <string name="faq_q13">¿Cuál es el papel de cada posición en el modo Posiciones Fijas?</string>
     <string name="faq_a13_col1">Posición</string>
     <string name="faq_a13_col2">Papel</string>
@@ -205,6 +207,7 @@
     <string name="to_start_add_players">Para comenzar, agrega jugadores con el botón \"+\" en la esquina superior derecha de la pantalla</string>
     <string name="onboarding_team_size_question">¿Cuántas personas jugarán en cada equipo?</string>
     <string name="onboarding_team_size_hint">Puedes cambiar esta configuración más tarde en el menú lateral en \"Reglas del grupo\".</string>
+    <string name="onboarding_team_size_seven_bench_hint">Con 7 por equipo, un jugador (el líbero o un central) queda en el banco para las sustituciones.</string>
     <string name="onboarding_add_players_instruction">Agrega al menos %1$d personas con el botón \"+\" o impórtalas desde Datos > Importar</string>
     <string name="onboarding_group_name_question">¿Cómo se llamará el grupo?</string>
     <string name="onboarding_group_name_hint">Puedes editarlo después en el panel lateral > \"Grupo actual\" > haciendo clic en el ícono de lápiz junto al nombre del grupo.</string>
@@ -258,6 +261,7 @@
     <string name="position_badge_secondary_tooltip">%1$s: juega en la segunda posición que eligió.</string>
     <string name="position_badge_improvised_tooltip">%1$s: juega fuera de las posiciones que eligió.</string>
     <string name="team_bench_libero_tooltip">Líbero en el banco: puede cambiar con cualquier central del mismo equipo.</string>
+    <string name="header_scroll_tooltip">Consejo: gira la pantalla para cambiar de vista, o toca dos veces aquí para centrar los equipos.</string>
     <string name="team_bench_parentheses">(banco del equipo)</string>
     <string name="group_type_long_press_hint">Mantén pulsado un tipo para ver un consejo rápido.</string>
     <string name="position_preferred_label">Posición preferida: %1$s</string>

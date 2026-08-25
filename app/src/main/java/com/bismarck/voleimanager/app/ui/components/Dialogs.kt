@@ -5,6 +5,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -28,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -144,7 +148,8 @@ fun SubstitutionDialog(
     val team_b_parentheses = stringResource(R.string.team_b_parentheses)
     val team_bench_parentheses = stringResource(R.string.team_bench_parentheses)
     val allOptions = remember(waitingList, teamA, teamB, playerOut, usesPositions, teamSize, assignedPositions, assignedSlotIndices) {
-        val list = mutableListOf<Pair<Player, String>>()
+        // rank: 0 = topo do diálogo, maior = mais abaixo na lista.
+        val list = mutableListOf<Triple<Player, String, Int>>()
         val isTeamA = teamA.any { it.id == playerOut.id }
         val isTeamB = teamB.any { it.id == playerOut.id }
         val activeTeam = when {
@@ -152,26 +157,45 @@ fun SubstitutionDialog(
             isTeamB -> teamB
             else -> emptyList()
         }
-        val benchLibero = if (usesPositions && teamSize == 7) {
-            activeTeam
-                .firstOrNull { it.id != playerOut.id && assignedPositions[it.id] == PlayerPosition.LIBERO }
-        } else {
-            null
+        val opposingTeam = when {
+            isTeamA -> teamB
+            isTeamB -> teamA
+            else -> emptyList()
         }
-        benchLibero?.let { list.add(it to team_bench_parentheses) }
-        waitingList.forEach { list.add(it to waiting_parentheses) }
-        if (isTeamA) teamB.forEach { list.add(it to team_b_parentheses) }
-        else if (isTeamB) teamA.forEach { list.add(it to team_a_parentheses) }
-        else {
-            teamA.forEach { list.add(it to team_a_parentheses) }; teamB.forEach { list.add(it to team_b_parentheses) }
+        val ownTeamLabel = if (isTeamA) team_a_parentheses else team_b_parentheses
+        val opposingTeamLabel = if (isTeamA) team_b_parentheses else team_a_parentheses
+        // No 7x7, substituir o líbero do banco (ou quem estiver no banco de reserva) prioriza
+        // primeiro os próprios colegas de time, depois a fila de espera e por fim o time adversário.
+        val isBenchReserve = usesPositions && teamSize == 7 &&
+            assignedPositions[playerOut.id] == PlayerPosition.LIBERO
+        if (isBenchReserve) {
+            activeTeam.filter { it.id != playerOut.id }.forEach { list.add(Triple(it, ownTeamLabel, 0)) }
+            waitingList.forEach { list.add(Triple(it, waiting_parentheses, 1)) }
+            opposingTeam.forEach { list.add(Triple(it, opposingTeamLabel, 2)) }
+        } else {
+            // Fora do banco: a substituição especial do líbero (entra sem contar como troca normal)
+            // continua aparecendo no topo quando existir, seguida da fila de espera e do time adversário.
+            val benchLibero = if (usesPositions && teamSize == 7) {
+                activeTeam.firstOrNull { it.id != playerOut.id && assignedPositions[it.id] == PlayerPosition.LIBERO }
+            } else {
+                null
+            }
+            benchLibero?.let { list.add(Triple(it, team_bench_parentheses, 0)) }
+            waitingList.forEach { list.add(Triple(it, waiting_parentheses, 1)) }
+            if (isTeamA) teamB.forEach { list.add(Triple(it, team_b_parentheses, 2)) }
+            else if (isTeamB) teamA.forEach { list.add(Triple(it, team_a_parentheses, 2)) }
+            else {
+                teamA.forEach { list.add(Triple(it, team_a_parentheses, 2)) }
+                teamB.forEach { list.add(Triple(it, team_b_parentheses, 2)) }
+            }
         }
         list.sortedWith(
-            compareBy<Pair<Player, String>>(
-                { if (it.second == team_bench_parentheses) 0 else 1 },
+            compareBy<Triple<Player, String, Int>>(
+                { it.third },
                 { assignedSlotIndices[it.first.id] ?: Int.MAX_VALUE },
                 { it.first.name.lowercase() }
             )
-        )
+        ).map { it.first to it.second }
     }
     var selectedPlayerId by remember(playerOut.id, allOptions) {
         mutableStateOf(
@@ -317,11 +341,8 @@ fun EditPlayerDialog(
     var isPriority by remember { mutableStateOf(player.isPriority) }
     var preferredPosition by remember { mutableStateOf(PlayerPosition.fromStoredValue(player.preferredPosition)) }
     var secondaryPosition by remember { mutableStateOf(PlayerPosition.fromStoredValue(player.secondaryPosition)) }
-    val focusRequester = remember { FocusRequester() }
     val normalizedName = newName.trim().replace(Regex("\\s+"), " ")
 
-    DialogKeyboardFocus(focusRequester)
-    
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.edit_registration)) },
@@ -332,8 +353,7 @@ fun EditPlayerDialog(
                     onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) newName = it },
                     label = { Text(stringResource(R.string.name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                    singleLine = true,
-                    modifier = Modifier.focusRequester(focusRequester)
+                    singleLine = true
                 )
                 Spacer(Modifier.height(24.dp))
                 if (usesPositions) {
@@ -426,7 +446,20 @@ private fun PositionDropdown(
             readOnly = true,
             enabled = enabled,
             label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled) },
+            trailingIcon = {
+                val rotation by animateFloatAsState(
+                    targetValue = if (expanded && enabled) 180f else 0f,
+                    animationSpec = tween(durationMillis = 200),
+                    label = "PositionDropdownRotation"
+                )
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.keyboard_arrow_down),
+                    modifier = Modifier
+                        .rotate(rotation)
+                        .size(24.dp)
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
@@ -703,6 +736,7 @@ fun GroupConfigDialog(
                         onSelect = {
                             groupType = type
                             teamSize = type.coerceTeamSize(teamSize.roundToInt()).toFloat()
+                            victoryLimit = victoryLimit.roundToInt().coerceIn(2, type.maxTeamSize).toFloat()
                             if (!type.supportsPriority) priorityEnabled = false
                         }
                     )
@@ -761,9 +795,9 @@ fun GroupConfigDialog(
                 Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
                 Slider(
                     value = victoryLimit,
-                    onValueChange = { victoryLimit = it.coerceIn(2f, 6f) },
-                    valueRange = 2f..6f,
-                    steps = 3
+                    onValueChange = { victoryLimit = it.coerceIn(2f, groupType.maxTeamSize.toFloat()) },
+                    valueRange = 2f..groupType.maxTeamSize.toFloat(),
+                    steps = groupType.maxTeamSize - 3
                 )
 
                 HorizontalDivider(
