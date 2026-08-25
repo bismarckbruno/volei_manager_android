@@ -177,11 +177,17 @@
     <string name="faq_q2">¿Cómo funciona la Prioridad (Estrella)?</string>
     <string name="faq_a2">Sirve para distribuir mejor los niveles o posiciones en la cancha. Por ejemplo, si etiquetas a los levantadores con \"Prioridad\", el sistema intentará colocar a uno en cada lado para que los equipos queden equilibrados al generarlos automáticamente.</string>
     <string name="faq_q11">¿Qué significan las abreviaturas de las posiciones en el modo Posiciones Fijas?</string>
-    <string name="faq_a11">ARM = Armador, PUN = Punta, CEN = Central, OPU = Opuesto, LIB = Líbero. Estas abreviaturas aparecen en las insignias de los jugadores y en los puestos de cancha.</string>
+    <string name="faq_a11_col1">Sigla</string>
+    <string name="faq_a11_col2">Posición</string>
+    <string name="faq_a11_table">ARM|Armador\nPUN|Punta\nCEN|Central\nOPU|Opuesto\nLIB|Líbero</string>
     <string name="faq_q12">¿Qué posiciones y papeles componen cada tamaño de equipo en el modo Posiciones Fijas?</string>
-    <string name="faq_a12">2x2: con \"Garantizar armador\", queda 1 armador + 1 atacante (punta u opuesto). Sin esa garantía, el primer puesto pasa a ataque (armador, punta u opuesto) y el otro a defensa (central o líbero). 3x3: el primer puesto sigue la misma regla del armador; luego vienen 1 atacante (punta u opuesto) y 1 defensor (central o líbero). 4x4: el primer puesto sigue la misma regla del armador; luego 1 atacante (punta u opuesto) y 2 defensores, con como máximo 1 punta en defensa. 5x5: el primer puesto sigue la misma regla del armador; luego 2 atacantes (puntas u opuestos) y 2 defensores, con como máximo 1 punta en defensa. 6x6: armador, punta de ataque, punta de defensa, primer central, opuesto y líbero (o un segundo central si no hay líbero). 7x7: la misma base del 6x6, con 1 central más y el líbero en el banco, pudiendo cambiar con cualquier central del propio equipo.</string>
+    <string name="faq_a12_col1">Tamaño</string>
+    <string name="faq_a12_col2">Composición</string>
+    <string name="faq_a12_table">2x2|Con \"Garantizar armador\": 1 armador + 1 atacante (punta u opuesto). Sin esa garantía: el 1er puesto pasa a ataque (armador, punta u opuesto) + 1 defensa (central o líbero).\n3x3|El 1er puesto sigue la misma regla del armador + 1 atacante (punta u opuesto) + 1 defensor (central o líbero).\n4x4|El 1er puesto sigue la misma regla del armador + 1 atacante (punta u opuesto) + 2 defensores (máx. 1 punta en defensa).\n5x5|El 1er puesto sigue la misma regla del armador + 2 atacantes (puntas u opuestos) + 2 defensores (máx. 1 punta en defensa).\n6x6|Armador, punta de ataque, punta de defensa, 1er central, opuesto y líbero (o un 2º central si no hay líbero).\n7x7|Misma base que el 6x6, con 1 central más; el líbero queda en el banco y puede cambiar con cualquier central del propio equipo.</string>
     <string name="faq_q13">¿Cuál es el papel de cada posición en el modo Posiciones Fijas?</string>
-    <string name="faq_a13">El armador es el estratega/organizador del equipo; en 2x2 a 5x5, si la garantía de armador está desactivada y no hay ninguno disponible, ese puesto puede ocuparlo alguien de ataque. Los puntas pueden contar como ataque o defensa: si solo hay uno en el equipo, cuenta como ataque; si hay dos, uno pasa a ser punta de ataque y el otro, punta de defensa. Los opuestos cuentan como ataque. Los centrales y los líberos cuentan como defensa.</string>
+    <string name="faq_a13_col1">Posición</string>
+    <string name="faq_a13_col2">Papel</string>
+    <string name="faq_a13_table">Armador|Estratega/organizador del equipo. En 2x2 a 5x5, si la garantía de armador está desactivada y no hay ninguno disponible, ese puesto puede ocuparlo alguien de ataque.\nPunta|Ataque y defensa: con 1 en el equipo, cuenta como ataque; con 2, uno pasa a ser punta de ataque y el otro, punta de defensa.\nOpuesto|Cuenta como ataque.\nCentral|Cuenta como defensa.\nLíbero|Cuenta como defensa.</string>
     <string name="faq_q3">¿Qué es Mostrar Retraso?</string>
     <string name="faq_a3">Esta función muestra los partidos ficticios asignados a quienes llegan tarde, basándose en los partidos ya realizados en la cancha. Así, garantizamos que quienes están desde el inicio mantengan su prioridad. Quienes llegan con el grupo inicial no tienen retraso; el sistema solo muestra valores a partir de uno.</string>
     <string name="faq_a1">Elo es un sistema de calificación de habilidad. Ganas puntos por tus victorias y pierdes por tus derrotas, según la dificultad del encuentro. El Elo promedio se obtiene sumando los puntos del equipo e dividiéndolos por el número de integrantes.</string>
@@ -344,7 +350,7 @@
     <string name="select_minimum_4_players">Selecciona al menos 4 jugadores</string>
     <string name="no_matches">Sin partidos</string>
     <string name="one_match">1 partido</string>
-    <string name="balance_mode_title">Modo de Balance:</string>
+    <string name="balance_mode_title">Modo de Balance</string>
     <string name="mode_rebalance">Rebalanceo</string>
     <string name="mode_rest">Descanso</string>
     <string name="balance_mode_long_press_hint">Mantén pulsado un modo para ver una ayuda rápida.</string>

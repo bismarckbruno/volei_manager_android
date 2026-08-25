@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import android.view.WindowManager
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bismarck.voleimanager.app.data.model.BalancingMode
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
@@ -620,7 +622,7 @@ fun GroupConfigDialog(
     initialVictoryLimit: Int,
     initialPriorityEnabled: Boolean,
     initialScoreEnabled: Boolean = true,
-    initialBalancingMode: String = com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
+    initialBalancingMode: String = BalancingMode.REBALANCE.name,
     initialGroupType: String = GroupType.RECREATIONAL.name,
     initialGuaranteeSetter: Boolean = true,
     isGameInProgress: Boolean = false,
@@ -685,7 +687,7 @@ fun GroupConfigDialog(
         title = { Text(stringResource(R.string.group_rules, groupName)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -714,22 +716,17 @@ fun GroupConfigDialog(
                 Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
                 val modes = listOf(
                     Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
+                        BalancingMode.REBALANCE.name,
                         stringResource(R.string.mode_rebalance),
                         stringResource(R.string.mode_rebalance_tooltip)
                     ),
                     Triple(
-                        com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name,
+                        BalancingMode.REST.name,
                         stringResource(R.string.mode_rest),
                         stringResource(R.string.mode_rest_tooltip)
                     )
                 )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.balance_mode_long_press_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
                 Spacer(Modifier.height(8.dp))
                 modes.forEach { (value, label, tooltip) ->
                     BalancingModeOptionRow(
@@ -737,7 +734,7 @@ fun GroupConfigDialog(
                         tooltip = tooltip,
                         selected = balancingMode == value,
                         onSelect = { balancingMode = value },
-                        iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
+                        iconRes = if (value == BalancingMode.REBALANCE.name) {
                             R.drawable.arrowsbothsides
                         } else {
                             R.drawable.zzz_rest
@@ -745,7 +742,11 @@ fun GroupConfigDialog(
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                )
+
                 Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
                 Slider(
                     value = teamSize,
@@ -841,7 +842,8 @@ private fun BalancingModeOptionRow(
             horizontalArrangement = Arrangement.Start,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
+                .height(48.dp)
+                .clip(CircleShape)
                 .combinedClickable(
                     onClick = {
                         tooltipState.dismiss()
@@ -1009,7 +1011,8 @@ fun GroupTypeOptionRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .height(48.dp)
+                .clip(CircleShape)
                 .combinedClickable(
                     onClick = {
                         tooltipState.dismiss()

@@ -15,6 +15,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -2418,22 +2419,62 @@ fun HistoryItem(
 }
 
 // --- TELA DE FAQ / AJUDA ---
+private data class FaqEntry(
+    val question: String,
+    val answer: String? = null,
+    val table: FaqTableData? = null
+)
+
+private data class FaqTableData(
+    val columnHeaders: Pair<String, String>,
+    val rows: List<Pair<String, String>>,
+    val firstColumnWeight: Float = 0.32f
+)
+
+/** Parses a "cell1|cell2" per line string resource into table rows. */
+private fun parseFaqTableRows(raw: String): List<Pair<String, String>> =
+    raw.split("\n").map { line ->
+        val parts = line.split("|", limit = 2)
+        parts[0].trim() to parts.getOrElse(1) { "" }.trim()
+    }
+
 @Composable
 fun FAQScreen() {
     val faqItems = listOf(
-        stringResource(R.string.faq_q1) to stringResource(R.string.faq_a1),
-        stringResource(R.string.faq_q10) to stringResource(R.string.faq_a10),
-        stringResource(R.string.faq_q2) to stringResource(R.string.faq_a2),
-        stringResource(R.string.faq_q3) to stringResource(R.string.faq_a3),
-        stringResource(R.string.faq_q4) to stringResource(R.string.faq_a4),
-        stringResource(R.string.faq_q5) to stringResource(R.string.faq_a5),
-        stringResource(R.string.faq_q7) to stringResource(R.string.faq_a7),
-        stringResource(R.string.faq_q6) to stringResource(R.string.faq_a6),
-        stringResource(R.string.faq_q8) to stringResource(R.string.faq_a8),
-        stringResource(R.string.faq_q9) to stringResource(R.string.faq_a9),
-        stringResource(R.string.faq_q11) to stringResource(R.string.faq_a11),
-        stringResource(R.string.faq_q12) to stringResource(R.string.faq_a12),
-        stringResource(R.string.faq_q13) to stringResource(R.string.faq_a13)
+        FaqEntry(stringResource(R.string.faq_q1), answer = stringResource(R.string.faq_a1)),
+        FaqEntry(stringResource(R.string.faq_q10), answer = stringResource(R.string.faq_a10)),
+        FaqEntry(stringResource(R.string.faq_q2), answer = stringResource(R.string.faq_a2)),
+        FaqEntry(stringResource(R.string.faq_q3), answer = stringResource(R.string.faq_a3)),
+        FaqEntry(stringResource(R.string.faq_q4), answer = stringResource(R.string.faq_a4)),
+        FaqEntry(stringResource(R.string.faq_q5), answer = stringResource(R.string.faq_a5)),
+        FaqEntry(stringResource(R.string.faq_q7), answer = stringResource(R.string.faq_a7)),
+        FaqEntry(stringResource(R.string.faq_q6), answer = stringResource(R.string.faq_a6)),
+        FaqEntry(stringResource(R.string.faq_q8), answer = stringResource(R.string.faq_a8)),
+        FaqEntry(stringResource(R.string.faq_q9), answer = stringResource(R.string.faq_a9)),
+        FaqEntry(
+            stringResource(R.string.faq_q11),
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a11_col1) to stringResource(R.string.faq_a11_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a11_table)),
+                firstColumnWeight = 0.3f
+            )
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q13),
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a13_col1) to stringResource(R.string.faq_a13_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a13_table)),
+                firstColumnWeight = 0.3f
+            )
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q12),
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a12_col1) to stringResource(R.string.faq_a12_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a12_table)),
+                firstColumnWeight = 0.25f
+            )
+        )
     )
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
@@ -2454,15 +2495,28 @@ fun FAQScreen() {
         )
         Spacer(Modifier.height(16.dp))
 
-        faqItems.forEachIndexed { index, (question, answer) ->
+        faqItems.forEachIndexed { index, entry ->
             FAQItem(
-                question = question,
-                answer = answer,
+                question = entry.question,
                 isExpanded = expandedIndex == index,
                 onClick = {
                     expandedIndex = if (expandedIndex == index) null else index
                 }
-            )
+            ) {
+                if (entry.table != null) {
+                    FAQTable(
+                        columnHeaders = entry.table.columnHeaders,
+                        rows = entry.table.rows,
+                        firstColumnWeight = entry.table.firstColumnWeight
+                    )
+                } else {
+                    Text(
+                        text = entry.answer.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             HorizontalDivider(
                 modifier = Modifier.padding(top = 16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
@@ -2473,12 +2527,75 @@ fun FAQScreen() {
     }
 }
 
+/** Simple two-column table used by FAQ answers that are better presented as a reference table. */
+@Composable
+private fun FAQTable(
+    columnHeaders: Pair<String, String>,
+    rows: List<Pair<String, String>>,
+    firstColumnWeight: Float = 0.3f
+) {
+    val secondColumnWeight = 1f - firstColumnWeight
+    val borderColor = MaterialTheme.colorScheme.outlineVariant
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = columnHeaders.first,
+                modifier = Modifier.weight(firstColumnWeight),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = columnHeaders.second,
+                modifier = Modifier.weight(secondColumnWeight),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        rows.forEachIndexed { index, (first, second) ->
+            if (index > 0) {
+                HorizontalDivider(color = borderColor.copy(alpha = 0.5f))
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = first,
+                    modifier = Modifier.weight(firstColumnWeight),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = second,
+                    modifier = Modifier.weight(secondColumnWeight),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun FAQItem(
     question: String,
-    answer: String,
     isExpanded: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    answerContent: @Composable () -> Unit
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (isExpanded) 180f else 0f,
@@ -2519,12 +2636,9 @@ fun FAQItem(
             enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
             exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
         ) {
-            Text(
-                text = answer,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+            Box(modifier = Modifier.padding(top = 8.dp)) {
+                answerContent()
+            }
         }
     }
 }

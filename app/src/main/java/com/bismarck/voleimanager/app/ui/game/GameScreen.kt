@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -61,13 +62,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -75,6 +82,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -128,10 +137,14 @@ import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 
 @Composable
@@ -679,7 +692,7 @@ fun GameScreenContent(
                                         .padding(start = 22.dp, end = 22.dp, bottom = 8.dp),
                                     shape = CircleShape,
                                     color = MaterialTheme.colorScheme.secondaryContainer,
-                                    shadowElevation = 4.dp
+                                    shadowElevation = 2.dp
                                 ) {
                                     val selCount = presentIds.size
                                     val totalCount = sortedPlayers.size
@@ -1311,6 +1324,68 @@ fun ActiveGameView(
         if (isLandscape) showWaitingListSheet = false
     }
 
+    // Portrait auto-centering: keeps the "VS" button roughly at the vertical center of the
+    // screen. Opens centered, then re-centers slowly after a period of user inactivity.
+    val portraitScrollState = rememberScrollState()
+    var portraitViewportHeightPx by remember { mutableFloatStateOf(0f) }
+    var portraitViewportTopInRootPx by remember { mutableFloatStateOf(0f) }
+    var vsContentPositionPx by remember { mutableFloatStateOf(-1f) }
+    var vsHeightPx by remember { mutableFloatStateOf(0f) }
+    var isAutoCenteringScroll by remember { mutableStateOf(false) }
+    var lastScrollInteractionMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val autoRecenterIdleMillis = 45_000L
+
+    val portraitVsTargetScrollPx by remember {
+        derivedStateOf {
+            if (portraitViewportHeightPx <= 0f || vsContentPositionPx < 0f) {
+                null
+            } else {
+                val maxValue = portraitScrollState.maxValue.toFloat().coerceAtLeast(0f)
+                (vsContentPositionPx + vsHeightPx / 2f - portraitViewportHeightPx / 2f)
+                    .coerceIn(0f, maxValue)
+            }
+        }
+    }
+
+    LaunchedEffect(portraitScrollState) {
+        // Center on the VS button as soon as its position is known, without animating.
+        val target = snapshotFlow { portraitVsTargetScrollPx }.filterNotNull().first()
+        portraitScrollState.scrollTo(target.roundToInt())
+        lastScrollInteractionMillis = System.currentTimeMillis()
+    }
+
+    LaunchedEffect(portraitScrollState) {
+        snapshotFlow { portraitScrollState.isScrollInProgress }.collect {
+            lastScrollInteractionMillis = System.currentTimeMillis()
+        }
+    }
+
+    LaunchedEffect(portraitScrollState) {
+        while (true) {
+            delay(1_000)
+            val target = portraitVsTargetScrollPx ?: continue
+            val idleFor = System.currentTimeMillis() - lastScrollInteractionMillis
+            if (isAutoCenteringScroll || portraitScrollState.isScrollInProgress || idleFor < autoRecenterIdleMillis) continue
+
+            val distance = abs(target - portraitScrollState.value)
+            if (distance <= 2f) continue
+
+            isAutoCenteringScroll = true
+            try {
+                portraitScrollState.animateScrollTo(
+                    target.roundToInt(),
+                    animationSpec = tween(
+                        durationMillis = (distance / 0.05f).roundToInt().coerceIn(2_000, 6_000),
+                        easing = LinearEasing
+                    )
+                )
+            } finally {
+                isAutoCenteringScroll = false
+                lastScrollInteractionMillis = System.currentTimeMillis()
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -1365,7 +1440,6 @@ fun ActiveGameView(
                                         assignedPositions = assignedPositions,
                                         usesPositions = usesPositions,
                                         positionTeamSize = groupConfig.teamSize,
-                                        compositionIncomplete = compositionIncomplete,
                                         portraitPlayersFirst = true,
                                         score = firstScore,
                                         showScore = showScore,
@@ -1379,10 +1453,18 @@ fun ActiveGameView(
                                     ) { requestWinConfirmation(firstWinId) }
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
-                                VsSwapButton(
-                                    isLandscape = true,
-                                    modifier = Modifier.align(Alignment.CenterVertically)
-                                ) { viewModel.toggleTeamsSwapped() }
+
+                                Column(
+                                    modifier = Modifier.fillMaxHeight(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ){
+                                    Spacer(modifier = Modifier.height(68.dp))
+
+                                    VsSwapButton(
+                                        isLandscape = true
+                                    ) { viewModel.toggleTeamsSwapped() }
+                                }
+
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
@@ -1412,7 +1494,6 @@ fun ActiveGameView(
                                         assignedPositions = assignedPositions,
                                         usesPositions = usesPositions,
                                         positionTeamSize = groupConfig.teamSize,
-                                        compositionIncomplete = compositionIncomplete,
                                         portraitPlayersFirst = false,
                                         score = secondScore,
                                         showScore = showScore,
@@ -1430,7 +1511,7 @@ fun ActiveGameView(
                             TextButton(
                                 onClick = onCancelRequest,
                                 modifier = Modifier
-                                    .defaultMinSize(minHeight = 40.dp)
+                                    .defaultMinSize(minHeight = 48.dp)
                                     .align(Alignment.CenterHorizontally)
                                     .padding(top = 4.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp)
@@ -1482,7 +1563,11 @@ fun ActiveGameView(
                         .weight(1f)
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .onGloballyPositioned { coordinates ->
+                            portraitViewportHeightPx = coordinates.size.height.toFloat()
+                            portraitViewportTopInRootPx = coordinates.positionInRoot().y
+                        }
+                        .verticalScroll(portraitScrollState),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
@@ -1511,7 +1596,6 @@ fun ActiveGameView(
                             assignedPositions = assignedPositions,
                             usesPositions = usesPositions,
                             positionTeamSize = groupConfig.teamSize,
-                            compositionIncomplete = compositionIncomplete,
                             portraitPlayersFirst = true,
                             score = firstScore,
                             showScore = showScore,
@@ -1525,7 +1609,15 @@ fun ActiveGameView(
                         ) { requestWinConfirmation(firstWinId) }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    VsSwapButton(isLandscape = false) { viewModel.toggleTeamsSwapped() }
+                    VsSwapButton(
+                        isLandscape = false,
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            val displayedOffsetWithinViewport =
+                                coordinates.positionInRoot().y - portraitViewportTopInRootPx
+                            vsContentPositionPx = displayedOffsetWithinViewport + portraitScrollState.value
+                            vsHeightPx = coordinates.size.height.toFloat()
+                        }
+                    ) { viewModel.toggleTeamsSwapped() }
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
@@ -1553,7 +1645,6 @@ fun ActiveGameView(
                             assignedPositions = assignedPositions,
                             usesPositions = usesPositions,
                             positionTeamSize = groupConfig.teamSize,
-                            compositionIncomplete = compositionIncomplete,
                             portraitPlayersFirst = false,
                             score = secondScore,
                             showScore = showScore,
@@ -1570,7 +1661,7 @@ fun ActiveGameView(
                         onClick = onCancelRequest,
                         modifier = Modifier
                             .padding(top = 4.dp)
-                            .defaultMinSize(minHeight = 40.dp)
+                            .defaultMinSize(minHeight = 48.dp)
                             .fillMaxWidth()
                     ) {
                         Text(
@@ -1965,7 +2056,6 @@ fun ActiveTeamCard(
     autoSelectedLoserPlayerIds: Set<Int>,
     assignedPositions: Map<Int, PlayerPosition> = emptyMap(),
     usesPositions: Boolean = false,
-    compositionIncomplete: Boolean = false,
     positionTeamSize: Int = 6,
     portraitPlayersFirst: Boolean = false,
     score: Int,
@@ -1981,7 +2071,6 @@ fun ActiveTeamCard(
 ) {
     val avgElo = if (players.isNotEmpty()) players.map { it.elo }.average() else 0.0
     val contentColor = if (cardColor.luminance() < 0.5f) Color.White else Color.Black
-    val dividerColor = contentColor.copy(alpha = 0.2f)
     val haptic = LocalHapticFeedback.current
     val avgEloTooltipState = rememberTooltipState(isPersistent = true)
     val avgEloTooltipScope = rememberCoroutineScope()
@@ -2017,7 +2106,7 @@ fun ActiveTeamCard(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(48.dp))
+                                .clip(CircleShape)
                                 .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
                                 .combinedClickable(
                                     onClick = { avgEloTooltipState.dismiss() },
@@ -2040,7 +2129,7 @@ fun ActiveTeamCard(
                             Spacer(Modifier.width(2.dp))
                             Text(
                                 EloCalculator.formatElo(avgElo),
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 color = contentColor.copy(alpha = 0.7f)
                             )
                         }
@@ -2051,7 +2140,7 @@ fun ActiveTeamCard(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(48.dp))
+                            .clip(CircleShape)
                             .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
                             .combinedClickable(
                                 onClick = { },
@@ -2183,7 +2272,7 @@ fun ActiveTeamCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            verticalArrangement = Arrangement.SpaceEvenly,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             players.forEach { p ->
@@ -2208,11 +2297,11 @@ fun ActiveTeamCard(
                     SubcomposeLayout(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 40.dp)
-                            .clip(RoundedCornerShape(40.dp))
+                            .defaultMinSize(minHeight = 48.dp)
+                            .clip(CircleShape)
                             .then(
                                 if (isBenchLibero) {
-                                    Modifier.border(1.dp, contentColor.copy(alpha = 0.4f), RoundedCornerShape(40.dp))
+                                    Modifier.border(1.dp, contentColor.copy(alpha = 0.4f), CircleShape)
                                 } else {
                                     Modifier
                                 }
@@ -2361,113 +2450,199 @@ fun ActiveTeamCard(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        elevation = CardDefaults.cardElevation(4.dp),
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 26.dp, bottomEnd = 26.dp)
-    ) {
+    // Corner radius of the outer card, so the control panel can align flush with it
+    // on whichever edge (top or bottom) it occupies.
+    val cardTopCorner = 30.dp
+    val cardBottomCorner = 30.dp
+    val panelInnerCorner = 30.dp
+
+    @Composable
+    fun TeamControlPanel(atTop: Boolean, content: @Composable ColumnScope.() -> Unit) {
+        val topCorner = if (atTop) cardTopCorner else panelInnerCorner
+        val bottomCorner = if (atTop) panelInnerCorner else cardBottomCorner
+        val shape = RoundedCornerShape(
+            topStart = topCorner,
+            topEnd = topCorner,
+            bottomStart = bottomCorner,
+            bottomEnd = bottomCorner
+        )
+        // Cards with a light (light-theme) background need a much subtler scrim, otherwise
+        // the panel reads as a heavy dark smudge; dark cards can take a stronger overlay.
+        val isDarkCard = cardColor.luminance() < 0.5f
+        val panelBackgroundAlpha = if (isDarkCard) 0.10f else 0.07f
+        val ringColor = MaterialTheme.colorScheme.background
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
+                // The ring is drawn OUTSIDE the panel's own layout bounds (from the edge out to
+                // ~4dp), so it must be placed before .clip() in the chain: modifiers listed
+                // earlier are unaffected by a later .clip(), letting this overflow past both the
+                // panel and (since the outer team card no longer clips) past the card itself.
+                .drawWithCache {
+                    val borderPx = 4.dp.toPx()
+                    val topCornerPx = topCorner.toPx()
+                    val bottomCornerPx = bottomCorner.toPx()
+                    val innerPath = Path().apply {
+                        addRoundRect(
+                            RoundRect(
+                                rect = Rect(0f, 0f, size.width, size.height),
+                                topLeft = CornerRadius(topCornerPx),
+                                topRight = CornerRadius(topCornerPx),
+                                bottomLeft = CornerRadius(bottomCornerPx),
+                                bottomRight = CornerRadius(bottomCornerPx)
+                            )
+                        )
+                    }
+                    val outerPath = Path().apply {
+                        addRoundRect(
+                            RoundRect(
+                                rect = Rect(-borderPx, -borderPx, size.width + borderPx, size.height + borderPx),
+                                topLeft = CornerRadius(topCornerPx + borderPx),
+                                topRight = CornerRadius(topCornerPx + borderPx),
+                                bottomLeft = CornerRadius(bottomCornerPx + borderPx),
+                                bottomRight = CornerRadius(bottomCornerPx + borderPx)
+                            )
+                        )
+                    }
+                    val ringPath = Path().apply {
+                        op(outerPath, innerPath, PathOperation.Difference)
+                    }
+                    onDrawBehind {
+                        drawPath(ringPath, color = ringColor)
+                    }
+                }
+                .clip(shape)
+                .background(Color.Black.copy(alpha = panelBackgroundAlpha))
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            content = content
+        )
+    }
+
+    // The outer team card paints its own rounded background without clipping its content,
+    // so TeamControlPanel's outward ring can spill past the card's true edges instead of
+    // being cut off at them.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp)
+            .background(
+                cardColor,
+                RoundedCornerShape(topStart = cardTopCorner, topEnd = cardTopCorner, bottomStart = cardBottomCorner, bottomEnd = cardBottomCorner)
+            )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLandscape) {
-                TeamHeader()
-                if (showScore) {
+                TeamControlPanel(atTop = true) {
+                    TeamHeader()
+                    if (showScore) {
+                        Spacer(Modifier.height(4.dp))
+                        ScoreCounter()
+                        Spacer(Modifier.height(8.dp))
+                    }
                     Spacer(Modifier.height(4.dp))
-                    ScoreCounter()
-                } else {
-                    HorizontalDivider(Modifier.padding(top = 8.dp), color = dividerColor)
+                    Button(
+                        onClick = onWin,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.victory),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = buttonTextColor
+                        )
+                    }
                 }
-                Button(
-                    onClick = onWin,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.victory),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = buttonTextColor
-                    )
+                Spacer(Modifier.height(8.dp))
+                Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 0.dp)) {
+                    TeamPlayers()
                 }
-                TeamPlayers()
 
             } else {
                 if (portraitPlayersFirst) {
-                    TeamPlayers()
-                    Spacer(Modifier.height(4.dp))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 48.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Button(
-                            onClick = onWin,
+                    Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 0.dp)) {
+                        TeamPlayers()
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    TeamControlPanel(atTop = false) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                .defaultMinSize(minHeight = 48.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = stringResource(R.string.victory_short),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = buttonTextColor
-                            )
-                        }
+                            Button(
+                                onClick = onWin,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.victory_short),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = buttonTextColor
+                                )
+                            }
 
-                        if (showScore) {
-                            ScoreCounter()
+                            if (showScore) {
+                                Spacer(Modifier.height(4.dp))
+                                ScoreCounter()
+                            }
                         }
+                        Spacer(Modifier.height(8.dp))
+                        TeamHeader()
                     }
-                    Spacer(Modifier.height(4.dp))
-                    TeamHeader()
                 } else {
-                    TeamHeader()
-                    Spacer(Modifier.height(4.dp))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 48.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        if (showScore) {
-                            ScoreCounter()
-                        }
-                        Button(
-                            onClick = onWin,
+                    TeamControlPanel(atTop = true) {
+                        TeamHeader()
+                        Spacer(Modifier.height(8.dp))
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                .defaultMinSize(minHeight = 48.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = stringResource(R.string.victory_short),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = buttonTextColor
-                            )
+                            if (showScore) {
+                                ScoreCounter()
+                                Spacer(Modifier.height(4.dp))
+                            }
+                            Button(
+                                onClick = onWin,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.victory_short),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = buttonTextColor
+                                )
+                            }
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
-                    TeamPlayers()
+                    Spacer(Modifier.height(8.dp))
+                    Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 0.dp)) {
+                        TeamPlayers()
+                    }
                 }
             }
         }
@@ -3705,21 +3880,26 @@ fun WaitingPlayerCard(
     onClick: () -> Unit
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // In portrait every fillMaxWidth()/weight() below is skipped so the whole card hugs its
+    // content (name + star/position badges); those only make sense to enable the landscape
+    // marquee, which needs a fixed width range to scroll long names within.
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
-            .widthIn(min = 100.dp, max = 220.dp)
+            .then(
+                if (isLandscape) Modifier.widthIn(min = 120.dp, max = 220.dp) else Modifier
+            )
             .clickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .then(if (isLandscape) Modifier.fillMaxWidth() else Modifier)
                 .heightIn(min = 60.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .then(if (isLandscape) Modifier.fillMaxWidth() else Modifier)
                     .padding(12.dp), verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -3729,11 +3909,11 @@ fun WaitingPlayerCard(
                     fontSize = 16.sp
                 )
                 Spacer(Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = if (isLandscape) Modifier.weight(1f) else Modifier) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .then(if (isLandscape) Modifier.fillMaxWidth() else Modifier)
                             .then(
                                 if (isLandscape) {
                                     Modifier.basicMarquee(iterations = Int.MAX_VALUE)

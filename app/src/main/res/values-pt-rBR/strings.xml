@@ -178,11 +178,17 @@
     <string name="faq_q2">Como funciona a Prioridade (Estrela)?</string>
     <string name="faq_a2">Serve para garantir que certas posições ou níveis de habilidade sejam bem distribuídos. Por exemplo, se você marcar os levantadores com \"Prioridade\", o app tentará colocar um levantador de cada lado na hora de gerar os times automaticamente.</string>
     <string name="faq_q11">O que significam as abreviações das posições no modo Posições Fixas?</string>
-    <string name="faq_a11">LEV = Levantador, PON = Ponteiro, CEN = Central, OPO = Oposto, LIB = Líbero. Essas abreviações aparecem nos selos dos jogadores e nas vagas de quadra.</string>
+    <string name="faq_a11_col1">Sigla</string>
+    <string name="faq_a11_col2">Posição</string>
+    <string name="faq_a11_table">LEV|Levantador\nPON|Ponteiro\nCEN|Central\nOPO|Oposto\nLIB|Líbero</string>
     <string name="faq_q12">Quais posições e papéis compõem cada tamanho de time no modo Posições Fixas?</string>
-    <string name="faq_a12">2x2: com \"Garantir levantador\", fica 1 levantador + 1 atacante (ponteiro ou oposto). Sem a garantia, a primeira vaga vira ataque (levantador, ponteiro ou oposto) e a outra vira defesa (central ou líbero). 3x3: a primeira vaga segue a mesma regra do levantador; depois vem 1 atacante (ponteiro ou oposto) e 1 defensor (central ou líbero). 4x4: a primeira vaga segue a mesma regra do levantador; depois 1 atacante (ponteiro ou oposto) e 2 defensores, com no máximo 1 ponteiro na defesa. 5x5: a primeira vaga segue a mesma regra do levantador; depois 2 atacantes (ponteiros ou opostos) e 2 defensores, com no máximo 1 ponteiro na defesa. 6x6: levantador, ponteiro de ataque, ponteiro de defesa, primeiro central, oposto e líbero (ou segundo central, se não houver líbero). 7x7: a mesma base do 6x6, com mais 1 central e o líbero no banco, podendo ser substituído por qualquer central do próprio time.</string>
+    <string name="faq_a12_col1">Tamanho</string>
+    <string name="faq_a12_col2">Composição</string>
+    <string name="faq_a12_table">2x2|Com \"Garantir levantador\": 1 levantador + 1 atacante (ponteiro ou oposto). Sem a garantia: 1ª vaga de ataque (levantador, ponteiro ou oposto) + 1 defesa (central ou líbero).\n3x3|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 1 defensor (central ou líbero).\n4x4|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 2 defensores (máx. 1 ponteiro na defesa).\n5x5|A 1ª vaga segue a regra do levantador + 2 atacantes (ponteiros ou opostos) + 2 defensores (máx. 1 ponteiro na defesa).\n6x6|Levantador, ponteiro de ataque, ponteiro de defesa, 1º central, oposto e líbero (ou 2º central, se não houver líbero).\n7x7|Mesma base do 6x6, com mais 1 central; o líbero fica no banco e pode substituir qualquer central do próprio time.</string>
     <string name="faq_q13">Qual é o papel de cada posição no modo Posições Fixas?</string>
-    <string name="faq_a13">O levantador é o armador/estrategista do time; nas configurações 2x2 a 5x5, se a garantia estiver desligada e não houver levantador disponível, essa vaga pode ser ocupada por alguém de ataque. Os ponteiros podem atuar tanto no ataque quanto na defesa: se houver só um no time, ele conta como ataque; se houver dois, um vira ponteiro de ataque e o outro, ponteiro de defesa. Os opostos contam como ataque. Centrais e líberos contam como defesa.</string>
+    <string name="faq_a13_col1">Posição</string>
+    <string name="faq_a13_col2">Papel</string>
+    <string name="faq_a13_table">Levantador|Armador/estrategista do time. Nas configs 2x2 a 5x5, se a garantia estiver desligada e não houver levantador disponível, a vaga pode ser ocupada por um atacante.\nPonteiro|Ataque e defesa: com 1 no time, conta como ataque; com 2, um vira ponteiro de ataque e o outro, de defesa.\nOposto|Conta como ataque.\nCentral|Conta como defesa.\nLíbero|Conta como defesa.</string>
     <string name="faq_q3">O que é Mostrar Atraso?</string>
     <string name="faq_a3">Quando ativado, mostra quantos jogos fictícios foram somados a quem chegou atrasado, de acordo com o que a quadra já jogou. Isso evita que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa com atraso zero. Só aparecem valores a partir de um.</string>
     <string name="faq_a1">O Elo é um sistema de pontuação que avalia o nível de habilidade de cada jogador. Você ganha pontos ao vencer e perde ao ser derrotado, baseado na dificuldade da partida. O Elo médio é simplesmente a soma dos pontos de uma equipe dividida pelo número de jogadores.</string>
@@ -351,7 +357,7 @@
     <string name="select_minimum_4_players">Selecione ao menos 4 jogadores</string>
     <string name="no_matches">Nenhum jogo</string>
     <string name="one_match">1 partida</string>
-    <string name="balance_mode_title">Modo de balanceamento:</string>
+    <string name="balance_mode_title">Modo de balanceamento</string>
     <string name="mode_rebalance">Rebalanceamento</string>
     <string name="mode_rest">Descanso</string>
     <string name="balance_mode_long_press_hint">Toque e segure em um modo para ver uma dica rápida.</string>
