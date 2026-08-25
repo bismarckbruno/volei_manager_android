@@ -37,10 +37,13 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -81,8 +84,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
+import com.bismarck.voleimanager.app.ui.components.groupTypeIcon
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
@@ -2421,6 +2426,7 @@ fun HistoryItem(
 // --- TELA DE FAQ / AJUDA ---
 private data class FaqEntry(
     val question: String,
+    val icon: @Composable () -> Unit,
     val answer: String? = null,
     val table: FaqTableData? = null
 )
@@ -2438,22 +2444,95 @@ private fun parseFaqTableRows(raw: String): List<Pair<String, String>> =
         parts[0].trim() to parts.getOrElse(1) { "" }.trim()
     }
 
+/** Simple leading icon wrapper so every FAQ question can show a themed icon. */
+@Composable
+private fun FaqQuestionIcon(imageVector: androidx.compose.ui.graphics.vector.ImageVector) {
+    Icon(
+        imageVector = imageVector,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(22.dp)
+    )
+}
+
+/** Simple leading icon wrapper for drawable-based icons (custom vector assets). */
+@Composable
+private fun FaqQuestionIcon(iconRes: Int) {
+    Icon(
+        painter = painterResource(iconRes),
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(22.dp)
+    )
+}
+
 @Composable
 fun FAQScreen() {
     val faqItems = listOf(
-        FaqEntry(stringResource(R.string.faq_q1), answer = stringResource(R.string.faq_a1)),
-        FaqEntry(stringResource(R.string.faq_q10), answer = stringResource(R.string.faq_a10)),
-        FaqEntry(stringResource(R.string.faq_q2), answer = stringResource(R.string.faq_a2)),
-        FaqEntry(stringResource(R.string.faq_q3), answer = stringResource(R.string.faq_a3)),
-        FaqEntry(stringResource(R.string.faq_q4), answer = stringResource(R.string.faq_a4)),
-        FaqEntry(stringResource(R.string.faq_q14), answer = stringResource(R.string.faq_a14)),
-        FaqEntry(stringResource(R.string.faq_q5), answer = stringResource(R.string.faq_a5)),
-        FaqEntry(stringResource(R.string.faq_q7), answer = stringResource(R.string.faq_a7)),
-        FaqEntry(stringResource(R.string.faq_q6), answer = stringResource(R.string.faq_a6)),
-        FaqEntry(stringResource(R.string.faq_q8), answer = stringResource(R.string.faq_a8)),
-        FaqEntry(stringResource(R.string.faq_q9), answer = stringResource(R.string.faq_a9)),
+        FaqEntry(
+            stringResource(R.string.faq_q1),
+            icon = { FaqQuestionIcon(Icons.Default.WorkspacePremium) },
+            answer = stringResource(R.string.faq_a1)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q10),
+            icon = { FaqQuestionIcon(R.drawable.plus_minus) },
+            answer = stringResource(R.string.faq_a10)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q2),
+            icon = { FaqQuestionIcon(Icons.Default.Star) },
+            answer = stringResource(R.string.faq_a2)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q3),
+            icon = { FaqQuestionIcon(R.drawable.volei_manager_icon) },
+            answer = stringResource(R.string.faq_a3)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q4),
+            icon = { FaqQuestionIcon(Icons.Default.Groups) },
+            answer = stringResource(R.string.faq_a4)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q14),
+            icon = {
+                Row {
+                    FaqQuestionIcon(groupTypeIcon(GroupType.RECREATIONAL))
+                    Spacer(Modifier.width(2.dp))
+                    FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS))
+                }
+            },
+            answer = stringResource(R.string.faq_a14)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q5),
+            icon = { FaqQuestionIcon(Icons.AutoMirrored.Filled.Sort) },
+            answer = stringResource(R.string.faq_a5)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q7),
+            icon = { FaqQuestionIcon(R.drawable.crown_icon) },
+            answer = stringResource(R.string.faq_a7)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q6),
+            icon = { FaqQuestionIcon(R.drawable.arrowsbothsides) },
+            answer = stringResource(R.string.faq_a6)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q8),
+            icon = { FaqQuestionIcon(Icons.Default.PersonAddAlt1) },
+            answer = stringResource(R.string.faq_a8)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q9),
+            icon = { FaqQuestionIcon(Icons.Default.Edit) },
+            answer = stringResource(R.string.faq_a9)
+        ),
         FaqEntry(
             stringResource(R.string.faq_q11),
+            icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
                 columnHeaders = stringResource(R.string.faq_a11_col1) to stringResource(R.string.faq_a11_col2),
                 rows = parseFaqTableRows(stringResource(R.string.faq_a11_table)),
@@ -2462,6 +2541,7 @@ fun FAQScreen() {
         ),
         FaqEntry(
             stringResource(R.string.faq_q13),
+            icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
                 columnHeaders = stringResource(R.string.faq_a13_col1) to stringResource(R.string.faq_a13_col2),
                 rows = parseFaqTableRows(stringResource(R.string.faq_a13_table)),
@@ -2470,6 +2550,7 @@ fun FAQScreen() {
         ),
         FaqEntry(
             stringResource(R.string.faq_q12),
+            icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
                 columnHeaders = stringResource(R.string.faq_a12_col1) to stringResource(R.string.faq_a12_col2),
                 rows = parseFaqTableRows(stringResource(R.string.faq_a12_table)),
@@ -2499,6 +2580,7 @@ fun FAQScreen() {
         faqItems.forEachIndexed { index, entry ->
             FAQItem(
                 question = entry.question,
+                icon = entry.icon,
                 isExpanded = expandedIndex == index,
                 onClick = {
                     expandedIndex = if (expandedIndex == index) null else index
@@ -2596,6 +2678,7 @@ fun FAQItem(
     question: String,
     isExpanded: Boolean,
     onClick: () -> Unit,
+    icon: (@Composable () -> Unit)? = null,
     answerContent: @Composable () -> Unit
 ) {
     val rotation by animateFloatAsState(
@@ -2618,6 +2701,11 @@ fun FAQItem(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (icon != null) {
+                Box(modifier = Modifier.padding(end = 12.dp)) {
+                    icon()
+                }
+            }
             Text(
                 text = question,
                 fontWeight = FontWeight.Bold,

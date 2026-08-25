@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.SportsVolleyball
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +28,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -100,6 +104,14 @@ fun groupTypeDescription(type: GroupType): String = stringResource(
         GroupType.TOURNAMENT_RECREATIONAL, GroupType.TOURNAMENT_PRO -> R.string.group_type_fixed_positions_desc
     }
 )
+
+/** Ícone representativo do tipo de grupo (usado nas telas de criar grupo e regras do grupo). */
+fun groupTypeIcon(type: GroupType): ImageVector = when (type) {
+    GroupType.RECREATIONAL -> Icons.Default.SportsVolleyball
+    GroupType.FIXED_POSITIONS,
+    GroupType.TOURNAMENT_RECREATIONAL,
+    GroupType.TOURNAMENT_PRO -> Icons.Default.GridView
+}
 
 /** Ênfase visual do selo: a segunda posição preferida aparece esmaecida. */
 enum class BadgeEmphasis { PRIMARY, SECONDARY }

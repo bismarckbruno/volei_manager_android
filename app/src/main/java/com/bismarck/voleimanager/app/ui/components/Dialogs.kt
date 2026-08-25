@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
@@ -734,10 +735,16 @@ fun GroupConfigDialog(
                         type = type,
                         selected = groupType == type,
                         onSelect = {
+                            val previousType = groupType
                             groupType = type
                             teamSize = type.coerceTeamSize(teamSize.roundToInt()).toFloat()
                             victoryLimit = victoryLimit.roundToInt().coerceIn(2, type.maxTeamSize).toFloat()
-                            if (!type.supportsPriority) priorityEnabled = false
+                            if (!type.supportsPriority) {
+                                priorityEnabled = false
+                            } else if (!previousType.supportsPriority) {
+                                // Volta ao padrão (ativado) ao sair de um tipo sem prioridade.
+                                priorityEnabled = true
+                            }
                         }
                     )
                 }
@@ -781,7 +788,16 @@ fun GroupConfigDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
                 )
 
-                Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Groups,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
+                }
                 Slider(
                     value = teamSize,
                     onValueChange = {
@@ -792,7 +808,16 @@ fun GroupConfigDialog(
                 )
                 Spacer(Modifier.height(24.dp))
 
-                Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(R.drawable.crown_icon),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
+                }
                 Slider(
                     value = victoryLimit,
                     onValueChange = { victoryLimit = it.coerceIn(2f, groupType.maxTeamSize.toFloat()) },
@@ -810,7 +835,15 @@ fun GroupConfigDialog(
                         label = stringResource(R.string.min_priority),
                         tooltip = stringResource(R.string.min_priority_tooltip),
                         checked = priorityEnabled,
-                        onCheckedChange = { priorityEnabled = it }
+                        onCheckedChange = { priorityEnabled = it },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     )
                     Spacer(Modifier.height(8.dp))
                 } else if (groupType.usesPositions) {
@@ -921,7 +954,8 @@ private fun TooltipToggleRow(
     tooltip: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    icon: (@Composable () -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -963,6 +997,10 @@ private fun TooltipToggleRow(
                 onCheckedChange(it)
             })
             Spacer(Modifier.width(16.dp))
+            if (icon != null) {
+                icon()
+                Spacer(Modifier.width(8.dp))
+            }
             Text(label, fontWeight = FontWeight.Medium)
         }
     }
@@ -1070,6 +1108,13 @@ fun GroupTypeOptionRow(
             )
             Spacer(Modifier.width(8.dp))
             Text(text = groupTypeLabel(type), fontWeight = FontWeight.Medium)
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = groupTypeIcon(type),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
