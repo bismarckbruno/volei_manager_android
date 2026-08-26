@@ -2167,9 +2167,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 val droppedWinners = TeamBalancer.interleaveByElo(sorted.drop(conf.teamSize))
                 remainingPool.addAll(0, droppedWinners)
             } else if (teamWin.size < conf.teamSize) {
-                val guaranteedOrdered = shuffledPool
-                    .filter { guaranteedIdsSet.contains(it.id) }
-                    .sortedBy { getEffectiveGames(it) }
+                val guaranteedOrdered = sortPlayersByUsageForSelection(
+                    players = shuffledPool.filter { guaranteedIdsSet.contains(it.id) },
+                    getEffectiveGames = ::getEffectiveGames
+                )
                 if (conf.type.usesPositions) {
                     // Garantidos primeiro; entre os demais, quem cobre as vagas ainda descobertas.
                     val orderedPool = orderGuaranteedFirst(remainingPool, guaranteedOrdered)
@@ -2214,10 +2215,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
             val teamChal = mutableListOf<Player>()
             if (conf.type.usesPositions) {
-                val guaranteedOrdered = remainingPool
-                    .shuffled()
-                    .filter { guaranteedIdsSet.contains(it.id) }
-                    .sortedBy { getEffectiveGames(it) }
+                val guaranteedOrdered = sortPlayersByUsageForSelection(
+                    players = remainingPool.filter { guaranteedIdsSet.contains(it.id) },
+                    getEffectiveGames = ::getEffectiveGames
+                )
                 val (picked, leftover) = PositionAssigner.pickToCoverComposition(
                     base = emptyList(),
                     pool = orderGuaranteedFirst(remainingPool, guaranteedOrdered),
@@ -2241,10 +2242,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
                 val slotsNeeded = conf.teamSize - teamChal.size
                 if (slotsNeeded > 0) {
-                    val guaranteedOrdered = remainingPool
-                        .shuffled()
-                        .filter { guaranteedIdsSet.contains(it.id) }
-                        .sortedBy { getEffectiveGames(it) }
+                    val guaranteedOrdered = sortPlayersByUsageForSelection(
+                        players = remainingPool.filter { guaranteedIdsSet.contains(it.id) },
+                        getEffectiveGames = ::getEffectiveGames
+                    )
                     val guaranteedPicked = guaranteedOrdered.take(slotsNeeded)
                     teamChal.addAll(guaranteedPicked)
                     remainingPool.removeAll(guaranteedPicked)
@@ -2289,6 +2290,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val guaranteedIds = guaranteed.map { it.id }.toSet()
         val head = guaranteed.filter { g -> pool.any { it.id == g.id } }
         return head + pool.filterNot { guaranteedIds.contains(it.id) }
+    }
+
+    /**
+     * Ordenação estável para escolhas automáticas: prioriza menor uso do dia e,
+     * em empate, menor histórico total de partidas.
+     */
+    private fun sortPlayersByUsageForSelection(
+        players: List<Player>,
+        getEffectiveGames: (Player) -> Int
+    ): List<Player> {
+        return players.sortedWith(
+            compareBy<Player> { getEffectiveGames(it) }
+                .thenBy { it.matchesPlayed }
+                .thenBy { it.id }
+        )
     }
 
     /** Encerramento comum de uma rodada: destaca perdedores reaproveitados e reinicia o placar. */

@@ -1,7 +1,7 @@
 # AGENTS.md — Vôlei Manager
 
 Android app (Kotlin + Jetpack Compose + Room) for managing recreational volleyball matches.  
-Package: `com.bismarck.voleimanager` · Min SDK 24 · Target SDK 34
+Package: `com.bismarck.voleimanager.app` · Min SDK 24 · Target SDK 36
 
 ---
 
@@ -123,4 +123,3 @@ User settings are persisted in `SharedPreferences("volei")` directly from the Vi
 - `CreateGroupDialog` asks for **name + group type**; the balancing mode is chosen later, in the onboarding flow (`ONBOARDING_STEP_GROUP_TYPE` → `ONBOARDING_STEP_BALANCING_MODE` → team size → ...).
 - `GroupConfigDialog` field order is: group type → balancing mode → players per team → victory limit → min one priority (**only when the type supports priority**) → scoreboard. Destructive type changes (team size clamp or match in progress) require an explicit confirmation and cancel the running match.
 - Position labels/badges live in `ui/components/PositionUi.kt` (`positionLabel`, `positionShortLabel`, `PositionBadge`, `TeamCompositionIndicator`) — reuse them instead of formatting enum names inline.
-
