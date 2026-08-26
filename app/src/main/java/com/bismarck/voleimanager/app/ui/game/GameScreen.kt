@@ -1,6 +1,5 @@
 package com.bismarck.voleimanager.app.ui.game
 
-import android.app.Activity
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -1315,20 +1314,7 @@ fun ActiveGameView(
         }
     }
 
-    val view = LocalView.current
-    val navBarColor = MaterialTheme.colorScheme.surfaceContainerLow.toArgb()
-    val transparentColor = Color.Transparent.toArgb()
-
-    if (!view.isInEditMode) {
-        DisposableEffect(isLandscape, isDarkTheme, navBarColor) {
-            val window = (view.context as Activity).window
-            window.navigationBarColor = if (!isLandscape) navBarColor else transparentColor
-
-            onDispose {
-                window.navigationBarColor = transparentColor
-            }
-        }
-    }
+    val navBarColor = MaterialTheme.colorScheme.surfaceContainerLow
 
     LaunchedEffect(isLandscape) {
         if (isLandscape) showWaitingListSheet = false
@@ -1384,6 +1370,18 @@ fun ActiveGameView(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // Draws a scrim behind the (transparent, edge-to-edge) system navigation bar in portrait
+        // so it visually blends with the screen background instead of setting a deprecated
+        // Window.navigationBarColor.
+        if (!isLandscape) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                    .background(navBarColor)
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
