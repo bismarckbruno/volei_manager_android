@@ -2508,9 +2508,9 @@ fun FAQScreen() {
             answer = stringResource(R.string.faq_a5)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q7),
-            icon = { FaqQuestionIcon(R.drawable.crown_icon) },
-            answer = stringResource(R.string.faq_a7)
+            stringResource(R.string.faq_q8),
+            icon = { FaqQuestionIcon(Icons.Default.PersonAddAlt1) },
+            answer = stringResource(R.string.faq_a8)
         ),
         FaqEntry(
             stringResource(R.string.faq_q6),
@@ -2518,9 +2518,9 @@ fun FAQScreen() {
             answer = stringResource(R.string.faq_a6)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q8),
-            icon = { FaqQuestionIcon(Icons.Default.PersonAddAlt1) },
-            answer = stringResource(R.string.faq_a8)
+            stringResource(R.string.faq_q7),
+            icon = { FaqQuestionIcon(R.drawable.crown_icon) },
+            answer = stringResource(R.string.faq_a7)
         ),
         FaqEntry(
             stringResource(R.string.faq_q9),

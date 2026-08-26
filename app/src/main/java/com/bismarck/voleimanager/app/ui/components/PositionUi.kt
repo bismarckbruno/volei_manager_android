@@ -10,11 +10,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.SportsVolleyball
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,8 +34,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.R
@@ -41,6 +51,7 @@ import com.bismarck.voleimanager.app.data.model.PositionRole
 import com.bismarck.voleimanager.app.data.model.TeamComposition
 import com.bismarck.voleimanager.app.data.model.TeamSlot
 import com.bismarck.voleimanager.app.util.PositionAssigner
+import java.util.Locale
 
 /** Nome completo da posição, no idioma do app. */
 @Composable
@@ -111,6 +122,17 @@ fun groupTypeIcon(type: GroupType): ImageVector = when (type) {
     GroupType.FIXED_POSITIONS,
     GroupType.TOURNAMENT_RECREATIONAL,
     GroupType.TOURNAMENT_PRO -> Icons.Default.GridView
+}
+
+/**
+ * Ícone do levantador (letra "L"/"S"/"A" estilizada) na opção "Garantir levantador", ilustrado
+ * na língua do idioma ativo no aparelho: retorna a variante em pt, es ou en (padrão) conforme o
+ * idioma do [Locale] atual.
+ */
+fun setterIconRes(): Int = when (Locale.getDefault().language) {
+    "pt" -> R.drawable.setter_icon_pt
+    "es" -> R.drawable.setter_icon_es
+    else -> R.drawable.setter_icon_en
 }
 
 /** Ênfase visual do selo: a segunda posição preferida aparece esmaecida. */
@@ -208,6 +230,112 @@ fun PlayerPositionBadges(
     }
 }
 
+/**
+ * Nome do jogador seguido dos selos de posição (`FIXED_POSITIONS`) ou da estrela de prioridade
+ * (`RECREATIONAL`). Nos grupos de posições fixas, quando o nome + selos não cabem lado a lado na
+ * largura disponível, os selos descem para uma linha própria abaixo do nome (e acima de qualquer
+ * indicador de Elo que venha em seguida no layout do chamador); o nome então recebe reticências
+ * apenas se, mesmo sozinho em sua própria linha, ainda não couber.
+ */
+@Composable
+fun PlayerNameWithPositionBadges(
+    player: Player,
+    usesPositions: Boolean,
+    modifier: Modifier = Modifier,
+    nameStyle: TextStyle = LocalTextStyle.current,
+    nameFontWeight: FontWeight? = null,
+    nameColor: Color = Color.Unspecified,
+    badgeContentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    isPriority: Boolean = false,
+    priorityIconSize: Dp = 16.dp,
+    priorityTint: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    val preferred = PlayerPosition.fromStoredValue(player.preferredPosition)
+    val secondary = PlayerPosition.fromStoredValue(player.secondaryPosition)
+    val hasBadges = usesPositions && (preferred != null || secondary != null)
+
+    if (!hasBadges) {
+        Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = player.name,
+                style = nameStyle,
+                fontWeight = nameFontWeight,
+                color = nameColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (!usesPositions && isPriority) {
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = stringResource(R.string.priority),
+                    modifier = Modifier.size(priorityIconSize),
+                    tint = priorityTint
+                )
+            }
+        }
+        return
+    }
+
+    val spacing = 6.dp
+    val verticalSpacing = 2.dp
+    SubcomposeLayout(modifier = modifier.fillMaxWidth()) { constraints ->
+        val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
+        val spacingPx = spacing.roundToPx()
+        val verticalSpacingPx = verticalSpacing.roundToPx()
+
+        val badgesPlaceable = subcompose("badges") {
+            PlayerPositionBadges(player = player, usesPositions = true, contentColor = badgeContentColor)
+        }.first().measure(looseConstraints)
+
+        // Largura natural do nome (sem quebra nem reticências), só para decidir se cabe ao
+        // lado dos selos; não é o placeable usado no layout final.
+        val nameNaturalWidth = subcompose("nameNatural") {
+            Text(text = player.name, style = nameStyle, fontWeight = nameFontWeight, maxLines = 1, softWrap = false)
+        }.first().measure(Constraints()).width
+
+        val fitsInline = nameNaturalWidth + spacingPx + badgesPlaceable.width <= constraints.maxWidth
+
+        if (fitsInline) {
+            val namePlaceable = subcompose("nameInline") {
+                Text(
+                    text = player.name,
+                    style = nameStyle,
+                    fontWeight = nameFontWeight,
+                    color = nameColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }.first().measure(
+                looseConstraints.copy(
+                    maxWidth = (constraints.maxWidth - spacingPx - badgesPlaceable.width).coerceAtLeast(0)
+                )
+            )
+            val height = maxOf(namePlaceable.height, badgesPlaceable.height)
+            layout(constraints.maxWidth, height) {
+                namePlaceable.placeRelative(0, (height - namePlaceable.height) / 2)
+                badgesPlaceable.placeRelative(namePlaceable.width + spacingPx, (height - badgesPlaceable.height) / 2)
+            }
+        } else {
+            val namePlaceable = subcompose("nameWrapped") {
+                Text(
+                    text = player.name,
+                    style = nameStyle,
+                    fontWeight = nameFontWeight,
+                    color = nameColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }.first().measure(looseConstraints)
+            val totalHeight = namePlaceable.height + verticalSpacingPx + badgesPlaceable.height
+            layout(constraints.maxWidth, totalHeight) {
+                namePlaceable.placeRelative(0, 0)
+                badgesPlaceable.placeRelative(0, namePlaceable.height + verticalSpacingPx)
+            }
+        }
+    }
+}
+
 /** Borda correspondente ao encaixe entre a posição escalada e as preferências do jogador. */
 fun assignedPositionBorder(player: Player, assigned: PlayerPosition, teamSize: Int): BadgeBorder {
     val preferred = TeamComposition.effectivePosition(
@@ -276,7 +404,10 @@ fun TeamCompositionIndicator(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(4.dp))
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
         slots.forEach { filled ->
             val isMissing = filled.player == null
             val color = when {

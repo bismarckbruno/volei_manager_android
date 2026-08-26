@@ -125,6 +125,7 @@ import com.bismarck.voleimanager.app.ui.ManualSetupScreen
 import com.bismarck.voleimanager.app.ui.components.EditPlayerDialog
 import com.bismarck.voleimanager.app.ui.components.GroupTypeOptionRow
 import com.bismarck.voleimanager.app.ui.components.AssignedPositionBadge
+import com.bismarck.voleimanager.app.ui.components.PlayerNameWithPositionBadges
 import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.assignedPositionTooltip
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
@@ -3745,38 +3746,35 @@ fun PlayerCard(
                     )
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.then(
-                            if (isLandscape && usesPositions) {
-                                Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                            } else {
-                                Modifier
-                            }
-                        )
-                    ) {
-                        Text(
-                            text = player.name,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = if (isLandscape && usesPositions) TextOverflow.Clip else TextOverflow.Ellipsis
-                        )
-                        if (usesPositions) {
+                    if (isLandscape && usesPositions) {
+                        // Em paisagem, nomes longos já rolam via marquee; a quebra de linha dos
+                        // selos não se aplica aqui (a linha inteira já tem espaço ilimitado).
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                        ) {
+                            Text(
+                                text = player.name,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip
+                            )
                             PlayerPositionBadges(
                                 player = player,
                                 usesPositions = true,
                                 modifier = Modifier.padding(start = 6.dp)
                             )
-                        } else if (player.isPriority) {
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = stringResource(R.string.priority),
-                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                tint = if(isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-                            )
                         }
+                    } else {
+                        PlayerNameWithPositionBadges(
+                            player = player,
+                            usesPositions = usesPositions,
+                            nameFontWeight = FontWeight.Bold,
+                            isPriority = player.isPriority,
+                            priorityIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() },
+                            priorityTint = if (isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+                        )
                     }
                     if (showElo) {
                         Spacer(modifier = Modifier.height(4.dp))

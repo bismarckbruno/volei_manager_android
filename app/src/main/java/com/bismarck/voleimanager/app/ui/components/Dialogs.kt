@@ -58,6 +58,7 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
+import java.util.Locale
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -857,7 +858,7 @@ fun GroupConfigDialog(
                         },
                         icon = {
                             Icon(
-                                imageVector = Icons.Default.Star,
+                                painter = painterResource(setterIconRes()),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)

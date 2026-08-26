@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
-import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
+import com.bismarck.voleimanager.app.ui.components.PlayerNameWithPositionBadges
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.ui.components.TeamCompositionIndicator
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
@@ -38,7 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -332,32 +330,18 @@ fun PlayerSelectionRow(
             )
             Spacer(Modifier.width(10.dp))
             Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = player.name,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (usesPositions) {
-                        PlayerPositionBadges(
-                            player = player,
-                            usesPositions = true,
-                            modifier = Modifier.padding(start = 6.dp)
-                        )
-                    } else if (player.isPriority) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = stringResource(R.string.priority),
-                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                PlayerNameWithPositionBadges(
+                    player = player,
+                    usesPositions = usesPositions,
+                    nameStyle = LocalTextStyle.current.copy(fontSize = 16.sp),
+                    nameFontWeight = FontWeight.Medium,
+                    nameColor = MaterialTheme.colorScheme.onSurface,
+                    isPriority = player.isPriority,
+                    priorityIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() },
+                    priorityTint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 if (showElo) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
