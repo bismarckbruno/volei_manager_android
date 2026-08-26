@@ -18,7 +18,7 @@
     <string name="privacy_policy">Política de Privacidad</string>
     <string name="terms_of_use">Términos de Uso</string>
     <string name="current_group">Grupo actual:</string>
-    <string name="select">Seleccionar</string>
+    <string name="select_word">Seleccionar</string>
     <string name="create_new_group">+ Crear nuevo grupo</string>
     <string name="game_word">Partido</string>
     <string name="faq">Preguntas frecuentes</string>
@@ -161,18 +161,18 @@
     <string name="name">Nombre</string>
     <string name="no">No</string>
     <string name="yes">Sí</string>
-    <string name="faq_q4">¿Cómo crear o administrar Grupos?</string>
+    <string name="faq_q4">¿Cómo crear o administrar grupos?</string>
     <string name="faq_a4">Desde el menú lateral puedes organizar varios grupos. Es ideal para separar tus partidos en diferentes lugares (por ejemplo: \"Vóley con amigos\" o \"Vóley del trabajo\"). Cada grupo cuenta con su lista de jugadores e historial propio.</string>
     <string name="faq_q14">¿Cómo funcionan los tipos de grupo?</string>
     <string name="faq_a14">Recreativo: dos equipos de 2 a 6 jugadores, sin posiciones fijas. El balanceo usa el Elo y la marca de prioridad. Posiciones Fijas: dos equipos de 2 a 7 jugadores; cada jugador registra una posición preferida y una segunda, y los equipos respetan la composición mínima de ese tamaño. Los tipos de campeonato (recreativo y pro) ya existen en la app, pero todavía no se pueden elegir.</string>
     <string name="faq_q5">¿Cómo elige la app quién juega el próximo partido?</string>
-    <string name="faq_a5">En grupos Recreativos, la app selecciona a los primeros jugadores de la fila de espera, ordenados de forma alternada según su nivel, para armar equipos equilibrados por Elo (respetando la marca de Prioridad, cuando está activa). En grupos de Posiciones Fijas, también se respeta el orden de la fila, pero cada puesto se completa desde la posición más restrictiva, equilibrando el Elo entre quienes sirven para cada puesto (mira \"Garantizar armador\" para saber cómo se cubre el puesto de armador). En ambos casos, puedes reordenar la fila manualmente si lo necesitas.</string>
+    <string name="faq_a5">En grupos Recreativos, la app selecciona a los primeros jugadores de la fila de espera, ordenados de forma alternada según su nivel, para armar equipos equilibrados por Elo (respetando la marca de Prioridad, cuando está activa). En grupos de Posiciones Fijas, también se respeta el orden de la fila, pero cada puesto se completa desde la posición más restrictiva, equilibrando el Elo entre quienes sirven para cada puesto. En ambos casos, puedes reordenar la fila manualmente si lo necesitas.</string>
     <string name="faq_q6">¿Cuál es la diferencia entre los modos de balance?</string>
     <string name="faq_a6">El Modo Rebalanceo divide al equipo ganador en dos y los completa con los primeros de la fila de espera para equilibrar el nivel. El Modo Descanso hace que el equipo ganador descanse una ronda si hay dos o más equipos completos en la fila; de lo contrario, sigue jugando. Ambos modos están disponibles en grupos Recreativos y de Posiciones Fijas (los tipos de campeonato no los usan).</string>
     <string name="faq_q7">¿Qué pasa cuando se alcanza el límite de victorias?</string>
-    <string name="faq_a7">Cuando un equipo alcanza el límite configurado, se convierte en el \'Rey de la Cancha\' y se dividirá, descansará o seguirá jugando, según el modo de balanceo y el tamaño de la fila de espera. En grupos de Posiciones Fijas, al dividirse, el equipo se separa en dos mitades equilibradas por Elo, y cada mitad se completa con jugadores de la fila para cubrir sus puestos de posición.</string>
+    <string name="faq_a7">Cuando un equipo alcanza el límite configurado, se convierte en el \'Rey de la Cancha\' y se dividirá, descansará o seguirá jugando, según el modo de balanceo y el tamaño de la fila de espera. Al dividirse, el equipo se separa en dos mitades equilibradas por Elo, y cada mitad se completa con jugadores de la fila.</string>
     <string name="faq_q8">¿Cómo funcionan las sustituciones durante el partido?</string>
-    <string name="faq_a8">Solo mantén presionado el nombre de quien sale, selecciona a quien entra y confirma. Puedes sustituir a los jugadores que están en la cancha por los que están en la fila de espera, o también cambiar jugadores entre los dos equipos que están en la cancha.</string>
+    <string name="faq_a8">Solo mantén presionado el nombre de quien sale, selecciona a quien entra y confirma. Puedes sustituir a los jugadores que están en la cancha por los que están en la fila de espera o en el banco de suplentes, o también cambiar jugadores entre los dos equipos que están en la cancha.</string>
     <string name="faq_q9">¿Cuándo conviene usar la formación manual de equipos?</string>
     <string name="faq_a9">Úsalo solo en situaciones atípicas, como cuando un partido ya esté en curso al abrir la app. En general, el modo automático es más rápido y constante. En grupos de Posiciones Fijas, presta atención al aviso de \"composición incompleta\", que indica cuando un equipo no cubre todos los puestos exigidos.</string>
     <string name="faq_a10">Visibles cuando la opción \"Mostrar Elo\" está activada, estos valores muestran el impacto del partido en el Elo. Un valor cercano a 16 indica equipos bien equilibrados. Muy por debajo de 16 generalmente significa que ganó el equipo favorito. Por encima de 16 indica la victoria de un equipo con un Elo promedio menor (una sorpresa).</string>
@@ -191,7 +191,7 @@
     <string name="faq_a13_col2">Papel</string>
     <string name="faq_a13_table">Armador|Estratega/organizador del equipo. En 2x2 a 5x5, si la garantía de armador está desactivada y no hay ninguno disponible, ese puesto puede ocuparlo alguien de ataque.\nPunta|Ataque y defensa: con 1 en el equipo, cuenta como ataque; con 2, uno pasa a ser punta de ataque y el otro, punta de defensa.\nOpuesto|Cuenta como ataque.\nCentral|Cuenta como defensa.\nLíbero|Cuenta como defensa.</string>
     <string name="faq_q3">¿Qué es Mostrar partidos?</string>
-    <string name="faq_a3">Cuando está activada, muestra el número de partidos de cada jugador. Si un jugador llega tarde, se suma el promedio de partidos que el grupo ya había jugado hasta su llegada, evitando que quienes llegan al final pasen delante de quienes esperan desde el inicio. Quienes llegan junto al grupo inicial no reciben este ajuste. Solo se muestran valores a partir de uno.</string>
+    <string name="faq_a3">Cuando está activada, muestra el número de partidos de cada jugador. Si un jugador llega tarde, se suma el promedio de partidos que el grupo ya había jugado hasta su llegada, evitando que quienes llegan al final pasen delante de quienes esperan desde el inicio. Quienes llegan junto al grupo inicial no reciben este ajuste.</string>
     <string name="faq_a1">Elo es un sistema de calificación de habilidad. Ganas puntos por tus victorias y pierdes por tus derrotas, según la dificultad del encuentro. El Elo promedio se obtiene sumando los puntos del equipo e dividiéndolos por el número de integrantes.</string>
     <string name="faq_q1">¿Qué es el Elo y Elo Promedio?</string>
     <string name="matches_date">Partidos - %1$s</string>
@@ -263,7 +263,7 @@
     <string name="team_bench_libero_tooltip">Líbero en el banco: puede cambiar con cualquier central del mismo equipo.</string>
     <string name="header_scroll_tooltip">Consejo: gira la pantalla para cambiar de vista, o toca dos veces aquí para centrar los equipos.</string>
     <string name="team_bench_parentheses">(banco del equipo)</string>
-    <string name="group_type_long_press_hint">Mantén pulsado un tipo para ver un consejo rápido.</string>
+    <string name="group_type_long_press_hint">Mantén pulsado un ítem para ver un consejo rápido.</string>
     <string name="position_preferred_label">Posición preferida: %1$s</string>
     <string name="position_secondary_label">Segunda posición: %1$s</string>
     <string name="elo_level_1100_desc">Principiante</string>
@@ -276,8 +276,6 @@
     <string name="uncheck_all">Desmarcar</string>
     <string name="check_all">Marcar</string>
     <string name="none_selected">Ninguno seleccionado (%1$d registro%2$s)</string>
-    <string name="group_s">s</string>
-    <string name="group_empty">)</string>
     <string name="privacy_policy_text">Última actualización: abril de 2026\n\nVóley Manager es una aplicación gratuita de código abierto para organizar partidos de voleibol recreativo.\n\n1. Datos recopilados\nLa aplicación almacena exclusivamente los datos que usted proporciona manualmente: nombres de jugadores, grupos, historial de partidos y puntuaciones Elo. No se recopilan datos personales confidenciales (correo electrónico, teléfono, ubicación, identificadores de dispositivos).\n\n2. Almacenamiento local\nTodos los datos se almacenan localmente en su dispositivo, utilizando la base de datos interna de la aplicación (Room/SQLite). No se envían datos a servidores externos.\n\n3. Intercambio de datos\nLa aplicación no comparte datos con terceros. Las funciones de exportación (CSV/JSON) y uso compartido de imágenes de resultados son acciones iniciadas exclusivamente por usted.\n\n4. Servicios de terceros\nLa aplicación no utiliza servicios de análisis, seguimiento, publicidad ni ningún otro servicio que recopile datos del usuario.\n\n5. Permisos\nLa aplicación no solicita permisos especiales del dispositivo más allá de los necesarios para leer/escribir archivos, en caso de que utilice la función de exportación/importación.\n\n6. Eliminación de datos\nPuede eliminar cualquier dato en cualquier momento directamente a través de la aplicación (eliminar jugadores, borrar historial) o desinstalando la aplicación, lo que elimina todos los datos almacenados.\n\n7. Niños\nLa aplicación no está dirigida a menores de 13 años y no recopila datos de niños intencionalmente.\n\n8. Contacto\nLas preguntas sobre esta política se pueden enviar al desarrollador a través de la página de la aplicación en Google Play Store.</string>
     <string name="terms_of_use_text">Última actualización: abril de 2026\n\nAl usar Vóley Manager, acepta los siguientes términos:\n\n1. Propósito\nVóley Manager es una aplicación gratuita destinada a la organización de partidos de voleibol recreativo, incluido el sorteo de equipos, la gestión de la lista de espera y el registro del historial.\n\n2. Uso permitido\nLa aplicación se proporciona para uso personal y recreativo. Usted es responsable de los datos que ingresa en la aplicación (nombres de jugadores, grupos, etc.).\n\n3. Sin garantías\nLa aplicación se proporciona \"tal cual\", sin garantías de ningún tipo. El desarrollador no es responsable por la pérdida de datos que resulte de fallas del dispositivo, actualizaciones del sistema operativo o uso indebido de la aplicación.\n\n4. Copia de seguridad\nSe recomienda utilizar regularmente la función de exportación/copia de seguridad para proteger sus datos. El desarrollador no se hace responsable de la recuperación de datos no guardados.\n\n5. Disponibilidad\nLa aplicación puede actualizarse, modificarse o discontinuarse en cualquier momento sin previo aviso.\n\n6. Propiedad intelectual\nEl código fuente, el diseño y el contenido de Vóley Manager son propiedad del desarrollador, protegidos por las leyes de derechos de autor aplicables.\n\n7. Cambios en los términos\nEstos términos pueden actualizarse en versiones futuras. El uso continuo de la aplicación después de los cambios constituye la aceptación de los nuevos términos.\n\n8. Cambios\nEsta política puede actualizarse en versiones futuras de la aplicación. Los cambios significativos se comunicarán en las notas de la versión.\n\n9. Contacto\nLas preguntas sobre estos términos se pueden enviar al desarrollador a través de la página de la aplicación en Google Play Store.</string>
     <string name="side_menu">Menú lateral</string>
@@ -300,7 +298,6 @@
     <string name="decrease_score">Disminuir marcador</string>
     <string name="winner_score_validation_snackbar">La puntuación del equipo seleccionado es menor que la del otro. Revisa si elegiste el equipo correcto antes de continuar.</string>
     <string name="select_minimum_players_long">Selecciona al menos %1$d jugadores o cambia esta configuración en \"Reglas del grupo\"</string>
-    <string name="selected">%1$d seleccionado%2$s de %3$d registro%4$s</string>
     <string name="max_guaranteed_next_match_players">Puedes garantizar hasta %1$d jugadores para la próxima partida.</string>
     <string name="no_entries">Ningún registro</string>
     <string name="options_menu">Menú de opciones</string>

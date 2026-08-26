@@ -41,9 +41,12 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.PeopleAlt
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAddAlt1
+import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -2496,18 +2499,12 @@ fun FAQScreen() {
         ),
         FaqEntry(
             stringResource(R.string.faq_q14),
-            icon = {
-                Row {
-                    FaqQuestionIcon(groupTypeIcon(GroupType.RECREATIONAL))
-                    Spacer(Modifier.width(2.dp))
-                    FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS))
-                }
-            },
+            icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS))},
             answer = stringResource(R.string.faq_a14)
         ),
         FaqEntry(
             stringResource(R.string.faq_q5),
-            icon = { FaqQuestionIcon(Icons.AutoMirrored.Filled.Sort) },
+            icon = { FaqQuestionIcon(Icons.Filled.People) },
             answer = stringResource(R.string.faq_a5)
         ),
         FaqEntry(
@@ -2601,7 +2598,7 @@ fun FAQScreen() {
                 }
             }
             HorizontalDivider(
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
             )
         }

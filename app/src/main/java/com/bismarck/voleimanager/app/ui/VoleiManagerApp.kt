@@ -55,7 +55,6 @@ import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
-import com.bismarck.voleimanager.app.ui.viewmodel.PendingMergeImportData
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
 import kotlinx.coroutines.delay
@@ -63,7 +62,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 
 @Composable
@@ -472,7 +470,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 expanded = groupExpanded,
                                 onExpandedChange = { groupExpanded = !groupExpanded }) {
                                 OutlinedTextField(
-                                    value = selectedGroup?.let { getDisplayGroupName(it) } ?: stringResource(R.string.select),
+                                    value = selectedGroup?.let { getDisplayGroupName(it) } ?: stringResource(R.string.select_word),
                                     onValueChange = {},
                                     readOnly = true,
                                     trailingIcon = {

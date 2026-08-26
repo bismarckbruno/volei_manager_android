@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import android.view.WindowManager
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Scoreboard
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -793,9 +794,9 @@ fun GroupConfigDialog(
                         imageVector = Icons.Default.Groups,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
                 }
                 Slider(
@@ -813,9 +814,9 @@ fun GroupConfigDialog(
                         painter = painterResource(R.drawable.crown_icon),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
                 }
                 Slider(
@@ -841,7 +842,7 @@ fun GroupConfigDialog(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     )
@@ -854,6 +855,14 @@ fun GroupConfigDialog(
                         } else {
                             stringResource(R.string.guarantee_setter_tooltip)
                         },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
                         checked = guaranteeSetter || forcesGuaranteeSetter,
                         onCheckedChange = { guaranteeSetter = it },
                         enabled = !forcesGuaranteeSetter
@@ -864,7 +873,15 @@ fun GroupConfigDialog(
                     label = stringResource(R.string.use_score),
                     tooltip = stringResource(R.string.use_score_tooltip),
                     checked = scoreEnabled,
-                    onCheckedChange = { scoreEnabled = it }
+                    onCheckedChange = { scoreEnabled = it },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Scoreboard,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 )
 
             }
@@ -932,16 +949,16 @@ private fun BalancingModeOptionRow(
                 }
             )
             Spacer(Modifier.width(8.dp))
-            Text(
-                text = label,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.width(8.dp))
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(iconSize)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = label,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -977,7 +994,7 @@ private fun TooltipToggleRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
+                .clip(CircleShape)
                 .combinedClickable(
                     enabled = enabled,
                     onClick = {
@@ -1107,14 +1124,14 @@ fun GroupTypeOptionRow(
                 }
             )
             Spacer(Modifier.width(8.dp))
-            Text(text = groupTypeLabel(type), fontWeight = FontWeight.Medium)
-            Spacer(Modifier.width(8.dp))
             Icon(
                 imageVector = groupTypeIcon(type),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
+            Spacer(Modifier.width(8.dp))
+            Text(text = groupTypeLabel(type), fontWeight = FontWeight.Medium)
         }
     }
 }

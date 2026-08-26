@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -334,6 +335,8 @@ fun PlayerSelectionRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = player.name,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface
