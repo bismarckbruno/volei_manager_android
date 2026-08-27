@@ -775,7 +775,9 @@ class VoleiViewModelRestingIntegrationTest {
         val ownerField = VoleiViewModel::class.java.getDeclaredField("_streakOwner")
         streakField.isAccessible = true
         ownerField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
         (streakField.get(vm) as MutableStateFlow<Int>).value = streak
+        @Suppress("UNCHECKED_CAST")
         (ownerField.get(vm) as MutableStateFlow<String?>).value = owner
     }
 
