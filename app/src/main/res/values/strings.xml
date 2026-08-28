@@ -129,6 +129,10 @@
     <string name="vs">VS</string>
     <string name="score_latest_point_tooltip">%1$s scored the most recent point.</string>
     <string name="score_rotation_tooltip">%1$s must rotate now.</string>
+    <string name="big_scoreboard_cd">Open big scoreboard</string>
+    <string name="big_scoreboard_tooltip">Open a bigger scoreboard view, easier to see from a distance.</string>
+    <string name="big_scoreboard_back_cd">Back to the game screen</string>
+    <string name="big_scoreboard_back_tooltip">Return to the regular game screen.</string>
     <string name="edit_streak_title">Edit streak - %1$s</string>
     <string name="edit_streak_description">Adjust the current winning streak before continuing.</string>
     <string name="edit_streak_cd">Streak indicator (long press to edit)</string>

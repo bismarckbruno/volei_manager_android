@@ -129,6 +129,10 @@
     <string name="vs">VS</string>
     <string name="score_latest_point_tooltip">%1$s anotó el punto más reciente.</string>
     <string name="score_rotation_tooltip">%1$s debe rotar ahora.</string>
+    <string name="big_scoreboard_cd">Abrir marcador grande</string>
+    <string name="big_scoreboard_tooltip">Abre una versión más grande del marcador, más fácil de ver de lejos.</string>
+    <string name="big_scoreboard_back_cd">Volver a la pantalla de juego</string>
+    <string name="big_scoreboard_back_tooltip">Vuelve a la pantalla normal de juego.</string>
     <string name="edit_streak_title">Editar racha - %1$s</string>
     <string name="edit_streak_description">Ajusta la racha actual de victorias antes de continuar.</string>
     <string name="edit_streak_cd">Indicador de racha (mantener pulsado para editar)</string>

@@ -129,6 +129,10 @@
     <string name="vs">VS</string>
     <string name="score_latest_point_tooltip">%1$s fez o ponto mais recente.</string>
     <string name="score_rotation_tooltip">%1$s deve fazer a rotação.</string>
+    <string name="big_scoreboard_cd">Abrir placar grande</string>
+    <string name="big_scoreboard_tooltip">Abre uma versão maior do placar, mais fácil de ver de longe.</string>
+    <string name="big_scoreboard_back_cd">Voltar para a tela de jogo</string>
+    <string name="big_scoreboard_back_tooltip">Volta para a tela normal de jogo.</string>
     <string name="edit_streak_title">Editar sequência - %1$s</string>
     <string name="edit_streak_description">Ajuste a sequência atual de vitórias antes de continuar.</string>
     <string name="edit_streak_cd">Indicador de sequência (toque longo para editar)</string>

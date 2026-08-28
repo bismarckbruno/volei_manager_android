@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app.ui.game
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -52,6 +54,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Scoreboard
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -85,6 +88,7 @@ import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -96,6 +100,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -854,6 +859,25 @@ fun ActiveGameView(
     var streakDraftValue by remember { mutableIntStateOf(0) }
     val maxEditableStreak = (victoryLimit - 1).coerceAtLeast(0)
 
+    // Big scoreboard: full-screen, landscape-only, larger scoreboard reachable from the
+    // regular game screen without leaving the app or cancelling the match.
+    var showBigScoreboard by rememberSaveable { mutableStateOf(false) }
+    val activity = LocalContext.current as? Activity
+    DisposableEffect(showBigScoreboard, activity) {
+        if (showBigScoreboard) {
+            val previousOrientation = activity?.requestedOrientation
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            onDispose {
+                activity?.requestedOrientation = previousOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        } else {
+            onDispose { }
+        }
+    }
+    BackHandler(enabled = showBigScoreboard) {
+        showBigScoreboard = false
+    }
+
     fun teamName(teamId: String?): String = when (teamId) {
         "A" -> resources.getString(R.string.team_a)
         "B" -> resources.getString(R.string.team_b)
@@ -1369,6 +1393,49 @@ fun ActiveGameView(
         }
     }
 
+    AnimatedContent(
+        targetState = showBigScoreboard,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+        },
+        label = "BigScoreboardAnim"
+    ) { big ->
+        if (big) {
+            BigScoreboardScreen(
+                firstName = firstName,
+                firstCardColor = firstCardColor,
+                firstBtnColor = firstBtnColor,
+                firstBtnTextColor = firstBtnTextColor,
+                firstStreakColor = firstStreakColor,
+                firstStreak = firstStreak,
+                firstStreakTeamId = firstStreakTeamId,
+                firstScore = firstScore,
+                firstShowLatestPointBorder = firstShowLatestPointBorder,
+                firstShowRotationIndicator = firstShowRotationIndicator,
+                firstScoreTooltip = firstScoreTooltip,
+                onFirstIncrement = firstOnIncrement,
+                onFirstDecrement = firstOnDecrement,
+                onFirstWin = { requestWinConfirmation(firstWinId) },
+                secondName = secondName,
+                secondCardColor = secondCardColor,
+                secondBtnColor = secondBtnColor,
+                secondBtnTextColor = secondBtnTextColor,
+                secondStreakColor = secondStreakColor,
+                secondStreak = secondStreak,
+                secondStreakTeamId = secondStreakTeamId,
+                secondScore = secondScore,
+                secondShowLatestPointBorder = secondShowLatestPointBorder,
+                secondShowRotationIndicator = secondShowRotationIndicator,
+                secondScoreTooltip = secondScoreTooltip,
+                onSecondIncrement = secondOnIncrement,
+                onSecondDecrement = secondOnDecrement,
+                onSecondWin = { requestWinConfirmation(secondWinId) },
+                onStreakLongClick = ::openStreakDialog,
+                onSwapTeams = { viewModel.toggleTeamsSwapped() },
+                onBack = { showBigScoreboard = false }
+            )
+            return@AnimatedContent
+        }
     Box(modifier = Modifier.fillMaxSize()) {
         // Draws a scrim behind the (transparent, edge-to-edge) system navigation bar in portrait
         // so it visually blends with the screen background instead of setting a deprecated
@@ -1453,7 +1520,18 @@ fun ActiveGameView(
                                     modifier = Modifier.fillMaxHeight(),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ){
-                                    Spacer(modifier = Modifier.height(68.dp))
+                                    if (showScore) {
+                                        BigScoreboardToggleButton(isBack = false) {
+                                            showBigScoreboard = true
+                                        }
+
+                                        Spacer(modifier = Modifier.height(20.dp))
+                                    } else {
+                                        // Compensates for the missing scoreboard toggle
+                                        // button (48.dp) + spacer (20.dp) above, so the VS
+                                        // swap button keeps the same vertical position.
+                                        Spacer(modifier = Modifier.height(68.dp))
+                                    }
 
                                     VsSwapButton(
                                         isLandscape = true
@@ -1604,15 +1682,30 @@ fun ActiveGameView(
                         ) { requestWinConfirmation(firstWinId) }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    VsSwapButton(
-                        isLandscape = false,
-                        modifier = Modifier.onGloballyPositioned { coordinates ->
-                            val displayedOffsetWithinViewport =
-                                coordinates.positionInRoot().y - portraitViewportTopInRootPx
-                            vsContentPositionPx = displayedOffsetWithinViewport + portraitScrollState.value
-                            vsHeightPx = coordinates.size.height.toFloat()
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        VsSwapButton(
+                            isLandscape = false,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .onGloballyPositioned { coordinates ->
+                                    val displayedOffsetWithinViewport =
+                                        coordinates.positionInRoot().y - portraitViewportTopInRootPx
+                                    vsContentPositionPx = displayedOffsetWithinViewport + portraitScrollState.value
+                                    vsHeightPx = coordinates.size.height.toFloat()
+                                }
+                        ) { viewModel.toggleTeamsSwapped() }
+
+                        if (showScore) {
+                            BigScoreboardToggleButton(
+                                isBack = false,
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                            ) {
+                                showBigScoreboard = true
+                            }
                         }
-                    ) { viewModel.toggleTeamsSwapped() }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
@@ -1792,6 +1885,7 @@ fun ActiveGameView(
             onDismiss = ::closeWaitingSheet
         )
     }
+    } // end AnimatedContent(showBigScoreboard) branch
 }
 
 @Composable
@@ -1951,6 +2045,535 @@ private fun VsSwapButton(
     }
 }
 
+/**
+ * Toggle button placed alongside [VsSwapButton] that opens/closes the big scoreboard
+ * screen. Shows a scoreboard icon on the regular game screen and an arrow-back icon
+ * once inside the big scoreboard. A long press shows an explanatory tooltip, matching
+ * the existing pattern used by the average Elo and streak indicators.
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun BigScoreboardToggleButton(
+    isBack: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val scope = rememberCoroutineScope()
+    val tooltipText = if (isBack) {
+        stringResource(R.string.big_scoreboard_back_tooltip)
+    } else {
+        stringResource(R.string.big_scoreboard_tooltip)
+    }
+    val contentDescription = if (isBack) {
+        stringResource(R.string.big_scoreboard_back_cd)
+    } else {
+        stringResource(R.string.big_scoreboard_cd)
+    }
+    val tint = MaterialTheme.colorScheme.onSurface
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = {
+            PlainTooltip(modifier = Modifier.padding(horizontal = 8.dp)) {
+                Text(text = tooltipText, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        state = tooltipState,
+        enableUserInput = false
+    ) {
+        Box(
+            modifier = modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .combinedClickable(
+                    onClickLabel = contentDescription,
+                    onClick = onClick,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            tooltipState.dismiss()
+                            tooltipState.show()
+                        }
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.Scoreboard,
+                contentDescription = contentDescription,
+                tint = tint
+            )
+        }
+    }
+}
+
+/**
+ * Icon shown in the top-left corner of each big scoreboard card indicating whether that
+ * team scored the most recent point (optionally also winning back the serve/rotation).
+ * Reuses the same [showRotationIndicator]/[showLatestPointBorder] logic already computed
+ * for the regular score border indicator. A long press shows the same explanatory
+ * tooltip text used by that indicator.
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun PointIndicatorIcon(
+    showRotationIndicator: Boolean,
+    showLatestPointBorder: Boolean,
+    tooltipText: String?,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    if (!showRotationIndicator && !showLatestPointBorder) return
+
+    val haptic = LocalHapticFeedback.current
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val scope = rememberCoroutineScope()
+    val drawableRes = if (showRotationIndicator) {
+        R.drawable.point_and_rotation_icon
+    } else {
+        R.drawable.point_icon
+    }
+
+    val iconContent: @Composable () -> Unit = {
+        Icon(
+            painter = painterResource(drawableRes),
+            contentDescription = tooltipText,
+            tint = tint,
+            modifier = Modifier.size(28.dp)
+        )
+    }
+
+    if (tooltipText.isNullOrBlank()) {
+        Box(
+            modifier = modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+            contentAlignment = Alignment.Center
+        ) { iconContent() }
+        return
+    }
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = {
+            PlainTooltip(modifier = Modifier.padding(horizontal = 8.dp)) {
+                Text(text = tooltipText, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        state = tooltipState,
+        enableUserInput = false
+    ) {
+        Box(
+            modifier = modifier
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                .clip(CircleShape)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            tooltipState.dismiss()
+                            tooltipState.show()
+                        }
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            iconContent()
+        }
+    }
+}
+
+/**
+ * Full-screen, landscape-only "big scoreboard" view: two large team cards with a giant,
+ * far-visible score, reachable from [ActiveGameView] without leaving the game or losing
+ * any in-progress state. No average Elo, player lists, app header, or waiting list here.
+ */
+@Composable
+private fun BigScoreboardScreen(
+    firstName: String,
+    firstCardColor: Color,
+    firstBtnColor: Color,
+    firstBtnTextColor: Color,
+    firstStreakColor: Color,
+    firstStreak: Int,
+    firstStreakTeamId: String,
+    firstScore: Int,
+    firstShowLatestPointBorder: Boolean,
+    firstShowRotationIndicator: Boolean,
+    firstScoreTooltip: String?,
+    onFirstIncrement: () -> Unit,
+    onFirstDecrement: () -> Unit,
+    onFirstWin: () -> Unit,
+    secondName: String,
+    secondCardColor: Color,
+    secondBtnColor: Color,
+    secondBtnTextColor: Color,
+    secondStreakColor: Color,
+    secondStreak: Int,
+    secondStreakTeamId: String,
+    secondScore: Int,
+    secondShowLatestPointBorder: Boolean,
+    secondShowRotationIndicator: Boolean,
+    secondScoreTooltip: String?,
+    onSecondIncrement: () -> Unit,
+    onSecondDecrement: () -> Unit,
+    onSecondWin: () -> Unit,
+    onStreakLongClick: (String) -> Unit,
+    onSwapTeams: () -> Unit,
+    onBack: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(top = 0.dp, bottom = 16.dp, start = 16.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BigScoreCard(
+            name = firstName,
+            isLeftCard = true,
+            cardColor = firstCardColor,
+            buttonColor = firstBtnColor,
+            buttonTextColor = firstBtnTextColor,
+            streakColor = firstStreakColor,
+            streak = firstStreak,
+            streakTeamId = firstStreakTeamId,
+            score = firstScore,
+            showLatestPointBorder = firstShowLatestPointBorder,
+            showRotationIndicator = firstShowRotationIndicator,
+            scoreTooltip = firstScoreTooltip,
+            onIncrementScore = onFirstIncrement,
+            onDecrementScore = onFirstDecrement,
+            onStreakLongClick = onStreakLongClick,
+            onWin = onFirstWin,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 8.dp)
+        ) {
+            BigScoreboardToggleButton(
+                isBack = true,
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
+            VsSwapButton(
+                isLandscape = true,
+                onClick = onSwapTeams,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        BigScoreCard(
+            name = secondName,
+            isLeftCard = false,
+            cardColor = secondCardColor,
+            buttonColor = secondBtnColor,
+            buttonTextColor = secondBtnTextColor,
+            streakColor = secondStreakColor,
+            streak = secondStreak,
+            streakTeamId = secondStreakTeamId,
+            score = secondScore,
+            showLatestPointBorder = secondShowLatestPointBorder,
+            showRotationIndicator = secondShowRotationIndicator,
+            scoreTooltip = secondScoreTooltip,
+            onIncrementScore = onSecondIncrement,
+            onDecrementScore = onSecondDecrement,
+            onStreakLongClick = onStreakLongClick,
+            onWin = onSecondWin,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun BigScoreCard(
+    name: String,
+    isLeftCard: Boolean,
+    cardColor: Color,
+    buttonColor: Color,
+    buttonTextColor: Color,
+    streakColor: Color,
+    streak: Int,
+    streakTeamId: String,
+    score: Int,
+    showLatestPointBorder: Boolean,
+    showRotationIndicator: Boolean,
+    scoreTooltip: String?,
+    onIncrementScore: () -> Unit,
+    onDecrementScore: () -> Unit,
+    onStreakLongClick: (String) -> Unit,
+    onWin: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val contentColor = if (cardColor.luminance() < 0.5f) Color.White else Color.Black
+    val victoryLabel = stringResource(R.string.victory_short)
+
+    Card(
+        modifier = modifier.clip(RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Tap zones covering the whole card. The zone closer to the center of the
+            // screen (the "inner" side) decreases the score and is narrower (1/3 of the
+            // card width); the outer zone (2/3) increases it. Placed behind the content
+            // so the streak chip, point icon and victory button (each individually
+            // clickable) still intercept their own taps.
+            Row(modifier = Modifier.matchParentSize()) {
+                val incrementZone = @Composable {
+                    Box(
+                        modifier = Modifier
+                            .weight(2f)
+                            .fillMaxHeight()
+                            .rememberHoldToRepeatModifier(
+                                onTrigger = onIncrementScore,
+                                canRepeat = { score < 99 }
+                            )
+                    )
+                }
+                val decrementZone = @Composable {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .rememberHoldToRepeatModifier(
+                                onTrigger = onDecrementScore,
+                                canRepeat = { score > 0 }
+                            )
+                    )
+                }
+                if (isLeftCard) {
+                    incrementZone()
+                    decrementZone()
+                } else {
+                    decrementZone()
+                    incrementZone()
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header: point/rotation icon and streak swap sides depending on which
+                // side of the screen this card is on (left card: icon on the left,
+                // streak on the right; right card: mirrored).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val pointIcon: @Composable () -> Unit = {
+                        Box(modifier = Modifier.width(56.dp), contentAlignment = Alignment.CenterStart) {
+                            PointIndicatorIcon(
+                                showRotationIndicator = showRotationIndicator,
+                                showLatestPointBorder = showLatestPointBorder,
+                                tooltipText = scoreTooltip,
+                                tint = contentColor
+                            )
+                        }
+                    }
+                    val streakChip: @Composable () -> Unit = {
+                        Box(modifier = Modifier.width(56.dp), contentAlignment = Alignment.CenterEnd) {
+                            StreakIndicator(
+                                streak = streak,
+                                streakColor = streakColor,
+                                contentColor = contentColor,
+                                onLongClick = { onStreakLongClick(streakTeamId) }
+                            )
+                        }
+                    }
+
+                    if (isLeftCard) {
+                        pointIcon()
+                    } else {
+                        streakChip()
+                    }
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = buttonColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (isLeftCard) {
+                        streakChip()
+                    } else {
+                        pointIcon()
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                ScoreValueIndicator(
+                    score = score,
+                    textColor = buttonColor,
+                    indicatorColor = buttonColor,
+                    showLatestPointBorder = showLatestPointBorder,
+                    showRotationIndicator = showRotationIndicator,
+                    tooltipText = null,
+                    circleSize = 220.dp,
+                    strokeWidth = 5.dp,
+                    textStyle = MaterialTheme.typography.displayLarge.copy(fontSize = 96.sp)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            // Purely decorative +/- indicators, mirrored so the "+" sits on the outer
+            // edge of the card (away from the center of the screen) and the "-" sits on
+            // the inner edge (matching the wider/narrower tap zones above). Centered
+            // vertically relative to the whole card, not just the score row.
+            val plusMinusStyle = MaterialTheme.typography.displayMedium.copy(
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold
+            )
+            val plusIndicator: @Composable () -> Unit = {
+                Text(
+                    text = "+",
+                    style = plusMinusStyle,
+                    color = contentColor.copy(alpha = 0.4f)
+                )
+            }
+            val minusIndicator: @Composable () -> Unit = {
+                Text(
+                    text = "\u2212",
+                    style = plusMinusStyle,
+                    color = contentColor.copy(alpha = 0.4f)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(if (isLeftCard) Alignment.CenterStart else Alignment.CenterEnd)
+                    .padding(horizontal = 20.dp)
+            ) {
+                plusIndicator()
+            }
+            Box(
+                modifier = Modifier
+                    .align(if (isLeftCard) Alignment.CenterEnd else Alignment.CenterStart)
+                    .padding(horizontal = 20.dp)
+            ) {
+                minusIndicator()
+            }
+
+            FilledIconButton(
+                onClick = onWin,
+                modifier = Modifier
+                    .align(if (isLeftCard) Alignment.BottomStart else Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .size(48.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = buttonColor,
+                    contentColor = buttonTextColor
+                )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.crown_icon),
+                    contentDescription = victoryLabel,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Remembers a press-and-hold gesture modifier that fires [onTrigger] once on a quick
+ * tap, or repeatedly (with an initial delay and a shorter delay between repeats) while
+ * the touch is held down, matching the existing behavior of [RepeatingScoreButton].
+ * Also fires the same discreet haptic feedback used by the +/- buttons on the regular
+ * game screen.
+ */
+@Composable
+private fun Modifier.rememberHoldToRepeatModifier(
+    onTrigger: () -> Unit,
+    canRepeat: () -> Boolean,
+    initialDelayMs: Long = 400L,
+    repeatDelayMs: Long = 80L
+): Modifier {
+    val haptic = LocalHapticFeedback.current
+    val currentOnTrigger by rememberUpdatedState(onTrigger)
+    val currentCanRepeat by rememberUpdatedState(canRepeat)
+
+    return this.pointerInput(Unit) {
+        detectTapGestures(
+            onPress = {
+                var holdFired = false
+                coroutineScope {
+                    val job = launch {
+                        delay(initialDelayMs)
+                        holdFired = true
+                        while (currentCanRepeat()) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            currentOnTrigger()
+                            delay(repeatDelayMs)
+                        }
+                    }
+                    tryAwaitRelease()
+                    job.cancel()
+                    if (!holdFired) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        currentOnTrigger()
+                    }
+                }
+            }
+        )
+    }
+}
+
+/** Streak indicator reused by [BigScoreCard], matching [ActiveTeamCard]'s streak chip. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun StreakIndicator(
+    streak: Int,
+    streakColor: Color,
+    contentColor: Color,
+    onLongClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(CircleShape)
+            .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
+            .combinedClickable(
+                onClick = {},
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                }
+            )
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.LocalFireDepartment,
+            contentDescription = stringResource(R.string.edit_streak_cd),
+            tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
+            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleMedium.fontSize.toDp() })
+        )
+        Spacer(Modifier.width(2.dp))
+        Text(
+            text = if (streak > 0) streak.toString() else "--",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f)
+        )
+    }
+}
+
 @Composable
 private fun WaitingListPreviewHeader(
     waitingCount: Int,
@@ -2078,11 +2701,15 @@ fun ActiveTeamCard(
 
     @Composable
     fun TeamHeader() {
+        // In landscape (small scoreboard side-by-side layout), the average Elo and streak
+        // indicators are mirrored on the right-side team card so their positions match the
+        // big scoreboard layout (relative to the central VS button). Portrait is unaffected.
+        val mirrorHeader = isLandscape && !portraitPlayersFirst
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             SubcomposeLayout(modifier = Modifier.fillMaxWidth()) { constraints ->
                 val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
 
-                val leadingPlaceable = subcompose("avgElo") {
+                val avgEloContent: @Composable () -> Unit = {
                     TooltipBox(
                         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                         tooltip = {
@@ -2129,9 +2756,9 @@ fun ActiveTeamCard(
                             )
                         }
                     }
-                }.first().measure(looseConstraints)
+                }
 
-                val trailingPlaceable = subcompose("streak") {
+                val streakContent: @Composable () -> Unit = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -2161,6 +2788,37 @@ fun ActiveTeamCard(
                             color = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f)
                         )
                     }
+                }
+
+                // In landscape, the point/rotation indicator replaces the average Elo
+                // indicator, matching the big scoreboard's header layout. Portrait keeps
+                // the average Elo indicator unchanged.
+                val primaryContent: @Composable () -> Unit = if (isLandscape) {
+                    {
+                        // Wrapped in a Box so a measurable is always emitted, even when
+                        // PointIndicatorIcon renders nothing (no border/rotation to show).
+                        Box(
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            PointIndicatorIcon(
+                                showRotationIndicator = showRotationIndicator,
+                                showLatestPointBorder = showLatestPointBorder,
+                                tooltipText = scoreIndicatorTooltip,
+                                tint = contentColor
+                            )
+                        }
+                    }
+                } else {
+                    avgEloContent
+                }
+
+                val leadingPlaceable = subcompose("leading") {
+                    if (mirrorHeader) streakContent() else primaryContent()
+                }.first().measure(looseConstraints)
+
+                val trailingPlaceable = subcompose("trailing") {
+                    if (mirrorHeader) primaryContent() else streakContent()
                 }.first().measure(looseConstraints)
 
                 val sideReserve = maxOf(leadingPlaceable.width, trailingPlaceable.width)
@@ -2219,13 +2877,10 @@ fun ActiveTeamCard(
 
     @Composable
     fun ScoreCounter() {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier
-                .background(buttonColor.copy(alpha = 0.1f), shape = CircleShape)
-                .padding(horizontal = 0.dp, vertical = 0.dp)
-        ) {
+        // In landscape, mirror the -/+ buttons on the left team card so they match the big
+        // scoreboard layout (relative to the central VS button). Portrait is unaffected.
+        val swapButtons = isLandscape && portraitPlayersFirst
+        val decrementButton: @Composable () -> Unit = {
             RepeatingScoreButton(
                 onClick = onDecrementScore,
                 canRepeat = { score > 0 },
@@ -2237,16 +2892,8 @@ fun ActiveTeamCard(
                     tint = buttonColor
                 )
             }
-            Spacer(Modifier.width(4.dp))
-            ScoreValueIndicator(
-                score = score,
-                textColor = buttonColor,
-                indicatorColor = buttonColor,
-                showLatestPointBorder = showLatestPointBorder,
-                showRotationIndicator = showRotationIndicator,
-                tooltipText = scoreIndicatorTooltip
-            )
-            Spacer(Modifier.width(4.dp))
+        }
+        val incrementButton: @Composable () -> Unit = {
             RepeatingScoreButton(
                 onClick = onIncrementScore,
                 canRepeat = { score < 99 },
@@ -2258,6 +2905,26 @@ fun ActiveTeamCard(
                     tint = buttonColor
                 )
             }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .background(buttonColor.copy(alpha = 0.1f), shape = CircleShape)
+                .padding(horizontal = 0.dp, vertical = 0.dp)
+        ) {
+            if (swapButtons) incrementButton() else decrementButton()
+            Spacer(Modifier.width(4.dp))
+            ScoreValueIndicator(
+                score = score,
+                textColor = buttonColor,
+                indicatorColor = buttonColor,
+                showLatestPointBorder = showLatestPointBorder,
+                showRotationIndicator = showRotationIndicator,
+                tooltipText = scoreIndicatorTooltip
+            )
+            Spacer(Modifier.width(4.dp))
+            if (swapButtons) decrementButton() else incrementButton()
         }
     }
 
@@ -2760,7 +3427,10 @@ private fun ScoreValueIndicator(
     indicatorColor: Color,
     showLatestPointBorder: Boolean,
     showRotationIndicator: Boolean,
-    tooltipText: String?
+    tooltipText: String?,
+    circleSize: Dp = 48.dp,
+    strokeWidth: Dp = 1.dp,
+    textStyle: TextStyle = MaterialTheme.typography.headlineMedium
 ) {
     val hasTooltip = !tooltipText.isNullOrBlank()
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -2770,16 +3440,16 @@ private fun ScoreValueIndicator(
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                .defaultMinSize(minWidth = circleSize, minHeight = circleSize)
         ) {
             when {
                 showRotationIndicator -> {
-                    Canvas(modifier = Modifier.size(48.dp)) {
+                    Canvas(modifier = Modifier.size(circleSize)) {
                         drawCircle(
                             color = indicatorColor,
-                            radius = size.minDimension / 2f - 1.dp.toPx(),
+                            radius = size.minDimension / 2f - strokeWidth.toPx(),
                             style = Stroke(
-                                width = 1.dp.toPx(),
+                                width = strokeWidth.toPx(),
                                 pathEffect = PathEffect.dashPathEffect(
                                     floatArrayOf(6.dp.toPx(), 4.dp.toPx())
                                 )
@@ -2789,11 +3459,11 @@ private fun ScoreValueIndicator(
                 }
 
                 showLatestPointBorder -> {
-                    Canvas(modifier = Modifier.size(48.dp)) {
+                    Canvas(modifier = Modifier.size(circleSize)) {
                         drawCircle(
                             color = indicatorColor,
-                            radius = size.minDimension / 2f - 1.dp.toPx(),
-                            style = Stroke(width = 1.dp.toPx())
+                            radius = size.minDimension / 2f - strokeWidth.toPx(),
+                            style = Stroke(width = strokeWidth.toPx())
                         )
                     }
                 }
@@ -2801,7 +3471,7 @@ private fun ScoreValueIndicator(
 
             Text(
                 text = score.toString(),
-                style = MaterialTheme.typography.headlineMedium,
+                style = textStyle,
                 fontWeight = FontWeight.Bold,
                 color = textColor,
                 textAlign = TextAlign.Center,
