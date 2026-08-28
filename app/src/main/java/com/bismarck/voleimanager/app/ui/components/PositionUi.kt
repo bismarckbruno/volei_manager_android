@@ -363,10 +363,27 @@ fun assignedPositionTooltip(player: Player, assigned: PlayerPosition, teamSize: 
             R.string.position_badge_secondary_tooltip,
             positionLabel(assigned)
         )
-        BadgeBorder.SOLID -> stringResource(
-            R.string.position_badge_improvised_tooltip,
-            positionLabel(assigned)
-        )
+        BadgeBorder.SOLID -> {
+            val chosenPositions = listOfNotNull(
+                PlayerPosition.fromStoredValue(player.preferredPosition),
+                PlayerPosition.fromStoredValue(player.secondaryPosition)
+            ).distinct()
+            val chosenLabels = chosenPositions.map { positionLabel(it).lowercase(Locale.getDefault()) }
+            if (chosenLabels.isEmpty()) {
+                stringResource(R.string.position_badge_no_preference_tooltip, positionLabel(assigned))
+            } else {
+                val chosenText = if (chosenLabels.size == 1) {
+                    chosenLabels.first()
+                } else {
+                    stringResource(R.string.position_list_two_items, chosenLabels[0], chosenLabels[1])
+                }
+                stringResource(
+                    R.string.position_badge_improvised_tooltip_with_choices,
+                    positionLabel(assigned),
+                    chosenText
+                )
+            }
+        }
     }
 
 /** Selo da posição para a qual o jogador foi escalado, com a borda indicando o encaixe. */

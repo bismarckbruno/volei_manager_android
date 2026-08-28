@@ -877,6 +877,13 @@ fun ActiveGameView(
     BackHandler(enabled = showBigScoreboard) {
         showBigScoreboard = false
     }
+    // If "Usar placar" gets disabled while the big scoreboard is open, close it and
+    // return to the regular detailed game screen (the big scoreboard requires scoring).
+    LaunchedEffect(showScore) {
+        if (!showScore) {
+            showBigScoreboard = false
+        }
+    }
 
     fun teamName(teamId: String?): String = when (teamId) {
         "A" -> resources.getString(R.string.team_a)
@@ -1290,16 +1297,18 @@ fun ActiveGameView(
         { viewModel.decrementScoreB() }
     }
     val secondWinId = secondTeamId
-    val firstShowRotationIndicator = rotationRequiredForTeamId == firstTeamId
-    val firstShowLatestPointBorder = !firstShowRotationIndicator && lastScoringTeamId == firstTeamId
+    // These "last point"/"rotation" indicators only make sense when the scoreboard itself
+    // is enabled; hide them entirely when "Usar placar" is off.
+    val firstShowRotationIndicator = showScore && rotationRequiredForTeamId == firstTeamId
+    val firstShowLatestPointBorder = showScore && !firstShowRotationIndicator && lastScoringTeamId == firstTeamId
     val firstScoreTooltip = when {
         firstShowRotationIndicator -> stringResource(R.string.score_rotation_tooltip, firstName)
         firstShowLatestPointBorder -> stringResource(R.string.score_latest_point_tooltip, firstName)
         else -> null
     }
 
-    val secondShowRotationIndicator = rotationRequiredForTeamId == secondTeamId
-    val secondShowLatestPointBorder = !secondShowRotationIndicator && lastScoringTeamId == secondTeamId
+    val secondShowRotationIndicator = showScore && rotationRequiredForTeamId == secondTeamId
+    val secondShowLatestPointBorder = showScore && !secondShowRotationIndicator && lastScoringTeamId == secondTeamId
     val secondScoreTooltip = when {
         secondShowRotationIndicator -> stringResource(R.string.score_rotation_tooltip, secondName)
         secondShowLatestPointBorder -> stringResource(R.string.score_latest_point_tooltip, secondName)
@@ -1393,13 +1402,15 @@ fun ActiveGameView(
         }
     }
 
-    AnimatedContent(
-        targetState = showBigScoreboard,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-        },
-        label = "BigScoreboardAnim"
-    ) { big ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = showBigScoreboard,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+            },
+            label = "BigScoreboardAnim",
+            modifier = Modifier.fillMaxSize()
+        ) { big ->
         if (big) {
             BigScoreboardScreen(
                 firstName = firstName,
@@ -1682,13 +1693,18 @@ fun ActiveGameView(
                         ) { requestWinConfirmation(firstWinId) }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Leading spacer balances the trailing toggle button's width so the
+                        // VS button below stays centered on the row regardless of whether
+                        // the toggle is shown.
+                        Spacer(modifier = Modifier.width(48.dp))
+                        Spacer(modifier = Modifier.weight(1f))
                         VsSwapButton(
                             isLandscape = false,
                             modifier = Modifier
-                                .align(Alignment.Center)
                                 .onGloballyPositioned { coordinates ->
                                     val displayedOffsetWithinViewport =
                                         coordinates.positionInRoot().y - portraitViewportTopInRootPx
@@ -1696,14 +1712,14 @@ fun ActiveGameView(
                                     vsHeightPx = coordinates.size.height.toFloat()
                                 }
                         ) { viewModel.toggleTeamsSwapped() }
+                        Spacer(modifier = Modifier.weight(1f))
 
                         if (showScore) {
-                            BigScoreboardToggleButton(
-                                isBack = false,
-                                modifier = Modifier.align(Alignment.CenterEnd)
-                            ) {
+                            BigScoreboardToggleButton(isBack = false) {
                                 showBigScoreboard = true
                             }
+                        } else {
+                            Spacer(modifier = Modifier.width(48.dp))
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1830,14 +1846,6 @@ fun ActiveGameView(
             }
         }
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-        )
-
         // Phantom sheet overlay during drag-to-open (portrait only).
         // Fades in and rises from the bottom in sync with the preview fading out.
         if (!isLandscape && !showWaitingListSheet && waitingPreviewDragProgress > 0f) {
@@ -1886,6 +1894,18 @@ fun ActiveGameView(
         )
     }
     } // end AnimatedContent(showBigScoreboard) branch
+
+        // Shown for both the regular detailed game screen and the big scoreboard screen,
+        // so validation messages (e.g. trying to declare a winner with fewer points) are
+        // visible regardless of which one is currently open.
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        )
+    } // end outer Box
 }
 
 @Composable
@@ -3419,7 +3439,7 @@ private fun PlayerIdentityInlineRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ScoreValueIndicator(
     score: Int,
@@ -3435,6 +3455,7 @@ private fun ScoreValueIndicator(
     val hasTooltip = !tooltipText.isNullOrBlank()
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
 
     val scoreContent: @Composable () -> Unit = {
         Box(
@@ -3501,12 +3522,16 @@ private fun ScoreValueIndicator(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(24.dp))
-                .clickable {
-                    scope.launch {
-                        tooltipState.dismiss()
-                        tooltipState.show()
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            tooltipState.dismiss()
+                            tooltipState.show()
+                        }
                     }
-                }
+                )
         ) {
             scoreContent()
         }

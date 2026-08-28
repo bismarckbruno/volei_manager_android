@@ -264,6 +264,9 @@
     <string name="guarantee_setter_locked_tooltip">Obligatorio en equipos de 6 o 7 jugadores, ya que el puesto de armador tiene posición específica en esas composiciones. Solo se puede desactivar en equipos de 2 a 5 jugadores.</string>
     <string name="position_badge_secondary_tooltip">%1$s: juega en la segunda posición que eligió.</string>
     <string name="position_badge_improvised_tooltip">%1$s: juega fuera de las posiciones que eligió.</string>
+    <string name="position_badge_improvised_tooltip_with_choices">%1$s: juega fuera de las posiciones que eligió (%2$s).</string>
+    <string name="position_badge_no_preference_tooltip">%1$s: sin posición preferida registrada.</string>
+    <string name="position_list_two_items">%1$s y %2$s</string>
     <string name="team_bench_libero_tooltip">Líbero en el banco: puede cambiar con cualquier central del mismo equipo.</string>
     <string name="header_scroll_tooltip">Consejo: gira la pantalla para cambiar de vista, o toca dos veces aquí para centrar los equipos.</string>
     <string name="team_bench_parentheses">(banco del equipo)</string>

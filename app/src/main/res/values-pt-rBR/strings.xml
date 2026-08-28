@@ -265,6 +265,9 @@
     <string name="guarantee_setter_locked_tooltip">Obrigatório em times de 6 ou 7 jogadores, pois a vaga de levantador tem posição específica nessas composições. Só é possível desligar em times de 2 a 5 jogadores.</string>
     <string name="position_badge_secondary_tooltip">%1$s: escalado na segunda posição que escolheu.</string>
     <string name="position_badge_improvised_tooltip">%1$s: escalado fora das posições que escolheu.</string>
+    <string name="position_badge_improvised_tooltip_with_choices">%1$s: escalado fora das posições que escolheu (%2$s).</string>
+    <string name="position_badge_no_preference_tooltip">%1$s: sem posição preferida cadastrada.</string>
+    <string name="position_list_two_items">%1$s e %2$s</string>
     <string name="team_bench_libero_tooltip">Líbero no banco: pode ser substituído por qualquer central do próprio time.</string>
     <string name="header_scroll_tooltip">Dica: gire a tela para trocar de visão, ou toque duas vezes aqui para centralizar os times.</string>
     <string name="team_bench_parentheses">(banco do time)</string>

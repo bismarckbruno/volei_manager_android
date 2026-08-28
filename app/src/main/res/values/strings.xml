@@ -265,6 +265,9 @@
     <string name="guarantee_setter_locked_tooltip">Mandatory for teams of 6 or 7 players, since the setter slot has a specific position in these compositions. It can only be turned off for teams of 2 to 5 players.</string>
     <string name="position_badge_secondary_tooltip">%1$s: playing in the second position they chose.</string>
     <string name="position_badge_improvised_tooltip">%1$s: playing outside their chosen positions.</string>
+    <string name="position_badge_improvised_tooltip_with_choices">%1$s: playing outside their chosen positions (%2$s).</string>
+    <string name="position_badge_no_preference_tooltip">%1$s: no preferred position registered.</string>
+    <string name="position_list_two_items">%1$s and %2$s</string>
     <string name="team_bench_libero_tooltip">Bench libero: can swap with any middle blocker on the same team.</string>
     <string name="header_scroll_tooltip">Tip: rotate the screen to switch views, or double-tap here to re-center the teams.</string>
     <string name="team_bench_parentheses">(team bench)</string>
