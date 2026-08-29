@@ -34,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Close
@@ -2431,7 +2432,9 @@ private data class FaqEntry(
     val question: String,
     val icon: @Composable () -> Unit,
     val answer: String? = null,
-    val table: FaqTableData? = null
+    val table: FaqTableData? = null,
+    /** Ação extra (ex.: botão de download) renderizada abaixo do texto/tabela. */
+    val action: (@Composable () -> Unit)? = null
 )
 
 private data class FaqTableData(
@@ -2470,7 +2473,8 @@ private fun FaqQuestionIcon(iconRes: Int) {
 }
 
 @Composable
-fun FAQScreen() {
+fun FAQScreen(viewModel: VoleiViewModel? = null) {
+    val context = LocalContext.current
     val faqItems = listOf(
         FaqEntry(
             stringResource(R.string.faq_q1),
@@ -2553,6 +2557,25 @@ fun FAQScreen() {
                 rows = parseFaqTableRows(stringResource(R.string.faq_a12_table)),
                 firstColumnWeight = 0.25f
             )
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q15),
+            icon = { FaqQuestionIcon(Icons.Default.PeopleAlt) },
+            answer = stringResource(R.string.faq_a15_intro),
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a15_col1) to stringResource(R.string.faq_a15_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a15_table)),
+                firstColumnWeight = 0.3f
+            ),
+            action = if (viewModel != null) {
+                {
+                    Button(onClick = { viewModel.exportPlayersTemplate(context) }) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.download_players_template))
+                    }
+                }
+            } else null
         )
     )
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -2583,18 +2606,24 @@ fun FAQScreen() {
                     expandedIndex = if (expandedIndex == index) null else index
                 }
             ) {
+                if (!entry.answer.isNullOrEmpty()) {
+                    Text(
+                        text = entry.answer,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (entry.table != null) Spacer(Modifier.height(12.dp))
+                }
                 if (entry.table != null) {
                     FAQTable(
                         columnHeaders = entry.table.columnHeaders,
                         rows = entry.table.rows,
                         firstColumnWeight = entry.table.firstColumnWeight
                     )
-                } else {
-                    Text(
-                        text = entry.answer.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                }
+                entry.action?.let {
+                    Spacer(Modifier.height(12.dp))
+                    it()
                 }
             }
             HorizontalDivider(
@@ -2722,7 +2751,7 @@ fun FAQItem(
             enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
             exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
         ) {
-            Box(modifier = Modifier.padding(top = 8.dp)) {
+            Column(modifier = Modifier.padding(top = 8.dp)) {
                 answerContent()
             }
         }

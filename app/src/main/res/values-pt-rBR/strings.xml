@@ -15,6 +15,7 @@
     <string name="import_data">Importar dados</string>
     <string name="restore_backup">Restaurar Backup (.json)</string>
     <string name="import_csv">Importar CSV (Avançado)</string>
+    <string name="download_players_template">Baixar modelo de jogadores (.csv)</string>
     <string name="privacy_policy">Política de Privacidade</string>
     <string name="terms_of_use">Termos de Uso</string>
     <string name="current_group">Grupo atual:</string>
@@ -191,6 +192,11 @@
     <string name="faq_a12_col1">Tamanho</string>
     <string name="faq_a12_col2">Composição</string>
     <string name="faq_a12_table">2x2|Com \"Garantir levantador\": 1 levantador + 1 jogador de qualquer outra posição (ponteiro, oposto, central ou líbero). Sem a garantia: 1ª vaga de ataque (levantador, ponteiro ou oposto) + 1 defesa (central ou líbero).\n3x3|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 1 defensor (central ou líbero).\n4x4|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 2 defensores (máx. 1 ponteiro na defesa).\n5x5|A 1ª vaga segue a regra do levantador + 2 atacantes (ponteiros ou opostos) + 2 defensores (máx. 1 ponteiro na defesa).\n6x6|Levantador, ponteiro de ataque, ponteiro de defesa, 1º central, oposto e líbero (ou 2º central, se não houver líbero).\n7x7|Mesma base do 6x6, com mais 1 central; o líbero fica no banco e pode substituir qualquer central do próprio time.</string>
+    <string name="faq_q15">Como importo vários jogadores de uma vez (em lote)?</string>
+    <string name="faq_a15_intro">Use \"Importar CSV (Avançado) &gt; Jogadores\" no menu, com um arquivo .csv cuja primeira linha seja exatamente igual aos cabeçalhos abaixo. Baixe o modelo pronto pelo botão abaixo, preencha uma linha por jogador (no celular ou no computador, usando Sheets, Excel ou Bloco de Notas) e depois importe o arquivo salvo.</string>
+    <string name="faq_a15_col1">Coluna</string>
+    <string name="faq_a15_col2">Formato esperado</string>
+    <string name="faq_a15_table">ID|Ignorado ao importar — pode deixar 0 ou vazio.\nNome|Nome do jogador (texto livre).\nElo|Número decimal, ex.: 1200.00. Vazio ou inválido vira 1200.00.\nPartidas|Número inteiro de partidas já jogadas (normalmente 0 para jogador novo).\nVitorias|Número inteiro de vitórias já registradas (normalmente 0 para jogador novo).\nGrupo|Nome exato de um grupo que já existe no app.\nPrioridade|Exatamente \"true\" ou \"false\" (minúsculas).\nPedagioDiario|Número inteiro; normalmente 0 (o app recalcula sozinho).\nDataPedagio|Pode deixar vazio (o app recalcula sozinho).\nPosicaoPreferida|Vazio, ou um destes: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE, LIBERO.\nPosicaoSecundaria|Mesmo formato de PosicaoPreferida; deixe vazio se não usar.</string>
     <string name="faq_q13">Qual é o papel de cada posição no modo Posições Fixas?</string>
     <string name="faq_a13_col1">Posição</string>
     <string name="faq_a13_col2">Papel</string>

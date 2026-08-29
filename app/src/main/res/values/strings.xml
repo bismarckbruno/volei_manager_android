@@ -15,6 +15,7 @@
     <string name="import_data">Import data</string>
     <string name="restore_backup">Restore Backup (.json)</string>
     <string name="import_csv">Import CSV (Advanced)</string>
+    <string name="download_players_template">Download players template (.csv)</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="terms_of_use">Terms of Use</string>
     <string name="current_group">Current group:</string>
@@ -191,6 +192,11 @@
     <string name="faq_a12_col1">Size</string>
     <string name="faq_a12_col2">Composition</string>
     <string name="faq_a12_table">2x2|With \"Guarantee a setter\": 1 setter + 1 player in any other position (outside hitter, opposite, middle blocker or libero). Without it: 1st slot is attack (setter, outside hitter or opposite) + 1 defense (middle blocker or libero).\n3x3|1st slot follows the setter rule + 1 attacker (outside hitter or opposite) + 1 defender (middle blocker or libero).\n4x4|1st slot follows the setter rule + 1 attacker (outside hitter or opposite) + 2 defenders (max 1 outside hitter on defense).\n5x5|1st slot follows the setter rule + 2 attackers (outside hitters or opposites) + 2 defenders (max 1 outside hitter on defense).\n6x6|Setter, attacking outside hitter, defending outside hitter, 1st middle blocker, opposite and libero (or a 2nd middle blocker if there is no libero).\n7x7|Same base as 6x6 plus 1 extra middle blocker; the libero stays on the bench and can swap with any middle blocker on the team.</string>
+    <string name="faq_q15">How do I bulk-import several players at once?</string>
+    <string name="faq_a15_intro">Use \"Import CSV (Advanced) &gt; Players\" in the menu with a .csv file whose first line matches exactly the headers below. Download the ready-made template with the button below, fill in one row per player (on your phone or computer, using Sheets, Excel or Notes) and then import the saved file.</string>
+    <string name="faq_a15_col1">Column</string>
+    <string name="faq_a15_col2">Expected format</string>
+    <string name="faq_a15_table">ID|Ignored on import — you can leave it as 0 or blank.\nNome|Player name (free text).\nElo|Decimal number, e.g. 1200.00. Blank or invalid becomes 1200.00.\nPartidas|Whole number of matches already played (usually 0 for a new player).\nVitorias|Whole number of victories already recorded (usually 0 for a new player).\nGrupo|Exact name of a group that already exists in the app.\nPrioridade|Exactly \"true\" or \"false\" (lowercase).\nPedagioDiario|Whole number; usually 0 (the app recalculates it automatically).\nDataPedagio|Can be left blank (the app recalculates it automatically).\nPosicaoPreferida|Blank, or one of: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE, LIBERO.\nPosicaoSecundaria|Same format as PosicaoPreferida; leave blank if not used.</string>
     <string name="faq_q13">What is the role of each position in Fixed Positions mode?</string>
     <string name="faq_a13_col1">Position</string>
     <string name="faq_a13_col2">Role</string>

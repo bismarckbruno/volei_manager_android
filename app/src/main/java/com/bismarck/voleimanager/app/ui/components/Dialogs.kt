@@ -39,6 +39,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import android.view.WindowManager
 import androidx.compose.foundation.shape.CircleShape
@@ -675,6 +678,8 @@ fun GroupConfigDialog(
     var guaranteeSetter by remember { mutableStateOf(initialGuaranteeSetter) }
     var showTypeChangeConfirmation by remember { mutableStateOf(false) }
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     // De 6 a 7 jogadores por time, garantir levantador é obrigatório (vaga de levantador tem
     // posição específica reservada nessas composições); só é possível desligar de 2 a 5.
     val forcesGuaranteeSetter = groupType.usesPositions && teamSize.roundToInt() >= 6
@@ -718,173 +723,204 @@ fun GroupConfigDialog(
         return
     }
 
+    // Bloco esquerdo: tipo de grupo + modo de balanceamento (mesma ordem de sempre).
+    val groupTypeAndBalancingContent: @Composable ColumnScope.() -> Unit = {
+        Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.group_type_long_press_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(8.dp))
+        GroupType.selectableTypes.forEach { type ->
+            GroupTypeOptionRow(
+                type = type,
+                selected = groupType == type,
+                onSelect = {
+                    val previousType = groupType
+                    groupType = type
+                    teamSize = type.coerceTeamSize(teamSize.roundToInt()).toFloat()
+                    victoryLimit = victoryLimit.roundToInt().coerceIn(2, type.maxTeamSize).toFloat()
+                    if (!type.supportsPriority) {
+                        priorityEnabled = false
+                    } else if (!previousType.supportsPriority) {
+                        // Volta ao padrão (ativado) ao sair de um tipo sem prioridade.
+                        priorityEnabled = true
+                    }
+                }
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 16.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
+        Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
+        val modes = listOf(
+            Triple(
+                BalancingMode.REBALANCE.name,
+                stringResource(R.string.mode_rebalance),
+                stringResource(R.string.mode_rebalance_tooltip)
+            ),
+            Triple(
+                BalancingMode.REST.name,
+                stringResource(R.string.mode_rest),
+                stringResource(R.string.mode_rest_tooltip)
+            )
+        )
+
+        Spacer(Modifier.height(8.dp))
+        modes.forEach { (value, label, tooltip) ->
+            BalancingModeOptionRow(
+                label = label,
+                tooltip = tooltip,
+                selected = balancingMode == value,
+                onSelect = { balancingMode = value },
+                iconRes = if (value == BalancingMode.REBALANCE.name) {
+                    R.drawable.arrowsbothsides
+                } else {
+                    R.drawable.zzz_rest
+                }
+            )
+        }
+    }
+
+    // Bloco direito: tamanhos/limites (sliders) + interruptores.
+    val teamSizeAndTogglesContent: @Composable ColumnScope.() -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Groups,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
+        }
+        Slider(
+            value = teamSize,
+            onValueChange = {
+                teamSize = groupType.coerceTeamSize(it.roundToInt()).toFloat()
+            },
+            valueRange = groupType.minTeamSize.toFloat()..groupType.maxTeamSize.toFloat(),
+            steps = (groupType.maxTeamSize - groupType.minTeamSize) - 1
+        )
+        Spacer(Modifier.height(24.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.crown_icon),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
+        }
+        Slider(
+            value = victoryLimit,
+            onValueChange = { victoryLimit = it.coerceIn(2f, groupType.maxTeamSize.toFloat()) },
+            valueRange = 2f..groupType.maxTeamSize.toFloat(),
+            steps = groupType.maxTeamSize - 3
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 16.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+        )
+
+        if (groupType.supportsPriority) {
+            TooltipToggleRow(
+                label = stringResource(R.string.min_priority),
+                tooltip = stringResource(R.string.min_priority_tooltip),
+                checked = priorityEnabled,
+                onCheckedChange = { priorityEnabled = it },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            )
+            Spacer(Modifier.height(8.dp))
+        } else if (groupType.usesPositions) {
+            TooltipToggleRow(
+                label = stringResource(R.string.guarantee_setter),
+                tooltip = if (forcesGuaranteeSetter) {
+                    stringResource(R.string.guarantee_setter_locked_tooltip)
+                } else {
+                    stringResource(R.string.guarantee_setter_tooltip)
+                },
+                icon = {
+                    Icon(
+                        painter = painterResource(setterIconRes()),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                checked = guaranteeSetter || forcesGuaranteeSetter,
+                onCheckedChange = { guaranteeSetter = it },
+                enabled = !forcesGuaranteeSetter
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        TooltipToggleRow(
+            label = stringResource(R.string.use_score),
+            tooltip = stringResource(R.string.use_score_tooltip),
+            checked = scoreEnabled,
+            onCheckedChange = { scoreEnabled = it },
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.Scoreboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = if (isLandscape) Modifier.fillMaxWidth(0.95f) else Modifier,
+        properties = if (isLandscape) {
+            DialogProperties(usePlatformDefaultWidth = false)
+        } else {
+            DialogProperties()
+        },
         title = { Text(stringResource(R.string.group_rules, groupName)) },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.group_type_long_press_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                GroupType.selectableTypes.forEach { type ->
-                    GroupTypeOptionRow(
-                        type = type,
-                        selected = groupType == type,
-                        onSelect = {
-                            val previousType = groupType
-                            groupType = type
-                            teamSize = type.coerceTeamSize(teamSize.roundToInt()).toFloat()
-                            victoryLimit = victoryLimit.roundToInt().coerceIn(2, type.maxTeamSize).toFloat()
-                            if (!type.supportsPriority) {
-                                priorityEnabled = false
-                            } else if (!previousType.supportsPriority) {
-                                // Volta ao padrão (ativado) ao sair de um tipo sem prioridade.
-                                priorityEnabled = true
-                            }
-                        }
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                )
-
-                Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
-                val modes = listOf(
-                    Triple(
-                        BalancingMode.REBALANCE.name,
-                        stringResource(R.string.mode_rebalance),
-                        stringResource(R.string.mode_rebalance_tooltip)
-                    ),
-                    Triple(
-                        BalancingMode.REST.name,
-                        stringResource(R.string.mode_rest),
-                        stringResource(R.string.mode_rest_tooltip)
-                    )
-                )
-
-                Spacer(Modifier.height(8.dp))
-                modes.forEach { (value, label, tooltip) ->
-                    BalancingModeOptionRow(
-                        label = label,
-                        tooltip = tooltip,
-                        selected = balancingMode == value,
-                        onSelect = { balancingMode = value },
-                        iconRes = if (value == BalancingMode.REBALANCE.name) {
-                            R.drawable.arrowsbothsides
-                        } else {
-                            R.drawable.zzz_rest
-                        }
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Groups,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
-                }
-                Slider(
-                    value = teamSize,
-                    onValueChange = {
-                        teamSize = groupType.coerceTeamSize(it.roundToInt()).toFloat()
-                    },
-                    valueRange = groupType.minTeamSize.toFloat()..groupType.maxTeamSize.toFloat(),
-                    steps = (groupType.maxTeamSize - groupType.minTeamSize) - 1
-                )
-                Spacer(Modifier.height(24.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(R.drawable.crown_icon),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
-                }
-                Slider(
-                    value = victoryLimit,
-                    onValueChange = { victoryLimit = it.coerceIn(2f, groupType.maxTeamSize.toFloat()) },
-                    valueRange = 2f..groupType.maxTeamSize.toFloat(),
-                    steps = groupType.maxTeamSize - 3
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                )
-
-                if (groupType.supportsPriority) {
-                    TooltipToggleRow(
-                        label = stringResource(R.string.min_priority),
-                        tooltip = stringResource(R.string.min_priority_tooltip),
-                        checked = priorityEnabled,
-                        onCheckedChange = { priorityEnabled = it },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    )
-                    Spacer(Modifier.height(8.dp))
-                } else if (groupType.usesPositions) {
-                    TooltipToggleRow(
-                        label = stringResource(R.string.guarantee_setter),
-                        tooltip = if (forcesGuaranteeSetter) {
-                            stringResource(R.string.guarantee_setter_locked_tooltip)
-                        } else {
-                            stringResource(R.string.guarantee_setter_tooltip)
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(setterIconRes()),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        },
-                        checked = guaranteeSetter || forcesGuaranteeSetter,
-                        onCheckedChange = { guaranteeSetter = it },
-                        enabled = !forcesGuaranteeSetter
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-                TooltipToggleRow(
-                    label = stringResource(R.string.use_score),
-                    tooltip = stringResource(R.string.use_score_tooltip),
-                    checked = scoreEnabled,
-                    onCheckedChange = { scoreEnabled = it },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Scoreboard,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
+            if (isLandscape) {
+                // Tela horizontal: duas colunas lado a lado para aproveitar o espaço lateral extra.
+                Row(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Spacer(Modifier.height(8.dp))
+                        groupTypeAndBalancingContent()
                     }
-                )
-
+                    VerticalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Spacer(Modifier.height(8.dp))
+                        teamSizeAndTogglesContent()
+                    }
+                }
+            } else {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Spacer(Modifier.height(8.dp))
+                    groupTypeAndBalancingContent()
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                    )
+                    teamSizeAndTogglesContent()
+                }
             }
         },
         confirmButton = {

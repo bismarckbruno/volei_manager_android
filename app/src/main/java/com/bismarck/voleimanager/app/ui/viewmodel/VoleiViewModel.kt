@@ -59,6 +59,14 @@ const val MAX_GROUP_NAME_LENGTH = 20
 const val MAX_PLAYER_NAME_LENGTH = 24
 private const val AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS = 12L * 60L * 60L * 1000L
 
+/**
+ * Cabeçalho do CSV de jogadores — fonte única usada tanto pela exportação real
+ * ([VoleiViewModel.exportData]) quanto pelo modelo baixável ([VoleiViewModel.exportPlayersTemplate]),
+ * para evitar desalinhamento se o formato mudar no futuro.
+ */
+private const val PLAYERS_CSV_HEADER =
+    "ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade,PedagioDiario,DataPedagio,PosicaoPreferida,PosicaoSecundaria"
+
 enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
@@ -2888,7 +2896,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } else {
                 when (type) {
                     CsvType.JOGADORES -> {
-                        content.append("ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade,PedagioDiario,DataPedagio,PosicaoPreferida,PosicaoSecundaria\n")
+                        content.append(PLAYERS_CSV_HEADER).append("\n")
                         currentGroupPlayers.value.forEach {
                             content.append(
                                 "${it.id},\"${
@@ -2958,6 +2966,27 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 }
                 shareFile(context, finalName, content.toString(), "text/csv")
             }
+        }
+    }
+
+    /**
+     * Gera e compartilha um CSV-modelo de jogadores, com o cabeçalho real (mesma fonte usada em
+     * [exportData]) e uma linha de exemplo claramente marcada, para o usuário preencher em lote
+     * (no celular ou no computador) e importar depois via "Importar CSV > Jogadores".
+     */
+    fun exportPlayersTemplate(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val exampleGroup = _currentGroupConfig.value.groupName.takeIf { it.isNotBlank() }
+                ?: DEFAULT_GROUP_NAME
+            val content = StringBuilder().apply {
+                append(PLAYERS_CSV_HEADER).append("\n")
+                append(
+                    "0,\"Exemplo (apague esta linha antes de importar)\",1200.00,0,0,\"" +
+                        exampleGroup.replace("\"", "\"\"") +
+                        "\",\"false\",0,\"\",\"\",\"\"\n"
+                )
+            }.toString()
+            shareFile(context, "modelo_jogadores.csv", content, "text/csv")
         }
     }
 

@@ -247,19 +247,25 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                     HorizontalDivider(Modifier.padding(vertical = 16.dp))
                     Text(text = stringResource(R.string.export_csv), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        TextButton(onClick = {
-                            viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
-                            showExportDialog = false
-                        }) { Text(stringResource(R.string.players_word)) }
-                        TextButton(onClick = {
-                            viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
-                            showExportDialog = false
-                        }) { Text(stringResource(R.string.history)) }
-                        TextButton(onClick = {
-                            viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
-                            showExportDialog = false
-                        }) { Text(stringResource(R.string.daily_elo)) }
+                    Column(Modifier.fillMaxWidth()) {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
+                                showExportDialog = false
+                            }) { Text(stringResource(R.string.players_word)) }
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
+                                showExportDialog = false
+                            }) { Text(stringResource(R.string.history)) }
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
+                                showExportDialog = false
+                            }) { Text(stringResource(R.string.daily_elo)) }
                     }
                 }
             },
@@ -292,22 +298,38 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                     HorizontalDivider(Modifier.padding(vertical = 16.dp))
                     Text(text = stringResource(R.string.import_csv), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        TextButton(onClick = {
-                            pendingImportType = CsvType.JOGADORES
-                            launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
-                            showImportDialog = false
-                        }) { Text(stringResource(R.string.players_word)) }
-                        TextButton(onClick = {
-                            pendingImportType = CsvType.HISTORICO
-                            launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
-                            showImportDialog = false
-                        }) { Text(stringResource(R.string.history)) }
-                        TextButton(onClick = {
-                            pendingImportType = CsvType.ELO_LOGS
-                            launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
-                            showImportDialog = false
-                        }) { Text(stringResource(R.string.daily_elo)) }
+                    Column(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = {
+                                pendingImportType = CsvType.JOGADORES
+                                launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
+                                showImportDialog = false
+                            }) { Text(stringResource(R.string.players_word)) }
+                            IconButton(onClick = { viewModel.exportPlayersTemplate(context) }) {
+                                Icon(
+                                    Icons.Default.Download,
+                                    contentDescription = stringResource(R.string.download_players_template)
+                                )
+                            }
+                        }
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                pendingImportType = CsvType.HISTORICO
+                                launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
+                                showImportDialog = false
+                            }) { Text(stringResource(R.string.history)) }
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                pendingImportType = CsvType.ELO_LOGS
+                                launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
+                                showImportDialog = false
+                            }) { Text(stringResource(R.string.daily_elo)) }
                     }
                 }
             },
@@ -1271,7 +1293,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     }
                                 }
                             )
-                            Screen.FAQ -> FAQScreen()
+                            Screen.FAQ -> FAQScreen(viewModel = viewModel)
                             Screen.ABOUT -> AboutScreen()
                         }
                     }
