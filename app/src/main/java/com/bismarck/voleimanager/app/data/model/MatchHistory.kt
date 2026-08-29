@@ -31,5 +31,16 @@ data class MatchHistory(
     /** Nome exibido do time A no momento da partida (snapshot). */
     val teamALabel: String? = null,
     /** Nome exibido do time B no momento da partida (snapshot). */
-    val teamBLabel: String? = null
+    val teamBLabel: String? = null,
+    /**
+     * Formato de disputa desta partida ([MatchFormat] serializado). Nulo em partidas antigas
+     * (equivalentes a BO1). Preparação para BO3/BO5 — ainda não usado pela engine do jogo.
+     */
+    val matchFormat: String? = null,
+    /** Placar de cada set, serializado como "25-22;23-25;15-12" (nulo fora do fluxo de sets). */
+    val setScores: String? = null,
+    /** Sets vencidos pelo Time A (nulo fora do fluxo de sets; BO1 continua usando teamAScore). */
+    val teamASetsWon: Int? = null,
+    /** Sets vencidos pelo Time B (nulo fora do fluxo de sets; BO1 continua usando teamBScore). */
+    val teamBSetsWon: Int? = null
 )

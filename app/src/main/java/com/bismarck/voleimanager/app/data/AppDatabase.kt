@@ -22,7 +22,7 @@ import com.bismarck.voleimanager.app.data.model.PlayerEloLog
         com.bismarck.voleimanager.app.data.model.TournamentMatch::class,
         com.bismarck.voleimanager.app.data.model.GroupLog::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -171,6 +171,36 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Terreno para partidas com múltiplos sets (BO1/BO3/BO5); Elo continua por partida.
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN matchFormat TEXT NOT NULL DEFAULT 'BO1'")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN regularSetPoints INTEGER NOT NULL DEFAULT 25")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN tiebreakSetPoints INTEGER NOT NULL DEFAULT 15")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN winByTwo INTEGER NOT NULL DEFAULT 1")
+
+                db.execSQL("ALTER TABLE match_history ADD COLUMN matchFormat TEXT")
+                db.execSQL("ALTER TABLE match_history ADD COLUMN setScores TEXT")
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamASetsWon INTEGER")
+                db.execSQL("ALTER TABLE match_history ADD COLUMN teamBSetsWon INTEGER")
+
+                // Agregados de classificação de torneio (sistema FIVB de 3 pontos)
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN matchesPlayed INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN wins INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN losses INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN setsWon INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN setsLost INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN pointsWon INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN pointsLost INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tournament_teams ADD COLUMN tournamentPoints INTEGER NOT NULL DEFAULT 0")
+
+                db.execSQL("ALTER TABLE tournament_matches ADD COLUMN matchFormat TEXT")
+                db.execSQL("ALTER TABLE tournament_matches ADD COLUMN homeSetsWon INTEGER")
+                db.execSQL("ALTER TABLE tournament_matches ADD COLUMN awaySetsWon INTEGER")
+                db.execSQL("ALTER TABLE tournament_matches ADD COLUMN setScores TEXT")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -178,7 +208,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance

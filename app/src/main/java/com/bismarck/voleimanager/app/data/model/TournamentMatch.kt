@@ -59,5 +59,15 @@ data class TournamentMatch(
     /** Id da partida correspondente em match_history, quando concluída. */
     val matchHistoryId: Int? = null,
     val startTimestamp: Long? = null,
-    val endTimestamp: Long? = null
+    val endTimestamp: Long? = null,
+    /**
+     * Formato de disputa desta partida ([MatchFormat] serializado). Nulo = herda o padrão do
+     * grupo (BO1). Preparação para BO3/BO5 — ainda não usado pela engine do chaveamento.
+     */
+    val matchFormat: String? = null,
+    /** Sets vencidos pelo time da casa/visitante (nulo fora do fluxo de sets). */
+    val homeSetsWon: Int? = null,
+    val awaySetsWon: Int? = null,
+    /** Placar de cada set, serializado como "25-22;23-25;15-12". */
+    val setScores: String? = null
 )

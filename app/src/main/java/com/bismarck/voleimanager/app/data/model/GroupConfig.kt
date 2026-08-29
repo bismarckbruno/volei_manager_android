@@ -19,6 +19,30 @@ enum class BalancingMode {
     }
 }
 
+/**
+ * Formato de disputa da partida (número de sets). O Elo é sempre calculado 1x por partida
+ * completa, nunca por set individual, independente do formato.
+ */
+enum class MatchFormat {
+    BO1,
+    BO3,
+    BO5;
+
+    /** Sets necessários para vencer a partida neste formato. */
+    val setsToWin: Int
+        get() = when (this) {
+            BO1 -> 1
+            BO3 -> 2
+            BO5 -> 3
+        }
+
+    companion object {
+        fun fromStoredValue(value: String?): MatchFormat {
+            return entries.firstOrNull { it.name == value } ?: BO1
+        }
+    }
+}
+
 const val ONBOARDING_STEP_GROUP_NAME = 0
 const val ONBOARDING_STEP_GROUP_TYPE = 1
 const val ONBOARDING_STEP_BALANCING_MODE = 2
@@ -45,8 +69,22 @@ data class GroupConfig(
      * Nos tipos com posições fixas, garante que a vaga de levantador seja preenchida antes das
      * demais. Desligado, essa vaga vira uma vaga de ataque. Irrelevante nos tipos recreativos.
      */
-    val guaranteeSetter: Boolean = true
+    val guaranteeSetter: Boolean = true,
+    /**
+     * Formato de disputa da partida ([MatchFormat]): BO1 (padrão atual), BO3 ou BO5. Preparação
+     * de terreno para partidas com múltiplos sets — ainda não implementado na engine do jogo.
+     */
+    val matchFormat: String = MatchFormat.BO1.name,
+    /** Pontos necessários para fechar um set regular (não decisivo). */
+    val regularSetPoints: Int = 25,
+    /** Pontos necessários para fechar o set decisivo (tie-break) em formatos BO3/BO5. */
+    val tiebreakSetPoints: Int = 15,
+    /** Exige diferença mínima de 2 pontos para fechar o set. */
+    val winByTwo: Boolean = true
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)
+
+    val format: MatchFormat
+        get() = MatchFormat.fromStoredValue(matchFormat)
 }

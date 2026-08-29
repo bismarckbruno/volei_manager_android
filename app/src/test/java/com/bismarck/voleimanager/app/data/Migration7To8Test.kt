@@ -38,16 +38,18 @@ class Migration7To8Test {
         legacyDb.execSQL("UPDATE group_configs SET groupType = 'FIXED_POSITIONS' WHERE groupName = 'Grupo'")
 
         AppDatabase.MIGRATION_7_8.migrate(legacyDb)
-        legacyDb.version = 8
+        // A migração seguinte é aplicada para que o Room possa abrir o banco na versão atual.
+        AppDatabase.MIGRATION_8_9.migrate(legacyDb)
+        legacyDb.version = 9
         legacyDb.close()
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_7_8)
-            .addMigrations(AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8)
+            .addMigrations(AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(8, migratedDb.version)
+            assertEquals(9, migratedDb.version)
 
             migratedDb.query(
                 "SELECT guaranteeSetter, groupType, teamSize, victoryLimit FROM group_configs WHERE groupName = 'Grupo'"
