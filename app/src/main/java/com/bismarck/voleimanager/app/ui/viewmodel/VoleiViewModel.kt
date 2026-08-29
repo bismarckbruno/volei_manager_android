@@ -44,6 +44,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
@@ -52,6 +53,8 @@ import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.zip.ZipInputStream
+import org.xmlpull.v1.XmlPullParser
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 
 const val DEFAULT_GROUP_NAME = "Geral"
@@ -2627,16 +2630,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         Log.e("Import", context.getString(R.string.invalid_backup_format))
                     }
                 } else {
-                    val lines =
-                        BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).readLines()
-                    if (lines.isEmpty()) return@launch
-                    val dataLines = lines.drop(1)
+                    val rows = readTabularRows(context, uri)
+                    if (rows.isEmpty()) {
+                        _uiMessage.value = context.getString(R.string.import_error_empty_or_unreadable)
+                        return@launch
+                    }
+                    val dataLines = rows.drop(1)
 
                     when (type) {
                         CsvType.JOGADORES -> {
-                            val list = dataLines.mapNotNull { line ->
+                            val list = dataLines.mapNotNull { cols ->
                                 try {
-                                    val cols = smartSplit(line)
                                     if (cols.size >= 6) {
                                         Player(
                                             id = 0,
@@ -2685,13 +2689,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 } else {
                                     performImportWithDedup(list, emptyList(), emptyList(), emptySet())
                                 }
+                            } else {
+                                _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
                             }
                         }
 
                         CsvType.HISTORICO -> {
-                            val list = dataLines.mapNotNull { line ->
+                            val list = dataLines.mapNotNull { cols ->
                                 try {
-                                    val cols = smartSplit(line)
                                     if (cols.size >= 6) {
                                         MatchHistory(
                                             id = 0,
@@ -2734,13 +2739,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 } else {
                                     performImportWithDedup(emptyList(), list, emptyList(), emptySet())
                                 }
+                            } else {
+                                _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
                             }
                         }
 
                         CsvType.ELO_LOGS -> {
-                            val list = dataLines.mapNotNull { line ->
+                            val list = dataLines.mapNotNull { cols ->
                                 try {
-                                    val cols = smartSplit(line)
                                     if (cols.size >= 6) {
                                         PlayerEloLog(
                                             id = 0,
@@ -2774,14 +2780,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 } else {
                                     performImportWithDedup(emptyList(), emptyList(), list, emptySet())
                                 }
+                            } else {
+                                _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
                             }
                         }
 
                         else -> {}
                     }
                 }
+            } catch (e: UnsupportedXlsException) {
+                _uiMessage.value = context.getString(R.string.import_error_xls_unsupported)
             } catch (e: Exception) {
                 Log.e("Import", "Erro: ${e.message}")
+                _uiMessage.value = context.getString(R.string.import_error_generic)
             }
         }
     }
@@ -3052,6 +3063,147 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         result.add(current.toString().trim())
         return result.map { it.replace("\"", "").trim() }
     }
+
+    /**
+     * Lê um arquivo tabular (CSV/texto ou XLSX) apontado por [uri] e devolve uma lista de linhas,
+     * cada uma já dividida em colunas. Isso permite que o restante do fluxo de importação
+     * (JOGADORES/HISTORICO/ELO_LOGS) trabalhe sempre com `List<String>` por linha, seja a origem
+     * um .csv puro ou uma planilha .xlsx exportada/editada no Excel, Google Sheets etc.
+     * Arquivos .xls (formato binário antigo do Excel) são detectados e sinalizados via
+     * [UnsupportedXlsException], pois exigiriam um parser binário próprio (fora de escopo).
+     */
+    private fun readTabularRows(context: Context, uri: Uri): List<List<String>> {
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: return emptyList()
+        return when {
+            isZipFormat(bytes) -> readXlsxRows(bytes)
+            isLegacyXlsFormat(bytes) -> throw UnsupportedXlsException()
+            else -> {
+                String(bytes, Charsets.UTF_8).lineSequence()
+                    .filter { it.isNotBlank() }
+                    .map { smartSplit(it) }
+                    .toList()
+            }
+        }
+    }
+
+    private fun isZipFormat(bytes: ByteArray): Boolean =
+        bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte()
+
+    private fun isLegacyXlsFormat(bytes: ByteArray): Boolean =
+        bytes.size >= 4 &&
+            bytes[0] == 0xD0.toByte() && bytes[1] == 0xCF.toByte() &&
+            bytes[2] == 0x11.toByte() && bytes[3] == 0xE0.toByte()
+
+    /** Extrai as linhas/colunas da primeira planilha de um arquivo .xlsx (formato zip + XML). */
+    private fun readXlsxRows(bytes: ByteArray): List<List<String>> {
+        var sharedStrings: List<String> = emptyList()
+        val sheetEntries = mutableMapOf<String, ByteArray>()
+
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
+            var entry = zis.nextEntry
+            while (entry != null) {
+                when {
+                    entry.name == "xl/sharedStrings.xml" -> sharedStrings = parseSharedStrings(zis.readBytes())
+                    entry.name.matches(Regex("xl/worksheets/sheet\\d+\\.xml")) ->
+                        sheetEntries[entry.name] = zis.readBytes()
+                }
+                zis.closeEntry()
+                entry = zis.nextEntry
+            }
+        }
+
+        val firstSheetName = sheetEntries.keys.minByOrNull {
+            Regex("\\d+").find(it)?.value?.toIntOrNull() ?: Int.MAX_VALUE
+        } ?: return emptyList()
+
+        return parseSheetRows(sheetEntries.getValue(firstSheetName), sharedStrings)
+    }
+
+    private fun parseSharedStrings(data: ByteArray): List<String> {
+        val strings = mutableListOf<String>()
+        val parser = android.util.Xml.newPullParser()
+        parser.setInput(ByteArrayInputStream(data), "UTF-8")
+        var eventType = parser.eventType
+        var currentSi: StringBuilder? = null
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            when (eventType) {
+                XmlPullParser.START_TAG -> when (parser.name) {
+                    "si" -> currentSi = StringBuilder()
+                    "t" -> currentSi?.append(parser.nextText())
+                }
+                XmlPullParser.END_TAG -> if (parser.name == "si") {
+                    strings.add(currentSi?.toString() ?: "")
+                    currentSi = null
+                }
+            }
+            eventType = try { parser.next() } catch (e: Exception) { XmlPullParser.END_DOCUMENT }
+        }
+        return strings
+    }
+
+    private fun parseSheetRows(data: ByteArray, sharedStrings: List<String>): List<List<String>> {
+        val rows = mutableListOf<List<String>>()
+        val parser = android.util.Xml.newPullParser()
+        parser.setInput(ByteArrayInputStream(data), "UTF-8")
+        var eventType = parser.eventType
+        var currentRow: MutableList<String>? = null
+        var currentColIndex = -1
+        var currentCellType: String? = null
+        var currentValue: StringBuilder? = null
+
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            when (eventType) {
+                XmlPullParser.START_TAG -> when (parser.name) {
+                    "row" -> currentRow = mutableListOf()
+                    "c" -> {
+                        currentCellType = parser.getAttributeValue(null, "t")
+                        val ref = parser.getAttributeValue(null, "r")
+                        currentColIndex = ref?.let { columnLetterToIndex(it) } ?: (currentColIndex + 1)
+                        currentValue = StringBuilder()
+                    }
+                    "v" -> currentValue?.append(parser.nextText())
+                    "t" -> if (currentCellType == "inlineStr") currentValue?.append(parser.nextText())
+                }
+                XmlPullParser.END_TAG -> when (parser.name) {
+                    "c" -> {
+                        val row = currentRow
+                        if (row != null && currentColIndex >= 0) {
+                            while (row.size <= currentColIndex) row.add("")
+                            val raw = currentValue?.toString() ?: ""
+                            row[currentColIndex] = when (currentCellType) {
+                                "s" -> raw.toIntOrNull()?.let { sharedStrings.getOrNull(it) } ?: ""
+                                "b" -> if (raw == "1") "true" else "false"
+                                else -> raw
+                            }
+                        }
+                        currentCellType = null
+                        currentValue = null
+                    }
+                    "row" -> {
+                        currentRow?.let { rows.add(it) }
+                        currentRow = null
+                        currentColIndex = -1
+                    }
+                }
+            }
+            eventType = try { parser.next() } catch (e: Exception) { XmlPullParser.END_DOCUMENT }
+        }
+        return rows
+    }
+
+    /** Converte uma referência de célula do Excel (ex.: "C7") no índice de coluna 0-based (2). */
+    private fun columnLetterToIndex(cellRef: String): Int {
+        var idx = 0
+        for (c in cellRef) {
+            if (c.isLetter()) {
+                idx = idx * 26 + (c.uppercaseChar() - 'A' + 1)
+            } else break
+        }
+        return idx - 1
+    }
+
+    private class UnsupportedXlsException : Exception("Formato .xls (binário antigo) não suportado")
 
     fun standardizeJsonBackupData(jsonString: String): String {
         val gson = Gson()

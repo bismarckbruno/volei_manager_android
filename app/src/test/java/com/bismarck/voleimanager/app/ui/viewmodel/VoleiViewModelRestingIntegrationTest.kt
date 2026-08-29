@@ -545,6 +545,95 @@ class VoleiViewModelRestingIntegrationTest {
     }
 
     @Test
+    fun importData_jogadoresXlsx_parsesSharedStringsAndBooleanCellsAndInsertsPlayer() = runBlocking {
+        val env = createViewModel(BalancingMode.REST)
+
+        val xlsxBytes = buildMinimalPlayersXlsx()
+        val file = java.io.File.createTempFile("modelo_jogadores", ".xlsx")
+        file.writeBytes(xlsxBytes)
+        val uri = android.net.Uri.fromFile(file)
+        val context = ApplicationProvider.getApplicationContext<Application>()
+
+        env.vm.importData(uri, CsvType.JOGADORES, context)
+
+        val imported = withTimeout(5_000) {
+            var players: List<Player> = emptyList()
+            while (players.isEmpty()) {
+                players = env.repo.getPlayersByGroupSync("Grupo Teste")
+                if (players.isEmpty()) delay(20)
+            }
+            players
+        }
+
+        assertEquals(1, imported.size)
+        val player = imported.first()
+        assertTrue(player.name.contains("Fulano"))
+        assertEquals(1200.5, player.elo, 0.001)
+        assertEquals(3, player.matchesPlayed)
+        assertEquals(1, player.victories)
+        assertTrue(player.isPriority) // came from an Excel Boolean cell (t="b"), not a text "true"
+        assertEquals("SETTER", player.preferredPosition)
+        file.delete()
+        Unit
+    }
+
+    /**
+     * Builds a minimal but realistic .xlsx (zip + XML) with a header row and one data row,
+     * mixing shared-string cells (name/group/position), an inline Excel Boolean cell
+     * (Prioridade, to mirror what happens when a user types true/false and Excel auto-converts
+     * it to a Boolean cell instead of text) and numeric cells (Elo/Partidas/Vitorias), plus a
+     * skipped empty cell (DataPedagio) to exercise the column-gap-filling logic.
+     */
+    private fun buildMinimalPlayersXlsx(): ByteArray {
+        val sharedStrings = listOf(
+            "ID", "Nome", "Elo", "Partidas", "Vitorias", "Grupo", "Prioridade", "PedagioDiario",
+            "DataPedagio", "PosicaoPreferida", "PosicaoSecundaria", // header row, indices 0-10
+            "Fulano de Tal", "Grupo Teste", "SETTER" // data row string values, indices 11-13
+        )
+        val sharedStringsXml = buildString {
+            append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
+            append("<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"${sharedStrings.size}\" uniqueCount=\"${sharedStrings.size}\">")
+            sharedStrings.forEach { append("<si><t>$it</t></si>") }
+            append("</sst>")
+        }
+        val headerCells = (0..10).joinToString("") { col ->
+            "<c r=\"${('A' + col)}1\" t=\"s\"><v>$col</v></c>"
+        }
+        val dataCells = listOf(
+            "<c r=\"A2\"><v>0</v></c>",
+            "<c r=\"B2\" t=\"s\"><v>11</v></c>",
+            "<c r=\"C2\"><v>1200.5</v></c>",
+            "<c r=\"D2\"><v>3</v></c>",
+            "<c r=\"E2\"><v>1</v></c>",
+            "<c r=\"F2\" t=\"s\"><v>12</v></c>",
+            "<c r=\"G2\" t=\"b\"><v>1</v></c>",
+            "<c r=\"H2\"><v>0</v></c>",
+            // I2 (DataPedagio) intentionally omitted to exercise gap-filling.
+            "<c r=\"J2\" t=\"s\"><v>13</v></c>"
+        ).joinToString("")
+        val sheetXml = buildString {
+            append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
+            append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
+            append("<sheetData>")
+            append("<row r=\"1\">$headerCells</row>")
+            append("<row r=\"2\">$dataCells</row>")
+            append("</sheetData></worksheet>")
+        }
+
+        val out = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(out).use { zip ->
+            zip.putNextEntry(java.util.zip.ZipEntry("xl/sharedStrings.xml"))
+            zip.write(sharedStringsXml.toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(java.util.zip.ZipEntry("xl/worksheets/sheet1.xml"))
+            zip.write(sheetXml.toByteArray())
+            zip.closeEntry()
+        }
+        return out.toByteArray()
+    }
+
+
+    @Test
     fun init_withExistingNonDefaultGroup_doesNotCreateDefaultGroup() = runBlocking {
         val app = ApplicationProvider.getApplicationContext<Application>()
         app.getSharedPreferences("volei", Context.MODE_PRIVATE).edit().clear().apply()

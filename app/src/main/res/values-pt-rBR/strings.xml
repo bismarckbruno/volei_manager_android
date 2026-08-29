@@ -193,7 +193,7 @@
     <string name="faq_a12_col2">Composição</string>
     <string name="faq_a12_table">2x2|Com \"Garantir levantador\": 1 levantador + 1 jogador de qualquer outra posição (ponteiro, oposto, central ou líbero). Sem a garantia: 1ª vaga de ataque (levantador, ponteiro ou oposto) + 1 defesa (central ou líbero).\n3x3|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 1 defensor (central ou líbero).\n4x4|A 1ª vaga segue a regra do levantador + 1 atacante (ponteiro ou oposto) + 2 defensores (máx. 1 ponteiro na defesa).\n5x5|A 1ª vaga segue a regra do levantador + 2 atacantes (ponteiros ou opostos) + 2 defensores (máx. 1 ponteiro na defesa).\n6x6|Levantador, ponteiro de ataque, ponteiro de defesa, 1º central, oposto e líbero (ou 2º central, se não houver líbero).\n7x7|Mesma base do 6x6, com mais 1 central; o líbero fica no banco e pode substituir qualquer central do próprio time.</string>
     <string name="faq_q15">Como importo vários jogadores de uma vez (em lote)?</string>
-    <string name="faq_a15_intro">Use \"Importar CSV (Avançado) &gt; Jogadores\" no menu, com um arquivo .csv cuja primeira linha seja exatamente igual aos cabeçalhos abaixo. Baixe o modelo pronto pelo botão abaixo, preencha uma linha por jogador (no celular ou no computador, usando Sheets, Excel ou Bloco de Notas) e depois importe o arquivo salvo.</string>
+    <string name="faq_a15_intro">Use \"Importar CSV (Avançado) &gt; Jogadores\" no menu, com um arquivo .csv ou .xlsx cuja primeira linha seja exatamente igual aos cabeçalhos abaixo. Baixe o modelo pronto pelo botão abaixo, preencha uma linha por jogador (no celular ou no computador, usando Sheets, Excel ou Bloco de Notas) e depois importe o arquivo salvo — pode ser .csv ou .xlsx (por exemplo, se o Excel salvar assim automaticamente). Arquivos .xls antigos ainda não são suportados.</string>
     <string name="faq_a15_col1">Coluna</string>
     <string name="faq_a15_col2">Formato esperado</string>
     <string name="faq_a15_table">ID|Ignorado ao importar — pode deixar 0 ou vazio.\nNome|Nome do jogador (texto livre).\nElo|Número decimal, ex.: 1200.00. Vazio ou inválido vira 1200.00.\nPartidas|Número inteiro de partidas já jogadas (normalmente 0 para jogador novo).\nVitorias|Número inteiro de vitórias já registradas (normalmente 0 para jogador novo).\nGrupo|Nome exato de um grupo que já existe no app.\nPrioridade|Exatamente \"true\" ou \"false\" (minúsculas).\nPedagioDiario|Número inteiro; normalmente 0 (o app recalcula sozinho).\nDataPedagio|Pode deixar vazio (o app recalcula sozinho).\nPosicaoPreferida|Vazio, ou um destes: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE, LIBERO.\nPosicaoSecundaria|Mesmo formato de PosicaoPreferida; deixe vazio se não usar.</string>
@@ -337,6 +337,10 @@
     <string name="went_to_start_queue">%1$s foi para o começo da fila</string>
     <string name="off_waitlist">%1$s saiu da fila de espera</string>
     <string name="invalid_backup_format">Formato de backup inválido</string>
+    <string name="import_error_empty_or_unreadable">Não foi possível ler o arquivo. Verifique se é um .csv ou .xlsx válido.</string>
+    <string name="import_error_no_valid_rows">Nenhuma linha válida foi encontrada no arquivo. Confira o formato das colunas e tente novamente.</string>
+    <string name="import_error_xls_unsupported">Arquivos .xls (formato antigo do Excel) ainda não são suportados. Salve o arquivo como .xlsx ou .csv e tente novamente.</string>
+    <string name="import_error_generic">Falha ao importar. Verifique o formato do arquivo e tente novamente.</string>
     <string name="team_x">Time %1$s</string>
     <string name="winner_word">Vencedor</string>
     <string name="players_name_already_exists">Já existe um jogador com esse nome no grupo</string>

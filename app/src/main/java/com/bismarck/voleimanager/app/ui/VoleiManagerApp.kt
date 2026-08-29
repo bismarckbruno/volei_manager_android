@@ -145,6 +145,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
             }
         }
+    val csvImportMimeTypes = arrayOf(
+        "text/*",
+        "text/csv",
+        "application/csv",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+        "application/vnd.ms-excel" // .xls (legacy binary format; parsing not supported, shows a clear error)
+    )
 
     LaunchedEffect(groupsSortedByRecent, groupConfig.groupName, isGroupDataLoading, selectedGroup) {
         if (isGroupDataLoading) return@LaunchedEffect
@@ -306,7 +313,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         ) {
                             TextButton(onClick = {
                                 pendingImportType = CsvType.JOGADORES
-                                launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
+                                launcherImport.launch(csvImportMimeTypes)
                                 showImportDialog = false
                             }) { Text(stringResource(R.string.players_word)) }
                             IconButton(onClick = { viewModel.exportPlayersTemplate(context) }) {
@@ -320,14 +327,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             modifier = Modifier.fillMaxWidth(),
                             onClick = {
                                 pendingImportType = CsvType.HISTORICO
-                                launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
+                                launcherImport.launch(csvImportMimeTypes)
                                 showImportDialog = false
                             }) { Text(stringResource(R.string.history)) }
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = {
                                 pendingImportType = CsvType.ELO_LOGS
-                                launcherImport.launch(arrayOf("text/*", "text/csv", "application/csv"))
+                                launcherImport.launch(csvImportMimeTypes)
                                 showImportDialog = false
                             }) { Text(stringResource(R.string.daily_elo)) }
                     }
