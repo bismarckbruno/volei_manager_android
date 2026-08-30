@@ -364,6 +364,13 @@ fun EditPlayerDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(40.dp)).clickable { isPriority = !isPriority }) {
                         Checkbox(checked = isPriority, onCheckedChange = { isPriority = it })
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() }),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.priority))
                     }
                 }
