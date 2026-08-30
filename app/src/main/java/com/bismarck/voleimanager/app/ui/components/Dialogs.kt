@@ -45,7 +45,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import android.view.WindowManager
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.outlined.Scoreboard
+import androidx.compose.material.icons.filled.Scoreboard
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -876,7 +876,7 @@ fun GroupConfigDialog(
             onCheckedChange = { scoreEnabled = it },
             icon = {
                 Icon(
-                    imageVector = Icons.Outlined.Scoreboard,
+                    imageVector = Icons.Filled.Scoreboard,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)

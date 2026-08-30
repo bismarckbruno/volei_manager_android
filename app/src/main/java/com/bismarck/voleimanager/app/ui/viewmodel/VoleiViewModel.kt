@@ -73,6 +73,8 @@ private const val AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS = 12L * 60L * 60L * 1000L
 private const val PLAYERS_CSV_HEADER =
     "ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade,PedagioDiario,DataPedagio,PosicaoPreferida,PosicaoSecundaria"
 
+private const val XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
 enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
@@ -98,7 +100,10 @@ data class PendingMergeImportData(
     val logs: List<PlayerEloLog>,
     val overlappingGroups: List<String>,
     val duplicatePlayerNames: List<String> = emptyList(),
-    val duplicatePlayerGroups: Map<String, Int> = emptyMap()
+    val duplicatePlayerGroups: Map<String, Int> = emptyMap(),
+    /** Configuração do grupo do backup importado (só presente em importações de .vlz), usada para
+     *  salvar a config de um grupo novo e para trocar automaticamente para ele após a importação. */
+    val groupConfig: GroupConfig? = null
 )
 
 data class GameStateSnapshot(
@@ -2640,10 +2645,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 logs = safeLogs,
                                 overlappingGroups = overlapping,
                                 duplicatePlayerNames = duplicatePlayerNames,
-                                duplicatePlayerGroups = duplicatePlayerGroups
+                                duplicatePlayerGroups = duplicatePlayerGroups,
+                                groupConfig = backup.groupConfig
                             )
                         } else {
                             performImportWithDedup(safePlayers, safeHistory, safeLogs, emptySet())
+                            finalizeGroupImport(
+                                groupConfig = backup.groupConfig,
+                                groupNameFallback = safePlayers.firstOrNull()?.groupName
+                                    ?: safeHistory.firstOrNull()?.groupName
+                                    ?: safeLogs.firstOrNull()?.groupName
+                            )
                         }
                     } else {
                         Log.e("Import", context.getString(R.string.invalid_backup_format))
@@ -2707,6 +2719,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     )
                                 } else {
                                     performImportWithDedup(list, emptyList(), emptyList(), emptySet())
+                                    finalizeGroupImport(
+                                        groupConfig = null,
+                                        groupNameFallback = list.firstOrNull()?.groupName
+                                    )
                                 }
                             } else {
                                 _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
@@ -2757,6 +2773,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     )
                                 } else {
                                     performImportWithDedup(emptyList(), list, emptyList(), emptySet())
+                                    finalizeGroupImport(
+                                        groupConfig = null,
+                                        groupNameFallback = list.firstOrNull()?.groupName
+                                    )
                                 }
                             } else {
                                 _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
@@ -2798,6 +2818,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                     )
                                 } else {
                                     performImportWithDedup(emptyList(), emptyList(), list, emptySet())
+                                    finalizeGroupImport(
+                                        groupConfig = null,
+                                        groupNameFallback = list.firstOrNull()?.groupName
+                                    )
                                 }
                             } else {
                                 _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
@@ -2851,12 +2875,36 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 val toInsert = groupLogs.filter { Pair(it.playerNameSnapshot, it.date) !in existingKeys }
                 if (toInsert.isNotEmpty()) repository.insertEloLogs(toInsert)
             }
+            finalizeGroupImport(
+                groupConfig = data.groupConfig,
+                groupNameFallback = data.players.firstOrNull()?.groupName
+                    ?: data.history.firstOrNull()?.groupName
+                    ?: data.logs.firstOrNull()?.groupName
+            )
             _pendingMergeImport.value = null
         }
     }
 
     fun cancelMergeImport() {
         _pendingMergeImport.value = null
+    }
+
+    /**
+     * Após uma importação de backup (.vlz), salva a config do grupo importado (se for um grupo
+     * novo, sem sobrescrever a config de um grupo já existente) e troca o grupo ativo para ele,
+     * para que as telas exibam os dados recém-importados sem precisar de troca manual pelo usuário.
+     */
+    private suspend fun finalizeGroupImport(groupConfig: GroupConfig?, groupNameFallback: String?) {
+        val targetGroupName = (groupConfig?.groupName?.takeIf { it.isNotBlank() } ?: groupNameFallback)
+            ?.takeIf { it.isNotBlank() } ?: return
+        if (groupConfig != null && repository.getGroupConfig(targetGroupName) == null) {
+            // Um grupo importado sempre já está "pronto para uso": força onboarding concluído
+            // independente do valor vindo do backup, para não reabrir o assistente de configuração.
+            repository.saveGroupConfig(
+                groupConfig.copy(groupName = targetGroupName, onboardingStep = ONBOARDING_STEP_COMPLETE)
+            )
+        }
+        loadGroupConfig(targetGroupName)
     }
 
     private suspend fun performImportWithDedup(
@@ -2904,9 +2952,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun exportData(context: Context, type: CsvType, fileName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val safeFileName = fileName.replace(Regex("[^a-zA-Z0-9_\\-\\.]"), "")
+            val extension = if (type == CsvType.BACKUP_COMPLETO) "vlz" else "xlsx"
             val finalName =
-                if (safeFileName.endsWith(if (type == CsvType.BACKUP_COMPLETO) ".vlz" else ".csv")) safeFileName else "$safeFileName.${if (type == CsvType.BACKUP_COMPLETO) "vlz" else "csv"}"
-            val content = StringBuilder()
+                if (safeFileName.endsWith(".$extension")) safeFileName else "$safeFileName.$extension"
 
             if (type == CsvType.BACKUP_COMPLETO) {
                 val groupName = _currentGroupConfig.value.groupName
@@ -2924,77 +2972,71 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 val json = Gson().toJson(backup)
                 shareFile(context, finalName, json, "application/octet-stream")
             } else {
-                when (type) {
+                val (headers, rows) = when (type) {
                     CsvType.JOGADORES -> {
-                        content.append(PLAYERS_CSV_HEADER).append("\n")
-                        currentGroupPlayers.value.forEach {
-                            content.append(
-                                "${it.id},\"${
-                                    it.name.replace(
-                                        "\"",
-                                        "\"\""
-                                    )
-                                }\",${formatElo(it.elo)},${it.matchesPlayed},${it.victories},\"${
-                                    it.groupName.replace(
-                                        "\"",
-                                        "\"\""
-                                    )
-                                }\",\"${it.isPriority}\",${it.dailyToll},\"${it.tollDate}\",\"${it.preferredPosition.orEmpty()}\",\"${it.secondaryPosition.orEmpty()}\"\n"
+                        val headers = PLAYERS_CSV_HEADER.split(",")
+                        val rows = currentGroupPlayers.value.map {
+                            listOf(
+                                it.id.toString(),
+                                it.name,
+                                formatElo(it.elo),
+                                it.matchesPlayed.toString(),
+                                it.victories.toString(),
+                                it.groupName,
+                                it.isPriority.toString(),
+                                it.dailyToll.toString(),
+                                it.tollDate,
+                                it.preferredPosition.orEmpty(),
+                                it.secondaryPosition.orEmpty()
                             )
                         }
+                        headers to rows
                     }
 
                     CsvType.HISTORICO -> {
-                        content.append("Data,TimeA,TimeB,Vencedor,EloGanho,Grupo,MediaEloTimeA,MediaEloTimeB,PlacarTimeA,PlacarTimeB,InicioPartida,FimPartida\n")
-                        currentGroupHistory.value.forEach {
-                            content.append(
-                                "\"${it.date}\",\"${
-                                    it.teamA.replace(
-                                        "\"",
-                                        "\"\""
-                                    )
-                                }\",\"${
-                                    it.teamB.replace(
-                                        "\"",
-                                        "\"\""
-                                    )
-                                }\",\"${it.winner}\",${formatElo(it.eloPoints)},\"${
-                                    it.groupName.replace(
-                                        "\"",
-                                        "\"\""
-                                    )
-                                }\",${it.teamAAverageElo?.let { e -> formatElo(e) } ?: ""},${
-                                    it.teamBAverageElo?.let { e ->
-                                        formatElo(
-                                            e
-                                        )
-                                    } ?: ""
-                                },${it.teamAScore ?: ""},${it.teamBScore ?: ""},${it.startTimestamp ?: ""},${it.endTimestamp ?: ""}\n")
+                        val headers = listOf(
+                            "Data", "TimeA", "TimeB", "Vencedor", "EloGanho", "Grupo",
+                            "MediaEloTimeA", "MediaEloTimeB", "PlacarTimeA", "PlacarTimeB",
+                            "InicioPartida", "FimPartida"
+                        )
+                        val rows = currentGroupHistory.value.map {
+                            listOf(
+                                it.date,
+                                it.teamA,
+                                it.teamB,
+                                it.winner,
+                                formatElo(it.eloPoints),
+                                it.groupName,
+                                it.teamAAverageElo?.let { e -> formatElo(e) } ?: "",
+                                it.teamBAverageElo?.let { e -> formatElo(e) } ?: "",
+                                it.teamAScore?.toString() ?: "",
+                                it.teamBScore?.toString() ?: "",
+                                it.startTimestamp?.toString() ?: "",
+                                it.endTimestamp?.toString() ?: ""
+                            )
                         }
+                        headers to rows
                     }
 
                     CsvType.ELO_LOGS -> {
-                        content.append("ID,PlayerID,Nome,Data,Elo,Grupo,Vitoria\n")
-                        currentGroupEloLogs.value.forEach {
-                            content.append(
-                                "${it.id},${it.playerId},\"${
-                                    it.playerNameSnapshot.replace(
-                                        "\"",
-                                        "\"\""
-                                    )
-                                }\",\"${it.date}\",${formatElo(it.elo)},\"${
-                                    it.groupName.replace(
-                                        "\"",
-                                        "\"\""
-                                    )
-                                }\",${it.won ?: ""}\n"
+                        val headers = listOf("ID", "PlayerID", "Nome", "Data", "Elo", "Grupo", "Vitoria")
+                        val rows = currentGroupEloLogs.value.map {
+                            listOf(
+                                it.id.toString(),
+                                it.playerId.toString(),
+                                it.playerNameSnapshot,
+                                it.date,
+                                formatElo(it.elo),
+                                it.groupName,
+                                it.won?.toString() ?: ""
                             )
                         }
+                        headers to rows
                     }
 
-                    else -> {}
+                    else -> emptyList<String>() to emptyList<List<String>>()
                 }
-                shareFile(context, finalName, content.toString(), "text/csv")
+                shareBytes(context, finalName, buildXlsxBytes(headers, rows), XLSX_MIME_TYPE)
             }
         }
     }
@@ -3012,7 +3054,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val headers = PLAYERS_CSV_HEADER.split(",")
             val exampleRow = listOf(
                 "0",
-                "Exemplo (apague esta linha antes de importar)",
+                context.getString(R.string.template_example_name),
                 "1200.00",
                 "0",
                 "0",
@@ -3020,16 +3062,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 "false",
                 "0",
                 "",
-                "",
-                ""
+                context.getString(R.string.template_position_hint),
+                context.getString(R.string.template_secondary_position_hint)
             )
             val bytes = buildXlsxBytes(headers, listOf(exampleRow))
-            shareBytes(
-                context,
-                "modelo_jogadores.xlsx",
-                bytes,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            shareBytes(context, "modelo_jogadores.xlsx", bytes, XLSX_MIME_TYPE)
         }
     }
 

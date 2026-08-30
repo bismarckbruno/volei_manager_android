@@ -6,7 +6,6 @@ import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -80,7 +79,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -93,7 +91,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -2091,7 +2088,7 @@ private fun BigScoreboardToggleButton(
     } else {
         stringResource(R.string.big_scoreboard_cd)
     }
-    val tint = MaterialTheme.colorScheme.onSurface
+    val tint = MaterialTheme.colorScheme.onSurfaceVariant
 
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
@@ -2247,7 +2244,7 @@ private fun BigScoreboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(top = 0.dp, bottom = 16.dp, start = 16.dp, end = 16.dp),
+            .padding(top = 0.dp, bottom = 8.dp, start = 16.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         BigScoreCard(
@@ -2333,13 +2330,13 @@ private fun BigScoreCard(
     onWin: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val contentColor = if (cardColor.luminance() < 0.5f) Color.White else Color.Black
+    val contentColor = if (cardColor.luminance() < 0.5f) Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.8f)
     val victoryLabel = stringResource(R.string.victory_short)
 
     Card(
-        modifier = modifier.clip(RoundedCornerShape(24.dp)),
+        modifier = modifier.clip(RoundedCornerShape(32.dp)),
         colors = CardDefaults.cardColors(containerColor = cardColor),
-        shape = RoundedCornerShape(24.dp)
+        shape = RoundedCornerShape(32.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Tap zones covering the whole card. The zone closer to the center of the
@@ -2351,7 +2348,7 @@ private fun BigScoreCard(
                 val incrementZone = @Composable {
                     Box(
                         modifier = Modifier
-                            .weight(2f)
+                            .weight(3f)
                             .fillMaxHeight()
                             .rememberHoldToRepeatModifier(
                                 onTrigger = onIncrementScore,
@@ -2393,7 +2390,10 @@ private fun BigScoreCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val pointIcon: @Composable () -> Unit = {
-                        Box(modifier = Modifier.width(56.dp), contentAlignment = Alignment.CenterStart) {
+                        Box(
+                            modifier = Modifier.width(56.dp),
+                            contentAlignment = if (isLeftCard) Alignment.CenterStart else Alignment.CenterEnd
+                        ) {
                             PointIndicatorIcon(
                                 showRotationIndicator = showRotationIndicator,
                                 showLatestPointBorder = showLatestPointBorder,
@@ -2403,7 +2403,10 @@ private fun BigScoreCard(
                         }
                     }
                     val streakChip: @Composable () -> Unit = {
-                        Box(modifier = Modifier.width(56.dp), contentAlignment = Alignment.CenterEnd) {
+                        Box(
+                            modifier = Modifier.width(56.dp),
+                            contentAlignment = if (isLeftCard) Alignment.CenterEnd else Alignment.CenterStart
+                        ) {
                             StreakIndicator(
                                 streak = streak,
                                 streakColor = streakColor,
@@ -2444,9 +2447,9 @@ private fun BigScoreCard(
                     showLatestPointBorder = showLatestPointBorder,
                     showRotationIndicator = showRotationIndicator,
                     tooltipText = null,
-                    circleSize = 220.dp,
+                    circleSize = 260.dp,
                     strokeWidth = 5.dp,
-                    textStyle = MaterialTheme.typography.displayLarge.copy(fontSize = 96.sp)
+                    textStyle = MaterialTheme.typography.displayLarge.copy(fontSize = 110.sp)
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -2477,14 +2480,14 @@ private fun BigScoreCard(
             Box(
                 modifier = Modifier
                     .align(if (isLeftCard) Alignment.CenterStart else Alignment.CenterEnd)
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 30.dp)
             ) {
                 plusIndicator()
             }
             Box(
                 modifier = Modifier
                     .align(if (isLeftCard) Alignment.CenterEnd else Alignment.CenterStart)
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 30.dp)
             ) {
                 minusIndicator()
             }
@@ -2564,33 +2567,37 @@ private fun StreakIndicator(
     onLongClick: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
         modifier = Modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CircleShape)
-            .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
             .combinedClickable(
                 onClick = {},
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onLongClick()
                 }
-            )
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.LocalFireDepartment,
-            contentDescription = stringResource(R.string.edit_streak_cd),
-            tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
-            modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleMedium.fontSize.toDp() })
-        )
-        Spacer(Modifier.width(2.dp))
-        Text(
-            text = if (streak > 0) streak.toString() else "--",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.LocalFireDepartment,
+                contentDescription = stringResource(R.string.edit_streak_cd),
+                tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
+                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleMedium.fontSize.toDp() })
+            )
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = if (streak > 0) streak.toString() else "--",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f)
+            )
+        }
     }
 }
 
@@ -2708,7 +2715,7 @@ fun ActiveTeamCard(
     onWin: () -> Unit
 ) {
     val avgElo = if (players.isNotEmpty()) players.map { it.elo }.average() else 0.0
-    val contentColor = if (cardColor.luminance() < 0.5f) Color.White else Color.Black
+    val contentColor = if (cardColor.luminance() < 0.5f) Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.8f)
     val haptic = LocalHapticFeedback.current
     val avgEloTooltipState = rememberTooltipState(isPersistent = true)
     val avgEloTooltipScope = rememberCoroutineScope()
@@ -3134,9 +3141,9 @@ fun ActiveTeamCard(
 
     // Corner radius of the outer card, so the control panel can align flush with it
     // on whichever edge (top or bottom) it occupies.
-    val cardTopCorner = 30.dp
-    val cardBottomCorner = 30.dp
-    val panelInnerCorner = 30.dp
+    val cardTopCorner = 32.dp
+    val cardBottomCorner = 32.dp
+    val panelInnerCorner = 32.dp
 
     @Composable
     fun TeamControlPanel(atTop: Boolean, content: @Composable ColumnScope.() -> Unit) {
@@ -3195,7 +3202,7 @@ fun ActiveTeamCard(
                 }
                 .clip(shape)
                 .background(Color.Black.copy(alpha = panelBackgroundAlpha))
-                .padding(12.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             content = content
         )
@@ -3207,7 +3214,6 @@ fun ActiveTeamCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(4.dp)
             .background(
                 cardColor,
                 RoundedCornerShape(topStart = cardTopCorner, topEnd = cardTopCorner, bottomStart = cardBottomCorner, bottomEnd = cardBottomCorner)
@@ -3565,7 +3571,7 @@ private fun GroupOnboardingNameCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -3628,7 +3634,7 @@ private fun GroupOnboardingGroupTypeCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -3641,6 +3647,12 @@ private fun GroupOnboardingGroupTypeCard(
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.group_type_long_press_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
             GroupType.selectableTypes.forEach { type ->
                 GroupTypeOptionRow(
                     type = type,
@@ -3650,7 +3662,7 @@ private fun GroupOnboardingGroupTypeCard(
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.onboarding_group_type_hint),
+                text = stringResource(R.string.onboarding_team_size_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3699,7 +3711,7 @@ private fun GroupOnboardingBalanceModeCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -3713,7 +3725,7 @@ private fun GroupOnboardingBalanceModeCard(
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.balance_mode_long_press_hint),
+                text = stringResource(R.string.group_type_long_press_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3733,7 +3745,7 @@ private fun GroupOnboardingBalanceModeCard(
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.onboarding_balance_mode_hint),
+                text = stringResource(R.string.onboarding_team_size_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3805,16 +3817,16 @@ private fun OnboardingBalanceModeRow(
                 }
             )
             Spacer(Modifier.width(8.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall
-            )
-            Spacer(Modifier.width(8.dp))
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(iconSize)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = label,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -3833,7 +3845,7 @@ private fun GroupOnboardingTeamSizeCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -3923,7 +3935,7 @@ private fun GroupOnboardingMinimumPlayersCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 38.dp, bottomEnd = 38.dp)
     ) {
         Column(
             modifier = Modifier
@@ -4088,7 +4100,7 @@ fun EmptyStateCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         border = null,
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomStart = 48.dp, bottomEnd = 48.dp)
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 48.dp, bottomEnd = 48.dp)
     ) {
         Column(
             modifier = Modifier

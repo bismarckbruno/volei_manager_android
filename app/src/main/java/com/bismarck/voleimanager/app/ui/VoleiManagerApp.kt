@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
@@ -13,10 +14,16 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -136,6 +143,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var exportFileName by remember { mutableStateOf("volei_data") }
     var pendingImportType by remember { mutableStateOf(CsvType.JOGADORES) }
     var pendingDrawerCloseScreen by remember { mutableStateOf<Screen?>(null) }
+    var showExportCsvAdvanced by remember { mutableStateOf(false) }
+    var showImportCsvAdvanced by remember { mutableStateOf(false) }
 
     val density = LocalDensity.current
 
@@ -164,7 +173,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             selectedGroup = groupsSortedByRecent.firstOrNull() ?: groupConfig.groupName
         }
     }
-    LaunchedEffect(selectedGroup, groupConfig.onboardingStep) {
+    // Mantém a seleção da UI em sincronia sempre que o grupo ativo do ViewModel muda por conta
+    // própria (ex.: troca automática após importar um backup), sem esperar o usuário escolher
+    // manualmente no menu de grupos.
+    LaunchedEffect(groupConfig.groupName, isGroupDataLoading) {
+        if (isGroupDataLoading) return@LaunchedEffect
+        if (selectedGroup != groupConfig.groupName) {
+            selectedGroup = groupConfig.groupName
+        }
+    }
+    LaunchedEffect(selectedGroup, groupConfig.onboardingStep, isGroupDataLoading) {
+        if (isGroupDataLoading) return@LaunchedEffect
         val targetGroup = selectedGroup ?: return@LaunchedEffect
         val isOnboardingInProgress = groupConfig.onboardingStep < ONBOARDING_STEP_COMPLETE
         if (targetGroup != groupConfig.groupName && !isOnboardingInProgress) {
@@ -254,8 +273,41 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         Text(stringResource(R.string.full_backup))
                     }
                     HorizontalDivider(Modifier.padding(vertical = 16.dp))
-                    Text(text = stringResource(R.string.export_csv), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
-                    Column(Modifier.fillMaxWidth()) {
+                    val exportAdvancedRotation by animateFloatAsState(
+                        targetValue = if (showExportCsvAdvanced) 180f else 0f,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "ExportAdvancedRotation"
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { showExportCsvAdvanced = !showExportCsvAdvanced }
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.export_csv),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = 4.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.rotate(exportAdvancedRotation)
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = showExportCsvAdvanced,
+                        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
+                        exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
+                    ) {
+                    Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -308,6 +360,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             }
                         }
                     }
+                    }
                 }
             },
             confirmButton = {
@@ -338,8 +391,41 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         Text(stringResource(R.string.restore_backup))
                     }
                     HorizontalDivider(Modifier.padding(vertical = 16.dp))
-                    Text(text = stringResource(R.string.import_csv), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
-                    Column(Modifier.fillMaxWidth()) {
+                    val importAdvancedRotation by animateFloatAsState(
+                        targetValue = if (showImportCsvAdvanced) 180f else 0f,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "ImportAdvancedRotation"
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { showImportCsvAdvanced = !showImportCsvAdvanced }
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.import_csv),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = 4.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.rotate(importAdvancedRotation)
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = showImportCsvAdvanced,
+                        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
+                        exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
+                    ) {
+                    Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                         Row(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -406,6 +492,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 )
                             }
                         }
+                    }
                     }
                 }
             },
@@ -778,6 +865,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 label = { Text(stringResource(R.string.export)) },
                                 selected = false,
                                 onClick = {
+                                    showExportCsvAdvanced = false
                                     showExportDialog = true; scope.launch { drawerState.close() }
                                 }
                             )
@@ -786,6 +874,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 label = { Text(stringResource(R.string.import_text)) },
                                 selected = false,
                                 onClick = {
+                                    showImportCsvAdvanced = false
                                     showImportDialog = true; scope.launch { drawerState.close() }
                                 }
                             )

@@ -864,7 +864,7 @@ fun HistoryScreen(
                                             activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                                             activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                             inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                                            inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            inactiveContentColor = MaterialTheme.colorScheme.outline
                                         ),
                                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                                         icon = { }
@@ -887,7 +887,7 @@ fun HistoryScreen(
                                             activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                                             activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                             inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                                            inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            inactiveContentColor = MaterialTheme.colorScheme.outline
                                         ),
                                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                                         icon = { }
@@ -1173,7 +1173,7 @@ fun HistoryScreen(
                         activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                         activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        inactiveContentColor = MaterialTheme.colorScheme.outline
                     ),
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     icon = { }
@@ -1215,7 +1215,7 @@ fun HistoryScreen(
                         activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                         activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        inactiveContentColor = MaterialTheme.colorScheme.outline
                     ),
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     icon = { }
@@ -2560,7 +2560,7 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
         ),
         FaqEntry(
             stringResource(R.string.faq_q15),
-            icon = { FaqQuestionIcon(Icons.Default.PeopleAlt) },
+            icon = { FaqQuestionIcon(Icons.Default.Groups) },
             answer = stringResource(R.string.faq_a15_intro),
             table = FaqTableData(
                 columnHeaders = stringResource(R.string.faq_a15_col1) to stringResource(R.string.faq_a15_col2),
