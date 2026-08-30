@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
@@ -53,7 +54,9 @@ import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 import org.xmlpull.v1.XmlPullParser
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 
@@ -320,6 +323,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private val _pendingMergeImport = MutableStateFlow<PendingMergeImportData?>(null)
     val pendingMergeImport: StateFlow<PendingMergeImportData?> = _pendingMergeImport.asStateFlow()
+
+    /**
+     * Uri de um backup (.vlz/.json) aberto fora do app (gerenciador de arquivos, e-mail, etc.),
+     * aguardando confirmação do usuário antes de importar. Ver [onExternalFileOpened].
+     */
+    private val _pendingExternalImportUri = MutableStateFlow<Uri?>(null)
+    val pendingExternalImportUri: StateFlow<Uri?> = _pendingExternalImportUri.asStateFlow()
+
+    /** Chamado pela MainActivity quando o app é aberto via ACTION_VIEW (ex.: toque em um .vlz). */
+    fun onExternalFileOpened(uri: Uri) {
+        _pendingExternalImportUri.value = uri
+    }
+
+    fun cancelExternalImport() {
+        _pendingExternalImportUri.value = null
+    }
 
     fun clearUiMessage() {
         _uiMessage.value = null
@@ -2886,7 +2905,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         viewModelScope.launch(Dispatchers.IO) {
             val safeFileName = fileName.replace(Regex("[^a-zA-Z0-9_\\-\\.]"), "")
             val finalName =
-                if (safeFileName.endsWith(if (type == CsvType.BACKUP_COMPLETO) ".json" else ".csv")) safeFileName else "$safeFileName.${if (type == CsvType.BACKUP_COMPLETO) "json" else "csv"}"
+                if (safeFileName.endsWith(if (type == CsvType.BACKUP_COMPLETO) ".vlz" else ".csv")) safeFileName else "$safeFileName.${if (type == CsvType.BACKUP_COMPLETO) "vlz" else "csv"}"
             val content = StringBuilder()
 
             if (type == CsvType.BACKUP_COMPLETO) {
@@ -2903,7 +2922,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     groupLogs = repository.getGroupLogsByGroupSync(groupName).takeIf { it.isNotEmpty() }
                 )
                 val json = Gson().toJson(backup)
-                shareFile(context, finalName, json, "application/json")
+                shareFile(context, finalName, json, "application/octet-stream")
             } else {
                 when (type) {
                     CsvType.JOGADORES -> {
@@ -2981,30 +3000,47 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     /**
-     * Gera e compartilha um CSV-modelo de jogadores, com o cabeçalho real (mesma fonte usada em
+     * Gera e compartilha um modelo .xlsx de jogadores, com o cabeçalho real (mesma fonte usada em
      * [exportData]) e uma linha de exemplo claramente marcada, para o usuário preencher em lote
-     * (no celular ou no computador) e importar depois via "Importar CSV > Jogadores".
+     * no Excel/Google Sheets/celular e importar depois via "Importar CSV > Jogadores" (que já lê
+     * .xlsx normalmente, ver [readTabularRows]).
      */
     fun exportPlayersTemplate(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             val exampleGroup = _currentGroupConfig.value.groupName.takeIf { it.isNotBlank() }
                 ?: DEFAULT_GROUP_NAME
-            val content = StringBuilder().apply {
-                append(PLAYERS_CSV_HEADER).append("\n")
-                append(
-                    "0,\"Exemplo (apague esta linha antes de importar)\",1200.00,0,0,\"" +
-                        exampleGroup.replace("\"", "\"\"") +
-                        "\",\"false\",0,\"\",\"\",\"\"\n"
-                )
-            }.toString()
-            shareFile(context, "modelo_jogadores.csv", content, "text/csv")
+            val headers = PLAYERS_CSV_HEADER.split(",")
+            val exampleRow = listOf(
+                "0",
+                "Exemplo (apague esta linha antes de importar)",
+                "1200.00",
+                "0",
+                "0",
+                exampleGroup,
+                "false",
+                "0",
+                "",
+                "",
+                ""
+            )
+            val bytes = buildXlsxBytes(headers, listOf(exampleRow))
+            shareBytes(
+                context,
+                "modelo_jogadores.xlsx",
+                bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
         }
     }
 
     private fun shareFile(context: Context, name: String, content: String, mimeType: String) {
+        shareBytes(context, name, content.toByteArray(), mimeType)
+    }
+
+    private fun shareBytes(context: Context, name: String, bytes: ByteArray, mimeType: String) {
         try {
             val file = File(context.cacheDir, name)
-            FileOutputStream(file).use { it.write(content.toByteArray()) }
+            FileOutputStream(file).use { it.write(bytes) }
             val uri =
                 FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -3018,6 +3054,87 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         } catch (e: Exception) {
             Log.e("Export", context.getString(R.string.error, e.message))
         }
+    }
+
+    /**
+     * Gera os bytes de um arquivo .xlsx mínimo e válido (zip + XML escrito manualmente, sem
+     * biblioteca externa), com uma única planilha contendo [headers] na primeira linha seguida de
+     * [rows]. Usa células do tipo `inlineStr` para texto, evitando a necessidade de um
+     * `sharedStrings.xml` separado. Espelha o parsing já existente em [readXlsxRows]/[parseSheetRows].
+     */
+    private fun buildXlsxBytes(headers: List<String>, rows: List<List<String>>): ByteArray {
+        fun xmlEscape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace("\"", "&quot;")
+
+        fun columnName(index: Int): String {
+            var i = index
+            val sb = StringBuilder()
+            do {
+                sb.insert(0, ('A' + (i % 26)))
+                i = i / 26 - 1
+            } while (i >= 0)
+            return sb.toString()
+        }
+
+        val allRows = listOf(headers) + rows
+        val sheetXml = buildString {
+            append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
+            append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
+            append("<sheetData>")
+            allRows.forEachIndexed { rowIndex, row ->
+                append("<row r=\"${rowIndex + 1}\">")
+                row.forEachIndexed { colIndex, cell ->
+                    val ref = "${columnName(colIndex)}${rowIndex + 1}"
+                    val numeric = cell.toDoubleOrNull()
+                    if (numeric != null && cell.isNotBlank()) {
+                        append("<c r=\"$ref\"><v>${xmlEscape(cell)}</v></c>")
+                    } else {
+                        append("<c r=\"$ref\" t=\"inlineStr\"><is><t xml:space=\"preserve\">${xmlEscape(cell)}</t></is></c>")
+                    }
+                }
+                append("</row>")
+            }
+            append("</sheetData>")
+            append("</worksheet>")
+        }
+
+        val contentTypesXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+            <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+            <Default Extension="xml" ContentType="application/xml"/>
+            <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+            <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+            </Types>""".trimIndent()
+
+        val rootRelsXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+            <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+            </Relationships>""".trimIndent()
+
+        val workbookXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+            <sheets><sheet name="Jogadores" sheetId="1" r:id="rId1"/></sheets>
+            </workbook>""".trimIndent()
+
+        val workbookRelsXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+            <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+            </Relationships>""".trimIndent()
+
+        val outputStream = ByteArrayOutputStream()
+        ZipOutputStream(outputStream).use { zip ->
+            fun writeEntry(name: String, data: String) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(data.toByteArray(Charsets.UTF_8))
+                zip.closeEntry()
+            }
+            writeEntry("[Content_Types].xml", contentTypesXml)
+            writeEntry("_rels/.rels", rootRelsXml)
+            writeEntry("xl/workbook.xml", workbookXml)
+            writeEntry("xl/_rels/workbook.xml.rels", workbookRelsXml)
+            writeEntry("xl/worksheets/sheet1.xml", sheetXml)
+        }
+        return outputStream.toByteArray()
     }
 
     fun shareBitmap(context: Context, bitmap: android.graphics.Bitmap, date: String) {

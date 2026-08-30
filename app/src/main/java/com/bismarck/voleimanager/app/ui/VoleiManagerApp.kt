@@ -63,6 +63,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun getDisplayGroupName(groupName: String?): String {
@@ -257,22 +258,55 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     Column(Modifier.fillMaxWidth()) {
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             onClick = {
                                 viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
                                 showExportDialog = false
-                            }) { Text(stringResource(R.string.players_word)) }
+                            }) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.players_word),
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                        }
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             onClick = {
                                 viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
                                 showExportDialog = false
-                            }) { Text(stringResource(R.string.history)) }
+                            }) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.history),
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                        }
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             onClick = {
                                 viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
                                 showExportDialog = false
-                            }) { Text(stringResource(R.string.daily_elo)) }
+                            }) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.daily_elo),
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                        }
                     }
                 }
             },
@@ -296,7 +330,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             pendingImportType = CsvType.BACKUP_COMPLETO
-                            launcherImport.launch(arrayOf("application/json", "text/plain"))
+                            launcherImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
                             showImportDialog = false
                         }) {
                         Icon(Icons.Default.Add, null)
@@ -311,11 +345,24 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TextButton(onClick = {
+                            TextButton(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                onClick = {
                                 pendingImportType = CsvType.JOGADORES
                                 launcherImport.launch(csvImportMimeTypes)
                                 showImportDialog = false
-                            }) { Text(stringResource(R.string.players_word)) }
+                            }) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.players_word),
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
+                            }
                             IconButton(onClick = { viewModel.exportPlayersTemplate(context) }) {
                                 Icon(
                                     Icons.Default.Download,
@@ -325,18 +372,40 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         }
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             onClick = {
                                 pendingImportType = CsvType.HISTORICO
                                 launcherImport.launch(csvImportMimeTypes)
                                 showImportDialog = false
-                            }) { Text(stringResource(R.string.history)) }
+                            }) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.history),
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                        }
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             onClick = {
                                 pendingImportType = CsvType.ELO_LOGS
                                 launcherImport.launch(csvImportMimeTypes)
                                 showImportDialog = false
-                            }) { Text(stringResource(R.string.daily_elo)) }
+                            }) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.daily_elo),
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                        }
                     }
                 }
             },
@@ -365,17 +434,44 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             title = { Text(stringResource(R.string.import_merge_title)) },
             text = { Text(dialogText) },
             confirmButton = {
-                Row {
-                    TextButton(onClick = { viewModel.confirmMergeImport(false) }) {
-                        Text(stringResource(R.string.import_keep_first_and_skip))
-                    }
-                    TextButton(onClick = { viewModel.confirmMergeImport(true) }) {
-                        Text(stringResource(R.string.import_rename_duplicates))
+                Column(Modifier.fillMaxWidth()) {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { viewModel.confirmMergeImport(false) }
+                    ) { Text(stringResource(R.string.import_keep_first_and_skip)) }
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { viewModel.confirmMergeImport(true) }
+                    ) { Text(stringResource(R.string.import_rename_duplicates)) }
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { viewModel.cancelMergeImport() }
+                    ) {
+                        Text(
+                            stringResource(R.string.cancel),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
+            }
+        )
+    }
+
+    val pendingExternalImportUri by viewModel.pendingExternalImportUri.collectAsState()
+    pendingExternalImportUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelExternalImport() },
+            title = { Text(stringResource(R.string.external_import_title)) },
+            text = { Text(stringResource(R.string.external_import_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.importData(uri, CsvType.BACKUP_COMPLETO, context)
+                    Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
+                    viewModel.cancelExternalImport()
+                }) { Text(stringResource(R.string.import_word)) }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.cancelMergeImport() }) {
+                TextButton(onClick = { viewModel.cancelExternalImport() }) {
                     Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

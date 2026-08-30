@@ -26,11 +26,77 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:theme="@style/Theme.VoleiManager">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Abre arquivos .vlz (backup completo do Voleizin/Volley Manager) diretamente
+                 pelo gerenciador de arquivos, e-mail, etc. O mimeType "*/*" combinado com o
+                 pathPattern garante o match mesmo quando o app de origem não sabe o mimetype
+                 real do arquivo (comum para extensões customizadas). -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="content"
+                    android:host="*"
+                    android:pathPattern=".*\\.vlz"
+                    android:mimeType="*/*" />
+                <data
+                    android:scheme="file"
+                    android:host="*"
+                    android:pathPattern=".*\\.vlz"
+                    android:mimeType="*/*" />
+            </intent-filter>
+
+            <!-- Variante sem mimeType: cobre apps que passam a Uri sem conseguir resolver
+                 nenhum tipo (Intent.type nulo), caso em que um filtro que exige mimeType
+                 (mesmo "*/*") não é considerado compatível pelo Android. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:host="*" android:pathPattern=".*\\.vlz" />
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\\.vlz" />
+            </intent-filter>
+
+            <!-- Muitos apps (WhatsApp, Google Drive, gerenciadores de arquivo) entregam o
+                 arquivo por um content:// URI com caminho opaco (ex.: um ID interno), sem o
+                 nome/extensão real no path — nesse caso o pathPattern acima nunca bate, mesmo
+                 com o mimeType certo. Este filtro casa só pelo mimeType genérico que essas fontes
+                 costumam atribuir a uma extensão desconhecida como .vlz (o mesmo motivo do
+                 arquivo aparecer como "BIN" no WhatsApp), sem depender do nome do arquivo. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="application/octet-stream" />
+                <data android:scheme="file" android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <!-- Fallback: quando o gerenciador de arquivos não reconhece nenhum "abrir com" para
+                 a extensão .vlz, ele costuma cair direto na tela de Compartilhar (ACTION_SEND)
+                 usando um mimetype genérico. Registramos os tipos genéricos mais comuns para que
+                 o Voleizin apareça como opção nessa tela também. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
 
