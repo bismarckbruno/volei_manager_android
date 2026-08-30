@@ -231,11 +231,13 @@ fun PlayerPositionBadges(
 }
 
 /**
- * Nome do jogador seguido dos selos de posição (`FIXED_POSITIONS`) ou da estrela de prioridade
- * (`RECREATIONAL`). Nos grupos de posições fixas, quando o nome + selos não cabem lado a lado na
- * largura disponível, os selos descem para uma linha própria abaixo do nome (e acima de qualquer
- * indicador de Elo que venha em seguida no layout do chamador); o nome então recebe reticências
- * apenas se, mesmo sozinho em sua própria linha, ainda não couber.
+ * Nome do jogador seguido dos selos de posição (`FIXED_POSITIONS`), da estrela de prioridade
+ * (`RECREATIONAL`) e/ou de um ícone extra opcional (ex.: "descansando"). Quando o nome + esse
+ * conteúdo extra não cabem lado a lado na largura disponível, o conteúdo extra desce para uma
+ * linha própria abaixo do nome (e acima de qualquer indicador de Elo que venha em seguida no
+ * layout do chamador); o nome então recebe reticências apenas se, mesmo sozinho em sua própria
+ * linha, ainda não couber. Isso vale tanto para grupos com posições fixas quanto para os
+ * recreativos (nesse caso o conteúdo extra é a estrela e/ou o ícone extra, se houver).
  */
 @Composable
 fun PlayerNameWithPositionBadges(
@@ -248,32 +250,25 @@ fun PlayerNameWithPositionBadges(
     badgeContentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     isPriority: Boolean = false,
     priorityIconSize: Dp = 16.dp,
-    priorityTint: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    priorityTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    trailingIcon: (@Composable () -> Unit)? = null
 ) {
     val preferred = PlayerPosition.fromStoredValue(player.preferredPosition)
     val secondary = PlayerPosition.fromStoredValue(player.secondaryPosition)
-    val hasBadges = usesPositions && (preferred != null || secondary != null)
+    val hasPositionBadges = usesPositions && (preferred != null || secondary != null)
+    val showPriorityStar = !usesPositions && isPriority
+    val hasExtraContent = hasPositionBadges || showPriorityStar || trailingIcon != null
 
-    if (!hasBadges) {
-        Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = player.name,
-                style = nameStyle,
-                fontWeight = nameFontWeight,
-                color = nameColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (!usesPositions && isPriority) {
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = stringResource(R.string.priority),
-                    modifier = Modifier.size(priorityIconSize),
-                    tint = priorityTint
-                )
-            }
-        }
+    if (!hasExtraContent) {
+        Text(
+            text = player.name,
+            style = nameStyle,
+            fontWeight = nameFontWeight,
+            color = nameColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier.fillMaxWidth()
+        )
         return
     }
 
@@ -284,17 +279,35 @@ fun PlayerNameWithPositionBadges(
         val spacingPx = spacing.roundToPx()
         val verticalSpacingPx = verticalSpacing.roundToPx()
 
-        val badgesPlaceable = subcompose("badges") {
-            PlayerPositionBadges(player = player, usesPositions = true, contentColor = badgeContentColor)
+        // Selos de posição, estrela de prioridade e o ícone extra (ex.: "descansando") viajam
+        // juntos: se não couberem ao lado do nome, descem juntos para a linha de baixo.
+        val extraPlaceable = subcompose("extra") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (hasPositionBadges) {
+                    PlayerPositionBadges(player = player, usesPositions = true, contentColor = badgeContentColor)
+                }
+                if (showPriorityStar) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = stringResource(R.string.priority),
+                        modifier = Modifier.size(priorityIconSize),
+                        tint = priorityTint
+                    )
+                }
+                trailingIcon?.let {
+                    if (hasPositionBadges || showPriorityStar) Spacer(Modifier.width(4.dp))
+                    it()
+                }
+            }
         }.first().measure(looseConstraints)
 
         // Largura natural do nome (sem quebra nem reticências), só para decidir se cabe ao
-        // lado dos selos; não é o placeable usado no layout final.
+        // lado do conteúdo extra; não é o placeable usado no layout final.
         val nameNaturalWidth = subcompose("nameNatural") {
             Text(text = player.name, style = nameStyle, fontWeight = nameFontWeight, maxLines = 1, softWrap = false)
         }.first().measure(Constraints()).width
 
-        val fitsInline = nameNaturalWidth + spacingPx + badgesPlaceable.width <= constraints.maxWidth
+        val fitsInline = nameNaturalWidth + spacingPx + extraPlaceable.width <= constraints.maxWidth
 
         if (fitsInline) {
             val namePlaceable = subcompose("nameInline") {
@@ -308,13 +321,13 @@ fun PlayerNameWithPositionBadges(
                 )
             }.first().measure(
                 looseConstraints.copy(
-                    maxWidth = (constraints.maxWidth - spacingPx - badgesPlaceable.width).coerceAtLeast(0)
+                    maxWidth = (constraints.maxWidth - spacingPx - extraPlaceable.width).coerceAtLeast(0)
                 )
             )
-            val height = maxOf(namePlaceable.height, badgesPlaceable.height)
+            val height = maxOf(namePlaceable.height, extraPlaceable.height)
             layout(constraints.maxWidth, height) {
                 namePlaceable.placeRelative(0, (height - namePlaceable.height) / 2)
-                badgesPlaceable.placeRelative(namePlaceable.width + spacingPx, (height - badgesPlaceable.height) / 2)
+                extraPlaceable.placeRelative(namePlaceable.width + spacingPx, (height - extraPlaceable.height) / 2)
             }
         } else {
             val namePlaceable = subcompose("nameWrapped") {
@@ -327,10 +340,10 @@ fun PlayerNameWithPositionBadges(
                     overflow = TextOverflow.Ellipsis
                 )
             }.first().measure(looseConstraints)
-            val totalHeight = namePlaceable.height + verticalSpacingPx + badgesPlaceable.height
+            val totalHeight = namePlaceable.height + verticalSpacingPx + extraPlaceable.height
             layout(constraints.maxWidth, totalHeight) {
                 namePlaceable.placeRelative(0, 0)
-                badgesPlaceable.placeRelative(0, namePlaceable.height + verticalSpacingPx)
+                extraPlaceable.placeRelative(0, namePlaceable.height + verticalSpacingPx)
             }
         }
     }

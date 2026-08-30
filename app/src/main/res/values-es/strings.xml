@@ -17,8 +17,8 @@
     <string name="import_csv">Importar Excel o CSV (Avanzado)</string>
     <string name="download_players_template">Descargar modelo de jugadores (.xlsx)</string>
     <string name="template_example_name">Ejemplo (borra esta fila antes de importar)</string>
-    <string name="template_position_hint">Coloca una de estas opciones: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE o LIBERO, o déjalo vacío</string>
-    <string name="template_secondary_position_hint">Coloca otra opción de PosicaoPreferida, o déjalo vacío si no la vas a usar</string>
+    <string name="template_position_hint">Coloca una de estas opciones: SETTER (colocador), OUTSIDE_HITTER (punta), MIDDLE_BLOCKER (central), OPPOSITE (opuesto) o LIBERO (líbero), o déjalo vacío. Copia solo la palabra en MAYÚSCULAS (en inglés) en las demás filas</string>
+    <string name="template_secondary_position_hint">Coloca otra opción de PosicaoPreferida, o déjalo vacío si no la vas a usar. Copia solo la palabra en MAYÚSCULAS (en inglés) en las demás filas</string>
     <string name="privacy_policy">Política de Privacidad</string>
     <string name="terms_of_use">Términos de Uso</string>
     <string name="current_group">Grupo actual:</string>
@@ -201,7 +201,7 @@
     <string name="faq_a15_intro">Usa \"Importar Excel o CSV (Avanzado) &gt; Jugadores\" en el menú, con un archivo .xlsx (Excel) o .csv cuya primera línea coincida exactamente con los encabezados de abajo. Descarga el modelo listo con el botón de abajo, completa una fila por jugador (en el celular o la computadora, con Excel o Sheets) y luego importa el archivo guardado.</string>
     <string name="faq_a15_col1">Columna</string>
     <string name="faq_a15_col2">Formato esperado</string>
-    <string name="faq_a15_table">ID|Se ignora al importar — puedes dejarlo en 0 o vacío.\nNome|Nombre del jugador (texto libre).\nElo|Número decimal, ej.: 1200.00. Vacío o inválido se convierte en 1200.00.\nPartidas|Número entero de partidos ya jugados (normalmente 0 para un jugador nuevo).\nVitorias|Número entero de victorias ya registradas (normalmente 0 para un jugador nuevo).\nGrupo|Nombre exacto de un grupo que ya existe en la app.\nPrioridade|Exactamente \"true\" o \"false\" (en minúsculas).\nPedagioDiario|Número entero; normalmente 0 (la app lo recalcula solo).\nDataPedagio|Puede dejarse vacío (la app lo recalcula solo).\nPosicaoPreferida|Vacío, o uno de: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE, LIBERO.\nPosicaoSecundaria|Mismo formato que PosicaoPreferida; déjalo vacío si no lo usas.</string>
+    <string name="faq_a15_table">ID|Se ignora al importar — puedes dejarlo en 0 o vacío.\nNome|Nombre del jugador (texto libre).\nElo|Número decimal, ej.: 1200.00. Vacío o inválido se convierte en 1200.00.\nPartidas|Número entero de partidos ya jugados (normalmente 0 para un jugador nuevo).\nVitorias|Número entero de victorias ya registradas (normalmente 0 para un jugador nuevo).\nGrupo|Nombre exacto de un grupo que ya existe en la app.\nPrioridade|Exactamente \"true\" o \"false\" (en minúsculas).\nPedagioDiario|Número entero; normalmente 0 (la app lo recalcula solo).\nDataPedagio|Puede dejarse vacío (la app lo recalcula solo).\nPosicaoPreferida|Vacío, o uno de: SETTER (colocador), OUTSIDE_HITTER (punta), MIDDLE_BLOCKER (central), OPPOSITE (opuesto), LIBERO (líbero). Copia solo la palabra en MAYÚSCULAS (en inglés).\nPosicaoSecundaria|Mismo formato que PosicaoPreferida; déjalo vacío si no lo usas.</string>
     <string name="faq_q13">¿Cuál es el papel de cada posición en el modo Posiciones Fijas?</string>
     <string name="faq_a13_col1">Posición</string>
     <string name="faq_a13_col2">Papel</string>

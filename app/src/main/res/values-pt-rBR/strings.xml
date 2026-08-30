@@ -17,8 +17,8 @@
     <string name="import_csv">Importar Excel ou CSV (Avançado)</string>
     <string name="download_players_template">Baixar modelo de jogadores (.xlsx)</string>
     <string name="template_example_name">Exemplo (apague esta linha antes de importar)</string>
-    <string name="template_position_hint">Coloque um destes: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE ou LIBERO, ou deixe vazio</string>
-    <string name="template_secondary_position_hint">Coloque outra opção de PosicaoPreferida, ou deixe vazio se não for usar</string>
+    <string name="template_position_hint">Coloque um destes: SETTER (levantador), OUTSIDE_HITTER (ponteiro), MIDDLE_BLOCKER (central), OPPOSITE (oposto) ou LIBERO (líbero), ou deixe vazio. Copie apenas a palavra em MAIÚSCULAS (em inglês) nas outras linhas</string>
+    <string name="template_secondary_position_hint">Coloque outra opção de PosicaoPreferida, ou deixe vazio se não for usar. Copie apenas a palavra em MAIÚSCULAS (em inglês) nas outras linhas</string>
     <string name="privacy_policy">Política de Privacidade</string>
     <string name="terms_of_use">Termos de Uso</string>
     <string name="current_group">Grupo atual:</string>
@@ -202,7 +202,7 @@
     <string name="faq_a15_intro">Use \"Importar Excel ou CSV (Avançado) &gt; Jogadores\" no menu, com um arquivo .xlsx (Excel) ou .csv cuja primeira linha seja exatamente igual aos cabeçalhos abaixo. Baixe o modelo pronto pelo botão abaixo, preencha uma linha por jogador (no celular ou no computador, usando Excel ou Sheets) e depois importe o arquivo salvo.</string>
     <string name="faq_a15_col1">Coluna</string>
     <string name="faq_a15_col2">Formato esperado</string>
-    <string name="faq_a15_table">ID|Ignorado ao importar — pode deixar 0 ou vazio.\nNome|Nome do jogador (texto livre).\nElo|Número decimal, ex.: 1200.00. Vazio ou inválido vira 1200.00.\nPartidas|Número inteiro de partidas já jogadas (normalmente 0 para jogador novo).\nVitorias|Número inteiro de vitórias já registradas (normalmente 0 para jogador novo).\nGrupo|Nome exato de um grupo que já existe no app.\nPrioridade|Exatamente \"true\" ou \"false\" (minúsculas).\nPedagioDiario|Número inteiro; normalmente 0 (o app recalcula sozinho).\nDataPedagio|Pode deixar vazio (o app recalcula sozinho).\nPosicaoPreferida|Vazio, ou um destes: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE, LIBERO.\nPosicaoSecundaria|Mesmo formato de PosicaoPreferida; deixe vazio se não usar.</string>
+    <string name="faq_a15_table">ID|Ignorado ao importar — pode deixar 0 ou vazio.\nNome|Nome do jogador (texto livre).\nElo|Número decimal, ex.: 1200.00. Vazio ou inválido vira 1200.00.\nPartidas|Número inteiro de partidas já jogadas (normalmente 0 para jogador novo).\nVitorias|Número inteiro de vitórias já registradas (normalmente 0 para jogador novo).\nGrupo|Nome exato de um grupo que já existe no app.\nPrioridade|Exatamente \"true\" ou \"false\" (minúsculas).\nPedagioDiario|Número inteiro; normalmente 0 (o app recalcula sozinho).\nDataPedagio|Pode deixar vazio (o app recalcula sozinho).\nPosicaoPreferida|Vazio, ou um destes: SETTER (levantador), OUTSIDE_HITTER (ponteiro), MIDDLE_BLOCKER (central), OPPOSITE (oposto), LIBERO (líbero). Copie apenas a palavra em MAIÚSCULAS (em inglês).\nPosicaoSecundaria|Mesmo formato de PosicaoPreferida; deixe vazio se não usar.</string>
     <string name="faq_q13">Qual é o papel de cada posição no modo Posições Fixas?</string>
     <string name="faq_a13_col1">Posição</string>
     <string name="faq_a13_col2">Papel</string>
@@ -241,12 +241,12 @@
     <string name="group_type_title">Tipo de grupo</string>
     <string name="group_type_recreational">Recreativo</string>
     <string name="group_type_recreational_desc">Dois times de 2 a 6 jogadores, sem posições fixas. O balanceamento usa o Elo e a marcação de prioridade.</string>
-    <string name="group_type_fixed_positions">Posições fixas</string>
+    <string name="group_type_fixed_positions">Posições Fixas</string>
     <string name="group_type_fixed_positions_desc">Dois times de 2 a 7 jogadores. Cada jogador cadastra uma posição preferida e uma segunda, e os times respeitam a composição mínima.</string>
     <string name="onboarding_group_type_question">Como o grupo vai jogar?</string>
     <string name="onboarding_group_type_hint">Você pode alterar depois em \"Regras do grupo\".</string>
     <string name="group_type_change_confirm_title">Trocar o tipo do grupo?</string>
-    <string name="group_type_change_confirm_message">A partida em andamento será cancelada e o número de jogadores por time pode ser ajustado. As posições cadastradas continuam guardadas e voltam a valer se você retornar para Posições fixas.</string>
+    <string name="group_type_change_confirm_message">A partida em andamento será cancelada e o número de jogadores por time pode ser ajustado. As posições cadastradas continuam guardadas e voltam a valer se você retornar para Posições Fixas.</string>
 
     <!-- Posições em quadra -->
     <string name="position_setter">Levantador</string>

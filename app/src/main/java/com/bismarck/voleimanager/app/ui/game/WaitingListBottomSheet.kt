@@ -94,6 +94,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
+import com.bismarck.voleimanager.app.ui.components.PlayerNameWithPositionBadges
 import com.bismarck.voleimanager.app.ui.components.LazyListFastScroller
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
@@ -580,52 +581,73 @@ private fun WaitingListPlayerItem(
                         fontSize = 16.sp
                     )
                     Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(
-                                    if (isLandscape) {
-                                        Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                                    } else {
-                                        Modifier
+                        if (isLandscape) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .basicMarquee(iterations = Int.MAX_VALUE)
+                            ) {
+                                Text(
+                                    player.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Clip
+                                )
+                                if (usesPositions) {
+                                    PlayerPositionBadges(
+                                        player = player,
+                                        usesPositions = true,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                } else if (player.isPriority) {
+                                    Spacer(Modifier.width(2.dp))
+                                    Icon(
+                                        Icons.Default.Star,
+                                        contentDescription = stringResource(R.string.priority),
+                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (isResting) {
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(
+                                        painter = painterResource(R.drawable.zzz_rest),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .offset(y = (-4).dp)
+                                            .size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                                    )
+                                }
+                            }
+                        } else {
+                            // Em retrato, os selos de posição (e o ícone de descanso, se houver)
+                            // descem para uma linha própria quando não cabem ao lado do nome, que
+                            // então recebe reticências apenas se ainda assim não couber sozinho.
+                            PlayerNameWithPositionBadges(
+                                player = player,
+                                usesPositions = usesPositions,
+                                nameStyle = MaterialTheme.typography.bodyMedium,
+                                nameFontWeight = FontWeight.Medium,
+                                isPriority = player.isPriority,
+                                priorityIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() },
+                                priorityTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                trailingIcon = if (isResting) {
+                                    {
+                                        Icon(
+                                            painter = painterResource(R.drawable.zzz_rest),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .offset(y = (-4).dp)
+                                                .size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
+                                        )
                                     }
-                                )
-                        ) {
-                            Text(
-                                player.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                softWrap = !isLandscape,
-                                overflow = if (isLandscape) TextOverflow.Clip else TextOverflow.Ellipsis
+                                } else null
                             )
-                            if (usesPositions) {
-                                PlayerPositionBadges(
-                                    player = player,
-                                    usesPositions = true,
-                                    modifier = Modifier.padding(start = 4.dp)
-                                )
-                            } else if (player.isPriority) {
-                                Spacer(Modifier.width(2.dp))
-                                Icon(
-                                    Icons.Default.Star,
-                                    contentDescription = stringResource(R.string.priority),
-                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (isResting) {
-                                Spacer(Modifier.width(4.dp))
-                                Icon(
-                                    painter = painterResource(R.drawable.zzz_rest),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier
-                                        .offset(y = (-4).dp)
-                                        .size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
-                                )
-                            }
                         }
                         if (showElo) {
                             Spacer(modifier = Modifier.height(4.dp))
@@ -784,41 +806,50 @@ private fun InactivePlayerItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (isLandscape) {
-                                    Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                                } else {
-                                    Modifier
-                                }
+                    if (isLandscape) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .basicMarquee(iterations = Int.MAX_VALUE)
+                        ) {
+                            Text(
+                                player.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip
                             )
-                    ) {
-                        Text(
-                            player.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            softWrap = !isLandscape,
-                            overflow = if (isLandscape) TextOverflow.Clip else TextOverflow.Ellipsis
-                        )
-                        if (usesPositions) {
-                            PlayerPositionBadges(
-                                player = player,
-                                usesPositions = true,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-                        } else if (player.isPriority) {
-                            Spacer(Modifier.width(2.dp))
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = stringResource(R.string.priority),
-                                modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (usesPositions) {
+                                PlayerPositionBadges(
+                                    player = player,
+                                    usesPositions = true,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            } else if (player.isPriority) {
+                                Spacer(Modifier.width(2.dp))
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = stringResource(R.string.priority),
+                                    modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
+                    } else {
+                        // Em retrato, os selos de posição descem para uma linha própria quando não
+                        // cabem ao lado do nome, que então recebe reticências apenas se ainda assim
+                        // não couber sozinho.
+                        PlayerNameWithPositionBadges(
+                            player = player,
+                            usesPositions = usesPositions,
+                            nameStyle = MaterialTheme.typography.bodyMedium,
+                            nameFontWeight = FontWeight.Medium,
+                            isPriority = player.isPriority,
+                            priorityIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() },
+                            priorityTint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     if (showElo) {
                         Spacer(modifier = Modifier.height(4.dp))

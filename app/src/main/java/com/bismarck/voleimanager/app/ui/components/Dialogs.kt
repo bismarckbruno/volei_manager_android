@@ -262,33 +262,20 @@ fun SubstitutionDialog(
                                 ) {
                                     ListItem(
                                         headlineContent = {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    playerIn.name,
-                                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                                                )
-                                                if (usesPositions) {
-                                                    PlayerPositionBadges(
-                                                        player = playerIn,
-                                                        usesPositions = true
-                                                    )
-                                                } else if (playerIn.isPriority) {
-                                                    Icon(
-                                                        Icons.Default.Star,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                            }
+                                            PlayerNameWithPositionBadges(
+                                                player = playerIn,
+                                                usesPositions = usesPositions,
+                                                nameFontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                                isPriority = playerIn.isPriority,
+                                                priorityIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() },
+                                                priorityTint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         },
                                         supportingContent = {
                                             Text(
                                                 label,
-                                                style = MaterialTheme.typography.bodySmall
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.padding(top = 4.dp)
                                             )
                                         },
                                         leadingContent = { Icon(Icons.Default.Person, null, modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() })) },
@@ -995,7 +982,9 @@ private fun BalancingModeOptionRow(
             Spacer(Modifier.width(8.dp))
             Text(
                 text = label,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -1168,7 +1157,12 @@ fun GroupTypeOptionRow(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text(text = groupTypeLabel(type), fontWeight = FontWeight.Medium)
+            Text(
+                text = groupTypeLabel(type),
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

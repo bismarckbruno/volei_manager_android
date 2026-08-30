@@ -17,8 +17,8 @@
     <string name="import_csv">Import Excel or CSV (Advanced)</string>
     <string name="download_players_template">Download players template (.xlsx)</string>
     <string name="template_example_name">Example (delete this row before importing)</string>
-    <string name="template_position_hint">Fill in one of: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE or LIBERO, or leave it empty</string>
-    <string name="template_secondary_position_hint">Fill in another option from PreferredPosition, or leave it empty if not using one</string>
+    <string name="template_position_hint">Fill in one of: SETTER (levantador), OUTSIDE_HITTER (ponteiro), MIDDLE_BLOCKER (central), OPPOSITE (oposto) or LIBERO (líbero), or leave it empty. Copy only the UPPERCASE word (in English) into the other rows</string>
+    <string name="template_secondary_position_hint">Fill in another option from PreferredPosition, or leave it empty if not using one. Copy only the UPPERCASE word (in English) into the other rows</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="terms_of_use">Terms of Use</string>
     <string name="current_group">Current group:</string>
@@ -202,7 +202,7 @@
     <string name="faq_a15_intro">Use \"Import Excel or CSV (Advanced) &gt; Players\" in the menu with a .xlsx (Excel) or .csv file whose first row matches exactly the headers below. Download the ready-made template with the button below, fill in one row per player (on your phone or computer, using Excel or Sheets) and then import the saved file.</string>
     <string name="faq_a15_col1">Column</string>
     <string name="faq_a15_col2">Expected format</string>
-    <string name="faq_a15_table">ID|Ignored on import — you can leave it as 0 or blank.\nNome|Player name (free text).\nElo|Decimal number, e.g. 1200.00. Blank or invalid becomes 1200.00.\nPartidas|Whole number of matches already played (usually 0 for a new player).\nVitorias|Whole number of victories already recorded (usually 0 for a new player).\nGrupo|Exact name of a group that already exists in the app.\nPrioridade|Exactly \"true\" or \"false\" (lowercase).\nPedagioDiario|Whole number; usually 0 (the app recalculates it automatically).\nDataPedagio|Can be left blank (the app recalculates it automatically).\nPosicaoPreferida|Blank, or one of: SETTER, OUTSIDE_HITTER, MIDDLE_BLOCKER, OPPOSITE, LIBERO.\nPosicaoSecundaria|Same format as PosicaoPreferida; leave blank if not used.</string>
+    <string name="faq_a15_table">ID|Ignored on import — you can leave it as 0 or blank.\nNome|Player name (free text).\nElo|Decimal number, e.g. 1200.00. Blank or invalid becomes 1200.00.\nPartidas|Whole number of matches already played (usually 0 for a new player).\nVitorias|Whole number of victories already recorded (usually 0 for a new player).\nGrupo|Exact name of a group that already exists in the app.\nPrioridade|Exactly \"true\" or \"false\" (lowercase).\nPedagioDiario|Whole number; usually 0 (the app recalculates it automatically).\nDataPedagio|Can be left blank (the app recalculates it automatically).\nPosicaoPreferida|Blank, or one of: SETTER (levantador), OUTSIDE_HITTER (ponteiro), MIDDLE_BLOCKER (central), OPPOSITE (oposto), LIBERO (líbero). Copy only the UPPERCASE word (in English).\nPosicaoSecundaria|Same format as PosicaoPreferida; leave blank if not used.</string>
     <string name="faq_q13">What is the role of each position in Fixed Positions mode?</string>
     <string name="faq_a13_col1">Position</string>
     <string name="faq_a13_col2">Role</string>
