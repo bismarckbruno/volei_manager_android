@@ -1529,15 +1529,20 @@ fun ActiveGameView(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ){
                                     if (showScore) {
+                                        // Top spacer nudges the toggle button down so it lines
+                                        // up vertically with the streak indicator inside each
+                                        // team card's header (inset by the control panel's
+                                        // 16.dp top padding).
+                                        Spacer(modifier = Modifier.height(16.dp))
                                         BigScoreboardToggleButton(isBack = false) {
                                             showBigScoreboard = true
                                         }
 
-                                        Spacer(modifier = Modifier.height(20.dp))
+                                        Spacer(modifier = Modifier.height(4.dp))
                                     } else {
                                         // Compensates for the missing scoreboard toggle
-                                        // button (48.dp) + spacer (20.dp) above, so the VS
-                                        // swap button keeps the same vertical position.
+                                        // button (48.dp) + spacers (16.dp + 4.dp) above, so the
+                                        // VS swap button keeps the same vertical position.
                                         Spacer(modifier = Modifier.height(68.dp))
                                     }
 
@@ -1689,15 +1694,15 @@ fun ActiveGameView(
                             onPlayerClick = onSubRequest
                         ) { requestWinConfirmation(firstWinId) }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Leading spacer balances the trailing toggle button's width so the
-                        // VS button below stays centered on the row regardless of whether
-                        // the toggle is shown.
-                        Spacer(modifier = Modifier.width(48.dp))
+                        // Leading spacer balances the trailing toggle button's width (48.dp
+                        // button + 16.dp end padding, see below) so the VS button stays
+                        // centered on the row regardless of whether the toggle is shown.
+                        Spacer(modifier = Modifier.width(64.dp))
                         Spacer(modifier = Modifier.weight(1f))
                         VsSwapButton(
                             isLandscape = false,
@@ -1712,14 +1717,20 @@ fun ActiveGameView(
                         Spacer(modifier = Modifier.weight(1f))
 
                         if (showScore) {
-                            BigScoreboardToggleButton(isBack = false) {
+                            // End padding nudges the button left so it lines up horizontally
+                            // with the streak indicator inside each team card's header (inset
+                            // by the control panel's 16.dp side padding).
+                            BigScoreboardToggleButton(
+                                isBack = false,
+                                modifier = Modifier.padding(end = 16.dp)
+                            ) {
                                 showBigScoreboard = true
                             }
                         } else {
-                            Spacer(modifier = Modifier.width(48.dp))
+                            Spacer(modifier = Modifier.width(64.dp))
                         }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2276,7 +2287,12 @@ private fun BigScoreboardScreen(
             BigScoreboardToggleButton(
                 isBack = true,
                 onClick = onBack,
-                modifier = Modifier.align(Alignment.TopCenter)
+                // Top padding nudges the button down so it lines up vertically with the
+                // streak indicator inside each card's header (inset by the card's 16.dp
+                // top padding).
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
             )
 
             VsSwapButton(
@@ -2545,9 +2561,14 @@ private fun Modifier.rememberHoldToRepeatModifier(
                             delay(repeatDelayMs)
                         }
                     }
-                    tryAwaitRelease()
+                    // tryAwaitRelease() returns false when the gesture is canceled by an
+                    // ancestor (e.g. the nav drawer intercepting a horizontal swipe from
+                    // the edge to open the side menu). Only count the tap when the touch
+                    // was actually released here, so swiping to the drawer doesn't also
+                    // score a point.
+                    val released = tryAwaitRelease()
                     job.cancel()
-                    if (!holdFired) {
+                    if (released && !holdFired) {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         currentOnTrigger()
                     }
@@ -3286,17 +3307,17 @@ fun ActiveTeamCard(
                             }
 
                             if (showScore) {
-                                Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(2.dp))
                                 ScoreCounter()
                             }
                         }
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(6.dp))
                         TeamHeader()
                     }
                 } else {
                     TeamControlPanel(atTop = true) {
                         TeamHeader()
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(6.dp))
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -3306,7 +3327,7 @@ fun ActiveTeamCard(
                         ) {
                             if (showScore) {
                                 ScoreCounter()
-                                Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(2.dp))
                             }
                             Button(
                                 onClick = onWin,
