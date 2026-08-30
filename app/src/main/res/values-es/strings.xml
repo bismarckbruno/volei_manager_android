@@ -281,6 +281,8 @@
     <string name="position_list_two_items">%1$s y %2$s</string>
     <string name="team_bench_libero_tooltip">Líbero en el banco: puede cambiar con cualquier central del mismo equipo.</string>
     <string name="header_scroll_tooltip">Consejo: gira la pantalla para cambiar de vista, o toca dos veces aquí para centrar los equipos.</string>
+    <string name="header_info_tooltip">Grupo: %1$s\nTipo: %2$s\nModo: %3$s\nJugadores: %4$s</string>
+    <string name="header_info_tooltip_no_mode">Grupo: %1$s\nTipo: %2$s\nJugadores: %3$s</string>
     <string name="team_bench_parentheses">(banco del equipo)</string>
     <string name="group_type_long_press_hint">Mantén pulsado un ítem para ver un consejo rápido.</string>
     <string name="position_preferred_label">Posición preferida: %1$s</string>

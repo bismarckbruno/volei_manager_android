@@ -282,6 +282,8 @@
     <string name="position_list_two_items">%1$s e %2$s</string>
     <string name="team_bench_libero_tooltip">Líbero no banco: pode ser substituído por qualquer central do próprio time.</string>
     <string name="header_scroll_tooltip">Dica: gire a tela para trocar de visão, ou toque duas vezes aqui para centralizar os times.</string>
+    <string name="header_info_tooltip">Grupo: %1$s\nTipo: %2$s\nModo: %3$s\nJogadores: %4$s</string>
+    <string name="header_info_tooltip_no_mode">Grupo: %1$s\nTipo: %2$s\nJogadores: %3$s</string>
     <string name="team_bench_parentheses">(banco do time)</string>
     <string name="group_type_long_press_hint">Mantenha um item pressionado para ver uma dica rápida.</string>
     <string name="position_preferred_label">Posição preferida: %1$s</string>

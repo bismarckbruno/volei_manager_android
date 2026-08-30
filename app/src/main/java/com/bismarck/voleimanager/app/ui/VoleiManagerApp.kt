@@ -86,10 +86,13 @@ private fun getDisplayBalancingModeName(balancingMode: String): String {
     }
 }
 
-@Composable
-private fun getDisplayGroupWithMode(groupName: String?, balancingMode: String, teamSize: Int): String {
-    return "${getDisplayGroupName(groupName)} - ${getDisplayBalancingModeName(balancingMode)} - ${teamSize}x${teamSize}"
-}
+/** Ícone que representa o modo de balanceamento no cabeçalho, no lugar do nome por extenso. */
+private fun balancingModeIconRes(balancingMode: String): Int =
+    if (balancingMode == com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name) {
+        R.drawable.zzz_rest
+    } else {
+        R.drawable.arrowsbothsides
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1055,6 +1058,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
                 val headerTooltipState = rememberTooltipState(isPersistent = true)
+                val headerInfoTooltipState = rememberTooltipState(isPersistent = true)
                 val headerTooltipScope = rememberCoroutineScope()
                 val headerTooltipGameInProgress = headerTooltipTeamA.isNotEmpty() || headerTooltipTeamB.isNotEmpty()
                 LaunchedEffect(currentScreen, groupConfig.groupName, headerTooltipGameInProgress) {
@@ -1071,9 +1075,26 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                 }
                 FlexibleTopAppBar(
-                    onTap = { headerTooltipScope.launch { headerTooltipState.dismiss() } },
+                    onTap = {
+                        headerTooltipScope.launch {
+                            headerTooltipState.dismiss()
+                            headerInfoTooltipState.dismiss()
+                        }
+                    },
                     onDoubleTap = if (currentScreen == Screen.GAME) {
                         { headerDoubleTapTick++ }
+                    } else {
+                        null
+                    },
+                    onLongPress = if (selectedGroup != null) {
+                        {
+                            headerTooltipScope.launch {
+                                headerTooltipState.dismiss()
+                                headerInfoTooltipState.show()
+                                delay(4_000)
+                                headerInfoTooltipState.dismiss()
+                            }
+                        }
                     } else {
                         null
                     },
@@ -1091,14 +1112,67 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             state = headerTooltipState,
                             enableUserInput = false
                         ) {
-                            Column {
-                                Text(stringResource(R.string.app_name))
-                                selectedGroup?.let {
-                                    Text(
-                                        getDisplayGroupWithMode(groupConfig.groupName, groupConfig.balancingMode, groupConfig.teamSize),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+                                tooltip = {
+                                    PlainTooltip {
+                                        val groupType = groupConfig.type
+                                        val infoText = if (groupType.supportsBalancingMode) {
+                                            stringResource(
+                                                R.string.header_info_tooltip,
+                                                getDisplayGroupName(groupConfig.groupName),
+                                                groupTypeLabel(groupType),
+                                                getDisplayBalancingModeName(groupConfig.balancingMode),
+                                                "${groupConfig.teamSize}x${groupConfig.teamSize}"
+                                            )
+                                        } else {
+                                            stringResource(
+                                                R.string.header_info_tooltip_no_mode,
+                                                getDisplayGroupName(groupConfig.groupName),
+                                                groupTypeLabel(groupType),
+                                                "${groupConfig.teamSize}x${groupConfig.teamSize}"
+                                            )
+                                        }
+                                        Text(infoText, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                },
+                                state = headerInfoTooltipState,
+                                enableUserInput = false
+                            ) {
+                                Column {
+                                    Text(stringResource(R.string.app_name))
+                                    selectedGroup?.let {
+                                        val groupType = groupConfig.type
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                getDisplayGroupName(groupConfig.groupName),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Icon(
+                                                imageVector = groupTypeIcon(groupType),
+                                                contentDescription = groupTypeLabel(groupType),
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (groupType.supportsBalancingMode) {
+                                                Spacer(Modifier.width(8.dp))
+                                                Icon(
+                                                    painter = painterResource(balancingModeIconRes(groupConfig.balancingMode)),
+                                                    contentDescription = getDisplayBalancingModeName(groupConfig.balancingMode),
+                                                    modifier = Modifier.size(14.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                "${groupConfig.teamSize}x${groupConfig.teamSize}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1583,7 +1657,8 @@ private fun FlexibleTopAppBar(
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
     onTap: (() -> Unit)? = null,
-    onDoubleTap: (() -> Unit)? = null
+    onDoubleTap: (() -> Unit)? = null,
+    onLongPress: (() -> Unit)? = null
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -1595,11 +1670,12 @@ private fun FlexibleTopAppBar(
                 .padding(vertical = 8.dp)
                 .heightIn(min = 64.dp)
                 .then(
-                    if (onTap != null || onDoubleTap != null) {
-                        Modifier.pointerInput(onTap, onDoubleTap) {
+                    if (onTap != null || onDoubleTap != null || onLongPress != null) {
+                        Modifier.pointerInput(onTap, onDoubleTap, onLongPress) {
                             detectTapGestures(
                                 onTap = { onTap?.invoke() },
-                                onDoubleTap = { onDoubleTap?.invoke() }
+                                onDoubleTap = { onDoubleTap?.invoke() },
+                                onLongPress = { onLongPress?.invoke() }
                             )
                         }
                     } else {

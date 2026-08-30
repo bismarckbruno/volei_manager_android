@@ -282,6 +282,8 @@
     <string name="position_list_two_items">%1$s and %2$s</string>
     <string name="team_bench_libero_tooltip">Bench libero: can swap with any middle blocker on the same team.</string>
     <string name="header_scroll_tooltip">Tip: rotate the screen to switch views, or double-tap here to re-center the teams.</string>
+    <string name="header_info_tooltip">Group: %1$s\nType: %2$s\nMode: %3$s\nPlayers: %4$s</string>
+    <string name="header_info_tooltip_no_mode">Group: %1$s\nType: %2$s\nPlayers: %3$s</string>
     <string name="team_bench_parentheses">(team bench)</string>
     <string name="group_type_long_press_hint">Long press an item to see a quick tip.</string>
     <string name="position_preferred_label">Preferred position: %1$s</string>
