@@ -1,6 +1,6 @@
-# Vóley Manager 🏐
+# Voleicito 🏐
 
-**Vóley Manager** es una aplicación Android desarrollada con **Jetpack Compose** y **Room Database** para gestionar partidos recreativos de vóley, automatizar el sorteo de equipos, seguir el rendimiento de los jugadores (ranking Elo) y garantizar una rotación justa.
+**Voleicito** es una aplicación Android desarrollada con **Jetpack Compose** y **Room Database** para gestionar partidos recreativos de vóley, automatizar el sorteo de equipos, seguir el rendimiento de los jugadores (ranking Elo) y garantizar una rotación justa.
 
 ## ✨ Funcionalidades
 
@@ -19,7 +19,8 @@
 
 ### 👥 Gestión de Jugadores y Grupos
 - **Múltiples Grupos**: Crea y administra grupos independientes (por ejemplo, "Vóley del Martes", "Vóley de Playa"), cada uno con sus propios jugadores, historial y configuraciones.
-- **Perfil de Jugador**: Nombre, Elo y marca de prioridad.
+- **Tipos de Grupo**: **Recreativo** (balanceo genérico por prioridad) o **Posiciones Fijas** (define la posición preferida/secundaria de cada jugador — Armador, Punta, Central, Opuesto, Líbero — con un motor automático de composición que completa las posiciones necesarias y avisa cuando la composición de un equipo queda incompleta).
+- **Perfil de Jugador**: Nombre, Elo y marca de prioridad (o posición, en grupos de Posiciones Fijas).
 - **Jugador Prioritario (`isPriority`)**: Marca genérica de equilibrio que puede representar armadores, equilibrio de género o cualquier criterio definido por el grupo.
 - **Peaje por Llegada Tardía**: Quienes llegan tarde reciben partidos virtuales extra para compensar, calculados según el promedio de partidos ya jugados.
 - **Copia y Restauración**: Exportación/importación de datos completos (JSON) o tablas específicas (CSV).
@@ -54,7 +55,7 @@
 
 ## 🎯 Sobre el Proyecto
 
-**Vóley Manager** es una app Android para organizadores de vóley amateur. Automatiza el balanceo de equipos (con Elo y prioridad), gestiona la fila de espera de forma justa y reduce conflictos en la cancha.
+**Voleicito** es una app Android para organizadores de vóley amateur. Automatiza el balanceo de equipos (con Elo y prioridad), gestiona la fila de espera de forma justa y reduce conflictos en la cancha.
 
 📖 **Documentación de Producto:**
 - [Visión de Producto y Personas](docs/product/PERSONAS_ES_419.md)
@@ -77,7 +78,7 @@
 
 ## ☕ Apoya el Proyecto
 
-**Vóley Manager** es un proyecto independiente y gratuito. Si la app te ayudó a organizar mejor tus partidos y quieres apoyar nuevas funcionalidades, puedes invitarme un café.
+**Voleicito** es un proyecto independiente y gratuito. Si la app te ayudó a organizar mejor tus partidos y quieres apoyar nuevas funcionalidades, puedes invitarme un café.
 
 ### Formas de apoyar:
 

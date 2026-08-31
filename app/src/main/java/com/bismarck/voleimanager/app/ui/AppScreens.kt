@@ -2541,6 +2541,15 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
             )
         ),
         FaqEntry(
+            stringResource(R.string.faq_q16),
+            icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a16_col1) to stringResource(R.string.faq_a16_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a16_table)),
+                firstColumnWeight = 0.25f
+            )
+        ),
+        FaqEntry(
             stringResource(R.string.faq_q13),
             icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
@@ -2798,7 +2807,7 @@ fun AboutScreen() {
 
                 Button(
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://forms.gle/WkE1Dd7X8emHMid66"))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(context.getString(R.string.feedback_form_url)))
                         context.startActivity(intent)
                     },
                     modifier = Modifier

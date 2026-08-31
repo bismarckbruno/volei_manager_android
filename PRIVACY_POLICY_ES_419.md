@@ -1,8 +1,8 @@
 # Política de Privacidad
 
-**Última actualización:** Abril de 2026
+**Última actualización:** Agosto de 2026
 
-**Vóley Manager** es una aplicación gratuita y de código abierto para organizar partidos recreativos de vóley. Esta política describe cómo se tratan los datos en la aplicación.
+**Voleicito** es una aplicación gratuita y de código abierto para organizar partidos recreativos de vóley. Esta política describe cómo se tratan los datos en la aplicación.
 
 ---
 

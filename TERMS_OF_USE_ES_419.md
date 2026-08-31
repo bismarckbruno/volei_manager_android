@@ -1,13 +1,13 @@
 # Términos de Uso
 
-**Última actualización:** Abril de 2026
+**Última actualización:** Agosto de 2026
 
-Al usar **Vóley Manager**, usted acepta los siguientes términos y condiciones.
+Al usar **Voleicito**, usted acepta los siguientes términos y condiciones.
 
 ---
 
 ### 1. Finalidad
-**Vóley Manager** es una aplicación gratuita destinada exclusivamente a la organización de partidos recreativos de vóley, incluyendo sorteo de equipos, gestión de lista de espera y registro de historial de partidos.
+**Voleicito** es una aplicación gratuita destinada exclusivamente a la organización de partidos recreativos de vóley, incluyendo sorteo de equipos, gestión de lista de espera y registro de historial de partidos.
 
 ### 2. Uso permitido
 La aplicación se ofrece para uso personal y recreativo. Usted es plenamente responsable de todos los datos que ingresa manualmente, como nombres de jugadores, grupos y puntuaciones.
@@ -25,10 +25,10 @@ Como el almacenamiento es estrictamente local, se recomienda usar regularmente l
 La aplicación puede ser actualizada, modificada o descontinuada en cualquier momento, sin previo aviso.
 
 ### 6. Propiedad intelectual
-El código fuente, diseño y contenido de **Vóley Manager** son propiedad del desarrollador y están protegidos por las leyes aplicables de derechos de autor y propiedad intelectual. Al tratarse de un proyecto de código abierto, el uso del código debe respetar la licencia especificada en el repositorio.
+El código fuente, diseño y contenido de **Voleicito** son propiedad del desarrollador y están protegidos por las leyes aplicables de derechos de autor y propiedad intelectual. Al tratarse de un proyecto de código abierto, el uso del código debe respetar la licencia especificada en el repositorio.
 
 ### 7. Cambios en los términos
-Estos términos pueden actualizarse en futuras versiones de la aplicación. El uso continuado de **Vóley Manager** después de cualquier cambio constituye la aceptación de los términos actualizados.
+Estos términos pueden actualizarse en futuras versiones de la aplicación. El uso continuado de **Voleicito** después de cualquier cambio constituye la aceptación de los términos actualizados.
 
 ### 8. Contacto
 Las dudas sobre estos términos pueden enviarse al desarrollador mediante la página oficial de la aplicación en **Google Play Store**.

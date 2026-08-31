@@ -2,7 +2,7 @@
 
 ## Posicionamiento del Producto
 
-- **Nombre de la app:** Vóley Manager
+- **Nombre de la app:** Voleicito
 - **Público primario:** Organizador del grupo de vóley amateur (el "Manager")
 - **Propuesta de valor:** Automatizar la operación de partidos, reducir fricción social por "grupitos" y mantener el tiempo de cancha justo con reglas transparentes.
 
@@ -26,7 +26,7 @@
 - Discusiones frecuentes sobre quién entra a la cancha
 - Incomodidad cuando la exposición de desempeño se siente excesiva
 
-### Cómo lo resuelve Vóley Manager
+### Cómo lo resuelve Voleicito
 - **Balanceo automático** con Elo + distribución de `isPriority`
 - **Reglas de racha** (Rebalanceo/Descanso) para evitar monopolio de cancha
 - **Gestión justa de fila** priorizando a quien jugó menos
@@ -51,4 +51,4 @@
 
 ## Problema de mayor valor que se resuelve
 
-La app resuelve principalmente la **percepción de injusticia en acceso a cancha y formación de equipos**, que primero es un problema social. Al convertir decisiones en reglas explícitas, configurables y repetibles, Vóley Manager reduce conflictos y aumenta la confianza en el flujo de juego.
+La app resuelve principalmente la **percepción de injusticia en acceso a cancha y formación de equipos**, que primero es un problema social. Al convertir decisiones en reglas explícitas, configurables y repetibles, Voleicito reduce conflictos y aumenta la confianza en el flujo de juego.

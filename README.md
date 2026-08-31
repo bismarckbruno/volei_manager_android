@@ -19,7 +19,8 @@
 
 ### 👥 Players and Group Management
 - **Multiple Groups**: Create and manage independent groups (e.g., "Tuesday Volleyball", "Beach Volleyball"), each with its own players, history, and settings.
-- **Player Profile**: Name, Elo, and priority flag.
+- **Group Types**: **Recreational** (generic priority-based balancing) or **Fixed Positions** (assign each player's preferred/secondary position — Setter, Outside Hitter, Middle Blocker, Opposite, Libero — with an automatic composition engine that fills required slots and warns when a team's composition is incomplete).
+- **Player Profile**: Name, Elo, and priority flag (or position, in Fixed Positions groups).
 - **Priority Player (`isPriority`)**: Generic balancing flag that can represent setters, gender balance, skill-tier distribution, or any group-defined criterion.
 - **Late Arrival Toll (`dailyToll`)**: Players who arrive late receive extra virtual games calculated from the average games played by present players.
 - **Backup and Restore**: Export/import complete data (JSON) or specific tables (CSV).

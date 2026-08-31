@@ -53,6 +53,16 @@
     <string name="delete_group_text">Are you sure? All data for this group will be permanently deleted.</string>
     <string name="add_new_player">Add new player</string>
     <string name="share_history">Share history</string>
+    <string name="rate_app">Rate the app on Play Store</string>
+    <string name="rate_app_dialog_title">Enjoying the app?</string>
+    <string name="rate_app_dialog_text">If the app has been helpful, please take a moment to rate it on the Play Store. It really helps!</string>
+    <string name="rate_app_dialog_confirm">Rate on Play Store</string>
+    <string name="rate_app_dialog_dismiss">Not now</string>
+    <string name="send_question">Send a question</string>
+    <string name="send_question_dialog_title">Want to send a question?</string>
+    <string name="send_question_dialog_text">You\'ll be taken to a form outside the app where you can send your question or suggestion.</string>
+    <string name="send_question_dialog_confirm">Send a question</string>
+    <string name="feedback_form_url">https://forms.gle/WkE1Dd7X8emHMid66</string>
     <string name="select_specific_date">Select a specific date to share the history.</string>
     <string name="generating_image">Generating image...</string>
     <string name="general">General</string>
@@ -194,6 +204,10 @@
     <string name="faq_a11_col1">Abbrev.</string>
     <string name="faq_a11_col2">Position</string>
     <string name="faq_a11_table">SET|Setter\nOH|Outside Hitter\nMB|Middle Blocker\nOPP|Opposite\nLIB|Libero</string>
+    <string name="faq_q16">What does each position actually do on the court?</string>
+    <string name="faq_a16_col1">Position</string>
+    <string name="faq_a16_col2">What they do / typical build</string>
+    <string name="faq_a16_table">Setter|The team\'s playmaker: makes the second touch, setting the ball for an opposite, outside hitter, or middle blocker to attack. Primarily responsible for setting, rarely participating in receive.\nOutside Hitter|The most versatile position: participates in serve receive (passing), hitting (spiking), and defense (digging).\nOpposite|Attacks from the opposite side of the setter; usually the team\'s primary hitter and also contributes to blocking; typically does not participate in serve receive.\nMiddle Blocker|Specialist in blocking and quick attacks through the middle of the net; usually the tallest player on the team.\nLibero|Defensive specialist: agile, focused on serve receive (passing) and defense (digging hard-driven balls); usually shorter, and cannot attack above the net or block.</string>
     <string name="faq_q12">Which positions and roles make up each team size in Fixed Positions mode?</string>
     <string name="faq_a12_col1">Size</string>
     <string name="faq_a12_col2">Composition</string>
@@ -236,6 +250,8 @@
     <string name="onboarding_elo_description">- Change it only if you already know the player’s level well.\n- If unsure, keep 1200.</string>
     <string name="onboarding_priority_title">Set as priority</string>
     <string name="onboarding_priority_description">- Use it for profiles that should be spread between teams (e.g., setters).\n- If your group does not need this, leave it unchecked.</string>
+    <string name="onboarding_position_title">Set position</string>
+    <string name="onboarding_position_description">- Register the player\'s preferred (and optionally second) position: Setter, Outside Hitter, Middle Blocker, Opposite, or Libero.\n- Leave it empty if you don\'t know the player\'s position yet.</string>
 
     <!-- Group type (mode of operation) -->
     <string name="group_type_title">Group type</string>

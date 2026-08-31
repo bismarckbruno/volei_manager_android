@@ -1,4 +1,4 @@
-# AGENTS.md — Vôlei Manager
+# AGENTS.md — Voleizin (Vôlei Manager)
 
 Android app (Kotlin + Jetpack Compose + Room) for managing recreational volleyball matches.  
 Package: `com.bismarck.voleimanager.app` · Min SDK 24 · Target SDK 36

@@ -2,7 +2,7 @@
 
 ## Posicionamento do Produto
 
-- **Nome do App:** Vôlei Manager
+- **Nome do App:** Voleizin
 - **Público primário:** Organizador do grupo de vôlei amador (o "Manager")
 - **Proposta de valor:** Automatizar a operação das partidas, reduzir o atrito social causado por "panelinhas" e manter o tempo de quadra justo por regras transparentes.
 
@@ -26,7 +26,7 @@
 - Discussões recorrentes sobre quem deve entrar na quadra
 - Incômodo quando a exposição de desempenho parece excessiva
 
-### Como o Vôlei Manager resolve
+### Como o Voleizin resolve
 - **Balanceamento automático** com Elo + distribuição de `isPriority`
 - **Regras de sequência** (Rebalanceamento/Descanso) para evitar monopólio da quadra
 - **Gestão justa da fila** com prioridade para quem jogou menos
@@ -51,4 +51,4 @@
 
 ## Maior problema resolvido
 
-O app resolve principalmente a **sensação de injustiça no acesso à quadra e na formação dos times**, que é antes de tudo um problema social. Ao transformar decisões em regras explícitas, configuráveis e repetíveis, o Vôlei Manager reduz conflitos e aumenta a confiança no fluxo das partidas.
+O app resolve principalmente a **sensação de injustiça no acesso à quadra e na formação dos times**, que é antes de tudo um problema social. Ao transformar decisões em regras explícitas, configuráveis e repetíveis, o Voleizin reduz conflitos e aumenta a confiança no fluxo das partidas.

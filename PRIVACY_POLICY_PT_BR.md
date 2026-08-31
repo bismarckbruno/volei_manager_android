@@ -1,8 +1,8 @@
 # Política de Privacidade
 
-**Última atualização:** Abril de 2026
+**Última atualização:** Agosto de 2026
 
-O **Vôlei Manager** é um aplicativo gratuito de código aberto destinado à organização de partidas recreativas de vôlei. Esta política descreve como os dados são tratados no aplicativo.
+O **Voleizin** é um aplicativo gratuito de código aberto destinado à organização de partidas recreativas de vôlei. Esta política descreve como os dados são tratados no aplicativo.
 
 ---
 

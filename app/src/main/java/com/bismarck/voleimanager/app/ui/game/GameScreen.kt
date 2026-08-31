@@ -131,6 +131,7 @@ import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.assignedPositionTooltip
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
+import com.bismarck.voleimanager.app.ui.components.setterIconRes
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
@@ -533,6 +534,7 @@ fun GameScreenContent(
                                             GroupOnboardingMinimumPlayersCard(
                                                 minimumPlayers = minimumPlayersNeeded,
                                                 currentPlayers = sortedPlayers.size,
+                                                groupType = config.type,
                                                 onBack = {
                                                     onboardingTeamSizeSelection = config.type.coerceTeamSize(config.teamSize)
                                                     viewModel.returnCurrentGroupOnboardingToTeamSizeStep()
@@ -3948,6 +3950,7 @@ private fun GroupOnboardingTeamSizeCard(
 private fun GroupOnboardingMinimumPlayersCard(
     minimumPlayers: Int,
     currentPlayers: Int,
+    groupType: GroupType,
     onBack: () -> Unit,
     onContinue: () -> Unit
 ) {
@@ -4007,9 +4010,16 @@ private fun GroupOnboardingMinimumPlayersCard(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(imageVector = Icons.Default.Star, contentDescription = null)
+                    if (groupType.usesPositions) {
+                        Icon(painter = painterResource(setterIconRes()), contentDescription = null)
+                    } else {
+                        Icon(imageVector = Icons.Default.Star, contentDescription = null)
+                    }
                     Text(
-                        text = stringResource(R.string.onboarding_priority_title),
+                        text = stringResource(
+                            if (groupType.usesPositions) R.string.onboarding_position_title
+                            else R.string.onboarding_priority_title
+                        ),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -4017,7 +4027,10 @@ private fun GroupOnboardingMinimumPlayersCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = stringResource(R.string.onboarding_priority_description),
+                        text = stringResource(
+                            if (groupType.usesPositions) R.string.onboarding_position_description
+                            else R.string.onboarding_priority_description
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

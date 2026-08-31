@@ -1,6 +1,8 @@
 package com.bismarck.voleimanager.app.ui
 
 import android.widget.Toast
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -135,6 +137,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showDeleteGroupDialog by remember { mutableStateOf<String?>(null) }
     var showAddPlayerDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showRateAppDialog by remember { mutableStateOf(false) }
+    var showSendQuestionDialog by remember { mutableStateOf(false) }
     var playerToDelete by remember { mutableStateOf<Player?>(null) }
 
     var pendingGroupSwitch by remember { mutableStateOf<String?>(null) }
@@ -310,7 +314,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
                         exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
                     ) {
-                    Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         TextButton(
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -428,7 +432,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
                         exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
                     ) {
-                    Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         Row(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1054,6 +1058,64 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 })
         }
 
+        if (showRateAppDialog) {
+            AlertDialog(
+                onDismissRequest = { showRateAppDialog = false },
+                icon = { Icon(Icons.Default.Storefront, contentDescription = null) },
+                title = { Text(stringResource(R.string.rate_app_dialog_title)) },
+                text = { Text(stringResource(R.string.rate_app_dialog_text)) },
+                confirmButton = {
+                    Button(onClick = {
+                        showRateAppDialog = false
+                        val packageName = context.packageName
+                        try {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, "market://details?id=$packageName".toUri())
+                            )
+                        } catch (_: ActivityNotFoundException) {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    "https://play.google.com/store/apps/details?id=$packageName".toUri()
+                                )
+                            )
+                        }
+                    }) { Text(stringResource(R.string.rate_app_dialog_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRateAppDialog = false }) {
+                        Text(
+                            stringResource(R.string.rate_app_dialog_dismiss),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                })
+        }
+
+        if (showSendQuestionDialog) {
+            AlertDialog(
+                onDismissRequest = { showSendQuestionDialog = false },
+                icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = null) },
+                title = { Text(stringResource(R.string.send_question_dialog_title)) },
+                text = { Text(stringResource(R.string.send_question_dialog_text)) },
+                confirmButton = {
+                    Button(onClick = {
+                        showSendQuestionDialog = false
+                        val feedbackFormUrl = context.getString(R.string.feedback_form_url)
+                        val intent = Intent(Intent.ACTION_VIEW, feedbackFormUrl.toUri())
+                        context.startActivity(intent)
+                    }) { Text(stringResource(R.string.send_question_dialog_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSendQuestionDialog = false }) {
+                        Text(
+                            stringResource(R.string.rate_app_dialog_dismiss),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                })
+        }
+
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
@@ -1481,6 +1543,30 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 Icon(
                                     Icons.Default.Share,
                                     stringResource(R.string.share_history),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else if (currentScreen == Screen.ABOUT) {
+                            IconButton(
+                                onClick = { showRateAppDialog = true },
+                                modifier = Modifier.minimumInteractiveComponentSize()
+                            ) {
+                                Icon(
+                                    Icons.Default.Storefront,
+                                    stringResource(R.string.rate_app),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else if (currentScreen == Screen.FAQ) {
+                            IconButton(
+                                onClick = { showSendQuestionDialog = true },
+                                modifier = Modifier.minimumInteractiveComponentSize()
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Outlined.HelpOutline,
+                                    stringResource(R.string.send_question),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )

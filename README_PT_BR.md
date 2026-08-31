@@ -1,6 +1,6 @@
-# Vôlei Manager 🏐
+# Voleizin 🏐
 
-**Vôlei Manager** é um aplicativo Android desenvolvido com **Jetpack Compose** e **Room Database** para gerenciar partidas de vôlei recreativo, automatizar o sorteio de times, acompanhar o desempenho dos jogadores (Ranking Elo) e garantir uma rotação justa de participantes.
+**Voleizin** é um aplicativo Android desenvolvido com **Jetpack Compose** e **Room Database** para gerenciar partidas de vôlei recreativo, automatizar o sorteio de times, acompanhar o desempenho dos jogadores (Ranking Elo) e garantir uma rotação justa de participantes.
 
 ## ✨ Funcionalidades
 
@@ -19,7 +19,8 @@
 
 ### 👥 Gerenciamento de Jogadores e Grupos
 - **Múltiplos Grupos**: Crie e gerencie grupos independentes (ex: "Vôlei de Terça", "Vôlei de Praia"), cada um com seus próprios jogadores, histórico e configurações.
-- **Perfil de Jogador**: Nome, Elo e marcação de prioridade.
+- **Tipos de Grupo**: **Recreativo** (balanceamento genérico por prioridade) ou **Posições Fixas** (defina a posição preferida/secundária de cada jogador — Levantador, Ponteiro, Central, Oposto, Líbero — com um motor automático de composição que preenche as posições necessárias e avisa quando a composição do time fica incompleta).
+- **Perfil de Jogador**: Nome, Elo e marcação de prioridade (ou posição, em grupos de Posições Fixas).
 - **Jogador Prioritário (`isPriority`)**: Flag genérica para distribuição equilibrada — pode representar levantadores, garantia de equilíbrio de gênero ou qualquer critério definido pelo grupo.
 - **Pedágio (Chegada Tardia)**: Jogadores que chegam atrasados recebem jogos extras de "pedágio" para compensar o atraso dos demais, calculado com base na média de partidas já jogadas no dia.
 - **Backup e Restauração**: Exportação e importação de dados completos (JSON) ou tabelas específicas (CSV) para salvar ou transferir o progresso.
@@ -54,7 +55,7 @@
 
 ## 🎯 Sobre o Projeto
 
-O **Vôlei Manager** é um aplicativo Android desenvolvido para organizadores de vôlei amador. Ele automatiza o balanceamento de times (via Elo e prioridade), gerencia a fila de forma justa e reduz os conflitos de quadra.
+O **Voleizin** é um aplicativo Android desenvolvido para organizadores de vôlei amador. Ele automatiza o balanceamento de times (via Elo e prioridade), gerencia a fila de forma justa e reduz os conflitos de quadra.
 
 📖 **Documentação de Produto:**
 - [Visão de Produto e Personas](docs/product/PERSONAS_PT_BR.md)
@@ -77,7 +78,7 @@ Encontrou um problema ou tem uma ideia? Abra uma [Issue aqui](https://github.com
 
 ## ☕ Apoie o Projeto
 
-O **Vôlei Manager** é um projeto independente e gratuito. Se o app te ajudou a organizar melhor suas partidas e você quiser incentivar o desenvolvimento de novas funcionalidades, considere me pagar um café.
+O **Voleizin** é um projeto independente e gratuito. Se o app te ajudou a organizar melhor suas partidas e você quiser incentivar o desenvolvimento de novas funcionalidades, considere me pagar um café.
 
 ### Formas de apoiar:
 

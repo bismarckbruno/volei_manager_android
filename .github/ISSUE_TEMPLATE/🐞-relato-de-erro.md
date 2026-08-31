@@ -1,6 +1,6 @@
 ---
 name: "\U0001F41E Relato de Erro"
-about: Descreva um problema para nos ajudar a melhorar o Vôlei Manager
+about: Descreva um problema para nos ajudar a melhorar o Voleizin
 title: "[BUG]"
 labels: bug
 assignees: bismarckbruno
