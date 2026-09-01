@@ -64,6 +64,7 @@ const val DEFAULT_GROUP_NAME = "Geral"
 const val MAX_GROUP_NAME_LENGTH = 20
 const val MAX_PLAYER_NAME_LENGTH = 24
 private const val AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS = 12L * 60L * 60L * 1000L
+private val REVIEW_REQUEST_MILESTONES = listOf(3, 10, 25)
 
 /**
  * Cabeçalho do CSV de jogadores — fonte única usada tanto pela exportação real
@@ -509,6 +510,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val teamsSwapped: StateFlow<Boolean> = _teamsSwapped.asStateFlow()
     fun toggleTeamsSwapped() { _teamsSwapped.value = !_teamsSwapped.value }
 
+    /** Sinaliza para a UI que é um bom momento para solicitar o fluxo de review do Play. */
+    private val _shouldRequestReview = MutableStateFlow(false)
+    val shouldRequestReview: StateFlow<Boolean> = _shouldRequestReview.asStateFlow()
+
     // --- Controle de descanso e rodadas ---
     private val _roundCounter = MutableStateFlow(0)
     val roundCounter: StateFlow<Int> = _roundCounter.asStateFlow()
@@ -934,6 +939,29 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun markHeaderScrollTooltipSeen(groupName: String) {
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
             .putBoolean("seen_header_scroll_tooltip_$groupName", true).apply()
+    }
+
+    /**
+     * Chamado após uma "Limpeza válida" (jogo real limpo via "Limpar jogo atual"), gatilho
+     * orgânico para sugerir a avaliação do app na Play Store. Cada marco (3ª, 10ª, 25ª
+     * limpeza válida) só dispara o pedido de review uma única vez; a Play Store decide
+     * internamente, com sua própria cota, se o diálogo será de fato exibido ao usuário.
+     */
+    private fun registerQualifyingGameClear() {
+        val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        val newCount = prefs.getInt("clear_match_valid_count", 0) + 1
+        prefs.edit().putInt("clear_match_valid_count", newCount).apply()
+
+        val milestone = REVIEW_REQUEST_MILESTONES.firstOrNull { it == newCount } ?: return
+        val milestoneKey = "review_milestone_${milestone}_done"
+        if (prefs.getBoolean(milestoneKey, false)) return
+        prefs.edit().putBoolean(milestoneKey, true).apply()
+        _shouldRequestReview.value = true
+    }
+
+    /** Chamado pela UI depois de tratar (ou tentar tratar) o pedido de review. */
+    fun onReviewRequestHandled() {
+        _shouldRequestReview.value = false
     }
 
     fun incrementScoreA() {
@@ -3488,8 +3516,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun clearRecentGameData() {
+        val wasQualifyingClear = isGameInProgress() || _hasPreviousMatch.value
         resetGameState()
         clearSavedGameState()
+        if (wasQualifyingClear) {
+            registerQualifyingGameClear()
+        }
     }
 }
 

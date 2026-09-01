@@ -198,10 +198,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         }
     }
 
+    val shouldRequestReview by viewModel.shouldRequestReview.collectAsState()
     LaunchedEffect(uiMessage) {
         uiMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             viewModel.clearUiMessage()
+        }
+    }
+
+    LaunchedEffect(shouldRequestReview) {
+        if (shouldRequestReview) {
+            (context as? android.app.Activity)?.let { activity ->
+                com.bismarck.voleimanager.app.util.InAppReviewHelper.requestReview(activity)
+            }
+            viewModel.onReviewRequestHandled()
         }
     }
 
