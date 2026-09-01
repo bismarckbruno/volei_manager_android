@@ -61,7 +61,7 @@
     <string name="send_question_dialog_title">Quer enviar alguma pergunta?</string>
     <string name="send_question_dialog_text">Você será direcionado para um formulário fora do app, onde poderá enviar sua pergunta ou sugestão.</string>
     <string name="send_question_dialog_confirm">Enviar pergunta</string>
-    <string name="feedback_form_url">https://forms.gle/WkE1Dd7X8emHMid66</string>
+    <string name="feedback_form_url">https://docs.google.com/forms/d/e/1FAIpQLScNobs3xBt-q_19eypuC3FMLPzXqkNkXLQlLNBd0mF8bOm0fg/viewform?usp=pp_url&amp;entry.1226164029=Portugu%C3%AAs&amp;hl=pt-BR</string>
     <string name="select_specific_date">Selecione uma data específica para compartilhar o histórico.</string>
     <string name="generating_image">Gerando imagem...</string>
     <string name="general">Geral</string>

@@ -216,7 +216,7 @@ abstract class AppDatabase : RoomDatabase() {
                         val id = cursor.getInt(0)
                         db.execSQL(
                             "UPDATE players SET publicId = ? WHERE id = ?",
-                            arrayOf(java.util.UUID.randomUUID().toString(), id)
+                            arrayOf<Any>(java.util.UUID.randomUUID().toString(), id)
                         )
                     }
                 }

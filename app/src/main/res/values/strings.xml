@@ -62,7 +62,7 @@
     <string name="send_question_dialog_title">Want to send a question?</string>
     <string name="send_question_dialog_text">You\'ll be taken to a form outside the app where you can send your question or suggestion.</string>
     <string name="send_question_dialog_confirm">Send a question</string>
-    <string name="feedback_form_url">https://forms.gle/WkE1Dd7X8emHMid66</string>
+    <string name="feedback_form_url">https://docs.google.com/forms/d/e/1FAIpQLScNobs3xBt-q_19eypuC3FMLPzXqkNkXLQlLNBd0mF8bOm0fg/viewform?usp=pp_url&amp;entry.1226164029=English&amp;hl=en</string>
     <string name="select_specific_date">Select a specific date to share the history.</string>
     <string name="generating_image">Generating image...</string>
     <string name="general">General</string>
