@@ -1,6 +1,7 @@
 package com.bismarck.voleimanager.app.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 enum class BalancingMode {
@@ -50,7 +51,10 @@ const val ONBOARDING_STEP_TEAM_SIZE = 3
 const val ONBOARDING_STEP_MIN_PLAYERS = 4
 const val ONBOARDING_STEP_COMPLETE = 5
 
-@Entity(tableName = "group_configs")
+@Entity(
+    tableName = "group_configs",
+    indices = [Index(value = ["publicId"], unique = true)]
+)
 data class GroupConfig(
     @PrimaryKey val groupName: String,
     val teamSize: Int = 6, // Padrão 6
@@ -80,7 +84,13 @@ data class GroupConfig(
     /** Pontos necessários para fechar o set decisivo (tie-break) em formatos BO3/BO5. */
     val tiebreakSetPoints: Int = 15,
     /** Exige diferença mínima de 2 pontos para fechar o set. */
-    val winByTwo: Boolean = true
+    val winByTwo: Boolean = true,
+    /**
+     * Identidade estável e imutável do grupo (UUID gerado uma única vez na criação).
+     * Independe de [groupName] (editável pelo usuário, cascateado manualmente em renames) —
+     * preparação de terreno para uma futura referência estável de "grupo na nuvem".
+     */
+    val publicId: String = java.util.UUID.randomUUID().toString()
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)

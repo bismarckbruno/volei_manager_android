@@ -22,7 +22,7 @@ import com.bismarck.voleimanager.app.data.model.PlayerEloLog
         com.bismarck.voleimanager.app.data.model.TournamentMatch::class,
         com.bismarck.voleimanager.app.data.model.GroupLog::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -201,6 +201,41 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Identidade estável (UUID) de jogadores e grupos, independente do id local
+                // autoGenerate ou do groupName (editável) — preparação de terreno para uma futura
+                // sincronização em nuvem (ex.: acompanhamento "ao vivo" de um grupo).
+                db.execSQL("ALTER TABLE players ADD COLUMN publicId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN publicId TEXT NOT NULL DEFAULT ''")
+
+                // Backfill linha a linha: cada registro existente precisa de um UUID distinto,
+                // o que não é possível fazer com um único UPDATE em massa.
+                db.query("SELECT id FROM players").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getInt(0)
+                        db.execSQL(
+                            "UPDATE players SET publicId = ? WHERE id = ?",
+                            arrayOf(java.util.UUID.randomUUID().toString(), id)
+                        )
+                    }
+                }
+                db.query("SELECT groupName FROM group_configs").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val groupName = cursor.getString(0)
+                        db.execSQL(
+                            "UPDATE group_configs SET publicId = ? WHERE groupName = ?",
+                            arrayOf(java.util.UUID.randomUUID().toString(), groupName)
+                        )
+                    }
+                }
+
+                // Índices únicos criados só depois do backfill, para não colidir com o default ''.
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_players_publicId ON players(publicId)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_group_configs_publicId ON group_configs(publicId)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -208,7 +243,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance

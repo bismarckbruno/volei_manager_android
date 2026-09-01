@@ -51,14 +51,14 @@ class Migration6To7Test {
         legacyDb.close()
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
-            .addMigrations(AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
+            .addMigrations(AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10)
             .build()
 
         try {
             // Abre o banco: o Room valida aqui o esquema resultante da migração.
             val dao = room.voleiDao()
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(9, migratedDb.version)
+            assertEquals(10, migratedDb.version)
 
             migratedDb.query(
                 "SELECT groupType, tournamentFormat, tournamentStarted, onboardingStep FROM group_configs WHERE groupName = 'Grupo'"

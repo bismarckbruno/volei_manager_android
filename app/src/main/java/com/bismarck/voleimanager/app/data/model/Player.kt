@@ -6,7 +6,10 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "players",
-    indices = [Index(value = ["groupName", "elo"])]
+    indices = [
+        Index(value = ["groupName", "elo"]),
+        Index(value = ["publicId"], unique = true)
+    ]
 )
 data class Player(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -24,5 +27,11 @@ data class Player(
      */
     val preferredPosition: String? = null,
     /** Segunda posição preferida ([PlayerPosition]); usada quando não há vaga na preferida. */
-    val secondaryPosition: String? = null
+    val secondaryPosition: String? = null,
+    /**
+     * Identidade estável e imutável do jogador (UUID gerado uma única vez na criação).
+     * Independe do [id] local (autoGenerate) e sobrevive a rename/edição — preparação de terreno
+     * para uma futura sincronização em nuvem (ex.: vincular o jogador a uma conta/dispositivo).
+     */
+    val publicId: String = java.util.UUID.randomUUID().toString()
 )

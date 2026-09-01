@@ -76,9 +76,21 @@ When adding a new entity, always pass `groupName` explicitly. Renaming/deleting 
 
 ## Database Migrations
 
-DB version is currently **8** (`AppDatabase.kt`). `exportSchema = false`.  
+DB version is currently **10** (`AppDatabase.kt`). `exportSchema = false`.  
 When adding columns, add a `Migration(old, new)` object and register it in `addMigrations(...)`.  
-`fallbackToDestructiveMigration()` is enabled as a safety net — avoid relying on it for release.
+`fallbackToDestructiveMigration()` is enabled as a safety net — avoid relying on it for release.  
+Each migration should have a matching `MigrationXToYTest.kt` in `app/src/test/.../data/`, following
+the existing pattern: build up to the previous version via the real migration chain (starting from
+`createVersion6Database` in `MigrationTestSchemas.kt`), apply the new migration, then open with Room
+at the new version to catch schema mismatches.
+
+**Stable public IDs (`publicId`)**: `Player` and `GroupConfig` each have a `publicId: String` field
+(UUID v4, generated once via `java.util.UUID.randomUUID().toString()` as the constructor default,
+backed by a unique index). This is separate from the local PK (`Player.id` autoGenerate int,
+`GroupConfig.groupName` — a user-editable string) and exists specifically to prepare for a future
+cloud-sync feature (e.g. "live" group tracking) that needs an identity stable across renames,
+re-imports, and device changes. When adding new "anchor" entities that a future backend might need
+to reference directly, follow the same convention rather than relying on the local PK.
 
 ---
 
