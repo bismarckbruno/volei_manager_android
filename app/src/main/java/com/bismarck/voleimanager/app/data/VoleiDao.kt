@@ -62,6 +62,17 @@ interface VoleiDao {
     @Query("SELECT * FROM players WHERE groupName = :groupName")
     suspend fun getPlayersByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.Player>
 
+    /**
+     * Ids e publicIds já usados em toda a tabela (todos os grupos) — usado na importação de
+     * backup para detectar colisões antes de inserir, já que ambos são únicos globalmente,
+     * não por grupo.
+     */
+    @Query("SELECT id FROM players")
+    suspend fun getAllPlayerIdsSync(): List<Int>
+
+    @Query("SELECT publicId FROM players")
+    suspend fun getAllPlayerPublicIdsSync(): List<String>
+
     @Query("SELECT * FROM match_history WHERE groupName = :groupName")
     suspend fun getHistoryByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.MatchHistory>
 

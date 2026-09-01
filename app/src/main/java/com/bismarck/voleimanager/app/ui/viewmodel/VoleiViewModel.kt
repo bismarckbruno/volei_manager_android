@@ -200,6 +200,82 @@ internal fun normalizeTeamSnapshotWithIds(
     return TeamSnapshotWithIds(names = names, ids = ids)
 }
 
+/**
+ * `Player.id` e `Player.publicId` são únicos globalmente (todos os grupos), mas um backup
+ * (.vlz) preserva o `id`/`publicId` originais do dispositivo em que foi exportado. Reimportar
+ * esse backup — seja para restaurar o mesmo grupo após um import parcial anterior, seja para
+ * um teste em outro grupo do mesmo dispositivo — pode colidir com jogadores já existentes que
+ * usam por acaso o mesmo id/publicId (ex.: ids sequenciais baixos de outro grupo já criado).
+ * Como `insertPlayers` usa [androidx.room.OnConflictStrategy.IGNORE], essa colisão faz a linha
+ * ser descartada silenciosamente, sem nenhum aviso — o jogador simplesmente não aparece.
+ *
+ * Esta função detecta essas colisões antes do insert e atribui uma nova identidade (id e/ou
+ * publicId) apenas aos jogadores que colidem, propagando o novo id para as referências em
+ * [MatchHistory.teamAIds]/[teamBIds] e [PlayerEloLog.playerId] do mesmo backup, para que o
+ * histórico e o Elo continuem apontando para o jogador correto após o remapeamento.
+ */
+internal fun remapCollidingPlayerIdentities(
+    players: List<Player>,
+    history: List<MatchHistory>,
+    logs: List<PlayerEloLog>,
+    existingIds: Set<Int>,
+    existingPublicIds: Set<String>
+): Triple<List<Player>, List<MatchHistory>, List<PlayerEloLog>> {
+    val usedIds = existingIds.toMutableSet()
+    val usedPublicIds = existingPublicIds.toMutableSet()
+    players.forEach { p ->
+        if (p.id > 0) usedIds.add(p.id)
+        usedPublicIds.add(p.publicId)
+    }
+
+    val idRemap = mutableMapOf<Int, Int>()
+    var nextCandidateId = (usedIds.maxOrNull() ?: 0) + 1
+
+    val remappedPlayers = players.map { p ->
+        val needsNewId = p.id > 0 && existingIds.contains(p.id) && idRemap[p.id] == null
+        val newId = when {
+            !needsNewId -> p.id
+            else -> {
+                while (usedIds.contains(nextCandidateId)) nextCandidateId++
+                usedIds.add(nextCandidateId)
+                idRemap[p.id] = nextCandidateId
+                nextCandidateId
+            }
+        }
+        val needsNewPublicId = existingPublicIds.contains(p.publicId)
+        val newPublicId = if (needsNewPublicId) {
+            var candidate = java.util.UUID.randomUUID().toString()
+            while (usedPublicIds.contains(candidate)) candidate = java.util.UUID.randomUUID().toString()
+            usedPublicIds.add(candidate)
+            candidate
+        } else {
+            p.publicId
+        }
+        if (newId == p.id && newPublicId == p.publicId) p else p.copy(id = newId, publicId = newPublicId)
+    }
+
+    if (idRemap.isEmpty()) return Triple(remappedPlayers, history, logs)
+
+    fun remapIdCsv(csv: String): String {
+        if (csv.isBlank()) return csv
+        return csv.split(",").joinToString(",") { token ->
+            val trimmed = token.trim()
+            val originalId = trimmed.toIntOrNull()
+            if (originalId != null) (idRemap[originalId] ?: originalId).toString() else token
+        }
+    }
+
+    val remappedHistory = history.map { h ->
+        if (h.teamAIds.isBlank() && h.teamBIds.isBlank()) h
+        else h.copy(teamAIds = remapIdCsv(h.teamAIds), teamBIds = remapIdCsv(h.teamBIds))
+    }
+    val remappedLogs = logs.map { l ->
+        idRemap[l.playerId]?.let { l.copy(playerId = it) } ?: l
+    }
+
+    return Triple(remappedPlayers, remappedHistory, remappedLogs)
+}
+
 internal fun canonicalizePersonNameCompat(name: String): String {
     val normalized = name.trim().replace(Regex("\\s+"), " ")
     val noAccents = Normalizer.normalize(normalized, Normalizer.Form.NFD)
@@ -2612,15 +2688,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     val backup = Gson().fromJson(json, BackupData::class.java)
 
                     if (backup != null) {
-                        val safePlayers = backup.players.map { p ->
+                        val rawSafePlayers = backup.players.map { p ->
                             p.copy(
                                 id = if (p.id > 0) p.id else 0,
                                 name = normalizePersonName(p.name).ifBlank { "Desconhecido" },
-                                groupName = p.groupName.take(50)
+                                groupName = p.groupName.take(50),
+                                // Backups antigos (anteriores ao publicId) não têm esse campo no
+                                // JSON: o Gson ignora o valor padrão do Kotlin e deixa null, o que
+                                // quebra a constraint NOT NULL da coluna ao inserir. Gera um novo.
+                                publicId = (p.publicId ?: "").ifBlank { java.util.UUID.randomUUID().toString() }
+                            )
+                        }
+                        val safeGroupConfig = backup.groupConfig?.let { gc ->
+                            gc.copy(
+                                publicId = (gc.publicId ?: "").ifBlank { java.util.UUID.randomUUID().toString() }
                             )
                         }
 
-                        val safeHistory = backup.history.map { h ->
+                        val rawSafeHistory = backup.history.map { h ->
                             val teamASnapshot = normalizeTeamSnapshotWithIds(
                                 rawNames = h.teamA,
                                 rawIds = h.teamAIds,
@@ -2643,7 +2728,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             )
                         }
 
-                        val safeLogs = backup.logs.map { l ->
+                        val rawSafeLogs = backup.logs.map { l ->
                             l.copy(
                                 id = 0,
                                 playerNameSnapshot = normalizePersonName(l.playerNameSnapshot)
@@ -2652,6 +2737,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 groupName = l.groupName.take(50)
                             )
                         }
+
+                        // Ids/publicIds do backup podem colidir com jogadores já existentes no
+                        // dispositivo (de outro grupo ou de um import parcial anterior). Como o
+                        // insert usa IGNORE em conflito, isso descartaria o jogador em silêncio.
+                        val existingPlayerIds = repository.getAllPlayerIds().toSet()
+                        val existingPlayerPublicIds = repository.getAllPlayerPublicIds().toSet()
+                        val (safePlayers, safeHistory, safeLogs) = remapCollidingPlayerIdentities(
+                            players = rawSafePlayers,
+                            history = rawSafeHistory,
+                            logs = rawSafeLogs,
+                            existingIds = existingPlayerIds,
+                            existingPublicIds = existingPlayerPublicIds
+                        )
 
                         val importedGroups = (safePlayers.map { it.groupName } +
                             safeHistory.map { it.groupName } +
@@ -2674,12 +2772,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 overlappingGroups = overlapping,
                                 duplicatePlayerNames = duplicatePlayerNames,
                                 duplicatePlayerGroups = duplicatePlayerGroups,
-                                groupConfig = backup.groupConfig
+                                groupConfig = safeGroupConfig
                             )
                         } else {
                             performImportWithDedup(safePlayers, safeHistory, safeLogs, emptySet())
                             finalizeGroupImport(
-                                groupConfig = backup.groupConfig,
+                                groupConfig = safeGroupConfig,
                                 groupNameFallback = safePlayers.firstOrNull()?.groupName
                                     ?: safeHistory.firstOrNull()?.groupName
                                     ?: safeLogs.firstOrNull()?.groupName
@@ -2871,44 +2969,49 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun confirmMergeImport(renameDuplicates: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             val data = _pendingMergeImport.value ?: return@launch
-            val resolvedPlayers = if (renameDuplicates) {
-                val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
-                    repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+            try {
+                val resolvedPlayers = if (renameDuplicates) {
+                    val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
+                        repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+                    }
+                    resolveImportedPlayersWithAutoRename(data.players, existingNamesByGroup).first
+                } else {
+                    val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
+                        repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+                    }
+                    resolveImportedPlayersForInsert(data.players, existingNamesByGroup).first
                 }
-                resolveImportedPlayersWithAutoRename(data.players, existingNamesByGroup).first
-            } else {
-                val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
-                    repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+
+                val groupedByGroup = resolvedPlayers.groupBy { it.groupName }
+                groupedByGroup.forEach { (_, playersInGroup) ->
+                    if (playersInGroup.isNotEmpty()) repository.insertPlayers(playersInGroup)
                 }
-                resolveImportedPlayersForInsert(data.players, existingNamesByGroup).first
-            }
 
-            val groupedByGroup = resolvedPlayers.groupBy { it.groupName }
-            groupedByGroup.forEach { (_, playersInGroup) ->
-                if (playersInGroup.isNotEmpty()) repository.insertPlayers(playersInGroup)
-            }
+                val historyByGroup = data.history.groupBy { it.groupName }
+                for ((groupName, groupHistory) in historyByGroup) {
+                    val existingKeys = repository.getHistoryByGroupSync(groupName)
+                        .map { Triple(it.date, it.teamA, it.teamB) }.toSet()
+                    val toInsert = groupHistory.filter { Triple(it.date, it.teamA, it.teamB) !in existingKeys }
+                    if (toInsert.isNotEmpty()) repository.insertHistoryList(toInsert)
+                }
 
-            val historyByGroup = data.history.groupBy { it.groupName }
-            for ((groupName, groupHistory) in historyByGroup) {
-                val existingKeys = repository.getHistoryByGroupSync(groupName)
-                    .map { Triple(it.date, it.teamA, it.teamB) }.toSet()
-                val toInsert = groupHistory.filter { Triple(it.date, it.teamA, it.teamB) !in existingKeys }
-                if (toInsert.isNotEmpty()) repository.insertHistoryList(toInsert)
+                val logsByGroup = data.logs.groupBy { it.groupName }
+                for ((groupName, groupLogs) in logsByGroup) {
+                    val existingKeys = repository.getEloLogsByGroupSync(groupName)
+                        .map { Pair(it.playerNameSnapshot, it.date) }.toSet()
+                    val toInsert = groupLogs.filter { Pair(it.playerNameSnapshot, it.date) !in existingKeys }
+                    if (toInsert.isNotEmpty()) repository.insertEloLogs(toInsert)
+                }
+                finalizeGroupImport(
+                    groupConfig = data.groupConfig,
+                    groupNameFallback = data.players.firstOrNull()?.groupName
+                        ?: data.history.firstOrNull()?.groupName
+                        ?: data.logs.firstOrNull()?.groupName
+                )
+            } catch (e: Exception) {
+                Log.e("Import", "Erro ao mesclar importação: ${e.message}")
+                _uiMessage.value = getApplication<Application>().getString(R.string.import_error_generic)
             }
-
-            val logsByGroup = data.logs.groupBy { it.groupName }
-            for ((groupName, groupLogs) in logsByGroup) {
-                val existingKeys = repository.getEloLogsByGroupSync(groupName)
-                    .map { Pair(it.playerNameSnapshot, it.date) }.toSet()
-                val toInsert = groupLogs.filter { Pair(it.playerNameSnapshot, it.date) !in existingKeys }
-                if (toInsert.isNotEmpty()) repository.insertEloLogs(toInsert)
-            }
-            finalizeGroupImport(
-                groupConfig = data.groupConfig,
-                groupNameFallback = data.players.firstOrNull()?.groupName
-                    ?: data.history.firstOrNull()?.groupName
-                    ?: data.logs.firstOrNull()?.groupName
-            )
             _pendingMergeImport.value = null
         }
     }

@@ -297,7 +297,7 @@ private fun computeHistoryComputation(
         MatchSortMode.OLDEST -> filteredHistory.sortedWith(
             compareBy<MatchHistory> {
                 try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
-            }.thenByDescending { it.id }
+            }.thenBy { it.id }
         )
         MatchSortMode.ELO_DELTA -> filteredHistory.sortedWith(
             compareByDescending<MatchHistory> { it.eloPoints }.thenByDescending { it.id }

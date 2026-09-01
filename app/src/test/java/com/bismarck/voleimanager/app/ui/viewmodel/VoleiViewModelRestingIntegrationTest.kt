@@ -1063,6 +1063,10 @@ private class FakeVoleiDao : VoleiDao {
     override suspend fun getPlayersByGroupSync(groupName: String): List<Player> =
         players.filter { it.groupName == groupName }
 
+    override suspend fun getAllPlayerIdsSync(): List<Int> = players.map { it.id }
+
+    override suspend fun getAllPlayerPublicIdsSync(): List<String> = players.map { it.publicId }
+
     override suspend fun getHistoryByGroupSync(groupName: String): List<MatchHistory> =
         history.filter { it.groupName == groupName }
 

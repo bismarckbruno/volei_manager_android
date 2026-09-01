@@ -28,6 +28,8 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
     suspend fun insertPlayers(players: List<com.bismarck.voleimanager.app.data.model.Player>) = voleiDao.insertPlayers(players)
     suspend fun updatePlayers(players: List<com.bismarck.voleimanager.app.data.model.Player>) = voleiDao.updatePlayers(players)
     suspend fun updatePlayer(player: com.bismarck.voleimanager.app.data.model.Player) = voleiDao.updatePlayer(player)
+    suspend fun getAllPlayerIds(): List<Int> = voleiDao.getAllPlayerIdsSync()
+    suspend fun getAllPlayerPublicIds(): List<String> = voleiDao.getAllPlayerPublicIdsSync()
 
     suspend fun renamePlayerCascade(playerId: Int, oldName: String, newName: String, groupName: String) {
         val historyToUpdate = voleiDao.getAllHistorySync().filter { match ->
