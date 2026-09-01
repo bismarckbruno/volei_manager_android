@@ -713,7 +713,7 @@ fun GameScreenContent(
                                         )
                                     } else {
                                         val iconSize = with(LocalDensity.current) {
-                                            MaterialTheme.typography.bodyLarge.fontSize.toDp()
+                                            MaterialTheme.typography.titleLarge.fontSize.toDp()
                                         }
                                         Row(
                                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
