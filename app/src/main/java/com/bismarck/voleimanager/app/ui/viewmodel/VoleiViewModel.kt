@@ -2692,7 +2692,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             p.copy(
                                 id = if (p.id > 0) p.id else 0,
                                 name = normalizePersonName(p.name).ifBlank { "Desconhecido" },
-                                groupName = p.groupName.take(50),
+                                // Must match the group's own name length limit (MAX_GROUP_NAME_LENGTH):
+                                // older backups could carry a longer groupName than the app currently
+                                // allows when renaming, which made the rename dialog silently reject
+                                // every keystroke until the name was saved once and got truncated.
+                                groupName = normalizeGroupName(p.groupName),
                                 // Backups antigos (anteriores ao publicId) não têm esse campo no
                                 // JSON: o Gson ignora o valor padrão do Kotlin e deixa null, o que
                                 // quebra a constraint NOT NULL da coluna ao inserir. Gera um novo.
@@ -2701,6 +2705,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         }
                         val safeGroupConfig = backup.groupConfig?.let { gc ->
                             gc.copy(
+                                groupName = normalizeGroupName(gc.groupName),
                                 publicId = (gc.publicId ?: "").ifBlank { java.util.UUID.randomUUID().toString() }
                             )
                         }
@@ -2724,7 +2729,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 teamAIds = teamASnapshot.ids,
                                 teamBIds = teamBSnapshot.ids,
                                 winner = h.winner.take(50),
-                                groupName = h.groupName.take(50)
+                                groupName = normalizeGroupName(h.groupName)
                             )
                         }
 
@@ -2734,9 +2739,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 playerNameSnapshot = normalizePersonName(l.playerNameSnapshot)
                                     .ifBlank { "Desconhecido" },
                                 date = l.date.take(20),
-                                groupName = l.groupName.take(50)
+                                groupName = normalizeGroupName(l.groupName)
                             )
                         }
+
 
                         // Ids/publicIds do backup podem colidir com jogadores já existentes no
                         // dispositivo (de outro grupo ou de um import parcial anterior). Como o
@@ -2808,7 +2814,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             elo = cols[2].toDoubleOrNull() ?: 1200.0,
                                             matchesPlayed = cols[3].toIntOrNull() ?: 0,
                                             victories = cols[4].toIntOrNull() ?: 0,
-                                            groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
+                                            groupName = cols[5].takeIf { it.isNotBlank() }
+                                                ?.let(::normalizeGroupName)
                                                 ?: DEFAULT_GROUP_NAME,
                                             isPriority = cols.getOrElse(6) { "false" }
                                                 .toBooleanStrictOrNull() ?: false,
@@ -2870,7 +2877,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             teamB = normalizeTeamNamesSnapshot(cols[2]),
                                             winner = cols[3].take(50),
                                             eloPoints = cols[4].toDoubleOrNull() ?: 0.0,
-                                            groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
+                                            groupName = cols[5].takeIf { it.isNotBlank() }
+                                                ?.let(::normalizeGroupName)
                                                 ?: DEFAULT_GROUP_NAME,
                                             teamAAverageElo = cols.getOrElse(6) { "" }
                                                 .toDoubleOrNull(),
@@ -2924,7 +2932,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                                     Locale.getDefault()
                                                 ).format(Date()),
                                             elo = cols[4].toDoubleOrNull() ?: 1200.0,
-                                            groupName = cols[5].takeIf { it.isNotBlank() }?.take(50)
+                                            groupName = cols[5].takeIf { it.isNotBlank() }
+                                                ?.let(::normalizeGroupName)
                                                 ?: DEFAULT_GROUP_NAME,
                                             won = cols.getOrElse(6) { "" }.toBooleanStrictOrNull()
                                         )
