@@ -1042,10 +1042,25 @@ private fun TooltipToggleRow(
                     }
                 )
         ) {
-            Switch(checked = checked, enabled = enabled, onCheckedChange = {
-                tooltipState.dismiss()
-                onCheckedChange(it)
-            })
+            Switch(
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = {
+                    tooltipState.dismiss()
+                    onCheckedChange(it)
+                },
+                // Default M3 disabled colors use ~12% alpha, which blends almost invisibly
+                // into the dialog's surface in both light and dark theme. Bump the alpha a
+                // bit so a locked/disabled toggle still reads as a dimmed switch, not a gap.
+                colors = SwitchDefaults.colors(
+                    disabledCheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    disabledCheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                )
+            )
             Spacer(Modifier.width(16.dp))
             if (icon != null) {
                 icon()

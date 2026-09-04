@@ -679,7 +679,12 @@ fun HistoryScreen(
         usesPositions
     ) {
         if (historyPlayerList.isEmpty() || availableContentPx <= 0) true
-        else historyPlayerList.all { info ->
+        else {
+            val percentFormat = NumberFormat.getInstance(locale).apply {
+                maximumFractionDigits = 2
+                minimumFractionDigits = 0
+            }
+            historyPlayerList.all { info ->
             val badgeCount = if (usesPositions) {
                 listOfNotNull(info.player.preferredPosition, info.player.secondaryPosition).size
             } else 0
@@ -709,10 +714,7 @@ fun HistoryScreen(
                 tinySpacingPx +
                 textMeasurer.measure(info.gamesPlayed.toString(), statsTextStyle).size.width
 
-            val percentageFormatted = NumberFormat.getInstance(locale).apply {
-                maximumFractionDigits = 2
-                minimumFractionDigits = 0
-            }.format(if (info.gamesPlayed > 0) info.victories.toDouble() / info.gamesPlayed * 100.0 else 0.0)
+            val percentageFormatted = percentFormat.format(if (info.gamesPlayed > 0) info.victories.toDouble() / info.gamesPlayed * 100.0 else 0.0)
             val percentageW = textMeasurer.measure(percentageFormatted, statsTextStyle).size.width + iconBodyMediumPx
 
             val topRowRequired = nameW + rowGapPx + victoriesGamesW
@@ -720,6 +722,7 @@ fun HistoryScreen(
             val widestRowRequired = maxOf(topRowRequired, eloW, bottomRowRequired)
 
             (widestRowRequired <= availableContentPx) && (availableContentPx - victoriesGamesW >= minNamePx)
+            }
         }
     }
 
@@ -1443,7 +1446,11 @@ fun HistoryScreen(
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    pageSpacing = 16.dp
+                    pageSpacing = 16.dp,
+                    // Keep both tabs (Matches/Players) composed at all times so switching
+                    // between them doesn't need to build a whole new LazyColumn mid-gesture,
+                    // which was causing a visible stutter the first frame of each transition.
+                    beyondViewportPageCount = 1
                 ) { page ->
                     when (page) {
                     0 -> {
@@ -1804,10 +1811,14 @@ fun HistoryPlayerCard(
     val percentage = if (gamesPlayed > 0) {
         victories.toDouble() / gamesPlayed * 100.0
     } else 0.0
-    val percentageFormatted = NumberFormat.getInstance(locale).apply {
-        maximumFractionDigits = 2
-        minimumFractionDigits = 0
-    }.format(percentage)
+    // NumberFormat.getInstance() does locale data lookups and is costly enough to notice
+    // when instantiated per row on every recomposition; remember it per (percentage, locale).
+    val percentageFormatted = remember(percentage, locale) {
+        NumberFormat.getInstance(locale).apply {
+            maximumFractionDigits = 2
+            minimumFractionDigits = 0
+        }.format(percentage)
+    }
     val playedTimeText = formatPlayedDuration(playedMinutes)
 
     Box(
