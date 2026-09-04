@@ -337,8 +337,59 @@
     <string name="uncheck_all">Uncheck</string>
     <string name="check_all">Check</string>
     <string name="none_selected">None selected (%1$d registered)</string>
-    <string name="privacy_policy_text">Last update: April 2026\n\nVolley Manager is a free, open-source application for organizing recreational volleyball matches.\n\n1. Collected data\nThe application exclusively stores the data you provide manually: player names, groups, match history, and Elo ratings. No sensitive personal data (e-mail, phone, location, device identifiers) is collected.\n\n2. Local storage\nAll data is stored locally on your device, using the application\'s internal database (Room/SQLite). No data is sent to external servers.\n\n3. Data sharing\nThe application does not share data with third parties. Export functions (CSV/JSON) and result image sharing are actions initiated exclusively by you.\n\n4. Third-party services\nThe application does not use analytics, tracking, advertising, or any other service that collects user data.\n\n5. Permissions\nThe application does not request special device permissions other than those necessary for reading/writing files, in case you use the export/import function.\n\n6. Data deletion\nYou can delete any data at any time directly through the application (delete players, clear history) or by uninstalling the application, which removes all stored data.\n\n7. Children\nThe application is not directed at children under 13 and does not knowingly collect data from children.\n\n8. Contact\nQuestions about this policy can be sent to the developer through the application page on the Google Play Store.</string>
-    <string name="terms_of_use_text">Last update: April 2026\n\nBy using Volley Manager, you agree to the following terms:\n\n1. Purpose\nVolley Manager is a free application for organizing recreational volleyball matches, including team drawing, waiting list management, and history logging.\n\n2. Permitted use\nThe application is provided for personal and recreational use. You are responsible for the data you enter into the application (player names, groups, etc.).\n\n3. No warranties\nThe application is provided \"as is\", without warranties of any kind. The developer is not responsible for data loss resulting from device failures, operating system updates, or misuse of the application.\n\n4. Backup\nIt is recommended to regularly use the export/backup function to protect your data. The developer is not responsible for recovering unsaved data.\n\n5. Availability\nThe application may be updated, modified, or discontinued at any time without prior notice.\n\n6. Intellectual property\nThe source code, design, and content of Volley Manager are the property of the developer, protected by applicable copyright laws.\n\n7. Changes to terms\nThese terms may be updated in future versions. Continued use of the application after changes constitutes acceptance of the new terms.\n\n8. Changes\nThis policy may be updated in future versions of the application. Significant changes will be communicated in the release notes.\n\n9. Contact\nQuestions about these terms can be sent to the developer through the application page on the Google Play Store.</string>
+    <string name="privacy_policy_text">Last update: September 2026
+
+Volei Manager is a free and open-source application distributed under the GNU GPL v3.0 license.
+
+This privacy policy explains how the app handles data today and how future optional services may work.
+
+1. Data processed locally
+The app stores locally on your device the data you create or import, such as player names, group settings, match history, Elo ratings, and waiting-list information. This data remains under your control and is kept on-device unless you explicitly choose to export or share it.
+
+2. Current status
+The app does not currently collect anonymous usage analytics, advertising identifiers, or telemetry by default. There is no automatic user tracking.
+
+3. Future optional anonymous telemetry
+We may introduce optional anonymous telemetry in a future version. It would only activate after explicit opt-in in the app settings, and you may revoke that consent at any time. Any telemetry would be limited to aggregated diagnostic and usage metrics, such as app stability or feature usage, and would not include personal data, player names, match details, or contact information.
+
+4. Future optional cloud sync
+We may offer an optional premium feature for group data synchronization, including players, through a user account using Firebase/Firestore. This service would be separate from the local-only experience and would require the user to create an account and sign in. If you do not use this feature, your data remains stored only on your device.
+
+5. Data sharing and exports
+The app does not share personal data with third parties by default. Any export or image-share action is initiated by you and is outside the app's automatic processing.
+
+6. Permissions and support
+The app only requests the permissions needed for local file import/export or related device features. Questions can be sent through the project page or app store listing.
+
+7. Contact and rights
+You may request clarification, deletion of locally stored data, or changes to your consent choices at any time by using the app's local data settings and, when applicable, the account settings for premium sync.</string>
+    <string name="terms_of_use_text">Last update: September 2026
+
+By using Volei Manager, you agree to these terms of use.
+
+1. License and software nature
+Volei Manager is free and open-source software distributed under the GNU GPL v3.0 license. The core app is designed to work as a local-first tool for organizing recreational volleyball matches.
+
+2. Local-first use
+The app is primarily intended for personal and recreational use. You are responsible for the data you add to the app, including player information and match history. Your data remains stored on your device unless you choose to use an optional export or a future cloud sync feature.
+
+3. No automatic telemetry
+The app does not currently send user data to remote servers without explicit opt-in. Any future telemetry would be limited to anonymous diagnostics and would require your consent and allow you to revoke it at any time.
+
+4. Future premium sync service
+We may add an optional premium cloud sync feature in the future, allowing group data, including players, to be synchronized through a user account and Firebase/Firestore. This service is optional and separate from the core local experience. Use of the feature may require registration, authentication, and acceptance of the applicable service terms.
+
+5. No warranties
+The software is provided as is, without warranties of any kind. The developer is not responsible for data loss caused by device issues, operating system changes, improper use, or user-managed exports.
+
+6. Backup and retention
+It is recommended to regularly export backups of your data. The app does not guarantee automatic cloud backup unless you explicitly enable a future sync service.
+
+7. Changes to the app and terms
+The app may be updated, modified, or discontinued at any time. Continued use after updates constitutes acceptance of the current terms.
+
+8. Contact
+Questions can be sent through the GitHub project or the app store listing.</string>
     <string name="side_menu">Side menu</string>
     <string name="victorious_team">Is Team %1$s the winner?</string>
     <string name="no_games">No matches</string>
