@@ -1655,7 +1655,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     }
                                 }
                             )
-                            Screen.FAQ -> FAQScreen(viewModel = viewModel)
+                            Screen.FAQ -> FAQScreen(
+                                viewModel = viewModel,
+                                onSendQuestionClick = { showSendQuestionDialog = true }
+                            )
                             Screen.ABOUT -> AboutScreen()
                         }
                     }

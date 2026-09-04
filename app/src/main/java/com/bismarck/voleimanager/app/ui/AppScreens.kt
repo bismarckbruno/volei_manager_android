@@ -39,15 +39,13 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.PeopleAlt
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAddAlt1
-import androidx.compose.material.icons.filled.QueuePlayNext
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -79,6 +77,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.DpOffset
@@ -95,6 +94,7 @@ import com.bismarck.voleimanager.app.ui.components.groupTypeIcon
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
+import com.bismarck.voleimanager.app.util.FaqSearch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -2434,8 +2434,24 @@ private data class FaqEntry(
     val answer: String? = null,
     val table: FaqTableData? = null,
     /** Ação extra (ex.: botão de download) renderizada abaixo do texto/tabela. */
-    val action: (@Composable () -> Unit)? = null
-)
+    val action: (@Composable () -> Unit)? = null,
+    /** Sinônimos/termos-chave (string resource, separados por vírgula) usados na busca. */
+    val keywords: String = ""
+) {
+    /** Texto completo (pergunta + resposta + tabela) usado como corpus de busca. */
+    val searchCorpus: String by lazy {
+        buildString {
+            append(question)
+            answer?.let { append(' '); append(it) }
+            table?.let {
+                append(' '); append(it.columnHeaders.first); append(' '); append(it.columnHeaders.second)
+                it.rows.forEach { (first, second) ->
+                    append(' '); append(first); append(' '); append(second)
+                }
+            }
+        }
+    }
+}
 
 private data class FaqTableData(
     val columnHeaders: Pair<String, String>,
@@ -2473,63 +2489,83 @@ private fun FaqQuestionIcon(iconRes: Int) {
 }
 
 @Composable
-fun FAQScreen(viewModel: VoleiViewModel? = null) {
+fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit = {}) {
     val context = LocalContext.current
     val faqItems = listOf(
         FaqEntry(
             stringResource(R.string.faq_q1),
             icon = { FaqQuestionIcon(Icons.Default.WorkspacePremium) },
-            answer = stringResource(R.string.faq_a1)
+            answer = stringResource(R.string.faq_a1),
+            keywords = stringResource(R.string.faq_kw1)
         ),
         FaqEntry(
             stringResource(R.string.faq_q10),
             icon = { FaqQuestionIcon(R.drawable.plus_minus) },
-            answer = stringResource(R.string.faq_a10)
+            answer = stringResource(R.string.faq_a10),
+            keywords = stringResource(R.string.faq_kw10)
         ),
         FaqEntry(
             stringResource(R.string.faq_q2),
             icon = { FaqQuestionIcon(Icons.Default.Star) },
-            answer = stringResource(R.string.faq_a2)
+            answer = stringResource(R.string.faq_a2),
+            keywords = stringResource(R.string.faq_kw2)
         ),
         FaqEntry(
             stringResource(R.string.faq_q3),
             icon = { FaqQuestionIcon(R.drawable.volei_manager_icon) },
-            answer = stringResource(R.string.faq_a3)
+            answer = stringResource(R.string.faq_a3),
+            keywords = stringResource(R.string.faq_kw3)
         ),
         FaqEntry(
             stringResource(R.string.faq_q4),
             icon = { FaqQuestionIcon(Icons.Default.Groups) },
-            answer = stringResource(R.string.faq_a4)
+            answer = stringResource(R.string.faq_a4),
+            keywords = stringResource(R.string.faq_kw4)
         ),
         FaqEntry(
             stringResource(R.string.faq_q14),
             icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS))},
-            answer = stringResource(R.string.faq_a14)
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a14_col1) to stringResource(R.string.faq_a14_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a14_table)),
+                firstColumnWeight = 0.3f
+            ),
+            keywords = stringResource(R.string.faq_kw14)
         ),
         FaqEntry(
             stringResource(R.string.faq_q5),
             icon = { FaqQuestionIcon(Icons.Filled.People) },
-            answer = stringResource(R.string.faq_a5)
+            answer = stringResource(R.string.faq_a5),
+            keywords = stringResource(R.string.faq_kw5)
         ),
         FaqEntry(
             stringResource(R.string.faq_q8),
             icon = { FaqQuestionIcon(Icons.Default.PersonAddAlt1) },
-            answer = stringResource(R.string.faq_a8)
+            answer = stringResource(R.string.faq_a8),
+            keywords = stringResource(R.string.faq_kw8)
         ),
         FaqEntry(
             stringResource(R.string.faq_q6),
             icon = { FaqQuestionIcon(R.drawable.arrowsbothsides) },
-            answer = stringResource(R.string.faq_a6)
+            answer = stringResource(R.string.faq_a6),
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a6_col1) to stringResource(R.string.faq_a6_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a6_table)),
+                firstColumnWeight = 0.25f
+            ),
+            keywords = stringResource(R.string.faq_kw6)
         ),
         FaqEntry(
             stringResource(R.string.faq_q7),
             icon = { FaqQuestionIcon(R.drawable.crown_icon) },
-            answer = stringResource(R.string.faq_a7)
+            answer = stringResource(R.string.faq_a7),
+            keywords = stringResource(R.string.faq_kw7)
         ),
         FaqEntry(
             stringResource(R.string.faq_q9),
             icon = { FaqQuestionIcon(Icons.Default.Edit) },
-            answer = stringResource(R.string.faq_a9)
+            answer = stringResource(R.string.faq_a9),
+            keywords = stringResource(R.string.faq_kw9)
         ),
         FaqEntry(
             stringResource(R.string.faq_q11),
@@ -2538,7 +2574,8 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
                 columnHeaders = stringResource(R.string.faq_a11_col1) to stringResource(R.string.faq_a11_col2),
                 rows = parseFaqTableRows(stringResource(R.string.faq_a11_table)),
                 firstColumnWeight = 0.3f
-            )
+            ),
+            keywords = stringResource(R.string.faq_kw11)
         ),
         FaqEntry(
             stringResource(R.string.faq_q16),
@@ -2547,7 +2584,8 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
                 columnHeaders = stringResource(R.string.faq_a16_col1) to stringResource(R.string.faq_a16_col2),
                 rows = parseFaqTableRows(stringResource(R.string.faq_a16_table)),
                 firstColumnWeight = 0.25f
-            )
+            ),
+            keywords = stringResource(R.string.faq_kw16)
         ),
         FaqEntry(
             stringResource(R.string.faq_q13),
@@ -2556,7 +2594,8 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
                 columnHeaders = stringResource(R.string.faq_a13_col1) to stringResource(R.string.faq_a13_col2),
                 rows = parseFaqTableRows(stringResource(R.string.faq_a13_table)),
                 firstColumnWeight = 0.3f
-            )
+            ),
+            keywords = stringResource(R.string.faq_kw13)
         ),
         FaqEntry(
             stringResource(R.string.faq_q12),
@@ -2565,7 +2604,8 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
                 columnHeaders = stringResource(R.string.faq_a12_col1) to stringResource(R.string.faq_a12_col2),
                 rows = parseFaqTableRows(stringResource(R.string.faq_a12_table)),
                 firstColumnWeight = 0.25f
-            )
+            ),
+            keywords = stringResource(R.string.faq_kw12)
         ),
         FaqEntry(
             stringResource(R.string.faq_q15),
@@ -2576,6 +2616,7 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
                 rows = parseFaqTableRows(stringResource(R.string.faq_a15_table)),
                 firstColumnWeight = 0.3f
             ),
+            keywords = stringResource(R.string.faq_kw15),
             action = if (viewModel != null) {
                 {
                     Button(onClick = { viewModel.exportPlayersTemplate(context) }) {
@@ -2588,6 +2629,37 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
         )
     )
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    // A search only becomes "active" once the query has at least one non-stopword token
+    // (see FaqSearch.tokenize) — typing only stopwords (e.g. "o que") doesn't filter yet,
+    // even if that literally matches part of a question; it needs a relevant word alongside it.
+    val isSearchActive = remember(searchQuery) { FaqSearch.tokenize(searchQuery).isNotEmpty() }
+
+    // Collapses whichever question is open whenever a search becomes/stays active (a "new
+    // search"), but leaves it untouched when the query goes back to inactive (e.g. the user
+    // clears the search box), so that question remains open as it was.
+    LaunchedEffect(searchQuery) {
+        if (isSearchActive) expandedIndex = null
+    }
+
+    // Ranks/filters entries by relevance (question + answer + table + keywords) while a search
+    // is active; otherwise keeps the original curated order. Keeps the original index so
+    // expand/collapse state (which is index-based) stays correct even when reordered.
+    val displayedItems = remember(faqItems, searchQuery, isSearchActive) {
+        val indexed = faqItems.mapIndexed { index, entry -> index to entry }
+        if (!isSearchActive) {
+            indexed
+        } else {
+            indexed
+                .map { (index, entry) ->
+                    Triple(index, entry, FaqSearch.score(searchQuery, entry.question, entry.searchCorpus, entry.keywords))
+                }
+                .filter { it.third > 0 }
+                .sortedByDescending { it.third }
+                .map { it.first to it.second }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -2606,7 +2678,50 @@ fun FAQScreen(viewModel: VoleiViewModel? = null) {
         )
         Spacer(Modifier.height(16.dp))
 
-        faqItems.forEachIndexed { index, entry ->
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.faq_search_hint)) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Close, contentDescription = null)
+                    }
+                }
+            },
+            singleLine = true,
+            shape = CircleShape
+        )
+        Spacer(Modifier.height(16.dp))
+
+        if (displayedItems.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    stringResource(R.string.faq_search_no_results),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.faq_search_no_results_cta),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textDecoration = TextDecoration.Underline,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.clickable { onSendQuestionClick() }
+                )
+            }
+        }
+
+        displayedItems.forEach { (index, entry) ->
             FAQItem(
                 question = entry.question,
                 icon = entry.icon,
