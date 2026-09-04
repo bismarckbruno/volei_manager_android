@@ -13,7 +13,7 @@
     <string name="history">Historial</string>
     <string name="daily_elo">Elo diario</string>
     <string name="import_data">Importar datos</string>
-    <string name="restore_backup">Restaurar copia de seguridad (.vlz)</string>
+    <string name="restore_backup">Restaurar Backup (.vlz)</string>
     <string name="import_csv">Importar Excel o CSV (Avanzado)</string>
     <string name="download_players_template">Descargar modelo de jugadores (.xlsx)</string>
     <string name="template_example_name">Ejemplo (borra esta fila antes de importar)</string>
@@ -159,7 +159,7 @@
     <string name="by_elo">Por Elo</string>
     <string name="start">Empezar</string>
     <string name="victory">VICTORIA</string>
-    <string name="victory_short">VIT.</string>
+    <string name="victory_short">VICTORIA</string>
     <string name="team_a">Equipo A</string>
     <string name="team_b">Equipo B</string>
     <string name="vs">VS</string>
