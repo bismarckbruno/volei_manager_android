@@ -53,6 +53,13 @@
 - **Límite de Victorias**: Máximo de victorias consecutivas antes de aplicar la regla del modo activo (dividir en Rebalanceo o rotar descanso en modo Descanso).
 - **Prioridad Activada**: Garantiza al menos un jugador prioritario por equipo en el sorteo automático (si hay disponibilidad).
 
+## 🔒 Privacidad, Telemetría y Sincronización Premium
+Este proyecto se distribuye bajo la **GNU General Public License v3.0 (GPL-3.0)**. La app está diseñada para guardar los datos de forma local en el dispositivo y, por defecto, no se activa ninguna telemetría anónima.
+
+En versiones futuras podría añadirse una función opcional de telemetría anónima, pero solo con consentimiento explícito del usuario y un flujo de opt-in claro. Si se habilita, la recolección estará limitada a diagnósticos agregados sobre uso y salud de la app, sin incluir nombres, grupos, historial de partidos, identificadores personales ni información sensible. El usuario puede revocar el consentimiento en cualquier momento desde la configuración del app, y la recolección se detendrá cuando se retire el consentimiento.
+
+También preveemos, en una capa premium futura, ofrecer sincronización en la nube de los datos del grupo, incluidos los jugadores, mediante registro y autenticación del usuario. Esa funcionalidad usará **Firebase/Firestore** para almacenamiento y sincronización, y requerirá alta/inicio de sesión del usuario, además de consentimiento y aceptación de los términos aplicables a la función premium.
+
 ## 🎯 Sobre el Proyecto
 
 **Voleicito** es una app Android para organizadores de vóley amateur. Automatiza el balanceo de equipos (con Elo y prioridad), gestiona la fila de espera de forma justa y reduce conflictos en la cancha.
@@ -74,7 +81,7 @@
 - [Terms of Use (EN-US)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE)
 - [Política de Privacidade (PT-BR)](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY_PT_BR)
 - [Termos de Uso (PT-BR)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE_PT_BR)
-- [Licencia MIT](LICENSE)
+- [Licencia GPL v3.0](LICENSE)
 
 ## ☕ Apoya el Proyecto
 

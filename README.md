@@ -53,6 +53,13 @@
 - **Victory Limit**: Max consecutive wins before the app applies the configured streak rule (split in Rebalance mode, rest rotation in Rest mode).
 - **Priority Distribution**: Ensures at least one priority player per team in automatic balancing (when available).
 
+## 🔒 Privacy, Telemetry and Premium Sync
+This project is distributed under the **GNU General Public License v3.0 (GPL-3.0)**. The app is currently designed to keep data local on the device, and no anonymous telemetry is enabled by default.
+
+We may introduce an optional, anonymous telemetry feature in a future version, but only with explicit user consent and a clear opt-in flow. If enabled, it will be limited to aggregated app-health and usage diagnostics, with no personal identifiers, names, group data, or match history included. Users may revoke consent at any time from the app settings, and the telemetry collection will stop once consent is withdrawn.
+
+We also plan, in a future premium tier, to offer cloud synchronization for group data, including players, via a user account system and authentication flow. That feature will use **Firebase/Firestore** for storage and synchronization, and it will require user registration/login. Access to this service will be optional, subject to account consent, authentication, and the terms applicable to the premium sync feature.
+
 ## 🎯 About the Product
 
 **Volley Manager** is an Android app built for recreational volleyball organizers. It automates team balancing (with Elo + priority), manages the waiting queue fairly, and reduces court-side conflicts.
@@ -74,7 +81,7 @@ Found an issue or have an idea? Open an [Issue here](https://github.com/bismarck
 - [Terms of Use (PT-BR)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE_PT_BR)
 - [Privacy Policy (ES-419)](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY_ES_419)
 - [Terms of Use (ES-419)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE_ES_419)
-- [MIT License](LICENSE)
+- [GNU GPL v3.0 License](LICENSE)
 
 ## ☕ Support the Project
 

@@ -23,7 +23,7 @@
 - **Perfil de Jogador**: Nome, Elo e marcação de prioridade (ou posição, em grupos de Posições Fixas).
 - **Jogador Prioritário (`isPriority`)**: Flag genérica para distribuição equilibrada — pode representar levantadores, garantia de equilíbrio de gênero ou qualquer critério definido pelo grupo.
 - **Pedágio (Chegada Tardia)**: Jogadores que chegam atrasados recebem jogos extras de "pedágio" para compensar o atraso dos demais, calculado com base na média de partidas já jogadas no dia.
-- **Backup e Restauração**: Exportação e importação de dados completos (JSON) ou tabelas específicas (CSV) para salvar ou transferir o progresso.
+- **Backup e Restauração**: Exportação e importação de dados completos (JSON) ou tabelas específicas (CSV).
 
 ### 🎨 Personalização
 - **Tema**: Claro, Escuro ou automático (Sistema).
@@ -53,6 +53,13 @@
 - **Limite de Vitórias**: Máximo de vitórias consecutivas antes de aplicar a regra do modo ativo (dividir no Rebalanceamento ou rodar descanso no modo Descanso).
 - **Ativar Prioridade**: Garante ao menos um jogador prioritário por time no sorteio automático (se houver disponibilidade).
 
+## 🔒 Privacidade, Telemetria e Sincronização Premium
+Este projeto é distribuído sob a **GNU General Public License v3.0 (GPL-3.0)**. O app foi pensado para manter os dados localmente no dispositivo, e, por padrão, não há coleta de telemetria anônima ativa.
+
+No futuro, pode ser adicionada uma funcionalidade opcional de telemetria anônima, mas somente com consentimento explícito do usuário e um fluxo de opt-in claro. Se ativada, a coleta será limitada a diagnósticos agregados de uso e saúde do app, sem incluir nomes, grupos, histórico de partidas, identificadores pessoais ou dados sensíveis. O usuário poderá revogar o consentimento a qualquer momento na área de configurações do app, e a coleta será interrompida assim que o consentimento for retirado.
+
+Também planejamos, em uma camada premium futura, oferecer sincronização em nuvem de dados do grupo, incluindo jogadores, por meio de cadastro e autenticação do usuário. Essa funcionalidade usará **Firebase/Firestore** para armazenamento e sincronização, e dependerá de cadastro e login do usuário, além de consentimento e aceite dos termos aplicáveis ao recurso premium.
+
 ## 🎯 Sobre o Projeto
 
 O **Voleizin** é um aplicativo Android desenvolvido para organizadores de vôlei amador. Ele automatiza o balanceamento de times (via Elo e prioridade), gerencia a fila de forma justa e reduz os conflitos de quadra.
@@ -74,7 +81,7 @@ Encontrou um problema ou tem uma ideia? Abra uma [Issue aqui](https://github.com
 - [Terms of Use (EN-US)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE)
 - [Política de Privacidad (ES-419)](https://bismarckbruno.github.io/volei_manager_android/PRIVACY_POLICY_ES_419)
 - [Términos de Uso (ES-419)](https://bismarckbruno.github.io/volei_manager_android/TERMS_OF_USE_ES_419)
-- [Licença MIT](LICENSE)
+- [Licença GPL v3.0](LICENSE)
 
 ## ☕ Apoie o Projeto
 
