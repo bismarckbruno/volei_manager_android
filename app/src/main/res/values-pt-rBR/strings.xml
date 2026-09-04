@@ -338,59 +338,8 @@
     <string name="uncheck_all">Desmarcar</string>
     <string name="check_all">Marcar</string>
     <string name="none_selected">Nenhum selecionado (%1$d cadastro%2$s)</string>
-    <string name="privacy_policy_text">Última atualização: setembro de 2026
-
-O Volei Manager é um aplicativo gratuito e de código aberto distribuído sob a licença GNU GPL v3.0.
-
-Esta política de privacidade explica como o app trata os dados atualmente e como serviços opcionais futuros podem funcionar.
-
-1. Dados processados localmente
-O aplicativo armazena localmente no seu dispositivo os dados que você cria ou importa, como nomes de jogadores, configurações de grupos, histórico de partidas, Elo e informações da fila de espera. Esses dados continuam sob o seu controle e ficam no aparelho, a menos que você decida explicitamente exportá-los ou compartilhá-los.
-
-2. Situação atual
-O app não coleta analytics anônimos, identificadores de publicidade ou telemetria por padrão. Não há rastreamento automático de usuários.
-
-3. Telemetria anônima futura e opcional
-Podemos introduzir telemetria anônima e opcional em uma versão futura. Ela só será ativada após consentimento explícito nas configurações do app, e você pode revogar esse consentimento a qualquer momento. Qualquer telemetria será limitada a métricas agregadas de diagnóstico e uso, como estabilidade do app ou uso de recursos, e não incluirá dados pessoais, nomes de jogadores, detalhes de partidas ou informações de contato.
-
-4. Sincronização em nuvem futura e opcional
-Podemos oferecer um recurso premium opcional para sincronizar dados de grupo, inclusive jogadores, por meio de uma conta de usuário com Firebase/Firestore. Esse serviço será separado da experiência local e exigirá que o usuário crie uma conta e faça login. Se você não usar esse recurso, seus dados continuam armazenados somente no seu dispositivo.
-
-5. Compartilhamento de dados e exportação
-O app não compartilha dados pessoais com terceiros por padrão. Qualquer ação de exportação ou compartilhamento de imagem é iniciada por você e fica fora do processamento automático do app.
-
-6. Permissões e suporte
-O aplicativo solicita apenas as permissões necessárias para importação/exportação de arquivos locais ou recursos relacionados do dispositivo. Dúvidas podem ser enviadas pela página do projeto ou pela vitrine do app.
-
-7. Contato e direitos
-Você pode solicitar esclarecimentos, exclusão de dados armazenados localmente ou alteração de opções de consentimento a qualquer momento usando as configurações locais do app e, quando aplicável, as configurações da conta para sincronização premium.</string>
-    <string name="terms_of_use_text">Última atualização: setembro de 2026
-
-Ao usar o Volei Manager, você concorda com estes termos de uso.
-
-1. Licença e natureza do software
-O Volei Manager é um software livre e de código aberto distribuído sob a licença GNU GPL v3.0. O app principal foi pensado para funcionar como uma ferramenta local-first para organizar partidas recreativas de vôlei.
-
-2. Uso local-first
-O aplicativo é destinado principalmente ao uso pessoal e recreativo. Você é responsável pelos dados que adiciona ao app, incluindo informações de jogadores e histórico de partidas. Seus dados permanecem armazenados no seu aparelho, a menos que você escolha usar uma exportação opcional ou um recurso futuro de sincronização em nuvem.
-
-3. Sem telemetria automática
-O app não envia dados do usuário para servidores remotos no momento, sem consentimento explícito. Qualquer telemetria futura será limitada a diagnósticos anônimos e exigirá seu consentimento, além de permitir que você a revogue a qualquer momento.
-
-4. Serviço de sincronização premium futuro
-Podemos adicionar um serviço opcional de sincronização em nuvem premium no futuro, permitindo que dados do grupo, inclusive jogadores, sejam sincronizados por meio de uma conta de usuário e do Firebase/Firestore. Esse serviço é opcional e separado da experiência local principal. Seu uso pode exigir cadastro, autenticação e aceitação dos termos aplicáveis do serviço.
-
-5. Sem garantias
-O software é fornecido como está, sem garantia de qualquer tipo. O desenvolvedor não se responsabiliza por perdas de dados causadas por falhas do dispositivo, mudanças no sistema operacional, uso indevido ou exportações geridas pelo usuário.
-
-6. Backup e retenção
-É recomendável exportar backups regulares dos seus dados. O app não garante backup automático em nuvem, a menos que você habilite explicitamente um serviço futuro de sincronização.
-
-7. Alterações no app e nos termos
-O app pode ser atualizado, modificado ou descontinuado a qualquer momento. O uso contínuo após as atualizações constitui aceitação dos termos atuais.
-
-8. Contato
-Dúvidas podem ser enviadas pela página do projeto no GitHub ou pela vitrine do app.</string>
+    <string name="privacy_policy_text">Última atualização: setembro de 2026\n\nO Volei Manager é um aplicativo gratuito e de código aberto distribuído sob a licença GNU GPL v3.0.\n\nEsta política de privacidade explica como o app trata os dados atualmente e como serviços opcionais futuros podem funcionar.\n\n1. Dados processados localmente\nO aplicativo armazena localmente no seu dispositivo os dados que você cria ou importa, como nomes de jogadores, configurações de grupos, histórico de partidas, Elo e informações da fila de espera. Esses dados continuam sob o seu controle e ficam no aparelho, a menos que você decida explicitamente exportá-los ou compartilhá-los.\n\n2. Situação atual\nO app não coleta analytics anônimos, identificadores de publicidade ou telemetria por padrão. Não há rastreamento automático de usuários.\n\n3. Telemetria anônima futura e opcional\nPodemos introduzir telemetria anônima e opcional em uma versão futura. Ela só será ativada após consentimento explícito nas configurações do app, e você pode revogar esse consentimento a qualquer momento. Qualquer telemetria será limitada a métricas agregadas de diagnóstico e uso, como estabilidade do app ou uso de recursos, e não incluirá dados pessoais, nomes de jogadores, detalhes de partidas ou informações de contato.\n\n4. Sincronização em nuvem futura e opcional\nPodemos oferecer um recurso premium opcional para sincronizar dados de grupo, inclusive jogadores, por meio de uma conta de usuário com Firebase/Firestore. Esse serviço será separado da experiência local e exigirá que o usuário crie uma conta e faça login. Se você não usar esse recurso, seus dados continuam armazenados somente no seu dispositivo.\n\n5. Compartilhamento de dados e exportação\nO app não compartilha dados pessoais com terceiros por padrão. Qualquer ação de exportação ou compartilhamento de imagem é iniciada por você e fica fora do processamento automático do app.\n\n6. Permissões e suporte\nO aplicativo solicita apenas as permissões necessárias para importação/exportação de arquivos locais ou recursos relacionados do dispositivo. Dúvidas podem ser enviadas pela página do projeto ou pela vitrine do app.\n\n7. Contato e direitos\nVocê pode solicitar esclarecimentos, exclusão de dados armazenados localmente ou alteração de opções de consentimento a qualquer momento usando as configurações locais do app e, quando aplicável, as configurações da conta para sincronização premium.</string>
+    <string name="terms_of_use_text">Última atualização: setembro de 2026\n\nAo usar o Volei Manager, você concorda com estes termos de uso.\n\n1. Licença e natureza do software\nO Volei Manager é um software livre e de código aberto distribuído sob a licença GNU GPL v3.0. O app principal foi pensado para funcionar como uma ferramenta local-first para organizar partidas recreativas de vôlei.\n\n2. Uso local-first\nO aplicativo é destinado principalmente ao uso pessoal e recreativo. Você é responsável pelos dados que adiciona ao app, incluindo informações de jogadores e histórico de partidas. Seus dados permanecem armazenados no seu aparelho, a menos que você escolha usar uma exportação opcional ou um recurso futuro de sincronização em nuvem.\n\n3. Sem telemetria automática\nO app não envia dados do usuário para servidores remotos no momento, sem consentimento explícito. Qualquer telemetria futura será limitada a diagnósticos anônimos e exigirá seu consentimento, além de permitir que você a revogue a qualquer momento.\n\n4. Serviço de sincronização premium futuro\nPodemos adicionar um serviço opcional de sincronização em nuvem premium no futuro, permitindo que dados do grupo, inclusive jogadores, sejam sincronizados por meio de uma conta de usuário e do Firebase/Firestore. Esse serviço é opcional e separado da experiência local principal. Seu uso pode exigir cadastro, autenticação e aceitação dos termos aplicáveis do serviço.\n\n5. Sem garantias\nO software é fornecido como está, sem garantia de qualquer tipo. O desenvolvedor não se responsabiliza por perdas de dados causadas por falhas do dispositivo, mudanças no sistema operacional, uso indevido ou exportações geridas pelo usuário.\n\n6. Backup e retenção\nÉ recomendável exportar backups regulares dos seus dados. O app não garante backup automático em nuvem, a menos que você habilite explicitamente um serviço futuro de sincronização.\n\n7. Alterações no app e nos termos\nO app pode ser atualizado, modificado ou descontinuado a qualquer momento. O uso contínuo após as atualizações constitui aceitação dos termos atuais.\n\n8. Contato\nDúvidas podem ser enviadas pela página do projeto no GitHub ou pela vitrine do app.</string>
     <string name="side_menu">Menu lateral</string>
     <string name="victorious_team">Vitória do Time %1$s?</string>
     <string name="no_games">Nenhum jogo</string>
