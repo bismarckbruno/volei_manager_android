@@ -10,6 +10,7 @@ plugins {
 android {
     namespace = "com.bismarck.voleimanager.app"
     compileSdk = 37
+    ndkVersion = "30.0.16138531"
 
     defaultConfig {
         applicationId = "com.bismarck.voleimanager.app"
