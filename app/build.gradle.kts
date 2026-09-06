@@ -1,10 +1,25 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+// Carrega as credenciais do keystore de release a partir de keystore.properties (nunca commitado
+// - veja keystore.properties.template). Isso garante que TODO build de release (seja pelo
+// assistente "Generate Signed Bundle" do Android Studio, seja via linha de comando/CI) use
+// sempre o mesmo arquivo e a mesma chave, evitando que uma versão publicada acabe assinada com
+// um keystore diferente de uma anterior - cenário que quebra a atualização do app para quem já o
+// instalou (Play Store exige o mesmo certificado de assinatura entre versões; um APK assinado
+// com uma chave diferente da build anterior só instala se o usuário desinstalar a versão antiga).
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -26,12 +41,26 @@ android {
         localeFilters.addAll(listOf("en", "pt-rBR", "es"))
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             ndk {
                 debugSymbolLevel = "FULL"
+            }
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

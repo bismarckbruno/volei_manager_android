@@ -122,6 +122,14 @@ User settings are persisted in `SharedPreferences("volei")` directly from the Vi
 - **Annotation processing**: KSP (not kapt) — Room compiler is `ksp(libs.androidx.room.compiler)`
 - **Run**: Open in Android Studio → Sync Gradle → Run on emulator or device (Android 7.0+)
 - **No CI scripts** or test commands beyond the default `./gradlew test` / `./gradlew connectedAndroidTest`
+- **Release signing**: `app/build.gradle.kts` wires a `release` `signingConfig` from a local, git-ignored
+  `keystore.properties` (template at `keystore.properties.template`). Copy the template, point it at the
+  **one** release keystore that has always been used for this app, and never regenerate/replace that
+  keystore — signing a release with a different key than the previous one makes the update
+  uninstallable for existing users (Play rejects/`INSTALL_FAILED_UPDATE_INCOMPATIBLE`s the mismatched
+  APK, forcing them to uninstall first). Prefer `./gradlew bundleRelease` (uses this fixed config)
+  over Android Studio's "Generate Signed Bundle" wizard, which encourages re-picking a keystore file
+  by hand each time.
 
 ---
 

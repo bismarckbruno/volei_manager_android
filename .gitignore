@@ -15,3 +15,9 @@
 local.properties
 .idea
 gradle
+
+# Keystore de assinatura de release - nunca deve ser commitado.
+# Use SEMPRE o mesmo arquivo/senha em toda máquina (veja keystore.properties.template).
+keystore.properties
+*.jks
+*.keystore
