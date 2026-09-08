@@ -117,4 +117,7 @@ dependencies {
 
     // Play In-App Review
     implementation(libs.play.review.ktx)
+
+    // Força versão mais nova de fragment (play-review-ktx traz 1.1.0 desatualizado como transitiva)
+    implementation(libs.androidx.fragment)
 }
