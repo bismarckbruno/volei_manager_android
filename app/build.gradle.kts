@@ -22,6 +22,17 @@ val keystoreProperties = Properties().apply {
     }
 }
 
+// Telemetria opcional (Firebase Analytics + Crashlytics): os plugins do Firebase exigem um
+// google-services.json válido (baixado do console Firebase) já na fase de configuração do Gradle,
+// então só os aplicamos quando o arquivo existir localmente. Sem ele, o app builda normalmente e
+// simplesmente não inclui a telemetria (TelemetryManager trata a ausência do Firebase).
+val googleServicesFile = file("google-services.json")
+val firebaseEnabled = googleServicesFile.exists()
+if (firebaseEnabled) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
 android {
     namespace = "com.bismarck.voleimanager.app"
     compileSdk = 37
@@ -120,4 +131,11 @@ dependencies {
 
     // Força versão mais nova de fragment (play-review-ktx traz 1.1.0 desatualizado como transitiva)
     implementation(libs.androidx.fragment)
+
+    // Telemetria opcional (Firebase Analytics + Crashlytics) - ver TelemetryManager.
+    // As dependências são sempre incluídas; sem um google-services.json local (plugins acima),
+    // o Firebase simplesmente não inicializa e o TelemetryManager desativa a coleta com segurança.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
 }

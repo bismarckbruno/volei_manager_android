@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Necessária apenas para a telemetria opcional (Firebase Analytics/Crashlytics, ver
+         TelemetryManager). Nenhum dado é enviado antes do usuário optar explicitamente
+         (veja os meta-data "collection_enabled" abaixo, ambos false por padrão). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -13,6 +18,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.VoleiManager"
         tools:targetApi="31">
+
+        <!-- Telemetria desligada por padrão: só é habilitada em runtime pelo TelemetryManager
+             após o usuário dar consentimento explícito (TelemetryConsentDialog). Isso garante que
+             nenhum evento/crash seja coletado antes do opt-in, mesmo em caso de crash no
+             primeiro uso do app. -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -113,6 +113,36 @@ User settings are persisted in `SharedPreferences("volei")` directly from the Vi
 | `show_toll` | Boolean | false |
 | `is_supporter` | Boolean | false |
 | `team_color` | String (`TeamColorTheme` enum name) | `DEFAULT` |
+| `telemetry_enabled` | Boolean | false |
+
+---
+
+## Telemetry (opt-in, Firebase Analytics + Crashlytics)
+
+The app ships an **optional, anonymous** telemetry feature (`util/TelemetryManager.kt`), matching the
+promise in `PRIVACY_POLICY.md` section 2: it is off by default and only turns on after the user
+explicitly consents (`TelemetryConsentDialog`, shown once on first run, reachable again from the nav
+drawer menu — same `Switch` pattern as `show_elo`/`show_toll`).
+
+- **Gating**: `AndroidManifest.xml` sets `firebase_analytics_collection_enabled` /
+  `firebase_crashlytics_collection_enabled` to `false` by default. `TelemetryManager.applyConsent`
+  is the only place that flips Firebase collection on/off at runtime, driven by the
+  `telemetry_enabled` SharedPreferences flag (loaded/persisted in `VoleiViewModel` exactly like the
+  other prefs above). Revoking consent also calls `resetAnalyticsData()`.
+- **No PII, ever**: every logging method on `TelemetryManager` is typed (no free-form
+  `logEvent("string", bundle)` calls elsewhere in the codebase) and only accepts enums/counts
+  (e.g. `groupType`, `teamSize`, `csvType`) — never player names, group names, or match content.
+  When adding a new business event, add a new typed method to `TelemetryManager` instead of calling
+  Firebase directly from the ViewModel.
+- **Missing `google-services.json`**: the Firebase Gradle plugins (`google-services`,
+  `firebase-crashlytics`) are only applied in `app/build.gradle.kts` when that file exists locally
+  (same conditional pattern as `keystore.properties`/`signingConfigs`). The Firebase Gradle BoM +
+  library dependencies are always included, and `TelemetryManager` wraps every Firebase access in a
+  try/catch so the app builds and runs normally without a configured Firebase project — telemetry
+  is just a safe no-op in that case (see `TelemetryManagerTest.kt`).
+- Currently instrumented events: `group_created`, `match_finished`, `teams_rebalanced`,
+  `streak_break_rebalance`, `backup_exported`/`backup_imported`, `csv_exported`/`csv_imported`, plus
+  `Crashlytics.recordException` on import/export failures.
 
 ---
 

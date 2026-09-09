@@ -37,6 +37,7 @@ import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.PositionAssigner
 import com.bismarck.voleimanager.app.util.TeamBalancer
+import com.bismarck.voleimanager.app.util.TelemetryManager
 import com.bismarck.voleimanager.app.util.TollCalculator
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -579,6 +580,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _isSupporter = MutableStateFlow(false)
     val isSupporter: StateFlow<Boolean> = _isSupporter.asStateFlow()
 
+    private val _telemetryEnabled = MutableStateFlow(false)
+    val telemetryEnabled: StateFlow<Boolean> = _telemetryEnabled.asStateFlow()
+
+    /** True apenas antes do usuário responder ao diálogo de consentimento de telemetria pela
+     *  primeira vez (nunca mais volta a ser true depois disso, mesmo que ele desative depois). */
+    private val _showTelemetryConsentPrompt = MutableStateFlow(false)
+    val showTelemetryConsentPrompt: StateFlow<Boolean> = _showTelemetryConsentPrompt.asStateFlow()
+
     private val _teamColorTheme = MutableStateFlow(TeamColorTheme.DEFAULT)
     val teamColorTheme: StateFlow<TeamColorTheme> = _teamColorTheme.asStateFlow()
 
@@ -1000,6 +1009,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (!isSupporter) setTeamColorTheme(TeamColorTheme.DEFAULT)
     }
 
+    /**
+     * Registra a escolha de consentimento de telemetria (opt-in/opt-out), liga/desliga a coleta
+     * no [TelemetryManager] e marca que o diálogo já foi respondido (não é mostrado de novo
+     * automaticamente, mas pode ser reaberto pelo menu para revisão).
+     */
+    fun setTelemetryEnabled(enabled: Boolean) {
+        _telemetryEnabled.value = enabled
+        _showTelemetryConsentPrompt.value = false
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putBoolean(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED, enabled).apply()
+        TelemetryManager.applyConsent(getApplication(), enabled)
+    }
+
     fun setTeamColorTheme(theme: TeamColorTheme) {
         _teamColorTheme.value = theme
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
@@ -1180,6 +1202,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _showElo.value = prefs.getBoolean("show_elo", false)
         _showToll.value = prefs.getBoolean("show_toll", false)
         _isSupporter.value = prefs.getBoolean("is_supporter", false)
+        _telemetryEnabled.value = prefs.getBoolean(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED, false)
+        _showTelemetryConsentPrompt.value = !prefs.contains(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED)
+        TelemetryManager.init(getApplication(), _telemetryEnabled.value)
         _teamColorTheme.value = try {
             TeamColorTheme.valueOf(prefs.getString("team_color", "DEFAULT")!!)
         } catch (e: Exception) {
@@ -1483,6 +1508,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         repository.saveGroupConfig(cfg)
         // Garantir que o load use o cfg salvo (faz reset e tentativa de restauração)
         loadGroupConfig(normalizedName)
+        TelemetryManager.logGroupCreated(getApplication(), cfg.groupType, cfg.balancingMode)
     }
 
     private fun getUsageCountMap(date: String): Map<Int, Int> {
@@ -2140,6 +2166,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     endTimestamp = endTimestamp
                 )
             )
+            val conf = _currentGroupConfig.value
+            TelemetryManager.logMatchFinished(
+                getApplication(),
+                groupType = conf.groupType,
+                teamSize = conf.teamSize,
+                streakBroken = conf.victoryLimit > 0 && _currentStreak.value >= conf.victoryLimit
+            )
             _teamA.value = emptyList(); _teamB.value = emptyList()
             resetScoresAndPointIndicator()
             _currentMatchStartTimestamp.value = null
@@ -2166,6 +2199,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun startNextRoundRebalance(conf: GroupConfig) {
         if (conf.teamSize <= 0) return
+        TelemetryManager.logTeamsRebalanced(getApplication(), conf.groupType, conf.balancingMode)
         _rebalancedPlayerIds.value = emptySet()
         _autoSelectedLoserPlayerIds.value = emptySet()
         val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
@@ -2199,6 +2233,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         if (_currentStreak.value >= conf.victoryLimit) {
             _currentStreak.value = 0; _streakOwner.value = null
+            TelemetryManager.logStreakBreakRebalance(getApplication(), conf.groupType)
 
             val sortedWinners = TeamBalancer.groupAndInterleave(activeWinners) { getEffectiveGames(it) }
             val winnersToKeep = sortedWinners.take(conf.teamSize * 2)
@@ -2680,6 +2715,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun importData(uri: Uri, type: CsvType, context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (type == CsvType.BACKUP_COMPLETO) {
+                TelemetryManager.logBackupImported(context)
+            } else {
+                TelemetryManager.logCsvImported(context, type.name)
+            }
             try {
                 val contentResolver = context.contentResolver
                 if (type == CsvType.BACKUP_COMPLETO) {
@@ -2971,6 +3011,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } catch (e: Exception) {
                 Log.e("Import", "Erro: ${e.message}")
                 _uiMessage.value = context.getString(R.string.import_error_generic)
+                TelemetryManager.recordException(e)
             }
         }
     }
@@ -3020,6 +3061,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } catch (e: Exception) {
                 Log.e("Import", "Erro ao mesclar importação: ${e.message}")
                 _uiMessage.value = getApplication<Application>().getString(R.string.import_error_generic)
+                TelemetryManager.recordException(e)
             }
             _pendingMergeImport.value = null
         }
@@ -3091,6 +3133,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun exportData(context: Context, type: CsvType, fileName: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (type == CsvType.BACKUP_COMPLETO) {
+                TelemetryManager.logBackupExported(context)
+            } else {
+                TelemetryManager.logCsvExported(context, type.name)
+            }
             val safeFileName = fileName.replace(Regex("[^a-zA-Z0-9_\\-\\.]"), "")
             val extension = if (type == CsvType.BACKUP_COMPLETO) "vlz" else "xlsx"
             val finalName =
@@ -3230,6 +3277,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             context.startActivity(chooser)
         } catch (e: Exception) {
             Log.e("Export", context.getString(R.string.error, e.message))
+            TelemetryManager.recordException(e)
         }
     }
 

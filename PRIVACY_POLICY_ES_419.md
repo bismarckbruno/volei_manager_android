@@ -17,17 +17,19 @@ La aplicación almacena solo los datos que usted proporciona manualmente en la b
 
 Por defecto, la app no recopila identificadores personales, identificadores de publicidad, ubicación, datos de contacto ni comportamiento de navegación. No se recopilan automáticamente datos personales sensibles.
 
-### 2. Telemetría Anónima Opcional (Funcionalidad Futura)
-Podría añadirse una función opcional de telemetría anónima en una versión futura. Si se implementa, solo se habilitará después de que usted acepte explícitamente mediante una pantalla de consentimiento clara dentro de la app. El objetivo de esta telemetría es comprender el uso de la app, la estabilidad y el rendimiento, no perfilar a personas.
+### 2. Telemetría Anónima (Análisis de Uso e Informes de Fallos)
+La app incluye una función opcional y anónima de telemetría, con **Firebase Analytics** y **Firebase Crashlytics** (Google). Solo se habilita después de que usted acepte explícitamente mediante un diálogo claro mostrado en el primer uso de la app (o luego, desde el menú de configuración). El objetivo de esta telemetría es comprender el uso de la app, la estabilidad y el rendimiento, no perfilar a personas.
 
-Si está habilitada, la telemetría puede incluir información agregada, como:
+Ningún dato se recopila antes de su consentimiento: la recolección de telemetría está desactivada por defecto en la app y solo se activa en respuesta a su consentimiento explícito.
+
+Cuando está habilitada, la telemetría puede incluir información agregada, como:
 * Versión de la app;
 * Versión de Android;
 * Información básica de plataforma/compatibilidad;
-* Datos anónimos de fallos y errores;
-* Eventos de uso de funciones (por ejemplo, "sorteo ejecutado" o "partido finalizado"), sin identificadores personales ni del grupo.
+* Datos anónimos de fallos y errores (mediante Firebase Crashlytics);
+* Eventos de uso de funciones (por ejemplo, "grupo creado", "partido finalizado", "equipos rebalanceados", "rebalanceo por racha de victorias", "backup/CSV exportado o importado"), sin identificadores personales ni del grupo.
 
-Estos datos no incluirán nombres de jugadores, detalles de partidos, nombres de grupos, contactos ni contenido bruto ingresado en la app. No se usarán para identificarle personalmente. Puede revocar el consentimiento en cualquier momento desde la configuración de la app, y la recolección de telemetría se detendrá cuando se retire el consentimiento.
+Estos datos no incluyen nombres de jugadores, detalles de partidos, nombres de grupos, contactos ni contenido bruto ingresado en la app. No se usan para identificarle personalmente. Puede revocar el consentimiento en cualquier momento desde el menú de configuración de la app (el mismo interruptor usado para activarla), y la recolección de telemetría se detiene de inmediato al retirar el consentimiento.
 
 ### 3. Almacenamiento Local
 Todos los datos principales de la app se almacenan localmente en su dispositivo mediante la base de datos interna (**Room/SQLite**). No se envían datos rutinarios de uso a servidores externos como parte de la funcionalidad base.
@@ -46,10 +48,10 @@ La aplicación no vende sus datos ni comparte sus datos locales con terceros com
 Para cualquier funcionalidad futura opcional de telemetría o sincronización premium, el intercambio se limitará a lo necesario para prestar ese servicio y seguirá el consentimiento y las divulgaciones definidas en el aviso correspondiente dentro de la app.
 
 ### 6. Servicios de Terceros
-La app no utiliza actualmente servicios de analítica, redes publicitarias ni seguimiento de comportamiento. Si en el futuro se activa telemetría opcional o sincronización en la nube, los proveedores implicados (por ejemplo, Firebase/Firestore) se usarán solo para prestar esa funcionalidad concreta.
+Si opta por la función opcional de telemetría anónima descrita en la sección 2, la app utiliza **Firebase Analytics** y **Firebase Crashlytics** (Google) para recopilar esos datos anónimos y agregados. La app no utiliza ningún otro servicio de analítica, red publicitaria ni seguimiento de comportamiento. Si en el futuro se introduce una sincronización premium, los proveedores implicados (por ejemplo, Firebase/Firestore) se usarán solo para prestar esa funcionalidad concreta.
 
 ### 7. Permisos
-La app no solicita permisos especiales del dispositivo, como cámara, micrófono o ubicación. Si en el futuro las funciones en la nube requieren permisos o servicios adicionales, se solicitarán solo cuando sean necesarios y se explicarán claramente al usuario.
+La app solicita el permiso de INTERNET, usado únicamente para enviar la telemetría anónima descrita en la sección 2 cuando usted da su consentimiento (no se envía ningún dato mientras la telemetría esté desactivada). La app no solicita otros permisos especiales del dispositivo, como cámara, micrófono o ubicación. Si en el futuro las funciones en la nube requieren permisos o servicios adicionales, se solicitarán solo cuando sean necesarios y se explicarán claramente al usuario.
 
 ### 8. Eliminación de Datos
 Usted controla sus datos locales:

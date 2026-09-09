@@ -115,6 +115,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val allPlayers by viewModel.players.collectAsState()
     val showElo by viewModel.showElo.collectAsState()
     val showToll by viewModel.showToll.collectAsState()
+    val telemetryEnabled by viewModel.telemetryEnabled.collectAsState()
+    val showTelemetryConsentPrompt by viewModel.showTelemetryConsentPrompt.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val showScore = groupConfig.scoreEnabled
     val groupsSortedByRecent by viewModel.groupsSortedByRecentHistory.collectAsState()
@@ -137,6 +139,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showDeleteGroupDialog by remember { mutableStateOf<String?>(null) }
     var showAddPlayerDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showTelemetryConsentDialog by remember { mutableStateOf(false) }
     var showRateAppDialog by remember { mutableStateOf(false) }
     var showSendQuestionDialog by remember { mutableStateOf(false) }
     var playerToDelete by remember { mutableStateOf<Player?>(null) }
@@ -895,6 +898,21 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     showImportDialog = true; scope.launch { drawerState.close() }
                                 }
                             )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.Info, null) },
+                                label = { Text(stringResource(R.string.telemetry_consent_menu_item)) },
+                                selected = false,
+                                badge = { Switch(checked = telemetryEnabled, onCheckedChange = null) },
+                                tooltipText = stringResource(R.string.telemetry_consent_menu_tooltip),
+                                onClick = {
+                                    if (telemetryEnabled) {
+                                        viewModel.setTelemetryEnabled(false)
+                                    } else {
+                                        showTelemetryConsentDialog = true
+                                        scope.launch { drawerState.close() }
+                                    }
+                                }
+                            )
                             HorizontalDivider(
                                 Modifier.padding(vertical = 8.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
@@ -1010,6 +1028,18 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         )
                     }
                 })
+        }
+        if (showTelemetryConsentDialog || showTelemetryConsentPrompt) {
+            TelemetryConsentDialog(
+                onAllow = {
+                    viewModel.setTelemetryEnabled(true)
+                    showTelemetryConsentDialog = false
+                },
+                onDeny = {
+                    viewModel.setTelemetryEnabled(false)
+                    showTelemetryConsentDialog = false
+                }
+            )
         }
         playerToDelete?.let { player ->
             AlertDialog(

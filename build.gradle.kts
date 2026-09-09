@@ -4,4 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.ksp) apply false
+    // Aplicados condicionalmente em app/build.gradle.kts, somente quando google-services.json
+    // existir (veja o mesmo padrão usado para keystore.properties).
+    alias(libs.plugins.google.services) apply false
+    alias(libs.plugins.firebase.crashlytics) apply false
 }

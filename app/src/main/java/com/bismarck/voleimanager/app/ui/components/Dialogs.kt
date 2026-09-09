@@ -106,6 +106,27 @@ fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+fun TelemetryConsentDialog(onAllow: () -> Unit, onDeny: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDeny,
+        title = { Text(stringResource(R.string.telemetry_consent_title, stringResource(R.string.app_name))) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.telemetry_consent_body))
+            }
+        },
+        confirmButton = {
+            Button(onClick = onAllow) { Text(stringResource(R.string.telemetry_consent_allow)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDeny) {
+                Text(stringResource(R.string.telemetry_consent_deny), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    )
+}
+
+@Composable
 fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var newName by remember { mutableStateOf(oldName) }
     val focusRequester = remember { FocusRequester() }

@@ -17,17 +17,19 @@ The app stores only the data you manually provide in the local database, includi
 
 By default, the app does not collect personal identifiers, advertising identifiers, location, contact information, or browsing behavior. No sensitive personal data is collected automatically.
 
-### 2. Optional Anonymous Telemetry (Future Feature)
-We may introduce an optional anonymous telemetry feature in a future version. If implemented, it will only be enabled after you explicitly opt in through a clear consent screen in the app. The purpose of this telemetry is to understand feature usage, app stability, and performance issues, not to profile individuals.
+### 2. Anonymous Telemetry (Analytics & Crash Reporting)
+The app includes an optional, anonymous telemetry feature, powered by **Firebase Analytics** and **Firebase Crashlytics** (Google). It is only enabled after you explicitly opt in through a clear consent dialog shown on first use (or later from the app's settings menu). The purpose of this telemetry is to understand feature usage, app stability, and performance issues, not to profile individuals.
 
-If enabled, the telemetry may include aggregated information such as:
+No data is collected before you opt in: telemetry collection is disabled by default at the app level, and is only turned on in response to your explicit consent.
+
+When enabled, the telemetry may include aggregated information such as:
 * App version;
 * Android version;
 * Basic device/platform information required for compatibility checks;
-* Anonymous crash and error data;
-* Feature usage events (for example: "team draw executed" or "match finished"), without personal or group identifiers.
+* Anonymous crash and error data (via Firebase Crashlytics);
+* Feature usage events (for example: "group created", "match finished", "teams rebalanced", "streak-break rebalance", "backup/CSV exported or imported"), without personal or group identifiers.
 
-This data will not include player names, match details, group names, contact information, or any raw content you enter into the app. It will not be used to identify you personally. You may revoke consent at any time in the app settings, and telemetry collection will stop once consent is withdrawn.
+This data does not include player names, match details, group names, contact information, or any raw content you enter into the app. It is not used to identify you personally. You may revoke consent at any time in the app's settings menu (the same toggle used to opt in), and telemetry collection stops immediately once consent is withdrawn.
 
 ### 3. Local Storage
 All core app data is stored locally on your device using the app's internal database (**Room/SQLite**). No routine data is sent to external servers as part of the app's base functionality.
@@ -46,10 +48,10 @@ The app does not sell your data and does not share your local data with third pa
 For any future optional telemetry or premium sync feature, sharing will be limited to what is necessary to provide that feature and will follow the consent and disclosures defined in the relevant in-app notice.
 
 ### 6. Third-Party Services
-The app does not currently use analytics, ad networks, or behavioral tracking services. If optional telemetry or premium sync is introduced in the future, the service providers involved (such as Firebase/Firestore) will be used only as needed to deliver that specific feature.
+If you opt in to the anonymous telemetry feature described in section 2, the app uses **Firebase Analytics** and **Firebase Crashlytics** (Google) to collect that anonymous, aggregated data. The app does not use any other analytics, ad networks, or behavioral tracking services. If a future premium sync is introduced, the service providers involved (such as Firebase/Firestore) will be used only as needed to deliver that specific feature.
 
 ### 7. Permissions
-The app does not currently request special device permissions such as camera, microphone, or location. If future cloud features require additional permissions or services, they will be requested only when required for that feature and clearly explained to the user.
+The app requests the INTERNET permission, used only to send the anonymous telemetry described in section 2 when you opt in (no data is sent while telemetry is disabled). The app does not request other special device permissions such as camera, microphone, or location. If future cloud features require additional permissions or services, they will be requested only when required for that feature and clearly explained to the user.
 
 ### 8. Data Deletion
 You control your local data:
