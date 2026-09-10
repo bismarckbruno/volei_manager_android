@@ -369,7 +369,9 @@
     <string name="no_entries">No entries</string>
     <string name="options_menu">Options menu</string>
     <string name="victory_limit">Victory limit: %1$d</string>
+    <string name="victory_limit_tooltip">Maximum number of consecutive wins before the streak is broken, either by splitting the team or letting it rest a round.</string>
     <string name="players_per_team">Players per team: %1$d</string>
+    <string name="players_per_team_tooltip">Number of players on court per team. Other players present go to the waiting list.</string>
     <string name="replace_player">Replace %1$s</string>
     <string name="substitution_select_hint">Select who will replace the selected player.</string>
     <string name="substitution_preview">%1$s will be replaced by %2$s</string>

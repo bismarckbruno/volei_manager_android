@@ -369,7 +369,9 @@
     <string name="no_entries">Ningún registro</string>
     <string name="options_menu">Menú de opciones</string>
     <string name="victory_limit">Límite de victorias: %1$d</string>
+    <string name="victory_limit_tooltip">Número máximo de victorias seguidas antes de que la racha se rompa, ya sea dividiendo el equipo o dejándolo descansar una ronda.</string>
     <string name="players_per_team">Jugadores por equipo: %1$d</string>
+    <string name="players_per_team_tooltip">Cantidad de jugadores en cancha por equipo. Los demás jugadores presentes van a la lista de espera.</string>
     <string name="replace_player">Sustituir %1$s</string>
     <string name="substitution_select_hint">Selecciona quién reemplazará a la persona elegida.</string>
     <string name="substitution_preview">%1$s será sustituido(a) por %2$s</string>

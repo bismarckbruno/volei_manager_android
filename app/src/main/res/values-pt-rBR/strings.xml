@@ -376,7 +376,9 @@
     <string name="no_entries">Nenhum cadastro</string>
     <string name="options_menu">Menu de opções</string>
     <string name="victory_limit">Limite de vitórias: %1$d</string>
+    <string name="victory_limit_tooltip">Número máximo de vitórias seguidas antes da sequência ser quebrada, seja separando o time, seja deixando-o descansar uma rodada.</string>
     <string name="players_per_team">Jogadores por time: %1$d</string>
+    <string name="players_per_team_tooltip">Quantidade de jogadores em quadra por time. Os demais jogadores presentes vão para a fila de espera.</string>
     <string name="replace_player">Substituir %1$s</string>
     <string name="substitution_select_hint">Selecione quem vai entrar no lugar da pessoa escolhida.</string>
     <string name="substitution_preview">%1$s será substituído(a) por %2$s</string>

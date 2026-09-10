@@ -804,16 +804,18 @@ fun GroupConfigDialog(
 
     // Bloco direito: tamanhos/limites (sliders) + interruptores.
     val teamSizeAndTogglesContent: @Composable ColumnScope.() -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Groups,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.players_per_team, teamSize.roundToInt()), fontWeight = FontWeight.Medium)
-        }
+        TooltipLabelRow(
+            label = stringResource(R.string.players_per_team, teamSize.roundToInt()),
+            tooltip = stringResource(R.string.players_per_team_tooltip),
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Groups,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        )
         Slider(
             value = teamSize,
             onValueChange = {
@@ -822,18 +824,20 @@ fun GroupConfigDialog(
             valueRange = groupType.minTeamSize.toFloat()..groupType.maxTeamSize.toFloat(),
             steps = (groupType.maxTeamSize - groupType.minTeamSize) - 1
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                painter = painterResource(R.drawable.crown_icon),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.victory_limit, victoryLimit.roundToInt()), fontWeight = FontWeight.Medium)
-        }
+        TooltipLabelRow(
+            label = stringResource(R.string.victory_limit, victoryLimit.roundToInt()),
+            tooltip = stringResource(R.string.victory_limit_tooltip),
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.crown_icon),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        )
         Slider(
             value = victoryLimit,
             onValueChange = { victoryLimit = it.coerceIn(2f, groupType.maxTeamSize.toFloat()) },
@@ -1014,6 +1018,56 @@ private fun BalancingModeOptionRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+/** Rótulo com ícone (usado acima de um Slider) que revela sua explicação via toque longo. */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun TooltipLabelRow(
+    label: String,
+    tooltip: String,
+    icon: @Composable () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val haptic = LocalHapticFeedback.current
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = {
+            PlainTooltip {
+                Text(
+                    text = tooltip,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        state = tooltipState
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .combinedClickable(
+                    onClick = { tooltipState.dismiss() },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            tooltipState.show()
+                        }
+                    }
+                )
+                // O clip em CircleShape arredonda as pontas de um Row largo, o que corta um
+                // ícone encostado bem na borda esquerda; este padding afasta o conteúdo da
+                // curva sem reduzir a área de toque/ripple (que continua no bounds do clip).
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+        ) {
+            icon()
+            Spacer(Modifier.width(8.dp))
+            Text(label, fontWeight = FontWeight.Medium)
         }
     }
 }

@@ -64,6 +64,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Assina o build de debug com o mesmo keystore de release (quando disponível
+            // localmente via keystore.properties) para evitar o conflito "assinatura diferente"
+            // ao instalar builds de teste no mesmo aparelho que já tem a versão da Play Store.
+            // Sem o arquivo (ex.: outro dev, CI), cai no keystore de debug padrão do Android.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
