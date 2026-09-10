@@ -38,6 +38,8 @@
     <string name="telemetry_consent_body">Send anonymous usage and crash data. Never includes player, group, or match names. You can change this anytime in the settings menu.</string>
     <string name="telemetry_consent_allow">Allow</string>
     <string name="telemetry_consent_deny">Not now</string>
+    <string name="update_downloaded_message">An update has been downloaded and is ready to install.</string>
+    <string name="update_downloaded_action">Restart</string>
     <string name="telemetry_consent_menu_item">Share anonymous usage data</string>
     <string name="telemetry_consent_menu_tooltip">Optional and anonymous: helps us understand feature usage and app stability. No player, group, or match data is ever sent. See the Privacy Policy for details.</string>
     <string name="data">Data</string>

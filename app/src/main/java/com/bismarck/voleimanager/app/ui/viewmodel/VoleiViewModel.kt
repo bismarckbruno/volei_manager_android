@@ -66,6 +66,14 @@ const val MAX_GROUP_NAME_LENGTH = 20
 const val MAX_PLAYER_NAME_LENGTH = 24
 private const val AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS = 12L * 60L * 60L * 1000L
 private val REVIEW_REQUEST_MILESTONES = listOf(3, 10, 25)
+// Gatilho de fallback do pedido de avaliação (ver registerCompletedMatchForReviewFallback):
+// cobre quem nunca aciona os marcos de "limpeza válida" acima.
+private const val REVIEW_FALLBACK_MIN_DISTINCT_DAYS = 2
+private const val REVIEW_FALLBACK_MIN_MATCHES_FINISHED = 7
+private const val KEY_MATCHES_FINISHED_COUNT = "matches_finished_count"
+private const val KEY_LAST_MATCH_FINISHED_DATE = "last_match_finished_date"
+private const val KEY_DISTINCT_MATCH_DAYS_COUNT = "distinct_match_days_count"
+private const val KEY_REVIEW_FALLBACK_DONE = "review_fallback_done"
 
 /**
  * Cabeçalho do CSV de jogadores — fonte única usada tanto pela exportação real
@@ -1054,6 +1062,44 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val milestoneKey = "review_milestone_${milestone}_done"
         if (prefs.getBoolean(milestoneKey, false)) return
         prefs.edit().putBoolean(milestoneKey, true).apply()
+        _shouldRequestReview.value = true
+    }
+
+    /**
+     * Gatilho de fallback do pedido de avaliação, para cobrir quem nunca usa "Limpar jogo
+     * atual" e por isso nunca aciona [registerQualifyingGameClear]. Conta partidas finalizadas
+     * (cada chamada de [finishGame]) e em quantos dias diferentes (calendário) isso aconteceu.
+     * A partir do 2º dia diferente com partida finalizada - ou seja, checado logo após o fim da
+     * primeira partida desse 2º dia, e continuando a cada partida seguinte caso ainda não tenha
+     * disparado -, sugere a avaliação uma única vez assim que o total acumulado de partidas
+     * finalizadas atingir [REVIEW_FALLBACK_MIN_MATCHES_FINISHED], desde que nenhum marco de
+     * limpeza válida já tenha disparado o pedido (nesse caso o fluxo de marcos já cuida disso).
+     */
+    private fun registerCompletedMatchForReviewFallback() {
+        val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val lastMatchDay = prefs.getString(KEY_LAST_MATCH_FINISHED_DATE, null)
+        var distinctDaysCount = prefs.getInt(KEY_DISTINCT_MATCH_DAYS_COUNT, 0)
+        if (lastMatchDay != today) {
+            distinctDaysCount += 1
+            prefs.edit()
+                .putString(KEY_LAST_MATCH_FINISHED_DATE, today)
+                .putInt(KEY_DISTINCT_MATCH_DAYS_COUNT, distinctDaysCount)
+                .apply()
+        }
+
+        val newMatchCount = prefs.getInt(KEY_MATCHES_FINISHED_COUNT, 0) + 1
+        prefs.edit().putInt(KEY_MATCHES_FINISHED_COUNT, newMatchCount).apply()
+
+        if (prefs.getBoolean(KEY_REVIEW_FALLBACK_DONE, false)) return
+        if (distinctDaysCount < REVIEW_FALLBACK_MIN_DISTINCT_DAYS) return
+        if (newMatchCount < REVIEW_FALLBACK_MIN_MATCHES_FINISHED) return
+        val anyClearMilestoneReached = REVIEW_REQUEST_MILESTONES.any {
+            prefs.getBoolean("review_milestone_${it}_done", false)
+        }
+        if (anyClearMilestoneReached) return
+
+        prefs.edit().putBoolean(KEY_REVIEW_FALLBACK_DONE, true).apply()
         _shouldRequestReview.value = true
     }
 
@@ -2095,6 +2141,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val sA = _scoreA.value
         val sB = _scoreB.value
         if (cA.isEmpty() || cB.isEmpty()) return
+
+        registerCompletedMatchForReviewFallback()
 
         if (_streakOwner.value == winner) _currentStreak.value++ else {
             _streakOwner.value = winner; _currentStreak.value = 1

@@ -38,6 +38,8 @@
     <string name="telemetry_consent_body">Enviar dados anônimos de uso e de falhas. Nunca inclui nomes de jogadores, grupos ou partidas. Você pode mudar isso a qualquer momento no menu de configurações.</string>
     <string name="telemetry_consent_allow">Permitir</string>
     <string name="telemetry_consent_deny">Agora não</string>
+    <string name="update_downloaded_message">Uma atualização foi baixada e está pronta para instalar.</string>
+    <string name="update_downloaded_action">Reiniciar</string>
     <string name="telemetry_consent_menu_item">Compartilhar dados anônimos de uso</string>
     <string name="telemetry_consent_menu_tooltip">Opcional e anônimo: nos ajuda a entender o uso das funcionalidades e a estabilidade do app. Nenhum dado de jogador, grupo ou partida é enviado. Veja a Política de Privacidade para mais detalhes.</string>
     <string name="data">Dados</string>

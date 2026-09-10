@@ -42,8 +42,8 @@ android {
         applicationId = "com.bismarck.voleimanager.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.1.5"
+        versionCode = 9
+        versionName = "1.1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -137,6 +137,10 @@ dependencies {
 
     // Play In-App Review
     implementation(libs.play.review.ktx)
+
+    // Play In-App Update
+    implementation(libs.play.app.update)
+    implementation(libs.play.app.update.ktx)
 
     // Força versão mais nova de fragment (play-review-ktx traz 1.1.0 desatualizado como transitiva)
     implementation(libs.androidx.fragment)
