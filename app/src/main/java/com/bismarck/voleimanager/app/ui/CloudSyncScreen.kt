@@ -186,7 +186,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
             )
             if (currentUser != null) {
                 Text(
-                    currentUser?.displayName?.takeIf { it.isNotBlank() }
+                    currentUser?.nickname?.takeIf { it.isNotBlank() }
                         ?: currentUser?.email.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium
                 )

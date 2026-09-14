@@ -825,6 +825,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 lastPremiumSwitchAt = now
             )
         }
+        TelemetryManager.logGroupCloudSynced(
+            getApplication(),
+            target.groupType,
+            effectivePremiumPlanTier.value.name
+        )
     }
 
     // ---------------------------------------------------------------------------------------
@@ -840,12 +845,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _authInProgress = MutableStateFlow(false)
     val authInProgress: StateFlow<Boolean> = _authInProgress.asStateFlow()
 
-    /** Cria uma conta gratuita e já efetua o login. [onResult] recebe `null` em caso de sucesso,
-     *  ou uma mensagem de erro amigável para exibir no diálogo. */
-    fun signUpWithEmail(email: String, password: String, displayName: String, onResult: (String?) -> Unit) {
+    /** Cria uma conta gratuita e já efetua o login. [fullName]/[birthDate] ficam guardados para
+     *  uma futura verificação de elegibilidade de compra premium; [nickname] é o nome público
+     *  exibido no topo do app. [onResult] recebe `null` em caso de sucesso, ou uma mensagem de
+     *  erro amigável para exibir no diálogo. */
+    fun signUpWithEmail(
+        email: String,
+        password: String,
+        fullName: String,
+        nickname: String,
+        birthDate: String,
+        onResult: (String?) -> Unit
+    ) {
         _authInProgress.value = true
         viewModelScope.launch {
-            val error = AuthManager.signUp(email.trim(), password, displayName.trim())
+            val error = AuthManager.signUp(email.trim(), password, fullName.trim(), nickname.trim(), birthDate.trim())
             _authInProgress.value = false
             onResult(error)
         }
@@ -864,6 +878,35 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun signOut() {
         AuthManager.signOut()
+    }
+
+    /** Atualiza o apelido público, nome completo e data de nascimento do usuário logado. */
+    fun updateUserProfile(nickname: String, fullName: String, birthDate: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = AuthManager.updateProfile(nickname.trim(), fullName.trim(), birthDate.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Define (ou remove, se [base64] for `null`) a foto de perfil do usuário logado. */
+    fun updateProfilePhoto(base64: String?, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            onResult(AuthManager.updateProfilePhoto(base64))
+        }
+    }
+
+    /** Apaga a conta do usuário logado (Firebase Auth + perfil no Firestore). [onResult] recebe
+     *  `null` em caso de sucesso, ou uma mensagem de erro amigável (por exemplo, pedindo para
+     *  entrar novamente antes de apagar a conta, exigência de segurança do Firebase). */
+    fun deleteAccount(onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = AuthManager.deleteAccount()
+            _authInProgress.value = false
+            onResult(error)
+        }
     }
 
     // ---------------------------------------------------------------------------------------
@@ -904,6 +947,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         )
         repository.saveGroupConfig(cfg)
         loadGroupConfig(groupName)
+        TelemetryManager.logMemberJoinedViaCode(getApplication(), role.name)
         onResult(null)
     }
 
@@ -1658,6 +1702,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _telemetryEnabled.value = prefs.getBoolean(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED, false)
         _showTelemetryConsentPrompt.value = !prefs.contains(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED)
         TelemetryManager.init(getApplication(), _telemetryEnabled.value)
+        AuthManager.init(getApplication())
         _debugPremiumOverride.value =
             BuildConfig.DEBUG && prefs.getBoolean("debug_premium_override", false)
         _debugPremiumPlanTier.value = prefs.getString("debug_premium_plan_tier", null)?.let {

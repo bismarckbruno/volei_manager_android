@@ -118,6 +118,21 @@ object TelemetryManager {
         logEvent(context, "csv_imported", mapOf("csv_type" to csvType))
     }
 
+    /** Um grupo passa a ser sincronizado em nuvem (premium ativado para esse grupo). */
+    fun logGroupCloudSynced(context: Context, groupType: String, planTier: String) {
+        logEvent(context, "group_cloud_synced", mapOf("group_type" to groupType, "plan_tier" to planTier))
+    }
+
+    /** Um usuário entrou num grupo de outra pessoa usando um código de convite. */
+    fun logMemberJoinedViaCode(context: Context, role: String) {
+        logEvent(context, "member_joined_via_code", mapOf("role" to role))
+    }
+
+    /** Uma assinatura premium foi concluída com sucesso (Play Billing). */
+    fun logPremiumPurchased(context: Context, planTier: String, isAnnual: Boolean) {
+        logEvent(context, "premium_purchased", mapOf("plan_tier" to planTier, "is_annual" to isAnnual))
+    }
+
     /** Encaminha exceções não fatais relevantes (ex.: falha de import/export) ao Crashlytics. */
     fun recordException(throwable: Throwable) {
         if (!consentGranted) return

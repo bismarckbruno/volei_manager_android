@@ -23,6 +23,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -49,6 +50,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -71,11 +73,16 @@ import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.util.AppAuthUser
+import com.bismarck.voleimanager.app.util.decodeAvatarBase64
+import com.bismarck.voleimanager.app.util.loadBitmapForAvatarEditing
+import com.bismarck.voleimanager.app.util.compressAvatarBitmap
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
@@ -105,10 +112,11 @@ private fun userProfileTypeLabel(type: UserProfileType): String = when (type) {
 
 /**
  * Cabeçalho do menu lateral: substitui o nome estático do app por um avatar (foto de perfil
- * quando logado, placeholder caso contrário), o nome/apelido do usuário logado (ou o nome do
- * app, se deslogado), seu status de perfil (Organizador(a)/Auxiliar/Espectador(a), com sufixo
- * "Premium" para um(a) Espectador(a) premium) e um selo ao lado do nome quando é assinante.
- * Tocar no avatar abre um menu de login/cadastro (deslogado) ou logout (logado).
+ * quando logado e definida, placeholder caso contrário), o apelido público do usuário logado (ou
+ * o nome do app, se deslogado), seu status de perfil (Organizador(a)/Auxiliar/Espectador(a), com
+ * sufixo "Premium" para um(a) Espectador(a) premium) e um selo ao lado do nome quando é assinante.
+ * Tocar no avatar abre um menu de login/cadastro (deslogado) ou logout + edição de perfil/foto
+ * (logado).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,10 +129,15 @@ private fun DrawerAccountHeader(
     onDismissMenu: () -> Unit,
     onLoginClick: () -> Unit,
     onSignUpClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onEditPhotoClick: () -> Unit,
+    onEditProfileClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Box {
+            val avatarBitmap = remember(currentUser?.photoBase64) {
+                currentUser?.photoBase64?.let { decodeAvatarBase64(it) }
+            }
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -133,17 +146,39 @@ private fun DrawerAccountHeader(
                     .clickable { onAvatarClick() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Filled.Person,
-                    contentDescription = stringResource(R.string.account_avatar_content_description),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (avatarBitmap != null) {
+                    Image(
+                        bitmap = avatarBitmap.asImageBitmap(),
+                        contentDescription = stringResource(R.string.account_avatar_content_description),
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        Icons.Filled.Person,
+                        contentDescription = stringResource(R.string.account_avatar_content_description),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = onDismissMenu) {
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = onDismissMenu,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            ) {
                 if (currentUser == null) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.login_title)) }, onClick = onLoginClick)
                     DropdownMenuItem(text = { Text(stringResource(R.string.signup_title)) }, onClick = onSignUpClick)
                 } else {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (currentUser.photoBase64 != null) stringResource(R.string.edit_profile_photo_title)
+                                else stringResource(R.string.add_profile_photo_title)
+                            )
+                        },
+                        onClick = onEditPhotoClick
+                    )
+                    DropdownMenuItem(text = { Text(stringResource(R.string.edit_profile_title)) }, onClick = onEditProfileClick)
                     DropdownMenuItem(text = { Text(stringResource(R.string.logout)) }, onClick = onLogoutClick)
                 }
             }
@@ -152,7 +187,7 @@ private fun DrawerAccountHeader(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    currentUser?.displayName?.takeIf { it.isNotBlank() }
+                    currentUser?.nickname?.takeIf { it.isNotBlank() }
                         ?: currentUser?.email
                         ?: stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineSmall,
@@ -252,6 +287,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showJoinGroupDialog by remember { mutableStateOf(false) }
     var showLoginDialog by remember { mutableStateOf(false) }
     var showSignUpDialog by remember { mutableStateOf(false) }
+    var showEditProfilePhotoDialog by remember { mutableStateOf(false) }
+    var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountConfirmDialog by remember { mutableStateOf(false) }
     var showAccountMenu by remember { mutableStateOf(false) }
     var playerToDelete by remember { mutableStateOf<Player?>(null) }
 
@@ -276,6 +314,19 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
             }
         }
+    var pendingAvatarCropBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    val avatarPhotoPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val bitmap = withContext(Dispatchers.IO) { loadBitmapForAvatarEditing(context, uri) }
+                if (bitmap != null) {
+                    pendingAvatarCropBitmap = bitmap
+                }
+            }
+        }
+    }
     val csvImportMimeTypes = arrayOf(
         "text/*",
         "text/csv",
@@ -806,7 +857,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onDismissMenu = { accountMenuExpanded = false },
                                 onLoginClick = { accountMenuExpanded = false; showLoginDialog = true },
                                 onSignUpClick = { accountMenuExpanded = false; showSignUpDialog = true },
-                                onLogoutClick = { accountMenuExpanded = false; viewModel.signOut() }
+                                onLogoutClick = { accountMenuExpanded = false; viewModel.signOut() },
+                                onEditPhotoClick = { accountMenuExpanded = false; showEditProfilePhotoDialog = true },
+                                onEditProfileClick = { accountMenuExpanded = false; showEditProfileDialog = true }
                             )
                             Spacer(Modifier.height(16.dp))
 
@@ -1149,10 +1202,54 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (showSignUpDialog) SignUpDialog(
             inProgress = authInProgress,
             onDismiss = { showSignUpDialog = false },
-            onConfirm = { email, password, displayName, onResult ->
-                viewModel.signUpWithEmail(email, password, displayName, onResult)
+            onConfirm = { email, password, fullName, nickname, birthDate, onResult ->
+                viewModel.signUpWithEmail(email, password, fullName, nickname, birthDate, onResult)
             },
             onSwitchToLogin = { showSignUpDialog = false; showLoginDialog = true }
+        )
+        if (showEditProfilePhotoDialog) EditProfilePhotoDialog(
+            hasPhoto = currentUser?.photoBase64 != null,
+            onDismiss = { showEditProfilePhotoDialog = false },
+            onPickPhoto = {
+                avatarPhotoPickerLauncher.launch(
+                    androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onRemovePhoto = { viewModel.updateProfilePhoto(null) { } }
+        )
+        pendingAvatarCropBitmap?.let { bitmap ->
+            AvatarCropDialog(
+                sourceBitmap = bitmap,
+                onDismiss = { pendingAvatarCropBitmap = null },
+                onConfirm = { cropped ->
+                    val base64 = compressAvatarBitmap(cropped)
+                    viewModel.updateProfilePhoto(base64) { }
+                    pendingAvatarCropBitmap = null
+                }
+            )
+        }
+        if (showEditProfileDialog) EditProfileDialog(
+            inProgress = authInProgress,
+            initialFullName = currentUser?.fullName.orEmpty(),
+            initialNickname = currentUser?.nickname.orEmpty(),
+            initialBirthDateIso = currentUser?.birthDate,
+            onDismiss = { showEditProfileDialog = false },
+            onConfirm = { nickname, fullName, birthDate, onResult ->
+                viewModel.updateUserProfile(nickname, fullName, birthDate, onResult)
+            },
+            onRequestDeleteAccount = { showEditProfileDialog = false; showDeleteAccountConfirmDialog = true }
+        )
+        if (showDeleteAccountConfirmDialog) DeleteAccountConfirmDialog(
+            inProgress = authInProgress,
+            onDismiss = { showDeleteAccountConfirmDialog = false },
+            onConfirm = {
+                viewModel.deleteAccount { error ->
+                    showDeleteAccountConfirmDialog = false
+                    if (error != null) {
+                        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
         )
         if (showAddPlayerDialog) AddPlayerDialog(
             usesPositions = groupConfig.type.usesPositions,

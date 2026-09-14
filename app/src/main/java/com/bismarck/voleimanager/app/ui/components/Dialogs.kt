@@ -5,6 +5,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
@@ -22,6 +28,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -1517,16 +1524,78 @@ fun LoginDialog(
     )
 }
 
+/** Insere automaticamente as barras separadoras enquanto o usuário digita uma data de nascimento
+ *  (`DD/MM/AAAA`) — mantém apenas dígitos e reformata a cada mudança, inserindo a barra logo após
+ *  o 2º dígito do dia e o 2º dígito do mês (sem esperar o dígito seguinte), para evitar erros de
+ *  digitação. Opera sobre [TextFieldValue] (não apenas a `String`) para poder recolocar o cursor
+ *  explicitamente na posição correta após a reformatação — sem isso, o Compose tende a deixar o
+ *  cursor no fim do texto sempre que o valor muda, fazendo os dígitos seguintes serem inseridos no
+ *  lugar errado assim que uma barra é adicionada no meio da digitação (ex.: mês/ano trocados). Um
+ *  único backspace logo após uma barra recém-inserida remove o dígito e a barra juntos (em vez de
+ *  deixar uma "barra presa" que o próximo dígito reformataria de volta). */
+private fun autoFormatBirthDate(previous: TextFieldValue, newValue: TextFieldValue): TextFieldValue {
+    val cursorAfterDeletion = newValue.selection.end
+    val isSingleCharDeletion = newValue.selection.collapsed &&
+        newValue.text.length == previous.text.length - 1 &&
+        cursorAfterDeletion in previous.text.indices &&
+        previous.text.removeRange(cursorAfterDeletion, cursorAfterDeletion + 1) == newValue.text
+
+    var workingText = newValue.text
+    var cursor = newValue.selection.end
+    if (isSingleCharDeletion && previous.text.getOrNull(cursorAfterDeletion) == '/' && cursor > 0) {
+        // O usuário apagou uma barra recém-inserida automaticamente — remove também o dígito
+        // anterior a ela, como se fosse um único caractere lógico.
+        workingText = workingText.removeRange(cursor - 1, cursor)
+        cursor -= 1
+    }
+
+    val digits = workingText.filter { it.isDigit() }.take(8)
+    val digitsBeforeCursor = workingText.take(cursor).count { it.isDigit() }.coerceAtMost(digits.length)
+
+    val sb = StringBuilder()
+    var newCursor = 0
+    digits.forEachIndexed { i, c ->
+        sb.append(c)
+        if (i == 1 || i == 3) sb.append('/')
+        if (i + 1 == digitsBeforeCursor) newCursor = sb.length
+    }
+    return TextFieldValue(sb.toString(), TextRange(newCursor.coerceIn(0, sb.length)))
+}
+
+
+private fun parseBirthDateToIso(input: String): String? {
+    val parts = input.trim().split("/")
+    if (parts.size != 3) return null
+    val day = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val year = parts[2].toIntOrNull() ?: return null
+    if (day !in 1..31 || month !in 1..12 || year < 1900 || year > 2100) return null
+    return "%04d-%02d-%02d".format(year, month, day)
+}
+
+/** Converte uma data ISO `yyyy-MM-dd` (guardada no perfil) de volta para `DD/MM/AAAA`, para
+ *  exibir num campo de texto editável. */
+private fun formatBirthDateFromIso(iso: String?): String {
+    if (iso == null) return ""
+    val parts = iso.split("-")
+    if (parts.size != 3) return ""
+    return "${parts[2]}/${parts[1]}/${parts[0]}"
+}
+
 /** Diálogo de cadastro gratuito com e-mail/senha (Firebase Auth) — direcionado a
- *  Organizador(a)/Auxiliar antes de assinar um pacote premium. */
+ *  Organizador(a)/Auxiliar antes de assinar um pacote premium. Coleta nome completo, apelido
+ *  público (exibido no topo do app) e data de nascimento (guardada para uma futura verificação
+ *  de elegibilidade de compra premium). */
 @Composable
 fun SignUpDialog(
     inProgress: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, (String?) -> Unit) -> Unit,
+    onConfirm: (String, String, String, String, String, (String?) -> Unit) -> Unit,
     onSwitchToLogin: () -> Unit
 ) {
-    var displayName by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("") }
+    var nickname by remember { mutableStateOf("") }
+    var birthDateValue by remember { mutableStateOf(TextFieldValue("")) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -1540,12 +1609,30 @@ fun SignUpDialog(
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
-                    value = displayName,
-                    onValueChange = { displayName = it; errorMessage = null },
-                    label = { Text(stringResource(R.string.display_name_label)) },
+                    value = fullName,
+                    onValueChange = { fullName = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.full_name_label)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = nickname,
+                    onValueChange = { nickname = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.nickname_label)) },
+                    supportingText = { Text(stringResource(R.string.nickname_hint)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = birthDateValue,
+                    onValueChange = { birthDateValue = autoFormatBirthDate(birthDateValue, it); errorMessage = null },
+                    label = { Text(stringResource(R.string.birth_date_label)) },
+                    placeholder = { Text(stringResource(R.string.birth_date_placeholder)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -1575,12 +1662,160 @@ fun SignUpDialog(
             }
         },
         confirmButton = {
+            val birthDateHelp = stringResource(R.string.birth_date_invalid)
             Button(
                 onClick = {
-                    onConfirm(email, password, displayName) { error -> if (error == null) onDismiss() else errorMessage = error }
+                    val birthIso = parseBirthDateToIso(birthDateValue.text)
+                    if (birthIso == null) {
+                        errorMessage = birthDateHelp
+                        return@Button
+                    }
+                    onConfirm(email, password, fullName, nickname, birthIso) { error ->
+                        if (error == null) onDismiss() else errorMessage = error
+                    }
                 },
-                enabled = !inProgress && email.isNotBlank() && password.isNotBlank() && displayName.isNotBlank()
+                enabled = !inProgress && email.isNotBlank() && password.isNotBlank() &&
+                    fullName.isNotBlank() && nickname.isNotBlank() && birthDateValue.text.isNotBlank()
             ) { Text(stringResource(R.string.signup_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo de foto de perfil: permite escolher uma nova foto na galeria (a redução/compressão é
+ *  feita pelo chamador, ver [com.bismarck.voleimanager.app.util.encodeAvatarBase64]) e, se já
+ *  houver uma foto salva, removê-la. */
+@Composable
+fun EditProfilePhotoDialog(
+    hasPhoto: Boolean,
+    onDismiss: () -> Unit,
+    onPickPhoto: () -> Unit,
+    onRemovePhoto: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                if (hasPhoto) stringResource(R.string.edit_profile_photo_title)
+                else stringResource(R.string.add_profile_photo_title)
+            )
+        },
+        text = {
+            Column {
+                TextButton(onClick = { onPickPhoto(); onDismiss() }) {
+                    Text(stringResource(R.string.profile_photo_choose_from_gallery))
+                }
+                if (hasPhoto) {
+                    TextButton(onClick = { onRemovePhoto(); onDismiss() }) {
+                        Text(stringResource(R.string.profile_photo_remove), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo de edição de perfil: nome completo, apelido público e data de nascimento, além da
+ *  opção (com confirmação separada) de apagar a conta definitivamente. */
+@Composable
+fun EditProfileDialog(
+    inProgress: Boolean,
+    initialFullName: String,
+    initialNickname: String,
+    initialBirthDateIso: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String, (String?) -> Unit) -> Unit,
+    onRequestDeleteAccount: () -> Unit
+) {
+    var fullName by remember { mutableStateOf(initialFullName) }
+    var nickname by remember { mutableStateOf(initialNickname) }
+    var birthDateValue by remember { mutableStateOf(TextFieldValue(formatBirthDateFromIso(initialBirthDateIso))) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+
+    DialogKeyboardFocus(focusRequester)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.edit_profile_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { fullName = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.full_name_label)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester)
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = nickname,
+                    onValueChange = { nickname = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.nickname_label)) },
+                    supportingText = { Text(stringResource(R.string.nickname_hint)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = birthDateValue,
+                    onValueChange = { birthDateValue = autoFormatBirthDate(birthDateValue, it); errorMessage = null },
+                    label = { Text(stringResource(R.string.birth_date_label)) },
+                    placeholder = { Text(stringResource(R.string.birth_date_placeholder)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                errorMessage?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onRequestDeleteAccount) {
+                    Text(stringResource(R.string.delete_account_action), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            val birthDateHelp = stringResource(R.string.birth_date_invalid)
+            Button(
+                onClick = {
+                    val birthIso = parseBirthDateToIso(birthDateValue.text)
+                    if (birthIso == null) {
+                        errorMessage = birthDateHelp
+                        return@Button
+                    }
+                    onConfirm(nickname, fullName, birthIso) { error -> if (error == null) onDismiss() else errorMessage = error }
+                },
+                enabled = !inProgress && fullName.isNotBlank() && nickname.isNotBlank() && birthDateValue.text.isNotBlank()
+            ) { Text(stringResource(R.string.edit_profile_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo de confirmação (segunda etapa, separada da edição de perfil) antes de apagar a conta
+ *  definitivamente — ação irreversível. */
+@Composable
+fun DeleteAccountConfirmDialog(
+    inProgress: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.delete_account_title)) },
+        text = { Text(stringResource(R.string.delete_account_warning)) },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = !inProgress,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text(stringResource(R.string.delete_account_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
@@ -1625,6 +1860,96 @@ fun TransferGroupOwnershipDialog(
                 onClick = { if (targetEmail.isNotBlank()) onConfirm(targetEmail) },
                 enabled = targetEmail.isNotBlank()
             ) { Text(stringResource(R.string.transfer_ownership_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo de corte/rotação da foto de perfil escolhida na galeria: exibe [sourceBitmap] num
+ *  visor quadrado onde o usuário pode arrastar (pan) e beliscar para dar zoom (pinch), além de um
+ *  botão para girar em passos de 90°. Ao confirmar, gera o recorte final (ver
+ *  [com.bismarck.voleimanager.app.util.cropAvatarBitmap]) e o repassa via [onConfirm]. */
+@Composable
+fun AvatarCropDialog(
+    sourceBitmap: android.graphics.Bitmap,
+    onDismiss: () -> Unit,
+    onConfirm: (android.graphics.Bitmap) -> Unit
+) {
+    var rotationSteps by remember { mutableIntStateOf(0) }
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val viewportDp = 240.dp
+    val viewportPx = with(density) { viewportDp.toPx() }
+
+    val rotatedBitmap = remember(sourceBitmap, rotationSteps) {
+        com.bismarck.voleimanager.app.util.rotateAvatarBitmap(sourceBitmap, rotationSteps * 90)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.avatar_crop_title)) },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    stringResource(R.string.avatar_crop_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .size(viewportDp)
+                        .clip(CircleShape)
+                        .background(Color.Black)
+                        .pointerInput(rotatedBitmap) {
+                            detectTransformGestures { _, panDelta, zoomDelta, _ ->
+                                val newZoom = (zoom * zoomDelta).coerceIn(1f, 4f)
+                                val maxPan = com.bismarck.voleimanager.app.util.maxAvatarPan(rotatedBitmap, newZoom, viewportPx)
+                                val newPan = androidx.compose.ui.geometry.Offset(
+                                    (pan.x + panDelta.x).coerceIn(-maxPan.x, maxPan.x),
+                                    (pan.y + panDelta.y).coerceIn(-maxPan.y, maxPan.y)
+                                )
+                                zoom = newZoom
+                                pan = newPan
+                            }
+                        }
+                ) {
+                    androidx.compose.foundation.Image(
+                        bitmap = rotatedBitmap.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = zoom
+                                scaleY = zoom
+                                translationX = pan.x
+                                translationY = pan.y
+                            }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                IconButton(onClick = {
+                    rotationSteps = (rotationSteps + 1) % 4
+                    zoom = 1f
+                    pan = androidx.compose.ui.geometry.Offset.Zero
+                }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.RotateRight,
+                        contentDescription = stringResource(R.string.avatar_crop_rotate)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val result = com.bismarck.voleimanager.app.util.cropAvatarBitmap(rotatedBitmap, zoom, pan, viewportPx)
+                onConfirm(result)
+            }) { Text(stringResource(R.string.avatar_crop_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
