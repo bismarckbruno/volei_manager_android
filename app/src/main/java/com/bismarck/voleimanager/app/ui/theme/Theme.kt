@@ -373,6 +373,17 @@ private val teamAccentColorLuminanceDark = luminance(primaryDark)
 private val teamAccentOnColorLuminanceDark = luminance(onPrimaryDark)
 
 /**
+ * Luminância-alvo do texto principal sobre o card do time ("onColorContainer": nome dos jogadores,
+ * placar, duração etc. nos cards de Histórico), igual à do azul em cada tema
+ * ([onPrimaryContainerDark]/[onPrimaryContainerLight]). Vermelho, verde e roxo usam essas mesmas
+ * luminâncias-alvo para que o texto sobre o card fique com o mesmo "peso visual"/contraste do
+ * card azul, tanto no tema escuro quanto no claro — consistente com [teamAccentColorLuminanceDark]
+ * e [teamAccentOnColorLuminanceDark] acima, usados nas telas de placar.
+ */
+private val teamAccentOnContainerLuminanceDark = luminance(onPrimaryContainerDark)
+private val teamAccentOnContainerLuminanceLight = luminance(onPrimaryContainerLight)
+
+/**
  * Mistura [seed] com [towards] na fração exata necessária para que a luminância resultante seja
  * [targetLuminance] (a luminância varia linearmente com a mistura, então a fração é resolvida
  * analiticamente). Preserva o matiz de [seed] enquanto ajusta seu "tom sem saturação" para bater com
@@ -393,14 +404,14 @@ private fun seedColorFamily(seed: Color, darkTheme: Boolean): ColorFamily = if (
         color = blendToLuminance(seed, Color.White, teamAccentColorLuminanceDark),
         onColor = blendToLuminance(seed, Color.Black, teamAccentOnColorLuminanceDark),
         colorContainer = blendToLuminance(seed, Color.Black, teamAccentContainerLuminanceDark),
-        onColorContainer = lerp(seed, Color.White, 0.85f),
+        onColorContainer = blendToLuminance(seed, Color.White, teamAccentOnContainerLuminanceDark),
     )
 } else {
     ColorFamily(
         color = seed,
         onColor = Color.White,
         colorContainer = blendToLuminance(seed, Color.White, teamAccentContainerLuminanceLight),
-        onColorContainer = lerp(seed, Color.Black, 0.65f),
+        onColorContainer = blendToLuminance(seed, Color.Black, teamAccentOnContainerLuminanceLight),
     )
 }
 
