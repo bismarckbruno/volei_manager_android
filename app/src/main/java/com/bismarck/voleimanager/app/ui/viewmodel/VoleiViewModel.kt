@@ -808,12 +808,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             showMessage(getApplication<Application>().getString(R.string.cloud_sync_limit_reached))
             return@launch
         }
-        val now = System.currentTimeMillis()
-        val lastSwitchAt = currentlySynced.mapNotNull { it.lastPremiumSwitchAt }.maxOrNull()
-        if (lastSwitchAt != null && now - lastSwitchAt < PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS) {
-            showMessage(getApplication<Application>().getString(R.string.cloud_sync_switch_cooldown))
-            return@launch
+        // O intervalo de 15 dias só existe para impedir trocar QUAL grupo ocupa a vaga única do
+        // pacote SINGLE (o pedido original do usuário fala em "mudar o grupo premium" no
+        // singular). No pacote MULTI, preencher vagas ainda livres (até 5) é uma simples adição
+        // de capacidade, não uma troca — não faz sentido travar isso por 15 dias, senão quem
+        // acabou de assinar o MULTI teria que esperar 15 dias entre cada um dos 5 grupos iniciais.
+        if (maxAllowed == CloudPlanTier.SINGLE.maxSyncedGroups) {
+            // Usa `configs` (todos os grupos), não `currentlySynced`: desativar o grupo anterior
+            // já zera seu `isCloudSynced` sem apagar `lastPremiumSwitchAt`, então o cooldown
+            // precisa olhar a última troca registrada em qualquer grupo, não só nos ainda ativos.
+            val lastSwitchAt = configs.mapNotNull { it.lastPremiumSwitchAt }.maxOrNull()
+            if (lastSwitchAt != null && System.currentTimeMillis() - lastSwitchAt < PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS) {
+                showMessage(getApplication<Application>().getString(R.string.cloud_sync_switch_cooldown))
+                return@launch
+            }
         }
+        val now = System.currentTimeMillis()
 
         val updated = target.copy(
             isCloudSynced = true,

@@ -65,18 +65,28 @@ object AuthManager {
         appContext = context.applicationContext
     }
 
-    private fun authOrNull(): FirebaseAuth? = try {
-        Firebase.auth
-    } catch (e: Exception) {
-        Log.d(TAG, "Firebase Auth indisponível: ${e.message}")
-        null
+    private fun authOrNull(): FirebaseAuth? {
+        // Ver [isRunningInUnitTest]: em Robolectric, nunca tenta abrir um listener real do
+        // Firebase Auth (evita travar Dispatchers.IO esperando rede que não existe na JVM de
+        // teste). `currentUser` simplesmente nunca emite um usuário logado nesse caso, igual ao
+        // comportamento já existente quando o Firebase não está configurado.
+        if (isRunningInUnitTest) return null
+        return try {
+            Firebase.auth
+        } catch (e: Exception) {
+            Log.d(TAG, "Firebase Auth indisponível: ${e.message}")
+            null
+        }
     }
 
-    private fun firestoreOrNull(): FirebaseFirestore? = try {
-        Firebase.firestore
-    } catch (e: Exception) {
-        Log.d(TAG, "Firestore indisponível: ${e.message}")
-        null
+    private fun firestoreOrNull(): FirebaseFirestore? {
+        if (isRunningInUnitTest) return null
+        return try {
+            Firebase.firestore
+        } catch (e: Exception) {
+            Log.d(TAG, "Firestore indisponível: ${e.message}")
+            null
+        }
     }
 
     /** Alterações de perfil pendentes de confirmação pelo Firestore (ou definitivas, se o

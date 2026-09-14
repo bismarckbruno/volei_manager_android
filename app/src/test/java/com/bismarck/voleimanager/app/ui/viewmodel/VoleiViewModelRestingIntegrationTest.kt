@@ -958,12 +958,12 @@ class VoleiViewModelRestingIntegrationTest {
     )
 }
 
-private data class TestEnv(
+internal data class TestEnv(
     val vm: VoleiViewModel,
     val repo: VoleiRepository
 )
 
-private class FakeVoleiDao : VoleiDao {
+internal class FakeVoleiDao : VoleiDao {
     private val players = mutableListOf<Player>()
     private val history = mutableListOf<MatchHistory>()
     private val eloLogs = mutableListOf<PlayerEloLog>()

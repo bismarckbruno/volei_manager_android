@@ -5,6 +5,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.functions.functions
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -29,11 +30,18 @@ data class RedeemedJoinCode(val cloudGroupId: String, val role: JoinRole)
 object CloudFunctionsManager {
     private const val TAG = "CloudFunctionsManager"
 
-    private fun functionsOrNull(): FirebaseFunctions? = try {
-        Firebase.functions
-    } catch (e: Exception) {
-        Log.d(TAG, "Firebase Functions indisponível: ${e.message}")
-        null
+    /** Segundos de espera antes de desistir de uma chamada e devolver erro amigável, evitando que
+     *  o app fique travado indefinidamente esperando um Cloud Function lento ou sem rede. */
+    private const val CALL_TIMEOUT_SECONDS = 15L
+
+    private fun functionsOrNull(): FirebaseFunctions? {
+        if (isRunningInUnitTest) return null
+        return try {
+            Firebase.functions
+        } catch (e: Exception) {
+            Log.d(TAG, "Firebase Functions indisponível: ${e.message}")
+            null
+        }
     }
 
     /** Marca um grupo local como sincronizado em nuvem no backend (cria/atualiza o documento
@@ -103,7 +111,8 @@ object CloudFunctionsManager {
      *  depender da lib `kotlinx-coroutines-play-services`, ausente deste projeto). */
     private suspend fun call(functions: FirebaseFunctions, name: String, data: Map<String, Any?>): Map<String, Any?> =
         suspendCancellableCoroutine { cont ->
-            functions.getHttpsCallable(name).call(data).addOnCompleteListener { task ->
+            val callable = functions.getHttpsCallable(name).withTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            callable.call(data).addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     @Suppress("UNCHECKED_CAST")
                     val result = task.result?.data as? Map<String, Any?> ?: emptyMap()
@@ -119,7 +128,7 @@ object CloudFunctionsManager {
         return when (functionsException?.code) {
             FirebaseFunctionsException.Code.UNAUTHENTICATED -> "Você precisa estar logado para usar a nuvem."
             FirebaseFunctionsException.Code.NOT_FOUND -> "Código inválido ou grupo não encontrado."
-            FirebaseFunctionsException.Code.DEADLINE_EXCEEDED -> "Código expirado. Peça um novo."
+            FirebaseFunctionsException.Code.DEADLINE_EXCEEDED -> "Tempo esgotado ou código expirado. Verifique sua conexão e tente novamente."
             FirebaseFunctionsException.Code.FAILED_PRECONDITION,
             FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED,
             FirebaseFunctionsException.Code.PERMISSION_DENIED ->

@@ -52,6 +52,15 @@ android {
         localeFilters.addAll(listOf("en", "pt-rBR", "es"))
     }
 
+    testOptions {
+        unitTests {
+            // Sem isso, o Robolectric não recebe o manifesto/recursos mesclados do app e cai no
+            // modo "Android OS resources only" — qualquer `Context.getString(R.string.*)` chamado
+            // em teste (ex.: `CloudSyncPermissionsTest`) lança `Resources.NotFoundException`.
+            isIncludeAndroidResources = true
+        }
+    }
+
     signingConfigs {
         if (keystorePropertiesFile.exists()) {
             create("release") {
