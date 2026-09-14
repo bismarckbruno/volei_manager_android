@@ -13,6 +13,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.bismarck.voleimanager.app.ui.viewmodel.TeamAccentColor
 
 @Immutable
 data class ExtendedColorScheme(
@@ -312,6 +313,88 @@ data class ColorFamily(
 val unspecified_scheme = ColorFamily(
     Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified
 )
+
+/**
+ * Deriva a [ColorFamily] (cor/onCor/container/onContainer) de uma [TeamAccentColor] a partir da
+ * sua cor semente, sem precisar de uma paleta tonal completa gerada pelo Material Theme Builder
+ * (que já existe só para o azul padrão [primaryLight] e o amarelo padrão [anotherPrimeLight]).
+ * Usada pelos times A/B quando o usuário premium escolhe vermelho, verde ou roxo.
+ */
+fun teamAccentColorFamily(accent: TeamAccentColor, darkTheme: Boolean): ColorFamily = when (accent) {
+    TeamAccentColor.BLUE -> primaryContainerFamily(darkTheme)
+    TeamAccentColor.YELLOW -> if (darkTheme) extendedDark.anotherPrime else extendedLight.anotherPrime
+    TeamAccentColor.RED -> seedColorFamily(teamRedSeed, darkTheme)
+    TeamAccentColor.GREEN -> seedColorFamily(teamGreenSeed, darkTheme)
+    TeamAccentColor.PURPLE -> seedColorFamily(teamPurpleSeed, darkTheme)
+}
+
+/** Time A no padrão azul reaproveita o esquema de cores primário já usado hoje pelo Time A. */
+private fun primaryContainerFamily(darkTheme: Boolean): ColorFamily = if (darkTheme) {
+    ColorFamily(primaryDark, onPrimaryDark, primaryContainerDark, onPrimaryContainerDark)
+} else {
+    ColorFamily(primaryLight, onPrimaryLight, primaryContainerLight, onPrimaryContainerLight)
+}
+
+private fun lerp(from: Color, to: Color, fraction: Float): Color = Color(
+    red = from.red + (to.red - from.red) * fraction,
+    green = from.green + (to.green - from.green) * fraction,
+    blue = from.blue + (to.blue - from.blue) * fraction,
+    alpha = 1f,
+)
+
+/** Luminância relativa (peso perceptual padrão) de uma cor, em 0f..1f. */
+private fun luminance(color: Color): Float =
+    0.299f * color.red + 0.587f * color.green + 0.114f * color.blue
+
+/**
+ * Cores neutras de referência para o "peso visual" (luminância) do container dos times azul/amarelo
+ * já em uso hoje: aproximadamente #444444 no tema escuro e #E2E2E2 no tema claro (ver
+ * [primaryContainerDark]/[primaryContainerLight], cuja luminância já bate quase exatamente com esses
+ * tons). Vermelho/verde/roxo usam essas mesmas luminâncias-alvo para o container, para que todas as
+ * cores tenham o mesmo contraste/peso visual com os demais elementos da tela, independentemente do
+ * matiz escolhido.
+ */
+private val teamAccentContainerLuminanceDark = luminance(Color(0xFF444444))
+private val teamAccentContainerLuminanceLight = luminance(Color(0xFFE2E2E2))
+
+/**
+ * Luminância-alvo do texto/ícone (crown) sobre o botão de vitória no tema escuro, igual à do azul
+ * ([onPrimaryDark]) — um tom escuro e saturado da própria cor, não preto puro. Assim vermelho, verde
+ * e roxo ficam com o mesmo contraste "tom escuro da cor" que o azul já usa nesses itens.
+ */
+private val teamAccentOnColorLuminanceDark = luminance(onPrimaryDark)
+
+/**
+ * Mistura [seed] com [towards] na fração exata necessária para que a luminância resultante seja
+ * [targetLuminance] (a luminância varia linearmente com a mistura, então a fração é resolvida
+ * analiticamente). Preserva o matiz de [seed] enquanto ajusta seu "tom sem saturação" para bater com
+ * o alvo — é assim que vermelho/verde/roxo ficam com o mesmo peso visual do azul.
+ */
+private fun blendToLuminance(seed: Color, towards: Color, targetLuminance: Float): Color {
+    val seedLuminance = luminance(seed)
+    val towardsLuminance = luminance(towards)
+    if (towardsLuminance == seedLuminance) return seed
+    val fraction = ((targetLuminance - seedLuminance) / (towardsLuminance - seedLuminance))
+        .coerceIn(0f, 1f)
+    return lerp(seed, towards, fraction)
+}
+
+/** Aproxima os 4 papéis de cor M3 (cor/onCor/container/onContainer) a partir de uma única seed. */
+private fun seedColorFamily(seed: Color, darkTheme: Boolean): ColorFamily = if (darkTheme) {
+    ColorFamily(
+        color = lerp(seed, Color.White, 0.35f),
+        onColor = blendToLuminance(seed, Color.Black, teamAccentOnColorLuminanceDark),
+        colorContainer = blendToLuminance(seed, Color.Black, teamAccentContainerLuminanceDark),
+        onColorContainer = lerp(seed, Color.White, 0.85f),
+    )
+} else {
+    ColorFamily(
+        color = seed,
+        onColor = Color.White,
+        colorContainer = blendToLuminance(seed, Color.White, teamAccentContainerLuminanceLight),
+        onColorContainer = lerp(seed, Color.Black, 0.65f),
+    )
+}
 
 val LocalExtendedColors = staticCompositionLocalOf { extendedLight }
 

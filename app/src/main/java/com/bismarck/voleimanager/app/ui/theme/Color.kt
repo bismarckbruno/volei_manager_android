@@ -4,6 +4,14 @@ import androidx.compose.ui.graphics.Color
 
 val voleiManagerBlue = Color(0xFF0E47A1)
 val primaryLight = Color(0xFF475D92)
+
+// Seeds das cores de time premium (Time A ou Time B) — usadas junto com o padrão azul/amarelo
+// (primaryLight/anotherPrimeLight) para gerar as 5 opções de TeamAccentColor. Tons on/container
+// são derivados em Theme.kt (teamAccentColorFamily) em vez de tokens M3 fixos por cor, já que
+// são só 3 seeds extras e não uma paleta completa gerada pelo Material Theme Builder.
+val teamRedSeed = Color(0xFFB3261E)
+val teamGreenSeed = Color(0xFF2E7D32)
+val teamPurpleSeed = Color(0xFF6750A4)
 val onPrimaryLight = Color(0xFFFFFFFF)
 val primaryContainerLight = Color(0xFFD9E2FF)
 val onPrimaryContainerLight = Color(0xFF2E4578)

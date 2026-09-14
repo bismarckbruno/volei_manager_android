@@ -92,6 +92,8 @@ import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.components.groupTypeIcon
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
+import com.bismarck.voleimanager.app.ui.theme.ColorFamily
+import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.FaqSearch
@@ -507,6 +509,10 @@ fun HistoryScreen(
     val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val usesPositions = groupConfig.type.usesPositions
+    val teamAAccentColor by viewModel.effectiveTeamAColor.collectAsState()
+    val teamBAccentColor by viewModel.effectiveTeamBColor.collectAsState()
+    val teamAColorFamily = teamAccentColorFamily(teamAAccentColor, isDarkTheme)
+    val teamBColorFamily = teamAccentColorFamily(teamBAccentColor, isDarkTheme)
 
     var historyPlayerFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var showHistoryPlayerDialog by remember { mutableStateOf(false) }
@@ -988,7 +994,9 @@ fun HistoryScreen(
                                     showScore = showScore,
                                     durationMinutes = matchDurationsMinutes[match.id],
                                     highlightFilteredPlayer = highlightedMatchIds.contains(match.id),
-                                    highlightedPlayerName = activeHistoryPlayerFilter
+                                    highlightedPlayerName = activeHistoryPlayerFilter,
+                                    teamAColorFamily = teamAColorFamily,
+                                    teamBColorFamily = teamBColorFamily
                                 )
                             }
                             if (sortedHistory.isEmpty()) item {
@@ -1479,7 +1487,9 @@ fun HistoryScreen(
                                     showScore = showScore,
                                     durationMinutes = matchDurationsMinutes[match.id],
                                     highlightFilteredPlayer = highlightedMatchIds.contains(match.id),
-                                    highlightedPlayerName = activeHistoryPlayerFilter
+                                    highlightedPlayerName = activeHistoryPlayerFilter,
+                                    teamAColorFamily = teamAColorFamily,
+                                    teamBColorFamily = teamBColorFamily
                                 )
                             }
                             if (sortedHistory.isEmpty()) item {
@@ -2104,7 +2114,9 @@ fun HistoryItem(
     showScore: Boolean = true,
     durationMinutes: Int? = null,
     highlightFilteredPlayer: Boolean = false,
-    highlightedPlayerName: String? = null
+    highlightedPlayerName: String? = null,
+    teamAColorFamily: ColorFamily? = null,
+    teamBColorFamily: ColorFamily? = null
 ) {
     val isTeamAWin = match.winner == "A" || match.winner == "Time A"
     val teamANameList = remember(match.teamA) {
@@ -2134,21 +2146,21 @@ fun HistoryItem(
     val teamBNamesText = remember(teamBNameList, highlightedCanonicalName) { buildTeamNamesText(teamBNameList) }
 
     val cardBgColor = if (isTeamAWin) {
-        MaterialTheme.colorScheme.primaryContainer
+        teamAColorFamily?.colorContainer ?: MaterialTheme.colorScheme.primaryContainer
     } else {
-        LocalExtendedColors.current.anotherPrime.colorContainer
+        teamBColorFamily?.colorContainer ?: LocalExtendedColors.current.anotherPrime.colorContainer
     }
 
     val contentColor = if (isTeamAWin) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        teamAColorFamily?.onColorContainer ?: MaterialTheme.colorScheme.onPrimaryContainer
     } else {
-        LocalExtendedColors.current.anotherPrime.onColorContainer
+        teamBColorFamily?.onColorContainer ?: LocalExtendedColors.current.anotherPrime.onColorContainer
     }
 
     val crownColor = if (isTeamAWin) {
-        MaterialTheme.colorScheme.primary
+        teamAColorFamily?.color ?: MaterialTheme.colorScheme.primary
     } else {
-        LocalExtendedColors.current.anotherPrime.color
+        teamBColorFamily?.color ?: LocalExtendedColors.current.anotherPrime.color
     }
 
     val scoreA = match.teamAScore ?: 0
@@ -2169,7 +2181,7 @@ fun HistoryItem(
             containerColor = cardBgColor,
             contentColor = contentColor
         ),
-        border = if (highlightFilteredPlayer) BorderStroke(1.dp, if (isTeamAWin) MaterialTheme.colorScheme.primary else LocalExtendedColors.current.anotherPrime.color) else null
+        border = if (highlightFilteredPlayer) BorderStroke(1.dp, if (isTeamAWin) (teamAColorFamily?.color ?: MaterialTheme.colorScheme.primary) else (teamBColorFamily?.color ?: LocalExtendedColors.current.anotherPrime.color)) else null
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -3154,6 +3166,8 @@ fun ExportableImageContent(
     isDarkTheme: Boolean,
     showElo: Boolean,
     showScore: Boolean,
+    teamAColorFamily: ColorFamily,
+    teamBColorFamily: ColorFamily,
     matchDurationsMinutes: Map<Int, Int>? = null,
     averagePlayersEloText: String? = null,
     averageMatchDurationText: String? = null,
@@ -3286,7 +3300,15 @@ fun ExportableImageContent(
 
         matches?.forEach { match ->
             val duration = matchDurationsMinutes?.get(match.id)
-            HistoryItem(match = match, isDarkTheme = isDarkTheme, showElo = showElo, showScore = showScore, durationMinutes = duration)
+            HistoryItem(
+                match = match,
+                isDarkTheme = isDarkTheme,
+                showElo = showElo,
+                showScore = showScore,
+                durationMinutes = duration,
+                teamAColorFamily = teamAColorFamily,
+                teamBColorFamily = teamBColorFamily
+            )
         }
         
         val isSortedByElo = playerSortMode != PlayerSortMode.ALPHABETICAL

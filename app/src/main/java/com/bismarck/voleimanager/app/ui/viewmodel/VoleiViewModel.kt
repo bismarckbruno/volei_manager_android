@@ -16,6 +16,7 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.findViewTreeSavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.lifecycle.viewModelScope
+import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.GroupConfig
@@ -88,7 +89,29 @@ private const val XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocumen
 enum class Screen { GAME, HISTORY, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
-enum class TeamColorTheme { DEFAULT, RED_GREEN, PURPLE_ORANGE }
+/**
+ * Cor de destaque disponível para um time (Time A ou Time B). Usuários premium podem escolher
+ * qualquer uma das 5 para cada time, desde que Time A e Time B usem cores diferentes. Sem
+ * premium, o app sempre usa o padrão [BLUE] (Time A) / [YELLOW] (Time B). O mapeamento para
+ * valores reais de [androidx.compose.ui.graphics.Color] fica na camada de UI (ui/theme), não
+ * aqui, para manter o ViewModel livre de tipos do Compose.
+ */
+enum class TeamAccentColor { BLUE, YELLOW, RED, GREEN, PURPLE }
+
+/** Faz o parse seguro de um nome salvo de [TeamAccentColor] (ex.: vindo do banco), retornando
+ *  `null` em vez de lançar exceção se o valor for desconhecido/corrompido. */
+fun parseTeamAccentColorOrNull(name: String): TeamAccentColor? = try {
+    TeamAccentColor.valueOf(name)
+} catch (e: IllegalArgumentException) {
+    null
+}
+
+/**
+ * Perfil do usuário no app, perguntado uma única vez, antes de qualquer outra etapa do
+ * onboarding (inclusive antes do onboarding de grupo). Organizador e Auxiliar são direcionados
+ * para o cadastro/login gratuito na tela de Nuvem; Espectador segue sem conta obrigatória.
+ */
+enum class UserProfileType { ORGANIZADOR, AUXILIAR, ESPECTADOR }
 
 data class BackupData(
     val version: Int = 1,
@@ -434,6 +457,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun clearUiMessage() {
         _uiMessage.value = null
     }
+
+    /** Exibe uma mensagem simples de UI (snackbar), ex.: aviso de recurso bloqueado. */
+    fun showMessage(message: String) {
+        _uiMessage.value = message
+    }
     private val _currentScreen = MutableStateFlow(Screen.GAME)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
     fun navigateTo(screen: Screen) {
@@ -596,8 +624,88 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _showTelemetryConsentPrompt = MutableStateFlow(false)
     val showTelemetryConsentPrompt: StateFlow<Boolean> = _showTelemetryConsentPrompt.asStateFlow()
 
-    private val _teamColorTheme = MutableStateFlow(TeamColorTheme.DEFAULT)
-    val teamColorTheme: StateFlow<TeamColorTheme> = _teamColorTheme.asStateFlow()
+    private val _userProfileType = MutableStateFlow<UserProfileType?>(null)
+    val userProfileType: StateFlow<UserProfileType?> = _userProfileType.asStateFlow()
+
+    /** True apenas antes do usuário responder à pergunta de perfil pela primeira vez (perguntada
+     *  uma única vez, antes de qualquer outra etapa do onboarding, inclusive o de grupo). */
+    private val _showUserProfileOnboarding = MutableStateFlow(false)
+    val showUserProfileOnboarding: StateFlow<Boolean> = _showUserProfileOnboarding.asStateFlow()
+
+    /**
+     * Sobreposição pessoal (só neste dispositivo/usuário) das cores de time, disponível apenas
+     * para quem tem acesso premium — mesmo estando num grupo cujo organizador definiu outras
+     * cores. Quando desabilitada (padrão), o usuário vê as cores oficiais do grupo
+     * ([GroupConfig.teamAColorName]/[GroupConfig.teamBColorName], definidas pelo organizador ou
+     * auxiliar via [setGroupTeamColors]) — inclusive se ele próprio não for premium.
+     */
+    private val _personalTeamColorOverrideEnabled = MutableStateFlow(false)
+    private val _personalTeamAColor = MutableStateFlow(TeamAccentColor.BLUE)
+    private val _personalTeamBColor = MutableStateFlow(TeamAccentColor.YELLOW)
+
+    /**
+     * Reservado para a futura assinatura real (validada via Cloud Function/Firestore, ver
+     * `billing-integration`/`purchase-validation-function`). Por enquanto sempre `false` — a
+     * única forma de ativar cores premium hoje é via [debugPremiumOverride] em build de debug.
+     */
+    private val _realPremiumEntitlement = MutableStateFlow(false)
+
+    /**
+     * Interruptor **apenas de debug** para simular uma assinatura premium ativa sem precisar de
+     * uma compra real na Play Store, permitindo testar recursos premium (ex.: cores de time)
+     * durante o desenvolvimento. Nunca tem efeito em build de release: [setDebugPremiumOverride]
+     * ignora a chamada e [hasPremiumAccess] nunca considera este flag fora de [BuildConfig.DEBUG].
+     */
+    private val _debugPremiumOverride = MutableStateFlow(false)
+    val debugPremiumOverride: StateFlow<Boolean> = _debugPremiumOverride.asStateFlow()
+
+    val hasPremiumAccess: StateFlow<Boolean> =
+        combine(_realPremiumEntitlement, _debugPremiumOverride) { real, debugOverride ->
+            real || (BuildConfig.DEBUG && debugOverride)
+        }.stateIn(viewModelScope, screenDataSharing, false)
+
+    /**
+     * Cores efetivas do Time A/B a serem exibidas: por padrão, as cores oficiais do grupo atual
+     * (definidas pelo organizador/auxiliar premium, visíveis a todos, inclusive observadores sem
+     * premium). Se o próprio usuário tiver acesso premium e tiver ativado uma sobreposição
+     * pessoal ([setPersonalTeamColorOverride]), essa sobreposição prevalece só para ele.
+     */
+    val effectiveTeamColors: StateFlow<Pair<TeamAccentColor, TeamAccentColor>> = combine(
+        _currentGroupConfig,
+        hasPremiumAccess,
+        _personalTeamColorOverrideEnabled,
+        _personalTeamAColor,
+        _personalTeamBColor
+    ) { config, premium, overrideEnabled, personalA, personalB ->
+        if (premium && overrideEnabled) {
+            personalA to personalB
+        } else {
+            val groupA = config.teamAColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.BLUE
+            val groupB = config.teamBColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.YELLOW
+            groupA to groupB
+        }
+    }.stateIn(viewModelScope, screenDataSharing, TeamAccentColor.BLUE to TeamAccentColor.YELLOW)
+
+    val effectiveTeamAColor: StateFlow<TeamAccentColor> = effectiveTeamColors
+        .map { it.first }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.BLUE)
+    val effectiveTeamBColor: StateFlow<TeamAccentColor> = effectiveTeamColors
+        .map { it.second }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.YELLOW)
+
+    val personalTeamColorOverrideEnabled: StateFlow<Boolean> =
+        _personalTeamColorOverrideEnabled.asStateFlow()
+    val personalTeamAColor: StateFlow<TeamAccentColor> = _personalTeamAColor.asStateFlow()
+    val personalTeamBColor: StateFlow<TeamAccentColor> = _personalTeamBColor.asStateFlow()
+
+    /** Cores oficiais configuradas no grupo atual (editáveis via [setGroupTeamColors]),
+     *  ignorando qualquer sobreposição pessoal — usado para preencher o seletor de edição. */
+    val groupTeamAColor: StateFlow<TeamAccentColor> = _currentGroupConfig
+        .map { it.teamAColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.BLUE }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.BLUE)
+    val groupTeamBColor: StateFlow<TeamAccentColor> = _currentGroupConfig
+        .map { it.teamBColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.YELLOW }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.YELLOW)
 
     private val _teamsSwapped = MutableStateFlow(false)
     val teamsSwapped: StateFlow<Boolean> = _teamsSwapped.asStateFlow()
@@ -1014,7 +1122,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _isSupporter.value = isSupporter
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
             .putBoolean("is_supporter", isSupporter).apply()
-        if (!isSupporter) setTeamColorTheme(TeamColorTheme.DEFAULT)
     }
 
     /**
@@ -1030,10 +1137,75 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         TelemetryManager.applyConsent(getApplication(), enabled)
     }
 
-    fun setTeamColorTheme(theme: TeamColorTheme) {
-        _teamColorTheme.value = theme
+    /**
+     * Define as cores **oficiais** do grupo atual (Time A/B), definidas pelo organizador ou
+     * auxiliar premium — passam a valer para todos que visualizam este grupo, inclusive
+     * observadores sem premium (a menos que eles próprios tenham premium e uma sobreposição
+     * pessoal ativa, ver [setPersonalTeamColorOverride]). Só tem efeito se o usuário tiver acesso
+     * premium ([hasPremiumAccess]) e as duas cores forem diferentes entre si.
+     */
+    fun setGroupTeamColors(teamA: TeamAccentColor, teamB: TeamAccentColor) {
+        if (!hasPremiumAccess.value || teamA == teamB) return
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            teamAColorName = teamA.name,
+            teamBColorName = teamB.name
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    /**
+     * Ativa uma sobreposição pessoal (só neste dispositivo) das cores de time, prevalecendo sobre
+     * as cores oficiais do grupo atual — só para quem já as vê. Útil para um observador/auxiliar
+     * premium que prefere outras cores sem alterar o que os demais membros do grupo enxergam. Só
+     * tem efeito se o usuário tiver acesso premium e as duas cores forem diferentes entre si.
+     */
+    fun setPersonalTeamColorOverride(teamA: TeamAccentColor, teamB: TeamAccentColor) {
+        if (!hasPremiumAccess.value || teamA == teamB) return
+        _personalTeamColorOverrideEnabled.value = true
+        _personalTeamAColor.value = teamA
+        _personalTeamBColor.value = teamB
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
-            .putString("team_color", theme.name).apply()
+            .putBoolean("personal_team_color_override_enabled", true)
+            .putString("personal_team_color_a", teamA.name)
+            .putString("personal_team_color_b", teamB.name)
+            .apply()
+    }
+
+    /** Desativa a sobreposição pessoal, voltando a exibir as cores oficiais do grupo atual. */
+    fun clearPersonalTeamColorOverride() {
+        _personalTeamColorOverrideEnabled.value = false
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putBoolean("personal_team_color_override_enabled", false).apply()
+    }
+
+    /**
+     * Simula (ou desliga a simulação de) uma assinatura premium ativa, **apenas em build de
+     * debug** — em release essa chamada não faz nada, mesmo que a UI que a expõe não seja
+     * renderizada (defesa em profundidade). Ao desligar, a sobreposição pessoal é desativada
+     * (volta a valer a cor oficial do grupo) — as cores oficiais do grupo em si não são
+     * apagadas, do mesmo jeito que uma assinatura real expirando não deveria descustomizar o
+     * grupo para os demais membros sem uma ação explícita.
+     */
+    fun setDebugPremiumOverride(enabled: Boolean) {
+        if (!BuildConfig.DEBUG) return
+        _debugPremiumOverride.value = enabled
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putBoolean("debug_premium_override", enabled).apply()
+        if (!enabled && !_realPremiumEntitlement.value) {
+            clearPersonalTeamColorOverride()
+        }
+    }
+
+    /**
+     * Registra o perfil do usuário (Organizador/Auxiliar/Espectador), respondido uma única vez
+     * na primeira etapa do onboarding. Organizador e Auxiliar devem ser direcionados, na UI, ao
+     * fluxo de cadastro/login gratuito antes de prosseguir; Espectador segue sem essa exigência.
+     */
+    fun setUserProfileType(type: UserProfileType) {
+        _userProfileType.value = type
+        _showUserProfileOnboarding.value = false
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putString("user_profile_type", type.name).apply()
     }
 
     /** Usado pela dica de rolagem do cabeçalho (rotação/duplo toque), exibida uma vez por grupo. */
@@ -1251,11 +1423,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _telemetryEnabled.value = prefs.getBoolean(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED, false)
         _showTelemetryConsentPrompt.value = !prefs.contains(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED)
         TelemetryManager.init(getApplication(), _telemetryEnabled.value)
-        _teamColorTheme.value = try {
-            TeamColorTheme.valueOf(prefs.getString("team_color", "DEFAULT")!!)
-        } catch (e: Exception) {
-            TeamColorTheme.DEFAULT
+        _debugPremiumOverride.value =
+            BuildConfig.DEBUG && prefs.getBoolean("debug_premium_override", false)
+        _personalTeamColorOverrideEnabled.value =
+            prefs.getBoolean("personal_team_color_override_enabled", false)
+        _personalTeamAColor.value =
+            prefs.getString("personal_team_color_a", null)?.let(::parseTeamAccentColorOrNull)
+                ?: TeamAccentColor.BLUE
+        _personalTeamBColor.value =
+            prefs.getString("personal_team_color_b", null)?.let(::parseTeamAccentColorOrNull)
+                ?: TeamAccentColor.YELLOW
+        _userProfileType.value = prefs.getString("user_profile_type", null)?.let {
+            try {
+                UserProfileType.valueOf(it)
+            } catch (e: Exception) {
+                null
+            }
         }
+        _showUserProfileOnboarding.value = !prefs.contains("user_profile_type")
     }
 
     fun isGameInProgress(): Boolean = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty()
@@ -3670,6 +3855,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     ) {
         val groupName = _currentGroupConfig.value.groupName
         val usesPositions = _currentGroupConfig.value.type.usesPositions
+        val teamAColorFamily = com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily(effectiveTeamAColor.value, isDarkTheme)
+        val teamBColorFamily = com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily(effectiveTeamBColor.value, isDarkTheme)
         val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
             setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
             setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
@@ -3691,7 +3878,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             matchDurationsMinutes = matchDurationsMinutes,
                             averagePlayersEloText = averagePlayersEloText,
                             averageMatchDurationText = averageMatchDurationText,
-                            usesPositions = usesPositions
+                            usesPositions = usesPositions,
+                            teamAColorFamily = teamAColorFamily,
+                            teamBColorFamily = teamBColorFamily
                         )
                     }
                 }

@@ -94,6 +94,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -146,9 +147,13 @@ dependencies {
     implementation(libs.androidx.fragment)
 
     // Telemetria opcional (Firebase Analytics + Crashlytics) - ver TelemetryManager.
+    // Sincronização premium (Firestore, Authentication, Cloud Functions) - ver plano de nuvem.
     // As dependências são sempre incluídas; sem um google-services.json local (plugins acima),
     // o Firebase simplesmente não inicializa e o TelemetryManager desativa a coleta com segurança.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.functions)
 }

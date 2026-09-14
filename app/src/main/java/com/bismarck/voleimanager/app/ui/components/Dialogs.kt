@@ -63,6 +63,9 @@ import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import java.util.Locale
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
+import com.bismarck.voleimanager.app.ui.viewmodel.TeamAccentColor
+import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
+import androidx.compose.material.icons.filled.Lock
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -102,6 +105,138 @@ fun ThemeOption(text: String, selected: Boolean, onClick: () -> Unit) {
         )
         Spacer(Modifier.width(4.dp))
         Text(text)
+    }
+}
+
+/**
+ * Seletor das cores de Time A e Time B (recurso premium). Quando [hasPremiumAccess] é `false`,
+ * as opções aparecem esmaecidas com um cadeado e tocar nelas não faz nada além de mostrar
+ * [onLockedClick] — a tela real de assinatura ainda não existe (ver todo `cloud-sync-screen`),
+ * então por ora isso só serve para o usuário entender que precisa de premium.
+ */
+@Composable
+fun TeamColorPickerSection(
+    teamAColor: TeamAccentColor,
+    teamBColor: TeamAccentColor,
+    hasPremiumAccess: Boolean,
+    isDarkTheme: Boolean,
+    onColorsSelected: (TeamAccentColor, TeamAccentColor) -> Unit,
+    onLockedClick: () -> Unit,
+    title: String? = stringResource(R.string.team_colors_title),
+    hint: String? = if (hasPremiumAccess) {
+        stringResource(R.string.team_colors_hint)
+    } else {
+        stringResource(R.string.team_colors_locked_hint)
+    }
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (title != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                if (!hasPremiumAccess) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        if (hint != null) {
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp, top = 2.dp)
+            )
+        }
+        Text(stringResource(R.string.team_a), style = MaterialTheme.typography.labelMedium)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            TeamAccentColor.entries.forEach { accent ->
+                ColorSwatch(
+                    accent = accent,
+                    isDarkTheme = isDarkTheme,
+                    selected = accent == teamAColor,
+                    enabled = hasPremiumAccess,
+                    onClick = {
+                        if (hasPremiumAccess) {
+                            val newB = if (accent == teamBColor) teamAColor else teamBColor
+                            onColorsSelected(accent, newB)
+                        } else {
+                            onLockedClick()
+                        }
+                    }
+                )
+            }
+        }
+        Text(
+            stringResource(R.string.team_b),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            TeamAccentColor.entries.forEach { accent ->
+                ColorSwatch(
+                    accent = accent,
+                    isDarkTheme = isDarkTheme,
+                    selected = accent == teamBColor,
+                    enabled = hasPremiumAccess,
+                    onClick = {
+                        if (hasPremiumAccess) {
+                            val newA = if (accent == teamAColor) teamBColor else teamAColor
+                            onColorsSelected(newA, accent)
+                        } else {
+                            onLockedClick()
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorSwatch(
+    accent: TeamAccentColor,
+    isDarkTheme: Boolean,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val swatchColor = teamAccentColorFamily(accent, isDarkTheme).color
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(swatchColor.copy(alpha = if (enabled) 1f else 0.35f))
+            .border(
+                width = if (selected) 2.dp else 0.dp,
+                color = MaterialTheme.colorScheme.onSurface,
+                shape = CircleShape
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = teamAccentColorFamily(accent, isDarkTheme).onColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 

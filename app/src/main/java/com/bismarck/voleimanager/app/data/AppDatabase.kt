@@ -22,7 +22,7 @@ import com.bismarck.voleimanager.app.data.model.PlayerEloLog
         com.bismarck.voleimanager.app.data.model.TournamentMatch::class,
         com.bismarck.voleimanager.app.data.model.GroupLog::class
     ],
-    version = 10,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -236,6 +236,29 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Terreno para a sincronização premium em nuvem: flag local de "grupo premium
+                // sincronizado", o id do documento em nuvem (igual ao publicId quando ativo) e o
+                // timestamp da última troca de grupo premium (espelha o valor validado no
+                // backend, usado só para bloqueio otimista na UI).
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN isCloudSynced INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN cloudGroupId TEXT")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN lastPremiumSwitchAt INTEGER")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Cores de time A/B definidas pelo organizador/auxiliar do grupo (nulo = padrão
+                // azul/amarelo) — aplicam-se a todos que visualizam o grupo, com possibilidade de
+                // sobreposição só-local para um visualizador premium (guardada nas preferências,
+                // não no banco).
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN teamAColorName TEXT")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN teamBColorName TEXT")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -243,7 +266,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance

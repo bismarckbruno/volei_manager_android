@@ -55,10 +55,13 @@ androidx-fragment = { group = "androidx.fragment", name = "fragment-ktx", versio
 play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "appUpdate" }
 play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "appUpdate" }
 
-# Firebase (telemetria opcional: Analytics + Crashlytics)
+# Firebase (telemetria opcional: Analytics + Crashlytics; sincronização premium: Firestore/Auth/Functions)
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-functions = { group = "com.google.firebase", name = "firebase-functions" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

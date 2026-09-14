@@ -29,7 +29,7 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.PlayerNameWithPositionBadges
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.ui.components.TeamCompositionIndicator
-import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
+import com.bismarck.voleimanager.app.ui.theme.ColorFamily
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.PositionAssigner
 import androidx.compose.runtime.getValue
@@ -45,6 +45,8 @@ fun ManualSetupScreen(
     players: List<Player>, // Jogadores do grupo selecionado
     showElo: Boolean, // Passado do ViewModel para respeitar a configuração
     groupType: GroupType = GroupType.RECREATIONAL,
+    teamAColorFamily: ColorFamily,
+    teamBColorFamily: ColorFamily,
     onConfirm: (List<Player>, List<Player>, List<Player>, Int) -> Unit, // Retorna (TimeA, TimeB, Resto, TeamSize)
     onCancel: () -> Unit
 ) {
@@ -116,7 +118,12 @@ fun ManualSetupScreen(
                     )
                 }
                 item {
-                    ManualSetupSelectionSummary(teamACount = teamA.size, teamBCount = teamB.size)
+                    ManualSetupSelectionSummary(
+                        teamACount = teamA.size,
+                        teamBCount = teamB.size,
+                        teamAColor = teamAColorFamily.color,
+                        teamBColor = teamBColorFamily.color
+                    )
                 }
                 item {
                     ManualSetupCompositionSummary(compositionA, compositionB)
@@ -133,6 +140,8 @@ fun ManualSetupScreen(
                         currentSelection = selectionState[player.id],
                         showElo = showElo,
                         usesPositions = groupType.usesPositions,
+                        teamAColorFamily = teamAColorFamily,
+                        teamBColorFamily = teamBColorFamily,
                         onSelect = { selection ->
                             val newState = selectionState.toMutableMap()
                             if (newState[player.id] == selection) {
@@ -163,7 +172,12 @@ fun ManualSetupScreen(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                ManualSetupSelectionSummary(teamACount = teamA.size, teamBCount = teamB.size)
+                ManualSetupSelectionSummary(
+                    teamACount = teamA.size,
+                    teamBCount = teamB.size,
+                    teamAColor = teamAColorFamily.color,
+                    teamBColor = teamBColorFamily.color
+                )
                 ManualSetupCompositionSummary(compositionA, compositionB)
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
@@ -180,6 +194,8 @@ fun ManualSetupScreen(
                                 currentSelection = selectionState[player.id],
                                 showElo = showElo,
                                 usesPositions = groupType.usesPositions,
+                                teamAColorFamily = teamAColorFamily,
+                                teamBColorFamily = teamBColorFamily,
                                 onSelect = { selection ->
                                     val newState = selectionState.toMutableMap()
                                     if (newState[player.id] == selection) {
@@ -250,7 +266,9 @@ private fun ManualSetupActionBar(
 @Composable
 private fun ManualSetupSelectionSummary(
     teamACount: Int,
-    teamBCount: Int
+    teamBCount: Int,
+    teamAColor: Color,
+    teamBColor: Color
 ) {
     Row(
         modifier = Modifier
@@ -262,7 +280,7 @@ private fun ManualSetupSelectionSummary(
         TeamCounter(
             stringResource(R.string.team_a),
             teamACount,
-            MaterialTheme.colorScheme.primary
+            teamAColor
         )
         Text(
             stringResource(R.string.vs),
@@ -273,7 +291,7 @@ private fun ManualSetupSelectionSummary(
         TeamCounter(
             stringResource(R.string.team_b),
             teamBCount,
-            LocalExtendedColors.current.anotherPrime.color
+            teamBColor
         )
     }
 }
@@ -309,6 +327,8 @@ fun PlayerSelectionRow(
     currentSelection: String?, // "A", "B" ou null
     showElo: Boolean,
     usesPositions: Boolean = false,
+    teamAColorFamily: ColorFamily,
+    teamBColorFamily: ColorFamily,
     onSelect: (String) -> Unit
 ) {
     Row(
@@ -372,8 +392,8 @@ fun PlayerSelectionRow(
             SelectionButton(
                 text = "A",
                 isSelected = currentSelection == "A",
-                activeColor = MaterialTheme.colorScheme.primary,
-                onActiveColor = MaterialTheme.colorScheme.onPrimary,
+                activeColor = teamAColorFamily.color,
+                onActiveColor = teamAColorFamily.onColor,
                 onClick = { onSelect("A") }
             )
 
@@ -383,8 +403,8 @@ fun PlayerSelectionRow(
             SelectionButton(
                 text = "B",
                 isSelected = currentSelection == "B",
-                activeColor = LocalExtendedColors.current.anotherPrime.color,
-                onActiveColor = LocalExtendedColors.current.anotherPrime.onColor,
+                activeColor = teamBColorFamily.color,
+                onActiveColor = teamBColorFamily.onColor,
                 onClick = { onSelect("B") }
             )
         }

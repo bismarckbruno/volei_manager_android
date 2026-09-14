@@ -1,4 +1,4 @@
-package com.bismarck.voleimanager.app.ui.game
+﻿package com.bismarck.voleimanager.app.ui.game
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
@@ -133,7 +133,7 @@ import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
 import com.bismarck.voleimanager.app.ui.components.SubstitutionDialog
 import com.bismarck.voleimanager.app.ui.components.setterIconRes
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
-import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
+import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
@@ -208,6 +208,10 @@ fun GameScreenContent(
     val guaranteedNextMatchPlayerIds by viewModel.guaranteedNextMatchPlayerIds.collectAsState()
     val manualStreakAdjustments by viewModel.manualStreakAdjustments.collectAsState()
     val manualSubstitutions by viewModel.manualSubstitutions.collectAsState()
+    val teamAAccentColor by viewModel.effectiveTeamAColor.collectAsState()
+    val teamBAccentColor by viewModel.effectiveTeamBColor.collectAsState()
+    val teamAColorFamily = teamAccentColorFamily(teamAAccentColor, isDarkTheme)
+    val teamBColorFamily = teamAccentColorFamily(teamBAccentColor, isDarkTheme)
 
     var showCancel by remember { mutableStateOf(false) }
     var subOut by remember { mutableStateOf<Player?>(null) }
@@ -399,6 +403,8 @@ fun GameScreenContent(
                     players = presentPlayers,
                     showElo = showElo,
                     groupType = config.type,
+                    teamAColorFamily = teamAColorFamily,
+                    teamBColorFamily = teamBColorFamily,
                     onConfirm = { tA, tB, b, teamSize ->
                         viewModel.updateConfig(
                             teamSize,
@@ -985,7 +991,7 @@ fun ActiveGameView(
             }
         }
 
-        return "$timeLabel • $ownerLabel (${log.oldStreak} → ${log.newStreak})"
+        return "$timeLabel â€¢ $ownerLabel (${log.oldStreak} â†’ ${log.newStreak})"
     }
 
     fun substitutionLocationLabel(location: String): String = when (location) {
@@ -1020,7 +1026,7 @@ fun ActiveGameView(
                 log.playerOutName
             )
         }
-        return "$timeLabel • $description"
+        return "$timeLabel â€¢ $description"
     }
 
     data class RecentActivityEntry(
@@ -1235,13 +1241,24 @@ fun ActiveGameView(
         )
     }
 
-    val cardColorA = MaterialTheme.colorScheme.primaryContainer
-    val btnColorA = MaterialTheme.colorScheme.primary
-    val btnTextColorA = MaterialTheme.colorScheme.onPrimary
+    val teamAColor by viewModel.effectiveTeamAColor.collectAsState()
+    val teamBColor by viewModel.effectiveTeamBColor.collectAsState()
+    val teamAFamily = teamAccentColorFamily(teamAColor, isDarkTheme)
+    val teamBFamily = teamAccentColorFamily(teamBColor, isDarkTheme)
 
-    val cardColorB = LocalExtendedColors.current.anotherPrime.colorContainer
-    val btnColorB = LocalExtendedColors.current.anotherPrime.color
-    val btnTextColorB = LocalExtendedColors.current.anotherPrime.onColor
+    val cardColorA = teamAFamily.colorContainer
+    val btnColorA = teamAFamily.color
+    val btnTextColorA = teamAFamily.onColor
+
+    val cardColorB = teamBFamily.colorContainer
+    val btnColorB = teamBFamily.color
+    val btnTextColorB = teamBFamily.onColor
+
+    // O nÃºmero do placar em si Ã© sempre 100% branco (tema escuro) ou 100% preto (tema claro),
+    // independentemente da cor escolhida para os cards/botÃµes â€” garante legibilidade mÃ¡xima
+    // de longe, jÃ¡ que os tons de destaque (vermelho/verde/roxo/azul) tÃªm contrastes variados
+    // entre si e com o fundo do card.
+    val scoreTextColor = if (isDarkTheme) Color.White else Color.Black
 
     val defaultStreakColor = Color(0xFFFF6F00)
     val yellowStreakColor = Color(0xFFFFD600)
@@ -1416,6 +1433,7 @@ fun ActiveGameView(
                 firstCardColor = firstCardColor,
                 firstBtnColor = firstBtnColor,
                 firstBtnTextColor = firstBtnTextColor,
+                scoreTextColor = scoreTextColor,
                 firstStreakColor = firstStreakColor,
                 firstStreak = firstStreak,
                 firstStreakTeamId = firstStreakTeamId,
@@ -1500,6 +1518,7 @@ fun ActiveGameView(
                                         firstCardColor,
                                         firstBtnColor,
                                         firstBtnTextColor,
+                                        scoreTextColor,
                                         firstStreakColor,
                                         firstStreak,
                                         firstStreakTeamId,
@@ -1570,6 +1589,7 @@ fun ActiveGameView(
                                         secondCardColor,
                                         secondBtnColor,
                                         secondBtnTextColor,
+                                        scoreTextColor,
                                         secondStreakColor,
                                         secondStreak,
                                         secondStreakTeamId,
@@ -1672,6 +1692,7 @@ fun ActiveGameView(
                             firstCardColor,
                             firstBtnColor,
                             firstBtnTextColor,
+                            scoreTextColor,
                             firstStreakColor,
                             firstStreak,
                             firstStreakTeamId,
@@ -1747,6 +1768,7 @@ fun ActiveGameView(
                             secondCardColor,
                             secondBtnColor,
                             secondBtnTextColor,
+                            scoreTextColor,
                             secondStreakColor,
                             secondStreak,
                             secondStreakTeamId,
@@ -2225,6 +2247,7 @@ private fun BigScoreboardScreen(
     firstCardColor: Color,
     firstBtnColor: Color,
     firstBtnTextColor: Color,
+    scoreTextColor: Color,
     firstStreakColor: Color,
     firstStreak: Int,
     firstStreakTeamId: String,
@@ -2266,6 +2289,7 @@ private fun BigScoreboardScreen(
             cardColor = firstCardColor,
             buttonColor = firstBtnColor,
             buttonTextColor = firstBtnTextColor,
+            scoreTextColor = scoreTextColor,
             streakColor = firstStreakColor,
             streak = firstStreak,
             streakTeamId = firstStreakTeamId,
@@ -2309,6 +2333,7 @@ private fun BigScoreboardScreen(
             cardColor = secondCardColor,
             buttonColor = secondBtnColor,
             buttonTextColor = secondBtnTextColor,
+            scoreTextColor = scoreTextColor,
             streakColor = secondStreakColor,
             streak = secondStreak,
             streakTeamId = secondStreakTeamId,
@@ -2335,6 +2360,7 @@ private fun BigScoreCard(
     cardColor: Color,
     buttonColor: Color,
     buttonTextColor: Color,
+    scoreTextColor: Color,
     streakColor: Color,
     streak: Int,
     streakTeamId: String,
@@ -2460,7 +2486,7 @@ private fun BigScoreCard(
 
                 ScoreValueIndicator(
                     score = score,
-                    textColor = buttonColor,
+                    textColor = scoreTextColor,
                     indicatorColor = buttonColor,
                     showLatestPointBorder = showLatestPointBorder,
                     showRotationIndicator = showRotationIndicator,
@@ -2713,6 +2739,7 @@ fun ActiveTeamCard(
     cardColor: Color,
     buttonColor: Color,
     buttonTextColor: Color,
+    scoreTextColor: Color,
     streakColor: Color,
     streak: Int,
     streakTeamId: String,
@@ -2967,7 +2994,7 @@ fun ActiveTeamCard(
             Spacer(Modifier.width(4.dp))
             ScoreValueIndicator(
                 score = score,
-                textColor = buttonColor,
+                textColor = scoreTextColor,
                 indicatorColor = buttonColor,
                 showLatestPointBorder = showLatestPointBorder,
                 showRotationIndicator = showRotationIndicator,
@@ -3360,7 +3387,7 @@ fun ActiveTeamCard(
     }
 }
 
-/** Texto de status do jogador (rebalanceado / perdedor reaproveitado), ou `null` se não houver. */
+/** Texto de status do jogador (rebalanceado / perdedor reaproveitado), ou `null` se nÃ£o houver. */
 @Composable
 private fun playerStatusTooltipText(
     isRebalancedPlayer: Boolean,
@@ -3373,7 +3400,7 @@ private fun playerStatusTooltipText(
     else -> null
 }
 
-/** Ícones de status. A tooltip é responsabilidade da linha do jogador, que a unifica. */
+/** Ãcones de status. A tooltip Ã© responsabilidade da linha do jogador, que a unifica. */
 @Composable
 private fun PlayerStatusIcons(
     isRebalancedPlayer: Boolean,
@@ -4272,7 +4299,7 @@ fun EmptyStateCard(
                         .height(56.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    // Leading Button: Iniciar jogo / Iniciar próximo jogo
+                    // Leading Button: Iniciar jogo / Iniciar prÃ³ximo jogo
                     Button(
                         onClick = {
                             if (hasPreviousMatch) {
@@ -4378,7 +4405,7 @@ fun EmptyStateCard(
                             onDismissRequest = { showSecondaryMenu = false },
                             offset = DpOffset(0.dp, 4.dp)
                         ) {
-                            // Opção: Montar times manualmente
+                            // OpÃ§Ã£o: Montar times manualmente
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.manual_teams)) },
                                 onClick = {
@@ -4397,7 +4424,7 @@ fun EmptyStateCard(
                                 }
                             )
 
-                            // Opção: Limpar jogo atual
+                            // OpÃ§Ã£o: Limpar jogo atual
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.clear_match)) },
                                 onClick = {
@@ -4486,8 +4513,8 @@ fun PlayerCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     if (isLandscape && usesPositions) {
-                        // Em paisagem, nomes longos já rolam via marquee; a quebra de linha dos
-                        // selos não se aplica aqui (a linha inteira já tem espaço ilimitado).
+                        // Em paisagem, nomes longos jÃ¡ rolam via marquee; a quebra de linha dos
+                        // selos nÃ£o se aplica aqui (a linha inteira jÃ¡ tem espaÃ§o ilimitado).
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)

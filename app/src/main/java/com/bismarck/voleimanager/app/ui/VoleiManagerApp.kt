@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.R
+import com.bismarck.voleimanager.app.BuildConfig
 import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -117,6 +118,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val showToll by viewModel.showToll.collectAsState()
     val telemetryEnabled by viewModel.telemetryEnabled.collectAsState()
     val showTelemetryConsentPrompt by viewModel.showTelemetryConsentPrompt.collectAsState()
+    val showUserProfileOnboarding by viewModel.showUserProfileOnboarding.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val showScore = groupConfig.scoreEnabled
     val groupsSortedByRecent by viewModel.groupsSortedByRecentHistory.collectAsState()
@@ -661,6 +663,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         )
     }
 
+    if (showUserProfileOnboarding) {
+        UserProfileOnboardingScreen(
+            onProfileSelected = { viewModel.setUserProfileType(it) }
+        )
+        return
+    }
+
     ModalNavigationDrawer(
         modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
@@ -987,6 +996,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             })
         if (showThemeDialog) {
             val mode by viewModel.themeMode.collectAsState()
+            val groupTeamAColor by viewModel.groupTeamAColor.collectAsState()
+            val groupTeamBColor by viewModel.groupTeamBColor.collectAsState()
+            val personalOverrideEnabled by viewModel.personalTeamColorOverrideEnabled.collectAsState()
+            val personalTeamAColor by viewModel.personalTeamAColor.collectAsState()
+            val personalTeamBColor by viewModel.personalTeamBColor.collectAsState()
+            val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
+            val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
+            val teamColorsLockedMessage = stringResource(R.string.team_colors_locked_hint)
             AlertDialog(
                 onDismissRequest = { showThemeDialog = false },
                 title = { Text(stringResource(R.string.theme)) },
@@ -1017,6 +1034,107 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             viewModel.setThemeMode(
                                 ThemeMode.DARK
                             )
+                        }
+
+                        HorizontalDivider(
+                            Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                        // Cores oficiais do grupo atual: valem para todo mundo que o visualiza
+                        // (inclusive observadores sem premium), definidas por quem tem premium.
+                        TeamColorPickerSection(
+                            title = stringResource(R.string.team_colors_group_title),
+                            hint = if (hasPremiumAccess) {
+                                stringResource(R.string.team_colors_group_hint)
+                            } else {
+                                stringResource(R.string.team_colors_locked_hint)
+                            },
+                            teamAColor = groupTeamAColor,
+                            teamBColor = groupTeamBColor,
+                            hasPremiumAccess = hasPremiumAccess,
+                            isDarkTheme = isDarkTheme,
+                            onColorsSelected = { a, b -> viewModel.setGroupTeamColors(a, b) },
+                            onLockedClick = {
+                                viewModel.showMessage(teamColorsLockedMessage)
+                            }
+                        )
+
+                        HorizontalDivider(
+                            Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                        // Sobreposição só para este usuário/dispositivo, sem alterar o que os
+                        // demais membros do grupo enxergam — só disponível para quem é premium.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.team_colors_personal_override_title),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    stringResource(R.string.team_colors_personal_override_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = personalOverrideEnabled,
+                                enabled = hasPremiumAccess,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        viewModel.setPersonalTeamColorOverride(
+                                            personalTeamAColor,
+                                            personalTeamBColor
+                                        )
+                                    } else {
+                                        viewModel.clearPersonalTeamColorOverride()
+                                    }
+                                }
+                            )
+                        }
+                        if (personalOverrideEnabled) {
+                            Spacer(Modifier.height(8.dp))
+                            TeamColorPickerSection(
+                                title = null,
+                                hint = null,
+                                teamAColor = personalTeamAColor,
+                                teamBColor = personalTeamBColor,
+                                hasPremiumAccess = hasPremiumAccess,
+                                isDarkTheme = isDarkTheme,
+                                onColorsSelected = { a, b ->
+                                    viewModel.setPersonalTeamColorOverride(a, b)
+                                },
+                                onLockedClick = {
+                                    viewModel.showMessage(teamColorsLockedMessage)
+                                }
+                            )
+                        }
+
+                        if (BuildConfig.DEBUG) {
+                            HorizontalDivider(
+                                Modifier.padding(vertical = 12.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        stringResource(R.string.debug_simulate_premium),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        stringResource(R.string.debug_simulate_premium_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = debugPremiumOverride,
+                                    onCheckedChange = { viewModel.setDebugPremiumOverride(it) }
+                                )
+                            }
                         }
                     }
                 },
