@@ -358,6 +358,14 @@ private val teamAccentContainerLuminanceDark = luminance(Color(0xFF444444))
 private val teamAccentContainerLuminanceLight = luminance(Color(0xFFE2E2E2))
 
 /**
+ * Luminância-alvo da cor de destaque ("color": nome do time, botões, badges) no tema escuro, igual
+ * à do azul ([primaryDark]) — um azul claro/pastel usado sobre o container escuro. Vermelho, verde
+ * e roxo usam essa mesma luminância-alvo para que o contraste entre o nome do time e o fundo do
+ * card fique equivalente ao do card azul, em vez de ficarem visivelmente mais "apagados".
+ */
+private val teamAccentColorLuminanceDark = luminance(primaryDark)
+
+/**
  * Luminância-alvo do texto/ícone (crown) sobre o botão de vitória no tema escuro, igual à do azul
  * ([onPrimaryDark]) — um tom escuro e saturado da própria cor, não preto puro. Assim vermelho, verde
  * e roxo ficam com o mesmo contraste "tom escuro da cor" que o azul já usa nesses itens.
@@ -382,7 +390,7 @@ private fun blendToLuminance(seed: Color, towards: Color, targetLuminance: Float
 /** Aproxima os 4 papéis de cor M3 (cor/onCor/container/onContainer) a partir de uma única seed. */
 private fun seedColorFamily(seed: Color, darkTheme: Boolean): ColorFamily = if (darkTheme) {
     ColorFamily(
-        color = lerp(seed, Color.White, 0.35f),
+        color = blendToLuminance(seed, Color.White, teamAccentColorLuminanceDark),
         onColor = blendToLuminance(seed, Color.Black, teamAccentOnColorLuminanceDark),
         colorContainer = blendToLuminance(seed, Color.Black, teamAccentContainerLuminanceDark),
         onColorContainer = lerp(seed, Color.White, 0.85f),
