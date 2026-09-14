@@ -38,10 +38,16 @@ import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
 import com.bismarck.voleimanager.app.util.AppAuthUser
 import com.bismarck.voleimanager.app.util.AuthManager
 import com.bismarck.voleimanager.app.util.CloudFunctionsManager
+import com.bismarck.voleimanager.app.util.CloudSyncManager
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.GeneratedJoinCode
+import com.bismarck.voleimanager.app.util.GroupVisibility
 import com.bismarck.voleimanager.app.util.JoinRole
+import com.bismarck.voleimanager.app.util.LiveGameState
 import com.bismarck.voleimanager.app.util.PositionAssigner
+import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
+import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
+import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
 import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TelemetryManager
 import com.bismarck.voleimanager.app.util.TollCalculator
@@ -218,6 +224,15 @@ internal data class ReturningPlayersResolution(
 internal data class TeamSnapshotWithIds(
     val names: String,
     val ids: String
+)
+
+/** Converte para o formato "enxuto" publicado em `liveState` (ver [CloudSyncManager]) — usa
+ *  [Player.publicId] (estável entre dispositivos) em vez do [Player.id] local. */
+internal fun Player.toRemoteSnapshot() = RemotePlayerSnapshot(
+    publicId = publicId,
+    name = name,
+    elo = elo,
+    isPriority = isPriority
 )
 
 private data class TeamSnapshotEntry(
@@ -1277,6 +1292,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             }
         }
         observeAndPersistGameState()
+        observeAndPushCloudLiveState()
+        observeRemoteGroupVisibility()
         viewModelScope.launch {
             availableHistoryDates.collect { dates ->
                 if (_historyDateFilter.value == null && dates.isNotEmpty()) _historyDateFilter.value =
@@ -1336,6 +1353,145 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 }
             }
         }
+    }
+
+    /**
+     * Motor de sincronização (`firestore-sync-engine`): sempre que o grupo local ativo for o
+     * grupo **próprio** deste dispositivo ([GroupConfig.remoteRole] nulo) e estiver premium
+     * sincronizado ([GroupConfig.isCloudSynced] com [GroupConfig.cloudGroupId] não nulo), publica
+     * o estado do jogo em andamento (times, fila, placar, sequência) em
+     * `cloudGroups/{cloudGroupId}/liveState/current`, para que auxiliares/espectadores que
+     * entraram via código vejam em tempo real (ver [CloudSyncManager.pushLiveState]). Usa
+     * [kotlinx.coroutines.flow.debounce] para não disparar uma escrita por tecla em sequências
+     * rápidas de toques no placar.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
+    private fun observeAndPushCloudLiveState() {
+        data class LiveGameStatePartial(
+            val teamA: List<Player>,
+            val teamB: List<Player>,
+            val waitingList: List<Player>,
+            val scoreA: Int,
+            val scoreB: Int
+        )
+        val partialFlow = combine(_teamA, _teamB, _waitingList, _scoreA, _scoreB) { teamA, teamB, waiting, scoreA, scoreB ->
+            LiveGameStatePartial(teamA, teamB, waiting, scoreA, scoreB)
+        }
+        viewModelScope.launch {
+            combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner) { config, partial, streak, owner ->
+                if (config.remoteRole == null && config.isCloudSynced && config.cloudGroupId != null) {
+                    config.cloudGroupId to LiveGameState(
+                        groupName = config.groupName,
+                        teamA = partial.teamA.map { it.toRemoteSnapshot() },
+                        teamB = partial.teamB.map { it.toRemoteSnapshot() },
+                        waitingList = partial.waitingList.map { it.toRemoteSnapshot() },
+                        scoreA = partial.scoreA,
+                        scoreB = partial.scoreB,
+                        currentStreak = streak,
+                        streakOwner = owner,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                } else null
+            }.debounce(400).collect { pushable ->
+                if (pushable != null) CloudSyncManager.pushLiveState(pushable.first, pushable.second)
+            }
+        }
+    }
+
+    /**
+     * Mantém o espelho local de visibilidade ([GroupConfig.shareHistoryWithObservers]/
+     * [GroupConfig.showEloToObservers]) em dia com o documento em nuvem do grupo ativo, para que
+     * uma mudança feita em outro dispositivo (ex.: organizador ligando o toggle pelo celular
+     * enquanto o auxiliar está com o app aberto no tablet) reflita aqui sem precisar reabrir o
+     * app.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeRemoteGroupVisibility() {
+        viewModelScope.launch {
+            _currentGroupConfig
+                .map { it.cloudGroupId }
+                .distinctUntilChanged()
+                .flatMapLatest { cloudGroupId ->
+                    if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeGroupVisibility(cloudGroupId)
+                }
+                .collect { visibility ->
+                    if (visibility == null) return@collect
+                    val current = _currentGroupConfig.value
+                    if (current.cloudGroupId == null) return@collect
+                    if (current.shareHistoryWithObservers != visibility.shareHistoryWithObservers ||
+                        current.showEloToObservers != visibility.showEloToObservers
+                    ) {
+                        val updated = current.copy(
+                            shareHistoryWithObservers = visibility.shareHistoryWithObservers,
+                            showEloToObservers = visibility.showEloToObservers
+                        )
+                        _currentGroupConfig.value = updated
+                        repository.saveGroupConfig(updated)
+                    }
+                }
+        }
+    }
+
+    /** Grupo remoto observado ao vivo (times, placar, fila) quando este dispositivo entrou via
+     *  código de Auxiliar/Espectador ([GroupConfig.remoteRole] não nulo) — usado pela tela "Ao
+     *  vivo" no lugar da engine local de jogo, que não roda para grupos de outra pessoa. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val remoteLiveGameState: StateFlow<LiveGameState?> = _currentGroupConfig
+        .map { config -> config.takeIf { it.remoteRole != null }?.cloudGroupId }
+        .distinctUntilChanged()
+        .flatMapLatest { cloudGroupId ->
+            if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeLiveState(cloudGroupId)
+        }
+        .stateIn(viewModelScope, screenDataSharing, null)
+
+    /** Histórico de partidas do grupo remoto ativo, só não-vazio quando o organizador/auxiliar
+     *  ligou [GroupConfig.shareHistoryWithObservers] (também reforçado nas firestore.rules). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val remoteHistory: StateFlow<List<RemoteHistoryEntry>> = _currentGroupConfig
+        .flatMapLatest { config ->
+            val cloudGroupId = config.cloudGroupId
+            if (config.remoteRole != null && cloudGroupId != null && config.shareHistoryWithObservers) {
+                CloudSyncManager.observeHistory(cloudGroupId)
+            } else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    /** Ranking de Elo do grupo remoto ativo, só não-vazio quando o organizador/auxiliar ligou
+     *  tanto [GroupConfig.shareHistoryWithObservers] quanto [GroupConfig.showEloToObservers]. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val remoteEloLogs: StateFlow<List<RemoteEloLogEntry>> = _currentGroupConfig
+        .flatMapLatest { config ->
+            val cloudGroupId = config.cloudGroupId
+            if (config.remoteRole != null && cloudGroupId != null &&
+                config.shareHistoryWithObservers && config.showEloToObservers
+            ) {
+                CloudSyncManager.observeEloLogs(cloudGroupId)
+            } else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    /**
+     * Liga/desliga, para o grupo premium sincronizado [groupName], a visibilidade de histórico
+     * ([shareHistory]) e de ranking de Elo ([showElo]) para espectadores (`observer-visibility-controls`).
+     * Permitido a organizador (grupo próprio) e auxiliar (grupo remoto, `remoteRole == "AUXILIAR"`)
+     * — nunca a espectador. Grava localmente de imediato e envia ao Firestore em segundo plano
+     * (best-effort, ver [CloudSyncManager.setGroupVisibility]).
+     */
+    fun setGroupVisibility(groupName: String, shareHistory: Boolean, showElo: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        if (target.remoteRole == UserProfileType.ESPECTADOR.name) return@launch
+        val cloudGroupId = target.cloudGroupId ?: return@launch
+        val effectiveShowElo = showElo && shareHistory
+        val updated = target.copy(shareHistoryWithObservers = shareHistory, showEloToObservers = effectiveShowElo)
+        repository.saveGroupConfig(updated)
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(
+                shareHistoryWithObservers = shareHistory,
+                showEloToObservers = effectiveShowElo
+            )
+        }
+        val error = CloudSyncManager.setGroupVisibility(cloudGroupId, shareHistory, effectiveShowElo)
+        if (error != null) showMessage(error)
     }
 
     private fun saveGameState() {
@@ -2703,6 +2859,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _lastWinners.value = winners; lastLosers = losers; _hasPreviousMatch.value = true
 
         viewModelScope.launch(Dispatchers.IO) {
+            val conf = _currentGroupConfig.value
+            val cloudGroupId = conf.cloudGroupId.takeIf { conf.remoteRole == null && conf.isCloudSynced }
             val avgA = cA.map { it.elo }.average()
             val avgB = cB.map { it.elo }.average()
             val delta =
@@ -2728,17 +2886,23 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         victories = if (won) p.victories + 1 else p.victories
                     )
                     updatedPlayers.add(u); if (won) newWinners.add(u) else newLosers.add(u)
+                    val nameSnapshot = normalizePersonName(u.name).ifBlank { "Desconhecido" }
                     repository.insertEloLog(
                         PlayerEloLog(
                             playerId = u.id,
-                            playerNameSnapshot = normalizePersonName(u.name)
-                                .ifBlank { "Desconhecido" },
+                            playerNameSnapshot = nameSnapshot,
                             date = dateLog,
                             elo = newElo,
                             groupName = u.groupName,
                             won = won
                         )
                     )
+                    if (cloudGroupId != null) {
+                        CloudSyncManager.pushEloLogEntry(
+                            cloudGroupId,
+                            RemoteEloLogEntry(playerNameSnapshot = nameSnapshot, date = dateLog, elo = newElo, won = won)
+                        )
+                    }
                 }
             }
             process(winners, true, if (winner == "A") avgB else avgA)
@@ -2766,7 +2930,20 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     endTimestamp = endTimestamp
                 )
             )
-            val conf = _currentGroupConfig.value
+            if (cloudGroupId != null) {
+                CloudSyncManager.pushHistoryEntry(
+                    cloudGroupId,
+                    RemoteHistoryEntry(
+                        date = dateDisplay,
+                        teamA = teamASnapshot.names,
+                        teamB = teamBSnapshot.names,
+                        winner = winner,
+                        teamAScore = sA,
+                        teamBScore = sB,
+                        endTimestamp = endTimestamp
+                    )
+                )
+            }
             TelemetryManager.logMatchFinished(
                 getApplication(),
                 groupType = conf.groupType,

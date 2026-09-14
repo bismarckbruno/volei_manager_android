@@ -48,6 +48,10 @@ import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.JoinRole
+import com.bismarck.voleimanager.app.util.LiveGameState
+import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
+import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
+import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
 
 /**
  * Tela "Ao vivo": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
@@ -56,13 +60,14 @@ import com.bismarck.voleimanager.app.util.JoinRole
  *   opções para escolher agora (mesmo componente do onboarding).
  * - Organizador(a)/Auxiliar: gestão de conta, assinatura/planos e grupos sincronizados (o que já
  *   existia nesta tela).
- * - Espectador(a): visão ao vivo (placar, times, fila) do grupo que ele entrou via código —
- *   ainda um stub, já que a engine de sincronização de fato (`firestore-sync-engine`) não existe.
+ * - Espectador(a): visão ao vivo (placar, times, fila) do grupo que ele entrou via código, mais
+ *   histórico/ranking de Elo quando o organizador/auxiliar habilitar os toggles de visibilidade
+ *   (ver [CloudSyncManager][com.bismarck.voleimanager.app.util.CloudSyncManager]).
  *
- * Cadastro/login real (Firebase Auth) já funciona (e-mail/senha); a engine de sincronização de
- * fato (Firestore) e o pagamento chegam em fases seguintes (`firestore-sync-engine`,
- * `billing-integration`) — por ora, planos e grupo(s) sincronizado(s) usam
- * [VoleiViewModel.debugPremiumOverride]/[VoleiViewModel.debugPremiumPlanTier] (apenas em debug).
+ * Cadastro/login real (Firebase Auth) e a sincronização em tempo real (Firestore) já funcionam; o
+ * pagamento em si chega em uma fase seguinte (`billing-integration`) — por ora, planos e grupo(s)
+ * sincronizado(s) usam [VoleiViewModel.debugPremiumOverride]/[VoleiViewModel.debugPremiumPlanTier]
+ * (apenas em debug).
  */
 @Composable
 fun CloudSyncScreen(viewModel: VoleiViewModel) {
@@ -91,6 +96,9 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
 private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val remoteSpectatorGroup = allGroups.firstOrNull { it.remoteRole == UserProfileType.ESPECTADOR.name }
+    val liveState by viewModel.remoteLiveGameState.collectAsState()
+    val remoteHistory by viewModel.remoteHistory.collectAsState()
+    val remoteEloLogs by viewModel.remoteEloLogs.collectAsState()
 
     Column(
         modifier = Modifier
@@ -126,6 +134,131 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
                 )
             }
         }
+
+        if (remoteSpectatorGroup != null) {
+            SectionCard {
+                if (liveState == null) {
+                    Text(
+                        stringResource(R.string.live_screen_no_live_state),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LiveScoreboard(liveState!!)
+                }
+            }
+
+            if (remoteSpectatorGroup.shareHistoryWithObservers) {
+                SectionCard {
+                    Text(
+                        stringResource(R.string.live_screen_history_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (remoteHistory.isEmpty()) {
+                        Text(
+                            stringResource(R.string.live_screen_history_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        remoteHistory.take(20).forEach { entry -> RemoteHistoryRow(entry) }
+                    }
+                }
+
+                if (remoteSpectatorGroup.showEloToObservers) {
+                    SectionCard {
+                        Text(
+                            stringResource(R.string.live_screen_elo_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (remoteEloLogs.isEmpty()) {
+                            Text(
+                                stringResource(R.string.live_screen_elo_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            remoteEloLogs.take(20).forEach { entry -> RemoteEloRow(entry) }
+                        }
+                    }
+                }
+            } else {
+                SectionCard {
+                    Text(
+                        stringResource(R.string.live_screen_history_hidden),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveScoreboard(state: LiveGameState) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        Text(
+            "${state.scoreA} x ${state.scoreB}",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+    }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.live_screen_team_a_label),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
+            state.teamA.forEach { player -> Text(player.name, style = MaterialTheme.typography.bodyMedium) }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.live_screen_team_b_label),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
+            state.teamB.forEach { player -> Text(player.name, style = MaterialTheme.typography.bodyMedium) }
+        }
+    }
+    HorizontalDivider(
+        Modifier.padding(vertical = 8.dp),
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+    )
+    Text(
+        stringResource(R.string.live_screen_waiting_list_label),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold
+    )
+    if (state.waitingList.isEmpty()) {
+        Text(
+            stringResource(R.string.live_screen_waiting_list_empty),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    } else {
+        state.waitingList.forEach { player: RemotePlayerSnapshot ->
+            Text(player.name, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun RemoteHistoryRow(entry: RemoteHistoryEntry) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(entry.date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("${entry.teamA}  ${entry.teamAScore ?: "-"} x ${entry.teamBScore ?: "-"}  ${entry.teamB}", style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun RemoteEloRow(entry: RemoteEloLogEntry) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(entry.playerNameSnapshot, style = MaterialTheme.typography.bodyMedium)
+        Text("%.0f".format(entry.elo), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -356,6 +489,9 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
                             TextButton(onClick = { generateCodeDialogFor = group.groupName }) {
                                 Text(stringResource(R.string.generate_join_code_menu_item))
                             }
+                            GroupVisibilityToggles(group = group, onChange = { shareHistory, showElo ->
+                                viewModel.setGroupVisibility(group.groupName, shareHistory, showElo)
+                            })
                             if (group.pendingOwnershipTransferTo != null) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
@@ -382,6 +518,26 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
             }
         }
 
+        // ========== GRUPOS ADMINISTRADOS COMO AUXILIAR ==========
+        val auxiliarGroups = allGroups.filter { it.remoteRole == UserProfileType.AUXILIAR.name }
+        if (auxiliarGroups.isNotEmpty()) {
+            SectionCard {
+                Text(
+                    stringResource(R.string.cloud_sync_auxiliar_groups_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                auxiliarGroups.sortedBy { it.groupName }.forEach { group ->
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(group.groupName, style = MaterialTheme.typography.bodyMedium)
+                        GroupVisibilityToggles(group = group, onChange = { shareHistory, showElo ->
+                            viewModel.setGroupVisibility(group.groupName, shareHistory, showElo)
+                        })
+                    }
+                }
+            }
+        }
+
         // ========== ENTRAR EM UM GRUPO (código de Auxiliar/Espectador) ==========
         SectionCard {
             Text(
@@ -401,6 +557,42 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
         }
 
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** Toggles de `observer-visibility-controls`: compartilhar histórico e ranking de Elo com
+ *  espectadores. Mostrar Elo exige compartilhar histórico também (ver [VoleiViewModel.setGroupVisibility]). */
+@Composable
+private fun GroupVisibilityToggles(group: GroupConfig, onChange: (shareHistory: Boolean, showElo: Boolean) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Text(
+            stringResource(R.string.cloud_sync_visibility_title),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.cloud_sync_visibility_share_history),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = group.shareHistoryWithObservers,
+                onCheckedChange = { checked -> onChange(checked, group.showEloToObservers && checked) }
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.cloud_sync_visibility_show_elo),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = group.showEloToObservers,
+                enabled = group.shareHistoryWithObservers,
+                onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked) }
+            )
+        }
     }
 }
 

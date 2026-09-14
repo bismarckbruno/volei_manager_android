@@ -44,7 +44,8 @@ class Migration11To12Test {
 
         AppDatabase.MIGRATION_11_12.migrate(legacyDb)
         AppDatabase.MIGRATION_12_13.migrate(legacyDb)
-        legacyDb.version = 13
+        AppDatabase.MIGRATION_13_14.migrate(legacyDb)
+        legacyDb.version = 14
         legacyDb.close()
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_11_12)
@@ -55,13 +56,14 @@ class Migration11To12Test {
                 AppDatabase.MIGRATION_9_10,
                 AppDatabase.MIGRATION_10_11,
                 AppDatabase.MIGRATION_11_12,
-                AppDatabase.MIGRATION_12_13
+                AppDatabase.MIGRATION_12_13,
+                AppDatabase.MIGRATION_13_14
             )
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(13, migratedDb.version)
+            assertEquals(14, migratedDb.version)
 
             migratedDb.query(
                 "SELECT teamAColorName, teamBColorName FROM group_configs WHERE groupName = 'Grupo'"

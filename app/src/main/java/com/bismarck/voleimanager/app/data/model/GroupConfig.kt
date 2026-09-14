@@ -138,7 +138,20 @@ data class GroupConfig(
      * sincronização (ainda não implementada) validar que o alvo é premium e efetivar a troca no
      * backend — por ora é apenas um registro local/otimista da intenção.
      */
-    val pendingOwnershipTransferTo: String? = null
+    val pendingOwnershipTransferTo: String? = null,
+    /**
+     * Espelho local de `cloudGroups/{cloudGroupId}.visibility.shareHistoryWithObservers` no
+     * Firestore (ver [com.bismarck.voleimanager.app.util.CloudSyncManager]). Controlado pelo
+     * organizador/auxiliar do grupo; quando `false`, espectadores só veem o jogo em andamento
+     * (liveState), nunca o histórico de partidas — reforçado também nas firestore.rules.
+     */
+    val shareHistoryWithObservers: Boolean = false,
+    /**
+     * Espelho local de `cloudGroups/{cloudGroupId}.visibility.showEloToObservers`. Só tem efeito
+     * quando [shareHistoryWithObservers] também está ligado (um espectador não pode ver o ranking
+     * de Elo sem também poder ver o histórico de partidas que o originou).
+     */
+    val showEloToObservers: Boolean = false
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)
