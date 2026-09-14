@@ -75,6 +75,10 @@ private const val KEY_MATCHES_FINISHED_COUNT = "matches_finished_count"
 private const val KEY_LAST_MATCH_FINISHED_DATE = "last_match_finished_date"
 private const val KEY_DISTINCT_MATCH_DAYS_COUNT = "distinct_match_days_count"
 private const val KEY_REVIEW_FALLBACK_DONE = "review_fallback_done"
+/** Intervalo mínimo entre trocas de qual(is) grupo(s) é(são) o(s) grupo(s) premium sincronizado(s)
+ *  (ver [VoleiViewModel.setGroupCloudSynced]) — bloqueio otimista da UI; a regra de verdade é
+ *  sempre revalidada no backend. */
+private const val PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS = 15L * 24L * 60L * 60L * 1000L
 
 /**
  * Cabeçalho do CSV de jogadores — fonte única usada tanto pela exportação real
@@ -86,7 +90,7 @@ private const val PLAYERS_CSV_HEADER =
 
 private const val XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-enum class Screen { GAME, HISTORY, FAQ, ABOUT }
+enum class Screen { GAME, HISTORY, CLOUD_SYNC, FAQ, ABOUT }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
 /**
@@ -112,6 +116,15 @@ fun parseTeamAccentColorOrNull(name: String): TeamAccentColor? = try {
  * para o cadastro/login gratuito na tela de Nuvem; Espectador segue sem conta obrigatória.
  */
 enum class UserProfileType { ORGANIZADOR, AUXILIAR, ESPECTADOR }
+
+/**
+ * Pacote de assinatura premium da sincronização em nuvem: [NONE] (sem assinatura), [SINGLE]
+ * (1 grupo sincronizado, R$ 9,90/mês) ou [MULTI] (até 5 grupos sincronizados, R$ 19,90/mês).
+ * A validação real do pacote ativo vem do backend (ver `billing-integration`/
+ * `purchase-validation-function`); até lá, [VoleiViewModel.effectivePremiumPlanTier] usa
+ * [VoleiViewModel.debugPremiumPlanTier] (só em build de debug) para permitir testar localmente.
+ */
+enum class CloudPlanTier(val maxSyncedGroups: Int) { NONE(0), SINGLE(1), MULTI(5) }
 
 data class BackupData(
     val version: Int = 1,
@@ -706,6 +719,111 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val groupTeamBColor: StateFlow<TeamAccentColor> = _currentGroupConfig
         .map { it.teamBColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.YELLOW }
         .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.YELLOW)
+
+    // ---------------------------------------------------------------------------------------
+    // Sincronização em nuvem (tela "Nuvem") — modelo local/premium. A engine de fato (Firestore),
+    // o cadastro/login (Firebase Auth) e a validação de compra ficam para as fases seguintes
+    // (`auth-account-flow`, `firestore-sync-engine`, `billing-integration`); por ora esta seção
+    // cobre o que já dá para testar localmente: escolha de qual(is) grupo(s) é(são) o(s) grupo(s)
+    // premium sincronizado(s), respeitando o limite do pacote e o intervalo mínimo de troca.
+    // ---------------------------------------------------------------------------------------
+
+    /** Todos os grupos locais, para a tela de Nuvem listar candidatos à sincronização. */
+    val allGroupConfigs: StateFlow<List<GroupConfig>> = _allGroupConfigs
+
+    /** Nomes dos grupos marcados como sincronizados em nuvem neste dispositivo. */
+    val cloudSyncedGroupNames: StateFlow<List<String>> = _allGroupConfigs
+        .map { list -> list.filter { it.isCloudSynced }.map { it.groupName } }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    /**
+     * Reservado para o pacote real (validado via Cloud Function, ver `purchase-validation-function`).
+     * Até lá, sempre [CloudPlanTier.NONE] — o pacote "ativo" em build de debug vem de
+     * [debugPremiumPlanTier].
+     */
+    private val _realPremiumPlanTier = MutableStateFlow(CloudPlanTier.NONE)
+
+    /** Pacote simulado **apenas em build de debug**, para testar o limite de grupos sincronizados
+     *  sem precisar de uma compra real (ver [setDebugPremiumPlanTier]). */
+    private val _debugPremiumPlanTier = MutableStateFlow(CloudPlanTier.SINGLE)
+    val debugPremiumPlanTier: StateFlow<CloudPlanTier> = _debugPremiumPlanTier.asStateFlow()
+
+    /** Pacote efetivamente em vigor: [CloudPlanTier.NONE] sem acesso premium; caso contrário, o
+     *  pacote real quando existir, senão (só em debug) o pacote simulado. */
+    val effectivePremiumPlanTier: StateFlow<CloudPlanTier> = combine(
+        hasPremiumAccess,
+        _realPremiumEntitlement,
+        _realPremiumPlanTier,
+        _debugPremiumPlanTier
+    ) { hasAccess, realEntitlement, realTier, debugTier ->
+        when {
+            !hasAccess -> CloudPlanTier.NONE
+            realEntitlement -> realTier
+            BuildConfig.DEBUG -> debugTier
+            else -> CloudPlanTier.NONE
+        }
+    }.stateIn(viewModelScope, screenDataSharing, CloudPlanTier.NONE)
+
+    /** Só tem efeito em build de debug — troca o pacote simulado (1 ou até 5 grupos) usado por
+     *  [effectivePremiumPlanTier] enquanto não existe integração real de pagamento. */
+    fun setDebugPremiumPlanTier(tier: CloudPlanTier) {
+        if (!BuildConfig.DEBUG || tier == CloudPlanTier.NONE) return
+        _debugPremiumPlanTier.value = tier
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putString("debug_premium_plan_tier", tier.name).apply()
+    }
+
+    /**
+     * Ativa ou desativa a sincronização em nuvem de [groupName]. Exige acesso premium; ao ativar,
+     * respeita o limite de grupos simultâneos do pacote vigente ([effectivePremiumPlanTier]) e o
+     * intervalo mínimo de 15 dias entre trocas (ver [PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS]) — a
+     * regra "de verdade" será sempre revalidada no backend quando a Cloud Function existir; aqui
+     * é só o bloqueio otimista da UI. Desativar nunca é bloqueado (libera uma vaga).
+     */
+    fun setGroupCloudSynced(groupName: String, synced: Boolean) = viewModelScope.launch {
+        if (!hasPremiumAccess.value) return@launch
+        val configs = repository.getAllGroupConfigs()
+        val target = configs.firstOrNull { it.groupName == groupName } ?: return@launch
+        if (target.isCloudSynced == synced) return@launch
+
+        if (!synced) {
+            repository.saveGroupConfig(target.copy(isCloudSynced = false, cloudGroupId = null))
+            if (_currentGroupConfig.value.groupName == groupName) {
+                _currentGroupConfig.value = _currentGroupConfig.value.copy(
+                    isCloudSynced = false,
+                    cloudGroupId = null
+                )
+            }
+            return@launch
+        }
+
+        val currentlySynced = configs.filter { it.isCloudSynced }
+        val maxAllowed = effectivePremiumPlanTier.value.maxSyncedGroups
+        if (currentlySynced.size >= maxAllowed) {
+            showMessage(getApplication<Application>().getString(R.string.cloud_sync_limit_reached))
+            return@launch
+        }
+        val now = System.currentTimeMillis()
+        val lastSwitchAt = currentlySynced.mapNotNull { it.lastPremiumSwitchAt }.maxOrNull()
+        if (lastSwitchAt != null && now - lastSwitchAt < PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS) {
+            showMessage(getApplication<Application>().getString(R.string.cloud_sync_switch_cooldown))
+            return@launch
+        }
+
+        val updated = target.copy(
+            isCloudSynced = true,
+            cloudGroupId = target.publicId,
+            lastPremiumSwitchAt = now
+        )
+        repository.saveGroupConfig(updated)
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(
+                isCloudSynced = true,
+                cloudGroupId = target.publicId,
+                lastPremiumSwitchAt = now
+            )
+        }
+    }
 
     private val _teamsSwapped = MutableStateFlow(false)
     val teamsSwapped: StateFlow<Boolean> = _teamsSwapped.asStateFlow()
@@ -1425,6 +1543,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         TelemetryManager.init(getApplication(), _telemetryEnabled.value)
         _debugPremiumOverride.value =
             BuildConfig.DEBUG && prefs.getBoolean("debug_premium_override", false)
+        _debugPremiumPlanTier.value = prefs.getString("debug_premium_plan_tier", null)?.let {
+            try {
+                CloudPlanTier.valueOf(it).takeIf { tier -> tier != CloudPlanTier.NONE }
+            } catch (e: Exception) {
+                null
+            }
+        } ?: CloudPlanTier.SINGLE
         _personalTeamColorOverrideEnabled.value =
             prefs.getBoolean("personal_team_color_override_enabled", false)
         _personalTeamAColor.value =

@@ -833,6 +833,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onClick = { requestScreenSwitch(Screen.HISTORY) }
                             )
                             FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.Cloud, null) },
+                                label = { Text(stringResource(R.string.cloud_sync)) },
+                                selected = currentScreen == Screen.CLOUD_SYNC,
+                                onClick = { requestScreenSwitch(Screen.CLOUD_SYNC) }
+                            )
+                            FlexibleDrawerItem(
                                 icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
                                 label = { Text(stringResource(R.string.faq)) },
                                 selected = currentScreen == Screen.FAQ,
@@ -1808,6 +1814,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onSendQuestionClick = { showSendQuestionDialog = true }
                             )
                             Screen.ABOUT -> AboutScreen()
+                            Screen.CLOUD_SYNC -> CloudSyncScreen(viewModel = viewModel)
                         }
                     }
                  }
