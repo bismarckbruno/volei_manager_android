@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -28,6 +29,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,25 +41,112 @@ import androidx.compose.ui.unit.dp
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
+import com.bismarck.voleimanager.app.ui.components.JoinExistingGroupDialog
+import com.bismarck.voleimanager.app.ui.components.TransferGroupOwnershipDialog
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
+import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 
 /**
- * Tela "Nuvem": ponto único para o organizador/auxiliar assinar a sincronização em nuvem, escolher
- * qual(is) grupo(s) local(is) ficam sincronizados, e (fase futura) entrar em um grupo de outra
- * pessoa via código/QR. Cadastro/login real (Firebase Auth) e a engine de sincronização de fato
- * (Firestore) chegam em fases seguintes (`auth-account-flow`, `firestore-sync-engine`) — por ora
- * esta tela cobre o que já é testável localmente via [VoleiViewModel.debugPremiumOverride] /
- * [VoleiViewModel.debugPremiumPlanTier] (apenas em build de debug).
+ * Tela "Ao vivo": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
+ * perfil do usuário ([UserProfileType]):
+ * - Sem perfil definido (usuário pulou/nunca respondeu o onboarding de perfil): mostra as três
+ *   opções para escolher agora (mesmo componente do onboarding).
+ * - Organizador(a)/Auxiliar: gestão de conta, assinatura/planos e grupos sincronizados (o que já
+ *   existia nesta tela).
+ * - Espectador(a): visão ao vivo (placar, times, fila) do grupo que ele entrou via código —
+ *   ainda um stub, já que a engine de sincronização de fato (`firestore-sync-engine`) não existe.
+ *
+ * Cadastro/login real (Firebase Auth) já funciona (e-mail/senha); a engine de sincronização de
+ * fato (Firestore) e o pagamento chegam em fases seguintes (`firestore-sync-engine`,
+ * `billing-integration`) — por ora, planos e grupo(s) sincronizado(s) usam
+ * [VoleiViewModel.debugPremiumOverride]/[VoleiViewModel.debugPremiumPlanTier] (apenas em debug).
  */
 @Composable
 fun CloudSyncScreen(viewModel: VoleiViewModel) {
+    val userProfileType by viewModel.userProfileType.collectAsState()
+
+    if (userProfileType == null) {
+        UserProfileOnboardingScreen(onProfileSelected = { viewModel.setUserProfileType(it) })
+        return
+    }
+
+    var showJoinDialog by rememberSaveable { mutableStateOf(false) }
+    if (showJoinDialog) {
+        JoinExistingGroupDialog(
+            onDismiss = { showJoinDialog = false },
+            onConfirm = { code, onResult -> viewModel.joinGroupWithCode(code, onResult) }
+        )
+    }
+
+    when (userProfileType) {
+        UserProfileType.ESPECTADOR -> SpectatorLiveScreen(viewModel)
+        else -> OrganizerAssistantCloudScreen(viewModel, onJoinGroupClick = { showJoinDialog = true })
+    }
+}
+
+@Composable
+private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
+    val allGroups by viewModel.allGroupConfigs.collectAsState()
+    val remoteSpectatorGroup = allGroups.firstOrNull { it.remoteRole == UserProfileType.ESPECTADOR.name }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Spacer(Modifier.height(0.dp))
+        SectionCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.Visibility,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.live_screen_spectator_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            if (remoteSpectatorGroup == null) {
+                Text(
+                    stringResource(R.string.live_screen_spectator_no_group),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                Text(
+                    stringResource(R.string.live_screen_spectator_placeholder, remoteSpectatorGroup.groupName),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroupClick: () -> Unit) {
+    val currentUser by viewModel.currentUser.collectAsState()
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
     val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
-    val debugPlanTier by viewModel.debugPremiumPlanTier.collectAsState()
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val syncedGroupNames by viewModel.cloudSyncedGroupNames.collectAsState()
+
+    var transferDialogFor by remember { mutableStateOf<String?>(null) }
+    transferDialogFor?.let { groupName ->
+        TransferGroupOwnershipDialog(
+            groupName = groupName,
+            onDismiss = { transferDialogFor = null },
+            onConfirm = { email ->
+                viewModel.requestGroupOwnershipTransfer(groupName, email)
+                transferDialogFor = null
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -85,18 +177,29 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
             )
         }
 
-        // ========== CONTA (cadastro/login chegam em `auth-account-flow`) ==========
+        // ========== CONTA (Firebase Auth e-mail/senha) ==========
         SectionCard {
             Text(
                 stringResource(R.string.cloud_sync_account_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                stringResource(R.string.cloud_sync_account_coming_soon),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (currentUser != null) {
+                Text(
+                    currentUser?.displayName?.takeIf { it.isNotBlank() }
+                        ?: currentUser?.email.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                TextButton(onClick = { viewModel.signOut() }) {
+                    Text(stringResource(R.string.logout))
+                }
+            } else {
+                Text(
+                    stringResource(R.string.cloud_sync_account_signed_out_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         // ========== ASSINATURA E PLANOS ==========
@@ -206,36 +309,61 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
             )
             Spacer(Modifier.height(8.dp))
 
-            if (allGroups.isEmpty()) {
+            val ownGroups = allGroups.filter { it.remoteRole == null }
+            if (ownGroups.isEmpty()) {
                 Text(
                     stringResource(R.string.cloud_sync_groups_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                allGroups.sortedBy { it.groupName }.forEach { group: GroupConfig ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            group.groupName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Switch(
-                            checked = group.isCloudSynced,
-                            enabled = hasPremiumAccess,
-                            onCheckedChange = { checked ->
-                                viewModel.setGroupCloudSynced(group.groupName, checked)
+                ownGroups.sortedBy { it.groupName }.forEach { group: GroupConfig ->
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                group.groupName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(
+                                checked = group.isCloudSynced,
+                                enabled = hasPremiumAccess,
+                                onCheckedChange = { checked ->
+                                    viewModel.setGroupCloudSynced(group.groupName, checked)
+                                }
+                            )
+                        }
+                        if (group.isCloudSynced) {
+                            if (group.pendingOwnershipTransferTo != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        stringResource(
+                                            R.string.transfer_ownership_pending_label,
+                                            group.pendingOwnershipTransferTo.orEmpty()
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TextButton(onClick = { viewModel.cancelGroupOwnershipTransfer(group.groupName) }) {
+                                        Text(stringResource(R.string.transfer_ownership_cancel))
+                                    }
+                                }
+                            } else {
+                                TextButton(onClick = { transferDialogFor = group.groupName }) {
+                                    Text(stringResource(R.string.transfer_ownership_menu_item))
+                                }
                             }
-                        )
+                        }
                     }
                 }
             }
         }
 
-        // ========== ENTRAR EM UM GRUPO (código/QR — fase futura) ==========
+        // ========== ENTRAR EM UM GRUPO (código de Auxiliar/Espectador) ==========
         SectionCard {
             Text(
                 stringResource(R.string.cloud_sync_join_title),
@@ -247,6 +375,10 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onJoinGroupClick) {
+                Text(stringResource(R.string.join_existing_group))
+            }
         }
 
         Spacer(Modifier.height(8.dp))

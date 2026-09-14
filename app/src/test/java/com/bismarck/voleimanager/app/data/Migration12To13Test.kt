@@ -10,28 +10,29 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-private const val TEST_DB_11_12 = "migration_11_12_test_db"
+private const val TEST_DB_12_13 = "migration_12_13_test_db"
 
 /**
- * Chega até a versão 11 pelo caminho real de atualização, aplica [AppDatabase.MIGRATION_11_12] e
- * abre com Room na versão 12 — a abertura falha se o esquema migrado divergir do esperado pelas
- * entidades. Cobre as novas colunas de cores de time do grupo (teamAColorName, teamBColorName),
- * ambas nulas por padrão (grupos existentes continuam usando o padrão azul/amarelo).
+ * Chega até a versão 12 pelo caminho real de atualização, aplica [AppDatabase.MIGRATION_12_13] e
+ * abre com Room na versão 13 — a abertura falha se o esquema migrado divergir do esperado pelas
+ * entidades. Cobre as novas colunas `remoteRole` (grupo de outra pessoa, entrado via código) e
+ * `pendingOwnershipTransferTo` (pedido de transferência de posse), ambas nulas por padrão
+ * (grupos existentes continuam sendo locais/próprios).
  */
 @RunWith(RobolectricTestRunner::class)
-class Migration11To12Test {
+class Migration12To13Test {
 
     private lateinit var context: Context
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        context.deleteDatabase(TEST_DB_11_12)
+        context.deleteDatabase(TEST_DB_12_13)
     }
 
     @Test
-    fun migrate11To12_addsTeamColorColumnsWithSafeDefaults() {
-        val legacyDb = createVersion6Database(context, TEST_DB_11_12)
+    fun migrate12To13_addsRemoteGroupColumnsWithSafeDefaults() {
+        val legacyDb = createVersion6Database(context, TEST_DB_12_13)
         legacyDb.execSQL(
             "INSERT INTO group_configs (groupName, teamSize, victoryLimit, priorityEnabled, scoreEnabled, balancingMode, onboardingStep) " +
                 "VALUES ('Grupo', 6, 3, 1, 1, 'REBALANCE', 5)"
@@ -41,13 +42,13 @@ class Migration11To12Test {
         AppDatabase.MIGRATION_8_9.migrate(legacyDb)
         AppDatabase.MIGRATION_9_10.migrate(legacyDb)
         AppDatabase.MIGRATION_10_11.migrate(legacyDb)
-
         AppDatabase.MIGRATION_11_12.migrate(legacyDb)
+
         AppDatabase.MIGRATION_12_13.migrate(legacyDb)
         legacyDb.version = 13
         legacyDb.close()
 
-        val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_11_12)
+        val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_12_13)
             .addMigrations(
                 AppDatabase.MIGRATION_6_7,
                 AppDatabase.MIGRATION_7_8,
@@ -64,7 +65,7 @@ class Migration11To12Test {
             assertEquals(13, migratedDb.version)
 
             migratedDb.query(
-                "SELECT teamAColorName, teamBColorName FROM group_configs WHERE groupName = 'Grupo'"
+                "SELECT remoteRole, pendingOwnershipTransferTo FROM group_configs WHERE groupName = 'Grupo'"
             ).use { cursor ->
                 assertEquals(true, cursor.moveToFirst())
                 assertNull(cursor.getString(0))
@@ -72,7 +73,7 @@ class Migration11To12Test {
             }
         } finally {
             room.close()
-            context.deleteDatabase(TEST_DB_11_12)
+            context.deleteDatabase(TEST_DB_12_13)
         }
     }
 }

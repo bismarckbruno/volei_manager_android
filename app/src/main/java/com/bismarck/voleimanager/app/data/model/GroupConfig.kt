@@ -122,7 +122,23 @@ data class GroupConfig(
      */
     val teamAColorName: String? = null,
     /** Ver [teamAColorName]. */
-    val teamBColorName: String? = null
+    val teamBColorName: String? = null,
+    /**
+     * Papel deste dispositivo/usuário no grupo quando ele foi obtido via código de convite de
+     * outra pessoa ("AUXILIAR" ou "ESPECTADOR", ver [com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType]).
+     * `null` significa que este grupo é local/próprio (o usuário é o organizador dele neste
+     * dispositivo). Grupos remotos não podem ser renomeados nem apagados por aqui — apenas
+     * "sair" (ver `VoleiViewModel.leaveRemoteGroup`) — e aparecem com um ícone de streaming no
+     * menu de troca de grupo.
+     */
+    val remoteRole: String? = null,
+    /**
+     * Quando não nulo, indica que o organizador solicitou transferir a posse deste grupo premium
+     * para o auxiliar identificado por este e-mail. Fica pendente até a Cloud Function de
+     * sincronização (ainda não implementada) validar que o alvo é premium e efetivar a troca no
+     * backend — por ora é apenas um registro local/otimista da intenção.
+     */
+    val pendingOwnershipTransferTo: String? = null
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)

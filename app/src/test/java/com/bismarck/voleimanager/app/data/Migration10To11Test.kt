@@ -45,7 +45,8 @@ class Migration10To11Test {
 
         AppDatabase.MIGRATION_10_11.migrate(legacyDb)
         AppDatabase.MIGRATION_11_12.migrate(legacyDb)
-        legacyDb.version = 12
+        AppDatabase.MIGRATION_12_13.migrate(legacyDb)
+        legacyDb.version = 13
         legacyDb.close()
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_10_11)
@@ -55,13 +56,14 @@ class Migration10To11Test {
                 AppDatabase.MIGRATION_8_9,
                 AppDatabase.MIGRATION_9_10,
                 AppDatabase.MIGRATION_10_11,
-                AppDatabase.MIGRATION_11_12
+                AppDatabase.MIGRATION_11_12,
+                AppDatabase.MIGRATION_12_13
             )
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(12, migratedDb.version)
+            assertEquals(13, migratedDb.version)
 
             migratedDb.query(
                 "SELECT isCloudSynced, cloudGroupId, lastPremiumSwitchAt FROM group_configs WHERE groupName = 'Grupo'"

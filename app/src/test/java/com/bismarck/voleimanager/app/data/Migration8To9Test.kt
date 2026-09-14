@@ -51,16 +51,20 @@ class Migration8To9Test {
         AppDatabase.MIGRATION_7_8.migrate(legacyDb)
 
         AppDatabase.MIGRATION_8_9.migrate(legacyDb)
-        legacyDb.version = 9
+        AppDatabase.MIGRATION_9_10.migrate(legacyDb)
+        AppDatabase.MIGRATION_10_11.migrate(legacyDb)
+        AppDatabase.MIGRATION_11_12.migrate(legacyDb)
+        AppDatabase.MIGRATION_12_13.migrate(legacyDb)
+        legacyDb.version = 13
         legacyDb.close()
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_8_9)
-            .addMigrations(AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11, AppDatabase.MIGRATION_11_12)
+            .addMigrations(AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11, AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13)
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(12, migratedDb.version)
+            assertEquals(13, migratedDb.version)
 
             migratedDb.query(
                 "SELECT matchFormat, regularSetPoints, tiebreakSetPoints, winByTwo FROM group_configs WHERE groupName = 'Grupo'"

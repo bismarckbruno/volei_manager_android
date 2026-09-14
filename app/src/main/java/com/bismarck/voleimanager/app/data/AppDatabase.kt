@@ -22,7 +22,7 @@ import com.bismarck.voleimanager.app.data.model.PlayerEloLog
         com.bismarck.voleimanager.app.data.model.TournamentMatch::class,
         com.bismarck.voleimanager.app.data.model.GroupLog::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -259,6 +259,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Terreno para "grupo de outra pessoa" (entrado via código de auxiliar/espectador)
+                // e para o pedido de transferência de posse de um grupo premium.
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN remoteRole TEXT")
+                db.execSQL("ALTER TABLE group_configs ADD COLUMN pendingOwnershipTransferTo TEXT")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -266,7 +275,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "volei_manager_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance

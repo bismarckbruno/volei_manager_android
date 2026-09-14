@@ -35,6 +35,8 @@ import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.data.model.TournamentMatch
 import com.bismarck.voleimanager.app.data.model.TournamentTeam
 import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
+import com.bismarck.voleimanager.app.util.AppAuthUser
+import com.bismarck.voleimanager.app.util.AuthManager
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.PositionAssigner
 import com.bismarck.voleimanager.app.util.TeamBalancer
@@ -822,6 +824,121 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 cloudGroupId = target.publicId,
                 lastPremiumSwitchAt = now
             )
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Conta (Firebase Auth) — cadastro/login gratuito por e-mail/senha, exigido de
+    // Organizador/Auxiliar antes de assinar um pacote premium. Login com Google fica para uma
+    // fase seguinte (`auth-account-flow`, item de login social).
+    // ---------------------------------------------------------------------------------------
+
+    /** Usuário logado no momento (ou `null`), refletido no cabeçalho do menu lateral. */
+    val currentUser: StateFlow<AppAuthUser?> = AuthManager.currentUser
+        .stateIn(viewModelScope, screenDataSharing, null)
+
+    private val _authInProgress = MutableStateFlow(false)
+    val authInProgress: StateFlow<Boolean> = _authInProgress.asStateFlow()
+
+    /** Cria uma conta gratuita e já efetua o login. [onResult] recebe `null` em caso de sucesso,
+     *  ou uma mensagem de erro amigável para exibir no diálogo. */
+    fun signUpWithEmail(email: String, password: String, displayName: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = AuthManager.signUp(email.trim(), password, displayName.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Efetua login com e-mail/senha. [onResult] recebe `null` em caso de sucesso, ou uma
+     *  mensagem de erro amigável para exibir no diálogo. */
+    fun signInWithEmail(email: String, password: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = AuthManager.signIn(email.trim(), password)
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    fun signOut() {
+        AuthManager.signOut()
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Grupos remotos (entrados via código de Auxiliar/Espectador de outra pessoa) e
+    // transferência de posse de um grupo premium. Sem o backend de sincronização
+    // (`firestore-sync-engine`) ainda não existe validação/decodificação real de código — por
+    // ora, o código apenas define o papel (prefixo "AUX"/"ESP") e cria um grupo local marcado
+    // como remoto, para já poder testar a UI (ícone de streaming, sem editar/apagar, botão
+    // "sair"). Quando o backend existir, isso passa a resolver o grupo/õs dados reais.
+    // ---------------------------------------------------------------------------------------
+
+    /** Tenta "entrar" num grupo de outra pessoa a partir de um código de convite. Retorna uma
+     *  mensagem de erro amigável, ou `null` em caso de sucesso (e já seleciona o grupo criado). */
+    fun joinGroupWithCode(code: String, onResult: (String?) -> Unit) = viewModelScope.launch(Dispatchers.IO) {
+        val trimmed = code.trim().uppercase(Locale.getDefault())
+        val role = when {
+            trimmed.startsWith("AUX") -> UserProfileType.AUXILIAR
+            trimmed.startsWith("ESP") -> UserProfileType.ESPECTADOR
+            else -> null
+        }
+        if (trimmed.isBlank() || role == null) {
+            onResult(getApplication<Application>().getString(R.string.join_group_invalid_code))
+            return@launch
+        }
+        val groupName = normalizeGroupName(
+            getApplication<Application>().getString(R.string.join_group_remote_group_name, trimmed)
+        )
+        if (repository.getGroupConfig(groupName) != null) {
+            onResult(getApplication<Application>().getString(R.string.join_group_already_joined))
+            return@launch
+        }
+        val cfg = GroupConfig(
+            groupName = groupName,
+            onboardingStep = ONBOARDING_STEP_COMPLETE,
+            isCloudSynced = true,
+            cloudGroupId = trimmed,
+            remoteRole = role.name
+        )
+        repository.saveGroupConfig(cfg)
+        loadGroupConfig(groupName)
+        onResult(null)
+    }
+
+    /** Desconecta este dispositivo de um grupo remoto (Auxiliar/Espectador), sem afetar o grupo
+     *  para os demais membros — equivalente a [deleteGroup], mas usado apenas pela UI de grupos
+     *  de outra pessoa (botão vermelho "Sair", no lugar de "Apagar grupo"). */
+    fun leaveRemoteGroup(groupName: String) = deleteGroup(groupName)
+
+    /**
+     * Organizador solicita transferir a posse de um grupo premium sincronizado para um(a)
+     * Auxiliar (identificado por e-mail), que precisa também ser premium. Sem o backend de
+     * sincronização, isso fica registrado localmente como uma intenção pendente
+     * ([GroupConfig.pendingOwnershipTransferTo]) — a efetivação real (trocar quem é o
+     * organizador oficial nos demais dispositivos) exige a Cloud Function correspondente.
+     */
+    fun requestGroupOwnershipTransfer(groupName: String, targetEmail: String) = viewModelScope.launch(Dispatchers.IO) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        if (target.remoteRole != null || !target.isCloudSynced) {
+            showMessage(getApplication<Application>().getString(R.string.ownership_transfer_requires_own_premium_group))
+            return@launch
+        }
+        val normalizedEmail = targetEmail.trim()
+        if (normalizedEmail.isBlank()) return@launch
+        repository.saveGroupConfig(target.copy(pendingOwnershipTransferTo = normalizedEmail))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(pendingOwnershipTransferTo = normalizedEmail)
+        }
+        showMessage(getApplication<Application>().getString(R.string.ownership_transfer_requested))
+    }
+
+    fun cancelGroupOwnershipTransfer(groupName: String) = viewModelScope.launch(Dispatchers.IO) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        repository.saveGroupConfig(target.copy(pendingOwnershipTransferTo = null))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(pendingOwnershipTransferTo = null)
         }
     }
 

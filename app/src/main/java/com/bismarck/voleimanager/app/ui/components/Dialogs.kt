@@ -51,6 +51,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -1397,4 +1399,233 @@ fun GroupTypeOptionRow(
             )
         }
     }
+}
+
+/**
+ * Diálogo de "Entrar em um grupo existente" (Auxiliar/Espectador), acessível pelo menu de troca
+ * de grupo (abaixo de "+ Criar novo grupo") e pelo ícone no canto superior direito da tela "Ao
+ * vivo". Sem o backend de sincronização (`firestore-sync-engine`), o código apenas define o
+ * papel pelo prefixo ("AUX"/"ESP") — ver [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.joinGroupWithCode].
+ */
+@Composable
+fun JoinExistingGroupDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, (String?) -> Unit) -> Unit
+) {
+    var code by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+
+    DialogKeyboardFocus(focusRequester)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.join_existing_group)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    stringResource(R.string.join_existing_group_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.join_existing_group_code_label)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                    singleLine = true,
+                    isError = errorMessage != null,
+                    modifier = Modifier.focusRequester(focusRequester)
+                )
+                errorMessage?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(code) { error ->
+                        if (error == null) onDismiss() else errorMessage = error
+                    }
+                },
+                enabled = code.isNotBlank()
+            ) { Text(stringResource(R.string.join_existing_group_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo de login com e-mail/senha (Firebase Auth). */
+@Composable
+fun LoginDialog(
+    inProgress: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, (String?) -> Unit) -> Unit,
+    onSwitchToSignUp: () -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+
+    DialogKeyboardFocus(focusRequester)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.login_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.email_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester)
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.password_label)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true
+                )
+                errorMessage?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onSwitchToSignUp) {
+                    Text(stringResource(R.string.login_switch_to_signup))
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(email, password) { error -> if (error == null) onDismiss() else errorMessage = error }
+                },
+                enabled = !inProgress && email.isNotBlank() && password.isNotBlank()
+            ) { Text(stringResource(R.string.login_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo de cadastro gratuito com e-mail/senha (Firebase Auth) — direcionado a
+ *  Organizador(a)/Auxiliar antes de assinar um pacote premium. */
+@Composable
+fun SignUpDialog(
+    inProgress: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String, (String?) -> Unit) -> Unit,
+    onSwitchToLogin: () -> Unit
+) {
+    var displayName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+
+    DialogKeyboardFocus(focusRequester)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.signup_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.display_name_label)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester)
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.email_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; errorMessage = null },
+                    label = { Text(stringResource(R.string.password_label)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true
+                )
+                errorMessage?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onSwitchToLogin) {
+                    Text(stringResource(R.string.signup_switch_to_login))
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(email, password, displayName) { error -> if (error == null) onDismiss() else errorMessage = error }
+                },
+                enabled = !inProgress && email.isNotBlank() && password.isNotBlank() && displayName.isNotBlank()
+            ) { Text(stringResource(R.string.signup_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo para o organizador solicitar a transferência de posse de um grupo premium para um(a)
+ *  auxiliar (identificado por e-mail). A efetivação real depende do backend de sincronização. */
+@Composable
+fun TransferGroupOwnershipDialog(
+    groupName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var targetEmail by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    DialogKeyboardFocus(focusRequester)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.transfer_ownership_title, groupName)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    stringResource(R.string.transfer_ownership_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = targetEmail,
+                    onValueChange = { targetEmail = it },
+                    label = { Text(stringResource(R.string.transfer_ownership_email_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (targetEmail.isNotBlank()) onConfirm(targetEmail) },
+                enabled = targetEmail.isNotBlank()
+            ) { Text(stringResource(R.string.transfer_ownership_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
 }

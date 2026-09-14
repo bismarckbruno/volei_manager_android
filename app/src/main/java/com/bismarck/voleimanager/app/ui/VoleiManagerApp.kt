@@ -24,6 +24,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -32,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -44,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -53,6 +57,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -64,6 +69,8 @@ import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
+import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
+import com.bismarck.voleimanager.app.util.AppAuthUser
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
@@ -86,6 +93,99 @@ private fun getDisplayBalancingModeName(balancingMode: String): String {
         com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name ->
             stringResource(R.string.mode_rest)
         else -> stringResource(R.string.mode_rebalance)
+    }
+}
+
+@Composable
+private fun userProfileTypeLabel(type: UserProfileType): String = when (type) {
+    UserProfileType.ORGANIZADOR -> stringResource(R.string.user_profile_organizer)
+    UserProfileType.AUXILIAR -> stringResource(R.string.user_profile_assistant)
+    UserProfileType.ESPECTADOR -> stringResource(R.string.user_profile_viewer)
+}
+
+/**
+ * Cabeçalho do menu lateral: substitui o nome estático do app por um avatar (foto de perfil
+ * quando logado, placeholder caso contrário), o nome/apelido do usuário logado (ou o nome do
+ * app, se deslogado), seu status de perfil (Organizador(a)/Auxiliar/Espectador(a), com sufixo
+ * "Premium" para um(a) Espectador(a) premium) e um selo ao lado do nome quando é assinante.
+ * Tocar no avatar abre um menu de login/cadastro (deslogado) ou logout (logado).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DrawerAccountHeader(
+    currentUser: AppAuthUser?,
+    userProfileType: UserProfileType?,
+    hasPremiumAccess: Boolean,
+    menuExpanded: Boolean,
+    onAvatarClick: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onLoginClick: () -> Unit,
+    onSignUpClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Box {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { onAvatarClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Person,
+                    contentDescription = stringResource(R.string.account_avatar_content_description),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = onDismissMenu) {
+                if (currentUser == null) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.login_title)) }, onClick = onLoginClick)
+                    DropdownMenuItem(text = { Text(stringResource(R.string.signup_title)) }, onClick = onSignUpClick)
+                } else {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.logout)) }, onClick = onLogoutClick)
+                }
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    currentUser?.displayName?.takeIf { it.isNotBlank() }
+                        ?: currentUser?.email
+                        ?: stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (currentUser != null && hasPremiumAccess) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        Icons.Filled.WorkspacePremium,
+                        contentDescription = stringResource(R.string.premium_subscriber_badge),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            if (currentUser != null && userProfileType != null) {
+                val roleLabel = userProfileTypeLabel(userProfileType)
+                val statusText = if (userProfileType == UserProfileType.ESPECTADOR && hasPremiumAccess) {
+                    stringResource(R.string.drawer_status_premium_suffix, roleLabel)
+                } else {
+                    roleLabel
+                }
+                Text(
+                    statusText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -119,9 +219,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val telemetryEnabled by viewModel.telemetryEnabled.collectAsState()
     val showTelemetryConsentPrompt by viewModel.showTelemetryConsentPrompt.collectAsState()
     val showUserProfileOnboarding by viewModel.showUserProfileOnboarding.collectAsState()
+    val userProfileType by viewModel.userProfileType.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+    val hasPremiumAccessGlobal by viewModel.hasPremiumAccess.collectAsState()
+    val authInProgress by viewModel.authInProgress.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val showScore = groupConfig.scoreEnabled
     val groupsSortedByRecent by viewModel.groupsSortedByRecentHistory.collectAsState()
+    val allGroupConfigsList by viewModel.allGroupConfigs.collectAsState()
     var selectedGroup by rememberSaveable { mutableStateOf<String?>(null) }
 
     var isSetupMode by rememberSaveable { mutableStateOf(false) }
@@ -144,6 +249,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showTelemetryConsentDialog by remember { mutableStateOf(false) }
     var showRateAppDialog by remember { mutableStateOf(false) }
     var showSendQuestionDialog by remember { mutableStateOf(false) }
+    var showJoinGroupDialog by remember { mutableStateOf(false) }
+    var showLoginDialog by remember { mutableStateOf(false) }
+    var showSignUpDialog by remember { mutableStateOf(false) }
+    var showAccountMenu by remember { mutableStateOf(false) }
     var playerToDelete by remember { mutableStateOf<Player?>(null) }
 
     var pendingGroupSwitch by remember { mutableStateOf<String?>(null) }
@@ -687,11 +796,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 .padding(16.dp)
                                 .verticalScroll(rememberScrollState())
                         ) {
-                            Text(
-                                stringResource(R.string.app_name),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                            var accountMenuExpanded by remember { mutableStateOf(false) }
+                            DrawerAccountHeader(
+                                currentUser = currentUser,
+                                userProfileType = userProfileType,
+                                hasPremiumAccess = hasPremiumAccessGlobal,
+                                menuExpanded = accountMenuExpanded,
+                                onAvatarClick = { accountMenuExpanded = true },
+                                onDismissMenu = { accountMenuExpanded = false },
+                                onLoginClick = { accountMenuExpanded = false; showLoginDialog = true },
+                                onSignUpClick = { accountMenuExpanded = false; showSignUpDialog = true },
+                                onLogoutClick = { accountMenuExpanded = false; viewModel.signOut() }
                             )
                             Spacer(Modifier.height(16.dp))
 
@@ -749,41 +864,61 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 ) {
                                     groupsSortedByRecent.forEach { group ->
                                         val isSelected = selectedGroup == group
+                                        val remoteRole = allGroupConfigsList.firstOrNull { it.groupName == group }?.remoteRole
+                                        val isRemoteGroup = remoteRole != null
                                         DropdownMenuItem(
                                             text = {
                                                 Row(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     modifier = Modifier.fillMaxWidth()
                                                 ) {
+                                                    if (isRemoteGroup) {
+                                                        Icon(
+                                                            Icons.Filled.Podcasts,
+                                                            contentDescription = stringResource(R.string.remote_group_content_description),
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                        Spacer(Modifier.width(8.dp))
+                                                    }
                                                     Text(
                                                         getDisplayGroupName(group),
                                                         modifier = Modifier.weight(1f),
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                                     )
-                                                    IconButton(
-                                                        onClick = {
-                                                            showRenameGroupDialog = group
-                                                            groupExpanded = false
-                                                        },
-                                                        modifier = Modifier.minimumInteractiveComponentSize()
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.Edit,
-                                                            contentDescription = stringResource(R.string.rename_group),
-                                                            modifier = Modifier.size(24.dp)
-                                                        )
+                                                    if (!isRemoteGroup) {
+                                                        IconButton(
+                                                            onClick = {
+                                                                showRenameGroupDialog = group
+                                                                groupExpanded = false
+                                                            },
+                                                            modifier = Modifier.minimumInteractiveComponentSize()
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Default.Edit,
+                                                                contentDescription = stringResource(R.string.rename_group),
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
                                                     }
                                                     IconButton(
                                                         onClick = {
-                                                            showDeleteGroupDialog = group
-                                                            groupExpanded = false
+                                                            if (isRemoteGroup) {
+                                                                viewModel.leaveRemoteGroup(group)
+                                                                groupExpanded = false
+                                                            } else {
+                                                                showDeleteGroupDialog = group
+                                                                groupExpanded = false
+                                                            }
                                                         },
                                                         modifier = Modifier.minimumInteractiveComponentSize()
                                                     ) {
                                                         Icon(
-                                                            Icons.Default.Delete,
-                                                            contentDescription = stringResource(R.string.delete),
+                                                            if (isRemoteGroup) Icons.AutoMirrored.Filled.Logout else Icons.Default.Delete,
+                                                            contentDescription = stringResource(
+                                                                if (isRemoteGroup) R.string.leave_group else R.string.delete
+                                                            ),
                                                             tint = MaterialTheme.colorScheme.error,
                                                             modifier = Modifier.size(24.dp)
                                                         )
@@ -815,6 +950,16 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         },
                                         onClick = {
                                             showCreateGroupDialog = true; groupExpanded = false
+                                        })
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.join_existing_group),
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        },
+                                        onClick = {
+                                            showJoinGroupDialog = true; groupExpanded = false
                                         })
                                 }
                             }
@@ -986,6 +1131,29 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 showCreateGroupDialog = false
                 scope.launch { drawerState.close() }
             })
+        if (showJoinGroupDialog) JoinExistingGroupDialog(
+            onDismiss = { showJoinGroupDialog = false },
+            onConfirm = { code, onResult ->
+                viewModel.joinGroupWithCode(code) { error ->
+                    if (error == null) scope.launch { drawerState.close() }
+                    onResult(error)
+                }
+            }
+        )
+        if (showLoginDialog) LoginDialog(
+            inProgress = authInProgress,
+            onDismiss = { showLoginDialog = false },
+            onConfirm = { email, password, onResult -> viewModel.signInWithEmail(email, password, onResult) },
+            onSwitchToSignUp = { showLoginDialog = false; showSignUpDialog = true }
+        )
+        if (showSignUpDialog) SignUpDialog(
+            inProgress = authInProgress,
+            onDismiss = { showSignUpDialog = false },
+            onConfirm = { email, password, displayName, onResult ->
+                viewModel.signUpWithEmail(email, password, displayName, onResult)
+            },
+            onSwitchToLogin = { showSignUpDialog = false; showLoginDialog = true }
+        )
         if (showAddPlayerDialog) AddPlayerDialog(
             usesPositions = groupConfig.type.usesPositions,
             onDismiss = { showAddPlayerDialog = false },
@@ -1731,6 +1899,18 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 Icon(
                                     Icons.AutoMirrored.Outlined.HelpOutline,
                                     stringResource(R.string.send_question),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else if (currentScreen == Screen.CLOUD_SYNC) {
+                            IconButton(
+                                onClick = { showJoinGroupDialog = true },
+                                modifier = Modifier.minimumInteractiveComponentSize()
+                            ) {
+                                Icon(
+                                    Icons.Outlined.GroupAdd,
+                                    stringResource(R.string.join_existing_group),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
