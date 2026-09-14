@@ -42,10 +42,12 @@ import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.ui.components.JoinExistingGroupDialog
+import com.bismarck.voleimanager.app.ui.components.GenerateJoinCodeDialog
 import com.bismarck.voleimanager.app.ui.components.TransferGroupOwnershipDialog
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
+import com.bismarck.voleimanager.app.util.JoinRole
 
 /**
  * Tela "Ao vivo": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
@@ -144,6 +146,20 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
             onConfirm = { email ->
                 viewModel.requestGroupOwnershipTransfer(groupName, email)
                 transferDialogFor = null
+            }
+        )
+    }
+
+    var generateCodeDialogFor by remember { mutableStateOf<String?>(null) }
+    generateCodeDialogFor?.let { groupName ->
+        GenerateJoinCodeDialog(
+            groupName = groupName,
+            onDismiss = { generateCodeDialogFor = null },
+            onGenerateAuxiliar = { onResult ->
+                viewModel.generateJoinCode(groupName, JoinRole.AUXILIAR, onResult)
+            },
+            onGenerateEspectador = { onResult ->
+                viewModel.generateJoinCode(groupName, JoinRole.ESPECTADOR, onResult)
             }
         )
     }
@@ -337,6 +353,9 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
                             )
                         }
                         if (group.isCloudSynced) {
+                            TextButton(onClick = { generateCodeDialogFor = group.groupName }) {
+                                Text(stringResource(R.string.generate_join_code_menu_item))
+                            }
                             if (group.pendingOwnershipTransferTo != null) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(

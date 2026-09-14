@@ -37,7 +37,10 @@ import com.bismarck.voleimanager.app.data.model.TournamentTeam
 import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
 import com.bismarck.voleimanager.app.util.AppAuthUser
 import com.bismarck.voleimanager.app.util.AuthManager
+import com.bismarck.voleimanager.app.util.CloudFunctionsManager
 import com.bismarck.voleimanager.app.util.EloCalculator
+import com.bismarck.voleimanager.app.util.GeneratedJoinCode
+import com.bismarck.voleimanager.app.util.JoinRole
 import com.bismarck.voleimanager.app.util.PositionAssigner
 import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TelemetryManager
@@ -830,7 +833,35 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             target.groupType,
             effectivePremiumPlanTier.value.name
         )
+
+        // Melhor esforço: também registra no backend (cria/atualiza `cloudGroups/{cloudGroupId}`),
+        // seguindo o mesmo padrão local-first do AuthManager — a UI já foi liberada localmente
+        // acima, então uma falha aqui (ex.: sem assinatura real ainda, `failed-precondition`) só
+        // é logada, nunca bloqueia quem está testando com a simulação de premium em debug.
+        val backendError = CloudFunctionsManager.switchPremiumGroup(target.publicId, groupName)
+        if (backendError != null) {
+            Log.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
+        }
     }
+
+    /**
+     * Gera um código de convite (via a Cloud Function real `createJoinCode`) para [groupName],
+     * concedendo o papel [role] a quem resgatar o código. Exige que o grupo já esteja
+     * sincronizado em nuvem (tenha um `cloudGroupId`) — se ainda não tiver acontecido a criação
+     * real do documento no backend (ex.: sem entitlement premium ainda), a Cloud Function retorna
+     * um erro amigável, repassado como está a [onResult].
+     */
+    fun generateJoinCode(groupName: String, role: JoinRole, onResult: (GeneratedJoinCode?, String?) -> Unit) =
+        viewModelScope.launch(Dispatchers.IO) {
+            val target = repository.getGroupConfig(groupName)
+            val cloudGroupId = target?.cloudGroupId
+            if (cloudGroupId == null) {
+                onResult(null, getApplication<Application>().getString(R.string.generate_join_code_group_not_synced))
+                return@launch
+            }
+            val result = CloudFunctionsManager.createJoinCode(cloudGroupId, role)
+            onResult(result.getOrNull(), result.exceptionOrNull()?.message)
+        }
 
     // ---------------------------------------------------------------------------------------
     // Conta (Firebase Auth) — cadastro/login gratuito por e-mail/senha, exigido de
@@ -918,31 +949,70 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     // "sair"). Quando o backend existir, isso passa a resolver o grupo/õs dados reais.
     // ---------------------------------------------------------------------------------------
 
-    /** Tenta "entrar" num grupo de outra pessoa a partir de um código de convite. Retorna uma
-     *  mensagem de erro amigável, ou `null` em caso de sucesso (e já seleciona o grupo criado). */
+    /**
+     * Tenta "entrar" num grupo de outra pessoa a partir de um código de convite, chamando a
+     * Cloud Function real `redeemJoinCode` (`volei_manager_backend`). Retorna uma mensagem de
+     * erro amigável, ou `null` em caso de sucesso (e já seleciona o grupo criado).
+     *
+     * Como um código só é resgatável de verdade depois que o organizador tiver uma assinatura
+     * premium ativa validada no servidor (`switchPremiumGroup` precisa rodar com sucesso antes,
+     * criando `cloudGroups/{cloudGroupId}`), e ainda não existe cobrança real, essa chamada
+     * tende a falhar em qualquer ambiente sem entitlement — por isso, em build de debug, caímos
+     * de volta na simulação local antiga (papel pelo prefixo "AUX"/"ESP") só para continuar
+     * testando a UI enquanto o backend de cobrança não existe.
+     */
     fun joinGroupWithCode(code: String, onResult: (String?) -> Unit) = viewModelScope.launch(Dispatchers.IO) {
-        val trimmed = code.trim().uppercase(Locale.getDefault())
-        val role = when {
-            trimmed.startsWith("AUX") -> UserProfileType.AUXILIAR
-            trimmed.startsWith("ESP") -> UserProfileType.ESPECTADOR
-            else -> null
-        }
-        if (trimmed.isBlank() || role == null) {
+        val trimmed = code.trim()
+        if (trimmed.isBlank()) {
             onResult(getApplication<Application>().getString(R.string.join_group_invalid_code))
             return@launch
         }
+
+        val remoteResult = CloudFunctionsManager.redeemJoinCode(trimmed)
+        val redeemed = remoteResult.getOrNull()
+        if (redeemed != null) {
+            val remoteRole = when (redeemed.role) {
+                JoinRole.AUXILIAR -> UserProfileType.AUXILIAR
+                JoinRole.ESPECTADOR -> UserProfileType.ESPECTADOR
+            }
+            joinRemoteGroup(cloudGroupId = redeemed.cloudGroupId, role = remoteRole, displayCode = trimmed, onResult = onResult)
+            return@launch
+        }
+
+        if (BuildConfig.DEBUG) {
+            val upper = trimmed.uppercase(Locale.getDefault())
+            val debugRole = when {
+                upper.startsWith("AUX") -> UserProfileType.AUXILIAR
+                upper.startsWith("ESP") -> UserProfileType.ESPECTADOR
+                else -> null
+            }
+            if (debugRole != null) {
+                joinRemoteGroup(cloudGroupId = upper, role = debugRole, displayCode = upper, onResult = onResult)
+                return@launch
+            }
+        }
+
+        onResult(remoteResult.exceptionOrNull()?.message ?: getApplication<Application>().getString(R.string.join_group_invalid_code))
+    }
+
+    private suspend fun joinRemoteGroup(
+        cloudGroupId: String,
+        role: UserProfileType,
+        displayCode: String,
+        onResult: (String?) -> Unit
+    ) {
         val groupName = normalizeGroupName(
-            getApplication<Application>().getString(R.string.join_group_remote_group_name, trimmed)
+            getApplication<Application>().getString(R.string.join_group_remote_group_name, displayCode)
         )
         if (repository.getGroupConfig(groupName) != null) {
             onResult(getApplication<Application>().getString(R.string.join_group_already_joined))
-            return@launch
+            return
         }
         val cfg = GroupConfig(
             groupName = groupName,
             onboardingStep = ONBOARDING_STEP_COMPLETE,
             isCloudSynced = true,
-            cloudGroupId = trimmed,
+            cloudGroupId = cloudGroupId,
             remoteRole = role.name
         )
         repository.saveGroupConfig(cfg)

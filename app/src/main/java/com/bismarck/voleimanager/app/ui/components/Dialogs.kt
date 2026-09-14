@@ -1954,3 +1954,88 @@ fun AvatarCropDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
+
+/**
+ * Diálogo para gerar um código de convite (PIN de 6 caracteres, válido por 30 minutos) de
+ * [groupName], para um Auxiliar ou Espectador entrar via
+ * [com.bismarck.voleimanager.app.ui.components.JoinExistingGroupDialog]. Chama a Cloud Function
+ * real `createJoinCode` (ver [com.bismarck.voleimanager.app.util.CloudFunctionsManager]); como
+ * ela exige que o grupo já exista de verdade em nuvem (o que hoje só acontece com uma assinatura
+ * premium ativa validada no servidor), a geração pode falhar até a cobrança real existir — o erro
+ * é mostrado normalmente, sem travar o diálogo.
+ */
+@Composable
+fun GenerateJoinCodeDialog(
+    groupName: String,
+    onDismiss: () -> Unit,
+    onGenerateAuxiliar: ((com.bismarck.voleimanager.app.util.GeneratedJoinCode?, String?) -> Unit) -> Unit,
+    onGenerateEspectador: ((com.bismarck.voleimanager.app.util.GeneratedJoinCode?, String?) -> Unit) -> Unit
+) {
+    var loading by remember { mutableStateOf(false) }
+    var generatedCode by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+
+    fun generate(action: ((com.bismarck.voleimanager.app.util.GeneratedJoinCode?, String?) -> Unit) -> Unit) {
+        loading = true
+        errorMessage = null
+        generatedCode = null
+        action { result, error ->
+            loading = false
+            generatedCode = result?.code
+            errorMessage = error
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.generate_join_code_title, groupName)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    stringResource(R.string.generate_join_code_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                if (generatedCode != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            generatedCode.orEmpty(),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(generatedCode.orEmpty()))
+                        }) {
+                            Text(stringResource(R.string.generate_join_code_copy))
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.generate_join_code_expiry_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else if (loading) {
+                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 8.dp))
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { generate(onGenerateAuxiliar) }) {
+                            Text(stringResource(R.string.generate_join_code_role_auxiliar))
+                        }
+                        OutlinedButton(onClick = { generate(onGenerateEspectador) }) {
+                            Text(stringResource(R.string.generate_join_code_role_espectador))
+                        }
+                    }
+                }
+                errorMessage?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } }
+    )
+}
