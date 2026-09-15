@@ -119,10 +119,11 @@
     <string name="continue_with_google">Continue with Google</string>
     <string name="google_sign_in_error">Couldn\'t sign in with Google. Please try again.</string>
     <!-- Web Client ID gerado ao habilitar o provedor "Google" em Firebase Console > Authentication
-         > Sign-in method. Não vem do google-services.json (o campo oauth_client de lá está vazio
-         para este projeto) - copie o valor exibido na configuração do provedor Google no console
-         (termina em ".apps.googleusercontent.com") e cole aqui, substituindo o placeholder. -->
-    <string name="google_web_client_id" translatable="false">REPLACE_WITH_FIREBASE_GOOGLE_WEB_CLIENT_ID</string>
+         > Sign-in method (projeto volley-manager-fd89f). Não vem do google-services.json (o campo
+         oauth_client de lá está vazio para este projeto) - se o provedor for reconfigurado (ex.:
+         novo projeto Firebase), copie o novo valor exibido na configuração do provedor Google no
+         console (termina em ".apps.googleusercontent.com") e substitua aqui. -->
+    <string name="google_web_client_id" translatable="false">884211265327-arboov6491rh0rtd6taa5r6os8fcd9kd.apps.googleusercontent.com</string>
     <string name="email_label">E-mail</string>
     <string name="password_label">Password</string>
     <string name="display_name_label">Name/nickname</string>
