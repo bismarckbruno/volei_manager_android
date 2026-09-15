@@ -1471,6 +1471,7 @@ fun LoginDialog(
     inProgress: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (String, String, (String?) -> Unit) -> Unit,
+    onGoogleClick: ((String?) -> Unit) -> Unit,
     onSwitchToSignUp: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
@@ -1485,6 +1486,25 @@ fun LoginDialog(
         title = { Text(stringResource(R.string.login_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedButton(
+                    onClick = {
+                        onGoogleClick { error -> if (error == null) onDismiss() else errorMessage = error }
+                    },
+                    enabled = !inProgress,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.continue_with_google)) }
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        stringResource(R.string.auth_or_divider),
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it; errorMessage = null },
@@ -1591,6 +1611,7 @@ fun SignUpDialog(
     inProgress: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (String, String, String, String, String, (String?) -> Unit) -> Unit,
+    onGoogleClick: ((String?) -> Unit) -> Unit,
     onSwitchToLogin: () -> Unit
 ) {
     var fullName by remember { mutableStateOf("") }
@@ -1608,6 +1629,25 @@ fun SignUpDialog(
         title = { Text(stringResource(R.string.signup_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedButton(
+                    onClick = {
+                        onGoogleClick { error -> if (error == null) onDismiss() else errorMessage = error }
+                    },
+                    enabled = !inProgress,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.continue_with_google)) }
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        stringResource(R.string.auth_or_divider),
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it; errorMessage = null },

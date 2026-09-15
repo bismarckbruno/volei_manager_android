@@ -41,6 +41,7 @@ import com.bismarck.voleimanager.app.util.CloudFunctionsManager
 import com.bismarck.voleimanager.app.util.CloudSyncManager
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.GeneratedJoinCode
+import com.bismarck.voleimanager.app.util.GoogleSignInHelper
 import com.bismarck.voleimanager.app.util.GroupVisibility
 import com.bismarck.voleimanager.app.util.JoinRole
 import com.bismarck.voleimanager.app.util.LiveGameState
@@ -927,6 +928,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _authInProgress.value = true
         viewModelScope.launch {
             val error = AuthManager.signIn(email.trim(), password)
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Login (ou cadastro automático, no primeiro acesso) via conta Google — ver
+     *  [com.bismarck.voleimanager.app.util.GoogleSignInHelper] e
+     *  [AuthManager.signInWithGoogleIdToken]. [context] precisa ser um contexto de Activity (ex.:
+     *  `LocalContext.current` na Composable que abre o diálogo), pois o seletor de contas do
+     *  Google é uma UI do sistema exibida sobre a Activity atual. */
+    fun signInWithGoogle(context: Context, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val webClientId = context.getString(R.string.google_web_client_id)
+            val error = GoogleSignInHelper.getIdToken(context, webClientId).fold(
+                onSuccess = { idToken -> AuthManager.signInWithGoogleIdToken(idToken) },
+                onFailure = { e -> e.message ?: getApplication<Application>().getString(R.string.google_sign_in_error) }
+            )
             _authInProgress.value = false
             onResult(error)
         }

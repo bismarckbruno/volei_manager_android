@@ -18,6 +18,8 @@ androidxFragment = "1.9.0"
 firebaseBom = "34.18.0"
 googleServices = "4.5.0"
 firebaseCrashlyticsPlugin = "3.0.8"
+credentials = "1.5.0"
+googleid = "1.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -62,6 +64,15 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-functions = { group = "com.google.firebase", name = "firebase-functions" }
+
+# Login com Google (cadastro/login via conta Google, além de e-mail/senha) - ver AuthManager /
+# GoogleSignInHelper. O Credential Manager é a API recomendada pelo Google desde 2023, substituindo
+# o antigo GoogleSignInClient; a dependência "credentials-play-services-auth" é o provider usado em
+# aparelhos sem o serviço de Credential Manager do sistema (a maioria em uso hoje, já que ele só é
+# nativo a partir do Android 14).
+androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

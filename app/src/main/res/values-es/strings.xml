@@ -115,6 +115,9 @@
     <string name="signup_title">Registrarse</string>
     <string name="signup_confirm">Registrarse</string>
     <string name="signup_switch_to_login">¿Ya tienes cuenta? Inicia sesión</string>
+    <string name="auth_or_divider">o</string>
+    <string name="continue_with_google">Continuar con Google</string>
+    <string name="google_sign_in_error">No se pudo iniciar sesión con Google. Inténtalo de nuevo.</string>
     <string name="email_label">Correo electrónico</string>
     <string name="password_label">Contraseña</string>
     <string name="display_name_label">Nombre/apodo</string>

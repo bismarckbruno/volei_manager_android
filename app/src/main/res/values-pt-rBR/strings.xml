@@ -115,6 +115,9 @@
     <string name="signup_title">Cadastrar</string>
     <string name="signup_confirm">Cadastrar</string>
     <string name="signup_switch_to_login">Já tem conta? Entrar</string>
+    <string name="auth_or_divider">ou</string>
+    <string name="continue_with_google">Continuar com o Google</string>
+    <string name="google_sign_in_error">Não foi possível entrar com o Google. Tente novamente.</string>
     <string name="email_label">E-mail</string>
     <string name="password_label">Senha</string>
     <string name="display_name_label">Nome/apelido</string>

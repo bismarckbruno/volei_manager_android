@@ -1197,6 +1197,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             inProgress = authInProgress,
             onDismiss = { showLoginDialog = false },
             onConfirm = { email, password, onResult -> viewModel.signInWithEmail(email, password, onResult) },
+            onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
             onSwitchToSignUp = { showLoginDialog = false; showSignUpDialog = true }
         )
         if (showSignUpDialog) SignUpDialog(
@@ -1205,6 +1206,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             onConfirm = { email, password, fullName, nickname, birthDate, onResult ->
                 viewModel.signUpWithEmail(email, password, fullName, nickname, birthDate, onResult)
             },
+            onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
             onSwitchToLogin = { showSignUpDialog = false; showLoginDialog = true }
         )
         if (showEditProfilePhotoDialog) EditProfilePhotoDialog(

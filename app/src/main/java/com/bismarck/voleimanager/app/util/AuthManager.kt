@@ -43,12 +43,12 @@ private const val FIELD_BIRTH_DATE = "birthDate"
 private const val FIELD_PHOTO_BASE64 = "photoBase64"
 
 /**
- * Fachada única sobre o Firebase Authentication (e-mail/senha por enquanto — login com Google
- * fica para uma fase seguinte) e sobre o documento de perfil complementar guardado no Firestore
- * (`users/{uid}`: apelido público, nome completo, data de nascimento e foto reduzida). Segue o
- * mesmo cuidado do [TelemetryManager]: se o app não tiver um `google-services.json` válido, todas
- * as chamadas abaixo falham de forma segura (nunca derruba o app) e [currentUser] simplesmente
- * nunca emite um usuário logado.
+ * Fachada única sobre o Firebase Authentication (e-mail/senha e login com Google — ver
+ * [signInWithGoogleIdToken] e [com.bismarck.voleimanager.app.util.GoogleSignInHelper]) e sobre o
+ * documento de perfil complementar guardado no Firestore (`users/{uid}`: apelido público, nome
+ * completo, data de nascimento e foto reduzida). Segue o mesmo cuidado do [TelemetryManager]: se o
+ * app não tiver um `google-services.json` válido, todas as chamadas abaixo falham de forma segura
+ * (nunca derruba o app) e [currentUser] simplesmente nunca emite um usuário logado.
  */
 object AuthManager {
     private const val TAG = "AuthManager"
@@ -259,6 +259,57 @@ object AuthManager {
         } catch (e: Exception) {
             e.message ?: "Não foi possível entrar. Verifique seu e-mail e senha."
         }
+    }
+
+    /** Autentica (ou cria a conta, se for o primeiro acesso) usando um ID token do Google obtido
+     *  por [com.bismarck.voleimanager.app.util.GoogleSignInHelper]. No primeiro login, usa nome e
+     *  e-mail da própria conta Google como valores iniciais do perfil complementar (apelido =
+     *  primeiro nome, nome completo = nome exibido pelo Google) — o usuário pode alterá-los depois
+     *  em "Editar perfil". A data de nascimento não vem do Google, então fica em branco até o
+     *  usuário preenchê-la manualmente (necessária futuramente para checar elegibilidade de compra
+     *  premium). Logins seguintes não sobrescrevem um perfil já existente. Retorna uma mensagem de
+     *  erro amigável em caso de falha, ou `null` em caso de sucesso. */
+    suspend fun signInWithGoogleIdToken(idToken: String): String? {
+        val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
+        return try {
+            val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
+            val result = suspendCancellableCoroutine<Result<FirebaseUser?>> { cont ->
+                auth.signInWithCredential(credential)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            cont.resume(Result.success(task.result?.user))
+                        } else {
+                            cont.resume(Result.failure(task.exception ?: Exception("Falha ao entrar com o Google")))
+                        }
+                    }
+            }
+            result.getOrThrow()?.let { user -> initializeProfileIfFirstLogin(user) }
+            null
+        } catch (e: Exception) {
+            e.message ?: "Não foi possível entrar com o Google."
+        }
+    }
+
+    /** Preenche o perfil complementar (`users/{uid}`) com dados da conta Google só quando ele
+     *  ainda não existir — evita sobrescrever um apelido/nome/data de nascimento que o usuário já
+     *  tenha editado manualmente em um login anterior (com e-mail/senha ou Google). */
+    private suspend fun initializeProfileIfFirstLogin(user: FirebaseUser) {
+        val firestore = firestoreOrNull() ?: return
+        val alreadyHasProfile = try {
+            suspendCancellableCoroutine<Boolean> { cont ->
+                firestore.collection(USERS_COLLECTION).document(user.uid).get()
+                    .addOnCompleteListener { task ->
+                        cont.resume(task.isSuccessful && (task.result?.exists() == true))
+                    }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Falha ao checar perfil existente: ${e.message}")
+            false
+        }
+        if (alreadyHasProfile) return
+        val displayName = user.displayName.orEmpty()
+        val firstName = displayName.trim().substringBefore(" ").ifBlank { displayName }
+        saveProfileDoc(uid = user.uid, fullName = displayName, nickname = firstName, birthDate = "")
     }
 
     fun signOut() {
