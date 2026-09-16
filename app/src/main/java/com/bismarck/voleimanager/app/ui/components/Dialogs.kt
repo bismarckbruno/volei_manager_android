@@ -1430,12 +1430,13 @@ fun JoinExistingGroupDialog(
 ) {
     var code by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
     DialogKeyboardFocus(focusRequester)
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = { Text(stringResource(R.string.join_existing_group)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -1452,6 +1453,7 @@ fun JoinExistingGroupDialog(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                     singleLine = true,
                     isError = errorMessage != null,
+                    enabled = !isSubmitting,
                     modifier = Modifier.focusRequester(focusRequester)
                 )
                 errorMessage?.let {
@@ -1463,14 +1465,30 @@ fun JoinExistingGroupDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    isSubmitting = true
                     onConfirm(code) { error ->
+                        isSubmitting = false
                         if (error == null) onDismiss() else errorMessage = error
                     }
                 },
-                enabled = code.isNotBlank()
-            ) { Text(stringResource(R.string.join_existing_group_confirm)) }
+                enabled = code.isNotBlank() && !isSubmitting
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = LocalContentColor.current
+                    )
+                } else {
+                    Text(stringResource(R.string.join_existing_group_confirm))
+                }
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     )
 }
 

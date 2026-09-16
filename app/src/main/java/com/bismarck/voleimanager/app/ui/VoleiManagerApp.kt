@@ -272,6 +272,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isGroupDataLoading by viewModel.isGroupDataLoading.collectAsState()
+    val isAwaitingInitialRemoteSync by viewModel.isAwaitingInitialRemoteSync.collectAsState()
     val allPlayers by viewModel.players.collectAsState()
     val showEloPreference by viewModel.showElo.collectAsState()
     val showToll by viewModel.showToll.collectAsState()
@@ -293,6 +294,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         showEloPreference
     }
     val showScore = groupConfig.scoreEnabled
+    val eloBlockedForSpectatorMessage = stringResource(R.string.elo_blocked_for_spectator_message)
     // Papel deste dispositivo no grupo ativo (não a resposta global do onboarding) — ver
     // activeGroupProfileType. null enquanto nenhum grupo foi criado/carregado ainda.
     val activeGroupRole = if (groupConfig.groupName.isNotBlank()) {
@@ -1243,7 +1245,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 selected = false,
                                 badge = { Switch(checked = showElo, onCheckedChange = null) },
                                 tooltipText = stringResource(R.string.show_elo_tooltip),
-                                onClick = { viewModel.setShowElo(!showElo) }
+                                onClick = {
+                                    if (isSpectatorOfCurrentGroup && !showEloPreference && !groupConfig.showEloToObservers) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(eloBlockedForSpectatorMessage)
+                                        }
+                                    } else {
+                                        viewModel.setShowElo(!showElo)
+                                    }
+                                }
                             )
                             FlexibleDrawerItem(
                                 icon = { Icon(painter = painterResource(R.drawable.volei_manager_icon), null) },
@@ -2205,7 +2215,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                  .padding(padding)
                  .fillMaxSize()
              ) {
-                 if (isGroupDataLoading) {
+                 if (isGroupDataLoading || isAwaitingInitialRemoteSync) {
                      Box(
                          modifier = Modifier.fillMaxSize(),
                          contentAlignment = Alignment.Center

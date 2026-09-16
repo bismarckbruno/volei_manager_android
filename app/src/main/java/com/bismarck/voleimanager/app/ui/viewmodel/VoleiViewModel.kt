@@ -256,7 +256,9 @@ internal fun Player.toRemoteSnapshot() = RemotePlayerSnapshot(
     matchesPlayed = matchesPlayed,
     victories = victories,
     preferredPosition = preferredPosition,
-    secondaryPosition = secondaryPosition
+    secondaryPosition = secondaryPosition,
+    dailyToll = dailyToll,
+    tollDate = tollDate
 )
 
 /** Reconstrói um [Player] "sintético" a partir de um snapshot remoto, para os dispositivos que
@@ -265,8 +267,9 @@ internal fun Player.toRemoteSnapshot() = RemotePlayerSnapshot(
  *  nenhuma linha real na tabela `players` do Room. [Player.id] é derivado de forma estável a
  *  partir do [RemotePlayerSnapshot.publicId] (nunca colide com ids reais do Room porque esses
  *  dispositivos nunca têm jogadores reais salvos para o grupo remoto — a tabela local fica vazia
- *  para ele). Tolerância (`dailyToll`) e posição do dia não são sincronizadas: cada aparelho as
- *  calcularia de um jeito diferente sem sentido fora de quem organiza a presença localmente.
+ *  para ele). `dailyToll`/`tollDate` são o valor já calculado pelo organizador (que continua sendo
+ *  o único a *calcular* presença/tolerância localmente); aqui só replicamos o resultado final para
+ *  o mesmo badge aparecer igual em todos os papéis.
  */
 internal fun RemotePlayerSnapshot.toSyntheticPlayer(groupName: String) = Player(
     id = publicId.hashCode(),
@@ -278,7 +281,9 @@ internal fun RemotePlayerSnapshot.toSyntheticPlayer(groupName: String) = Player(
     groupName = groupName,
     preferredPosition = preferredPosition,
     secondaryPosition = secondaryPosition,
-    publicId = publicId
+    publicId = publicId,
+    dailyToll = dailyToll,
+    tollDate = tollDate
 )
 
 private data class TeamSnapshotEntry(
@@ -550,10 +555,48 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val isGroupDataLoading: StateFlow<Boolean> = _isGroupDataLoading.asStateFlow()
     private var groupLoadToken = 0
 
-    /** Timestamp da última [LiveGameState] que este próprio dispositivo publicou — usado para
-     *  descartar o "eco" de estados remotos recebidos de volta pelo listener de
-     *  [CloudSyncManager.observeLiveState] logo após publicarmos algo (ver `aux-bidirectional-sync`). */
+    /** Timestamp da última [LiveGameState] que este próprio dispositivo publicou — mantido só
+     *  para diagnóstico; a supressão de "eco" real agora usa [localSyncSessionId] (ver abaixo),
+     *  já que comparar `updatedAt` (relógio do aparelho) é sujeito a variação de relógio entre
+     *  dispositivos e pode causar "rollback" de placar (`fix-admin-aux-sync-races`). */
     private var lastPushedUpdatedAt: Long = 0L
+
+    /** Identificador único desta instância da ViewModel (gerado uma vez por processo), publicado
+     *  em [LiveGameState.writerSessionId] a cada push. Um estado remoto só é ignorado como
+     *  "auto-eco" quando `writerSessionId == localSyncSessionId` — nunca por comparação de
+     *  timestamp — então uma atualização legítima de outro dispositivo nunca é descartada por
+     *  causa de relógios dessincronizados. */
+    private val localSyncSessionId: String = java.util.UUID.randomUUID().toString()
+
+    /** cloudGroupId para o qual este dispositivo já recebeu pelo menos um [LiveGameState] real do
+     *  organizador. Enquanto for `null`/diferente do grupo remoto atual, um Auxiliar não publica
+     *  nada (mesmo que [observeAndPushCloudLiveState] já rode), para não sobrescrever o jogo em
+     *  andamento do organizador com o estado local vazio/zerado que um dispositivo recém-entrado
+     *  ainda não teve chance de receber (ver `fix-admin-aux-sync-races`). */
+    private var remoteStateInitializedForGroupId: String? = null
+
+    private val _isAwaitingInitialRemoteSync = MutableStateFlow(false)
+    /** `true` enquanto um Auxiliar/Espectador acabou de entrar/trocar para um grupo remoto e
+     *  ainda não recebeu o primeiro [LiveGameState] de verdade do organizador — usado para mostrar
+     *  um indicador de carregamento central na tela em vez de deixar a UI parecer vazia/travada. */
+    val isAwaitingInitialRemoteSync: StateFlow<Boolean> = _isAwaitingInitialRemoteSync.asStateFlow()
+
+    /** Último mapa de "jogos hoje" por publicId recebido do organizador — ecoado por um Auxiliar
+     *  ao publicar suas próprias atualizações, mesmo padrão de [lastKnownRemotePresentPlayers]. */
+    private var lastKnownRemoteGamesPlayedToday: Map<String, Int> = emptyMap()
+
+    /** Últimos mapas de posição/slot atribuídos recebidos do organizador — ecoados por um
+     *  Auxiliar, mesmo padrão acima. */
+    private var lastKnownRemoteAssignedPositions: Map<String, String> = emptyMap()
+    private var lastKnownRemoteAssignedSlotIndices: Map<String, Int> = emptyMap()
+    private var lastKnownRemoteCompositionIncomplete: Boolean = false
+
+    private val _remoteGamesPlayedToday = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    /** Espelho de [LiveGameState.gamesPlayedToday] com as chaves já convertidas de publicId para o
+     *  [Player.id] sintético usado por [toSyntheticPlayer] — consumido por `GameScreen.kt` no
+     *  lugar de `gamesPlayedTodayMap`/`gamesPlayedStrictTodayMap` quando o papel deste dispositivo
+     *  é Auxiliar/Espectador (que não têm registros locais de Elo para o grupo remoto). */
+    val remoteGamesPlayedToday: StateFlow<Map<Int, Int>> = _remoteGamesPlayedToday.asStateFlow()
 
     /** ID do último pedido de encerramento de partida ([LiveGameState.pendingFinishRequestId]) já
      *  processado pelo organizador — evita chamar [finishGame] duas vezes para o mesmo pedido de
@@ -1626,6 +1669,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val scoreB: Int,
             val presentPlayerIds: Set<Int>
         )
+        data class ExtraFieldsPartial(
+            val matchStartTimestamp: Long?,
+            val lastScoringTeam: String?,
+            val rotationRequiredForTeam: String?,
+            val assignedPositions: Map<Int, PlayerPosition>,
+            val assignedSlotIndices: Map<Int, Int>,
+            val compositionIncomplete: Boolean
+        )
         val partialFlow = combine(
             combine(_teamA, _teamB, _waitingList) { teamA, teamB, waiting -> Triple(teamA, teamB, waiting) },
             _scoreA, _scoreB, _presentPlayerIds
@@ -1633,34 +1684,60 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             LiveGameStatePartial(teams.first, teams.second, teams.third, scoreA, scoreB, presentIds)
         }
         // Campos extras que também dependem de um Player.id real (elenco completo, marcador de
-        // ponto/rodízio, início da partida) são agrupados aqui para não estourar o limite de 5
-        // flows tipadas do combine() abaixo.
-        val extraFlow = combine(_currentMatchStartTimestamp, _lastScoringTeam, _rotationRequiredForTeam) { ts, lastTeam, rotation ->
-            Triple(ts, lastTeam, rotation)
-        }
-        val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow) { players, extra -> players to extra }
+        // ponto/rodízio, início da partida, posições atribuídas) são agrupados aqui para não
+        // estourar o limite de 5 flows tipadas do combine() abaixo.
+        val extraFlow = combine(
+            combine(_currentMatchStartTimestamp, _lastScoringTeam, _rotationRequiredForTeam) { ts, lastTeam, rotation -> Triple(ts, lastTeam, rotation) },
+            combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { positions, slots, incomplete -> Triple(positions, slots, incomplete) }
+        ) { a, b -> ExtraFieldsPartial(a.first, a.second, a.third, b.first, b.second, b.third) }
+        val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow, gamesPlayedStrictTodayMap) { players, extra, gamesMap -> Triple(players, extra, gamesMap) }
         viewModelScope.launch {
             combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner, groupPlayersAndExtra) { config, partial, streak, owner, playersAndExtra ->
                 val groupPlayers = playersAndExtra.first
-                val (matchStartTimestamp, lastScoringTeam, rotationRequiredForTeam) = playersAndExtra.second
-                // Organizador (grupo próprio) e Auxiliar (`remoteRole == "AUXILIAR"`) publicam o
-                // estado ao vivo; Espectador nunca escreve (fica só na ponta de leitura abaixo).
+                val extra = playersAndExtra.second
+                val gamesMap = playersAndExtra.third
+                // Organizador (grupo próprio) publica sempre; Auxiliar (`remoteRole == "AUXILIAR"`)
+                // só publica depois de ter recebido pelo menos um LiveGameState real do organizador
+                // para o grupo atual — evita que o estado local vazio/zerado de um Auxiliar recém
+                // conectado (antes do primeiro espelhamento) sobrescreva o jogo em andamento do
+                // organizador (ver `fix-admin-aux-sync-races`). Espectador nunca escreve.
                 val canPush = config.isCloudSynced && config.cloudGroupId != null &&
-                    (config.remoteRole == null || config.remoteRole == UserProfileType.AUXILIAR.name)
+                    (config.remoteRole == null ||
+                        (config.remoteRole == UserProfileType.AUXILIAR.name &&
+                            remoteStateInitializedForGroupId == config.cloudGroupId))
                 if (canPush) {
-                    // Presença/seleção pré-partida e elenco completo: só o organizador tem o
-                    // roster real no Room para calculá-los; o Auxiliar ecoa o último valor
-                    // observado, para não apagar essas listas com um valor vazio ao publicar sua
-                    // própria edição de placar/times.
+                    // Presença/seleção pré-partida, elenco completo, jogos hoje e posições
+                    // atribuídas: só o organizador tem o roster real no Room para calculá-los; o
+                    // Auxiliar ecoa o último valor observado, para não apagar esses dados com um
+                    // valor vazio ao publicar sua própria edição de placar/times.
                     val presentSnapshots: List<RemotePlayerSnapshot>
                     val allPlayerSnapshots: List<RemotePlayerSnapshot>
+                    val gamesPlayedTodayByPublicId: Map<String, Int>
+                    val assignedPositionsByPublicId: Map<String, String>
+                    val assignedSlotIndicesByPublicId: Map<String, Int>
+                    val compositionIncompleteValue: Boolean
                     if (config.remoteRole == null) {
                         presentSnapshots = partial.presentPlayerIds.mapNotNull { id -> groupPlayers.find { it.id == id } }
                             .map { it.toRemoteSnapshot() }
                         allPlayerSnapshots = groupPlayers.map { it.toRemoteSnapshot() }
+                        gamesPlayedTodayByPublicId = groupPlayers.mapNotNull { p ->
+                            gamesMap[p.id]?.let { p.publicId to it }
+                        }.toMap()
+                        val playersById = groupPlayers.associateBy { it.id }
+                        assignedPositionsByPublicId = extra.assignedPositions.mapNotNull { (id, pos) ->
+                            playersById[id]?.publicId?.let { it to pos.name }
+                        }.toMap()
+                        assignedSlotIndicesByPublicId = extra.assignedSlotIndices.mapNotNull { (id, slot) ->
+                            playersById[id]?.publicId?.let { it to slot }
+                        }.toMap()
+                        compositionIncompleteValue = extra.compositionIncomplete
                     } else {
                         presentSnapshots = lastKnownRemotePresentPlayers
                         allPlayerSnapshots = lastKnownRemoteAllPlayers
+                        gamesPlayedTodayByPublicId = lastKnownRemoteGamesPlayedToday
+                        assignedPositionsByPublicId = lastKnownRemoteAssignedPositions
+                        assignedSlotIndicesByPublicId = lastKnownRemoteAssignedSlotIndices
+                        compositionIncompleteValue = lastKnownRemoteCompositionIncomplete
                     }
                     config.cloudGroupId to LiveGameState(
                         groupName = config.groupName,
@@ -1674,9 +1751,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         updatedAt = System.currentTimeMillis(),
                         presentPlayers = presentSnapshots,
                         allPlayers = allPlayerSnapshots,
-                        matchStartTimestamp = matchStartTimestamp,
-                        lastScoringTeam = lastScoringTeam,
-                        rotationRequiredForTeam = rotationRequiredForTeam
+                        matchStartTimestamp = extra.matchStartTimestamp,
+                        lastScoringTeam = extra.lastScoringTeam,
+                        rotationRequiredForTeam = extra.rotationRequiredForTeam,
+                        writerSessionId = localSyncSessionId,
+                        gamesPlayedToday = gamesPlayedTodayByPublicId,
+                        assignedPositions = assignedPositionsByPublicId,
+                        assignedSlotIndices = assignedSlotIndicesByPublicId,
+                        compositionIncomplete = compositionIncompleteValue
                     )
                 } else null
             }.debounce(400).collect { pushable ->
@@ -1684,6 +1766,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     lastPushedUpdatedAt = pushable.second.updatedAt
                     lastKnownRemotePresentPlayers = pushable.second.presentPlayers
                     lastKnownRemoteAllPlayers = pushable.second.allPlayers
+                    lastKnownRemoteGamesPlayedToday = pushable.second.gamesPlayedToday
+                    lastKnownRemoteAssignedPositions = pushable.second.assignedPositions
+                    lastKnownRemoteAssignedSlotIndices = pushable.second.assignedSlotIndices
+                    lastKnownRemoteCompositionIncomplete = pushable.second.compositionIncomplete
                     CloudSyncManager.pushLiveState(pushable.first, pushable.second)
                 }
             }
@@ -1698,28 +1784,36 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * jogo (ver `aux-bidirectional-sync`), e ao organizador enxergar em tempo real uma edição
      * feita por um Auxiliar em outro aparelho.
      *
-     * Descarta qualquer estado remoto que seja só o eco da última publicação deste próprio
-     * dispositivo (comparando `updatedAt` com [lastPushedUpdatedAt]), já que não há um id de
-     * dispositivo separado nesta v1 (ver decisão de "echo-suppression" do plano).
+     * Descarta apenas o auto-eco genuíno deste mesmo dispositivo, comparando
+     * [LiveGameState.writerSessionId] com [localSyncSessionId] — nunca por comparação de
+     * `updatedAt` (relógio do aparelho), que é sujeito a variação entre dispositivos e podia
+     * causar "rollback" de placar (ver `fix-admin-aux-sync-races`).
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeAndMirrorRemoteLiveState() {
         viewModelScope.launch {
             _currentGroupConfig
-                .map { it.cloudGroupId }
+                .map { it.cloudGroupId to it.remoteRole }
                 .distinctUntilChanged()
-                .flatMapLatest { cloudGroupId ->
+                .flatMapLatest { (cloudGroupId, remoteRole) ->
+                    remoteStateInitializedForGroupId = null
+                    _isAwaitingInitialRemoteSync.value = cloudGroupId != null && remoteRole != null
                     if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeLiveState(cloudGroupId)
                 }
                 .collect { state ->
                     if (state == null) return@collect
-                    if (state.updatedAt <= lastPushedUpdatedAt) return@collect
+                    if (state.writerSessionId != null && state.writerSessionId == localSyncSessionId) return@collect
                     val config = _currentGroupConfig.value
                     if (config.cloudGroupId == null) return@collect
 
                     lastKnownRemotePresentPlayers = state.presentPlayers
                     lastKnownRemoteAllPlayers = state.allPlayers
+                    lastKnownRemoteGamesPlayedToday = state.gamesPlayedToday
+                    lastKnownRemoteAssignedPositions = state.assignedPositions
+                    lastKnownRemoteAssignedSlotIndices = state.assignedSlotIndices
+                    lastKnownRemoteCompositionIncomplete = state.compositionIncomplete
                     _remoteAllPlayers.value = state.allPlayers.map { it.toSyntheticPlayer(config.groupName) }
+                    _remoteGamesPlayedToday.value = state.gamesPlayedToday.mapKeys { it.key.hashCode() }
                     // Sincronizado para todos os papéis (organizador, auxiliar, espectador): quem
                     // publicou o valor mais recente já é o único responsável por "ser dono" dele
                     // (organizador para o início da partida, quem tocou no placar por último para
@@ -1769,6 +1863,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         _scoreB.value = state.scoreB
                         _currentStreak.value = state.currentStreak
                         _streakOwner.value = state.streakOwner
+                        // Não rodamos o algoritmo de PositionAssigner localmente para um grupo
+                        // remoto — adotamos direto o mapa de posições/composição publicado pelo
+                        // organizador (traduzindo publicId -> id sintético via hashCode, mesmo
+                        // esquema usado em toSyntheticPlayer).
+                        _assignedPositions.value = state.assignedPositions.mapNotNull { (publicId, posName) ->
+                            runCatching { PlayerPosition.valueOf(posName) }.getOrNull()?.let { publicId.hashCode() to it }
+                        }.toMap()
+                        _assignedSlotIndices.value = state.assignedSlotIndices.mapKeys { it.key.hashCode() }
+                        _compositionIncomplete.value = state.compositionIncomplete
+                        // Marca que este dispositivo já recebeu um LiveGameState real do
+                        // organizador para o grupo atual — a partir daqui um Auxiliar pode
+                        // começar a publicar suas próprias edições com segurança (ver
+                        // observeAndPushCloudLiveState / `fix-admin-aux-sync-races`).
+                        remoteStateInitializedForGroupId = config.cloudGroupId
+                        _isAwaitingInitialRemoteSync.value = false
                     }
                     _remoteSelectedPlayers.value = state.presentPlayers.map { it.toSyntheticPlayer(config.groupName) }
                 }
@@ -3461,7 +3570,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             allPlayers = lastKnownRemoteAllPlayers,
             matchStartTimestamp = _currentMatchStartTimestamp.value,
             lastScoringTeam = _lastScoringTeam.value,
-            rotationRequiredForTeam = _rotationRequiredForTeam.value
+            rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            writerSessionId = localSyncSessionId,
+            gamesPlayedToday = lastKnownRemoteGamesPlayedToday,
+            assignedPositions = lastKnownRemoteAssignedPositions,
+            assignedSlotIndices = lastKnownRemoteAssignedSlotIndices,
+            compositionIncomplete = lastKnownRemoteCompositionIncomplete
         )
         lastPushedUpdatedAt = pending.updatedAt
         viewModelScope.launch(Dispatchers.IO) {
@@ -3498,7 +3612,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             lastScoringTeam = _lastScoringTeam.value,
             rotationRequiredForTeam = _rotationRequiredForTeam.value,
             pendingPresenceTogglePublicId = publicId,
-            pendingPresenceToggleRequestId = requestId
+            pendingPresenceToggleRequestId = requestId,
+            writerSessionId = localSyncSessionId,
+            gamesPlayedToday = lastKnownRemoteGamesPlayedToday,
+            assignedPositions = lastKnownRemoteAssignedPositions,
+            assignedSlotIndices = lastKnownRemoteAssignedSlotIndices,
+            compositionIncomplete = lastKnownRemoteCompositionIncomplete
         )
         lastPushedUpdatedAt = pending.updatedAt
         viewModelScope.launch(Dispatchers.IO) {

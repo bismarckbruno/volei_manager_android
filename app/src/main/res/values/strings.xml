@@ -36,6 +36,7 @@
     <string name="theme">Theme</string>
     <string name="show_elo">Show Elo</string>
     <string name="show_elo_tooltip">Shows the skill rating of each player and the team average.</string>
+    <string name="elo_blocked_for_spectator_message">The admin/co-admin has not enabled Elo sharing with spectators for this group yet.</string>
     <string name="show_lateness">Show matches</string>
     <string name="show_lateness_tooltip">Displays the number of matches for each player. If the player arrived late, the average number of matches the group had already played up to their arrival is added.</string>
     <string name="telemetry_consent_title">Help improve %1$s?</string>

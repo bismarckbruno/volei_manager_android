@@ -37,7 +37,13 @@ data class RemotePlayerSnapshot(
     val matchesPlayed: Int = 0,
     val victories: Int = 0,
     val preferredPosition: String? = null,
-    val secondaryPosition: String? = null
+    val secondaryPosition: String? = null,
+    /** Tolerância de atraso (pedágio) e a data em que foi calculada, já resolvidas pelo
+     *  organizador — só o valor final é replicado (o cálculo em si continua acontecendo apenas
+     *  no aparelho que controla a presença localmente), para que Auxiliar/Espectador também
+     *  vejam o mesmo badge de pedágio que o organizador. */
+    val dailyToll: Int = 0,
+    val tollDate: String = ""
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "publicId" to publicId,
@@ -47,7 +53,9 @@ data class RemotePlayerSnapshot(
         "matchesPlayed" to matchesPlayed,
         "victories" to victories,
         "preferredPosition" to preferredPosition,
-        "secondaryPosition" to secondaryPosition
+        "secondaryPosition" to secondaryPosition,
+        "dailyToll" to dailyToll,
+        "tollDate" to tollDate
     )
 
     companion object {
@@ -59,7 +67,9 @@ data class RemotePlayerSnapshot(
             matchesPlayed = (map["matchesPlayed"] as? Number)?.toInt() ?: 0,
             victories = (map["victories"] as? Number)?.toInt() ?: 0,
             preferredPosition = map["preferredPosition"] as? String,
-            secondaryPosition = map["secondaryPosition"] as? String
+            secondaryPosition = map["secondaryPosition"] as? String,
+            dailyToll = (map["dailyToll"] as? Number)?.toInt() ?: 0,
+            tollDate = map["tollDate"] as? String ?: ""
         )
     }
 }
@@ -110,7 +120,28 @@ data class LiveGameState(
      *  [pendingFinishWinner]/[pendingFinishRequestId]. */
     val pendingPresenceTogglePublicId: String? = null,
     /** Identificador único do pedido acima, ver [pendingFinishRequestId]. */
-    val pendingPresenceToggleRequestId: String? = null
+    val pendingPresenceToggleRequestId: String? = null,
+    /** Identificador único de sessão do dispositivo que publicou esta atualização (gerado uma vez
+     *  por processo/instalação da ViewModel). Usado para detectar auto-eco de forma confiável —
+     *  ao contrário de comparar [updatedAt] (relógio do aparelho, sujeito a variação entre
+     *  dispositivos), cada dispositivo só ignora atualizações que ele mesmo publicou, nunca as de
+     *  outro aparelho, mesmo que os relógios estejam dessincronizados (ver `fix-admin-aux-sync-races`). */
+    val writerSessionId: String? = null,
+    /** Quantidade de partidas já disputadas hoje por cada jogador (chave = publicId), calculada
+     *  pelo organizador a partir dos registros locais de Elo/histórico — replicada para que
+     *  Auxiliar/Espectador vejam o mesmo indicador "jogos hoje"/ordem de fila que o organizador. */
+    val gamesPlayedToday: Map<String, Int> = emptyMap(),
+    /** Posição atribuída a cada jogador na formação em quadra (chave = publicId, valor = nome do
+     *  enum [com.bismarck.voleimanager.app.data.model.PlayerPosition]) — só relevante para grupos
+     *  `FIXED_POSITIONS`. Calculada só pelo organizador (dono do algoritmo [util.PositionAssigner])
+     *  e replicada para Auxiliar/Espectador exibirem os mesmos selos de posição. */
+    val assignedPositions: Map<String, String> = emptyMap(),
+    /** Índice do slot de composição atribuído a cada jogador (chave = publicId), ver [assignedPositions]. */
+    val assignedSlotIndices: Map<String, Int> = emptyMap(),
+    /** Se a composição do time está incompleta (algum slot preenchido abaixo do nível
+     *  secundário) — replicado para o aviso "composição incompleta" também aparecer para
+     *  Auxiliar/Espectador. */
+    val compositionIncomplete: Boolean = false
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "groupName" to groupName,
@@ -130,7 +161,12 @@ data class LiveGameState(
         "lastScoringTeam" to lastScoringTeam,
         "rotationRequiredForTeam" to rotationRequiredForTeam,
         "pendingPresenceTogglePublicId" to pendingPresenceTogglePublicId,
-        "pendingPresenceToggleRequestId" to pendingPresenceToggleRequestId
+        "pendingPresenceToggleRequestId" to pendingPresenceToggleRequestId,
+        "writerSessionId" to writerSessionId,
+        "gamesPlayedToday" to gamesPlayedToday,
+        "assignedPositions" to assignedPositions,
+        "assignedSlotIndices" to assignedSlotIndices,
+        "compositionIncomplete" to compositionIncomplete
     )
 }
 
@@ -267,7 +303,18 @@ object CloudSyncManager {
                             lastScoringTeam = data["lastScoringTeam"] as? String,
                             rotationRequiredForTeam = data["rotationRequiredForTeam"] as? String,
                             pendingPresenceTogglePublicId = data["pendingPresenceTogglePublicId"] as? String,
-                            pendingPresenceToggleRequestId = data["pendingPresenceToggleRequestId"] as? String
+                            pendingPresenceToggleRequestId = data["pendingPresenceToggleRequestId"] as? String,
+                            writerSessionId = data["writerSessionId"] as? String,
+                            gamesPlayedToday = (data["gamesPlayedToday"] as? Map<*, *>)?.entries
+                                ?.mapNotNull { (k, v) -> (k as? String)?.let { key -> key to ((v as? Number)?.toInt() ?: 0) } }
+                                ?.toMap().orEmpty(),
+                            assignedPositions = (data["assignedPositions"] as? Map<*, *>)?.entries
+                                ?.mapNotNull { (k, v) -> (k as? String)?.let { key -> key to (v as? String ?: return@let null) } }
+                                ?.toMap().orEmpty(),
+                            assignedSlotIndices = (data["assignedSlotIndices"] as? Map<*, *>)?.entries
+                                ?.mapNotNull { (k, v) -> (k as? String)?.let { key -> key to ((v as? Number)?.toInt() ?: return@let null) } }
+                                ?.toMap().orEmpty(),
+                            compositionIncomplete = data["compositionIncomplete"] as? Boolean ?: false
                         )
                     )
                 }

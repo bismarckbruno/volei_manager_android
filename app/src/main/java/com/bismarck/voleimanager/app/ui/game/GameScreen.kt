@@ -193,6 +193,7 @@ fun GameScreenContent(
     val remoteAllPlayers by viewModel.remoteAllPlayers.collectAsState()
     val currentGroupHistory by viewModel.currentGroupHistory.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
+    val remoteGamesPlayedToday by viewModel.remoteGamesPlayedToday.collectAsState()
     val targetDate by viewModel.targetDate.collectAsState()
     val teamA by viewModel.teamA.collectAsState()
     val teamB by viewModel.teamB.collectAsState()
@@ -218,6 +219,10 @@ fun GameScreenContent(
         isAuxiliarRemote -> remoteSelectedPlayers.map { it.id }.toSet()
         else -> presentIdsFromVm
     }
+    // "Jogos hoje" (badge/ordenação da fila): Auxiliar/Espectador não têm registros locais de Elo
+    // para o grupo remoto, então usam o mapa espelhado pelo organizador em vez do derivado do
+    // Room local (ver `sync-missing-player-fields`).
+    val effectiveGamesPlayedMap = if (isSpectator || isAuxiliarRemote) remoteGamesPlayedToday else gamesPlayedMap
     val assignedPositions by viewModel.assignedPositions.collectAsState()
     val assignedSlotIndices by viewModel.assignedSlotIndices.collectAsState()
     val streak by viewModel.currentStreak.collectAsState()
@@ -601,7 +606,7 @@ fun GameScreenContent(
                                                     p,
                                                     presentIds.contains(p.id),
                                                     guaranteedNextMatchPlayerIds.contains(p.id),
-                                                    gamesPlayedMap[p.id],
+                                                    effectiveGamesPlayedMap[p.id],
                                                     targetDate,
                                                     showElo,
                                                     showToll,
@@ -705,7 +710,7 @@ fun GameScreenContent(
                                                     p,
                                                     presentIds.contains(p.id),
                                                     guaranteedNextMatchPlayerIds.contains(p.id),
-                                                    gamesPlayedMap[p.id],
+                                                    effectiveGamesPlayedMap[p.id],
                                                     targetDate,
                                                     showElo,
                                                     showToll,
@@ -894,7 +899,12 @@ fun ActiveGameView(
 
     val scoreA by viewModel.scoreA.collectAsState()
     val scoreB by viewModel.scoreB.collectAsState()
-    val gamesPlayedMap by viewModel.gamesPlayedStrictTodayMap.collectAsState()
+    val gamesPlayedMapLocal by viewModel.gamesPlayedStrictTodayMap.collectAsState()
+    val remoteGamesPlayedToday by viewModel.remoteGamesPlayedToday.collectAsState()
+    val isAuxiliarRemote by viewModel.isAuxiliarOfCurrentGroup.collectAsState()
+    // Auxiliar/Espectador não têm registros locais de Elo para o grupo remoto: usam o mapa
+    // espelhado pelo organizador em vez do derivado do Room local (ver `sync-missing-player-fields`).
+    val gamesPlayedMap = if (isSpectator || isAuxiliarRemote) remoteGamesPlayedToday else gamesPlayedMapLocal
     val lastScoringTeamId by viewModel.lastScoringTeam.collectAsState()
     val rotationRequiredForTeamId by viewModel.rotationRequiredForTeam.collectAsState()
     val restingMap by viewModel.restingPlayers.collectAsState()

@@ -36,6 +36,7 @@
     <string name="theme">Tema</string>
     <string name="show_elo">Mostrar Elo</string>
     <string name="show_elo_tooltip">Muestra la puntuación de habilidad de cada jugador y el promedio del equipo.</string>
+    <string name="elo_blocked_for_spectator_message">El administrador/coadministrador aún no habilitó compartir el Elo con los espectadores en este grupo.</string>
     <string name="show_lateness">Mostrar partidos</string>
     <string name="show_lateness_tooltip">Muestra el número de partidos de cada jugador. Si el jugador llegó tarde, se suma el promedio de partidos que el grupo ya había jugado hasta su llegada.</string>
     <string name="telemetry_consent_title">¿Ayudar a mejorar %1$s?</string>
