@@ -529,6 +529,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     )
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
 
+    /**
+     * `true` quando o grupo atualmente selecionado foi sincronizado via código de convite de
+     * Espectador ([GroupConfig.remoteRole] == `"ESPECTADOR"`) — ou seja, este dispositivo não tem
+     * permissão de edição sobre o grupo, só visualização em tempo real (ver
+     * `spectator-game-screen-restrictions`). Grupos próprios (`remoteRole == null`) ou entrados
+     * como Auxiliar sempre retornam `false`.
+     */
+    val isSpectatorOfCurrentGroup: StateFlow<Boolean> = _currentGroupConfig
+        .map { it.remoteRole == UserProfileType.ESPECTADOR.name }
+        .stateIn(viewModelScope, screenDataSharing, false)
+
     val players = repository.allPlayers.stateIn(
         viewModelScope,
         screenDataSharing,

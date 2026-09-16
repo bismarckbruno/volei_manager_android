@@ -283,6 +283,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val hasPremiumAccessGlobal by viewModel.hasPremiumAccess.collectAsState()
     val authInProgress by viewModel.authInProgress.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
+    val isSpectatorOfCurrentGroup by viewModel.isSpectatorOfCurrentGroup.collectAsState()
     val showScore = groupConfig.scoreEnabled
     // Papel deste dispositivo no grupo ativo (não a resposta global do onboarding) — ver
     // activeGroupProfileType. null enquanto nenhum grupo foi criado/carregado ainda.
@@ -383,6 +384,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    LaunchedEffect(isSpectatorOfCurrentGroup) {
+        if (isSpectatorOfCurrentGroup) {
+            showAddPlayerDialog = false
+            showExportDialog = false
+            showImportDialog = false
+        }
+    }
 
     LaunchedEffect(groupsSortedByRecent, groupConfig.groupName, isGroupDataLoading, selectedGroup) {
         if (isGroupDataLoading) return@LaunchedEffect
@@ -480,7 +488,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         )
     }
 
-    if (showExportDialog) {
+    if (showExportDialog && !isSpectatorOfCurrentGroup) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
             title = { Text(stringResource(R.string.export_data)) },
@@ -602,7 +610,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         )
     }
 
-    if (showImportDialog) {
+    if (showImportDialog && !isSpectatorOfCurrentGroup) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
             title = { Text(stringResource(R.string.import_data)) },
@@ -1157,7 +1165,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.PlayCircle, null) },
-                                label = { Text(stringResource(R.string.game_word)) },
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            if (isSpectatorOfCurrentGroup) {
+                                                R.string.game_word_spectator
+                                            } else {
+                                                R.string.game_word
+                                            }
+                                        )
+                                    )
+                                },
                                 selected = currentScreen == Screen.GAME,
                                 onClick = { requestScreenSwitch(Screen.GAME) }
                             )
@@ -1168,7 +1186,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onClick = { requestScreenSwitch(Screen.HISTORY) }
                             )
                             FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.Cloud, null) },
+                                icon = { Icon(Icons.Outlined.WorkspacePremium, null) },
                                 label = { Text(stringResource(R.string.cloud_sync)) },
                                 selected = currentScreen == Screen.CLOUD_SYNC,
                                 onClick = { requestScreenSwitch(Screen.CLOUD_SYNC) }
@@ -1230,24 +1248,26 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                             Text(text = stringResource(R.string.data), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
 
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.FileUpload, null) },
-                                label = { Text(stringResource(R.string.export)) },
-                                selected = false,
-                                onClick = {
-                                    showExportCsvAdvanced = false
-                                    showExportDialog = true; scope.launch { drawerState.close() }
-                                }
-                            )
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.FileDownload, null) },
-                                label = { Text(stringResource(R.string.import_text)) },
-                                selected = false,
-                                onClick = {
-                                    showImportCsvAdvanced = false
-                                    showImportDialog = true; scope.launch { drawerState.close() }
-                                }
-                            )
+                            if (!isSpectatorOfCurrentGroup) {
+                                FlexibleDrawerItem(
+                                    icon = { Icon(Icons.Outlined.FileUpload, null) },
+                                    label = { Text(stringResource(R.string.export)) },
+                                    selected = false,
+                                    onClick = {
+                                        showExportCsvAdvanced = false
+                                        showExportDialog = true; scope.launch { drawerState.close() }
+                                    }
+                                )
+                                FlexibleDrawerItem(
+                                    icon = { Icon(Icons.Outlined.FileDownload, null) },
+                                    label = { Text(stringResource(R.string.import_text)) },
+                                    selected = false,
+                                    onClick = {
+                                        showImportCsvAdvanced = false
+                                        showImportDialog = true; scope.launch { drawerState.close() }
+                                    }
+                                )
+                            }
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.Info, null) },
                                 label = { Text(stringResource(R.string.telemetry_consent_menu_item)) },
@@ -1386,7 +1406,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 }
             }
         )
-        if (showAddPlayerDialog) AddPlayerDialog(
+        if (showAddPlayerDialog && !isSpectatorOfCurrentGroup) AddPlayerDialog(
             usesPositions = groupConfig.type.usesPositions,
             onDismiss = { showAddPlayerDialog = false },
             onConfirm = { name, elo, isPriority, preferred, secondary ->
@@ -1851,18 +1871,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 label = "AddButtonRotation"
                             )
                             
-                            IconButton(
-                                onClick = { showAddPlayerDialog = true },
-                                modifier = Modifier
-                                    .scale(scale)
-                                    .minimumInteractiveComponentSize()
-                            ) {
-                                Icon(
-                                    Icons.Default.Add,
-                                    stringResource(R.string.add_new_player),
-                                    tint = iconColor,
-                                    modifier = Modifier.rotate(iconRotation).size(24.dp)
-                                )
+                            if (!isSpectatorOfCurrentGroup) {
+                                IconButton(
+                                    onClick = { showAddPlayerDialog = true },
+                                    modifier = Modifier
+                                        .scale(scale)
+                                        .minimumInteractiveComponentSize()
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        stringResource(R.string.add_new_player),
+                                        tint = iconColor,
+                                        modifier = Modifier.rotate(iconRotation).size(24.dp)
+                                    )
+                                }
                             }
                         } else if (currentScreen == Screen.HISTORY) {
                             val view = LocalView.current

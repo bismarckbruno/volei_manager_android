@@ -15,8 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -57,20 +57,23 @@ import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
 
 /**
- * Tela "Ao vivo": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
+ * Tela "Premium": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
  * perfil do usuário ([UserProfileType]):
  * - Sem perfil definido (usuário pulou/nunca respondeu o onboarding de perfil): mostra as três
  *   opções para escolher agora (mesmo componente do onboarding).
- * - Organizador(a)/Auxiliar: gestão de conta, assinatura/planos e grupos sincronizados (o que já
- *   existia nesta tela).
+ * - Organizador(a)/Auxiliar: entrada de código de convite em destaque, oferta de assinatura,
+ *   gestão de conta e lista de todos os grupos com o papel do usuário em cada um (dono,
+ *   auxiliar ou espectador) — se premium, também o painel de gerenciamento (grupos
+ *   sincronizados, geração de códigos, visibilidade para espectadores, transferência de posse).
  * - Espectador(a): visão ao vivo (placar, times, fila) do grupo que ele entrou via código, mais
  *   histórico/ranking de Elo quando o organizador/auxiliar habilitar os toggles de visibilidade
  *   (ver [CloudSyncManager][com.bismarck.voleimanager.app.util.CloudSyncManager]).
  *
- * Cadastro/login real (Firebase Auth) e a sincronização em tempo real (Firestore) já funcionam; o
- * pagamento em si chega em uma fase seguinte (`billing-integration`) — por ora, planos e grupo(s)
- * sincronizado(s) usam [VoleiViewModel.debugPremiumOverride]/[VoleiViewModel.debugPremiumPlanTier]
- * (apenas em debug).
+ * Cadastro/login real (Firebase Auth), a sincronização em tempo real (Firestore) e a compra real
+ * de assinatura (Google Play Billing, ver [com.bismarck.voleimanager.app.util.BillingManager]) já
+ * funcionam; enquanto os planos não existirem no Play Console (ou em builds de debug sem uma
+ * compra real), [VoleiViewModel.debugPremiumOverride]/[VoleiViewModel.debugPremiumPlanTier]
+ * seguem disponíveis como simulação apenas de desenvolvimento.
  */
 @Composable
 fun CloudSyncScreen(viewModel: VoleiViewModel) {
@@ -314,7 +317,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Outlined.Cloud,
+                    Icons.Outlined.WorkspacePremium,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -329,6 +332,26 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
                 stringResource(R.string.cloud_sync_screen_intro),
                 style = MaterialTheme.typography.bodyMedium
             )
+        }
+
+        // ========== ENTRAR EM UM GRUPO (código de Auxiliar/Espectador) ==========
+        // Colocado logo no topo: é o ponto de entrada mais comum para quem chega nesta tela com
+        // um código em mãos (recebido de um organizador/auxiliar), sem precisar rolar a tela.
+        SectionCard {
+            Text(
+                stringResource(R.string.cloud_sync_join_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                stringResource(R.string.cloud_sync_join_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onJoinGroupClick) {
+                Text(stringResource(R.string.join_existing_group))
+            }
         }
 
         // ========== CONTA (Firebase Auth e-mail/senha) ==========
@@ -578,21 +601,21 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
             }
         }
 
-        // ========== ENTRAR EM UM GRUPO (código de Auxiliar/Espectador) ==========
-        SectionCard {
-            Text(
-                stringResource(R.string.cloud_sync_join_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                stringResource(R.string.cloud_sync_join_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onJoinGroupClick) {
-                Text(stringResource(R.string.join_existing_group))
+        // ========== GRUPOS ACOMPANHADOS COMO ESPECTADOR ==========
+        // Um mesmo dispositivo/conta pode ser Auxiliar de um grupo e Espectador de outro ao mesmo
+        // tempo — listar aqui também, ainda que a visualização ao vivo em si só apareça quando o
+        // perfil global escolhido no onboarding for Espectador (ver [SpectatorLiveScreen]).
+        val espectadorGroups = allGroups.filter { it.remoteRole == UserProfileType.ESPECTADOR.name }
+        if (espectadorGroups.isNotEmpty()) {
+            SectionCard {
+                Text(
+                    stringResource(R.string.cloud_sync_espectador_groups_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                espectadorGroups.sortedBy { it.groupName }.forEach { group ->
+                    Text(group.groupName, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
 

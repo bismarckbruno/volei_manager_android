@@ -126,7 +126,8 @@ internal fun WaitingListContent(
     showElo: Boolean,
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = 16.dp,
-    externalSnackbarHostState: SnackbarHostState? = null
+    externalSnackbarHostState: SnackbarHostState? = null,
+    isSpectator: Boolean = false
 ) {
     val resources = LocalResources.current
     val restingMap by viewModel.restingPlayers.collectAsState()
@@ -306,6 +307,7 @@ internal fun WaitingListContent(
                         showElo = showElo,
                         usesPositions = usesPositions,
                         highlightPulse = if (highlightedPlayerId == player.id) highlightPulse else 0,
+                        isSpectator = isSpectator,
                         onMoveUp = {
                             if (index > 0) {
                                 viewModel.moveWaitingPlayerToIndex(player, index - 1)
@@ -407,6 +409,7 @@ internal fun WaitingListContent(
                             player = player,
                             showElo = showElo,
                             usesPositions = usesPositions,
+                            isSpectator = isSpectator,
                             onMoveToBeginning = {
                                 val targetIndex = 0
                                 undoAction = UndoAction.Add(player, targetIndex)
@@ -463,7 +466,8 @@ fun WaitingListBottomSheet(
     showElo: Boolean,
     sheetState: SheetState,
     contentAlpha: Float = 1f,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isSpectator: Boolean = false
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -508,7 +512,8 @@ fun WaitingListBottomSheet(
                 showElo = showElo,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = true)
+                    .weight(1f, fill = true),
+                isSpectator = isSpectator
             )
         }
     }
@@ -526,6 +531,7 @@ private fun WaitingListPlayerItem(
     showElo: Boolean,
     usesPositions: Boolean = false,
     highlightPulse: Int,
+    isSpectator: Boolean = false,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onMoveToBeginning: () -> Unit,
@@ -558,14 +564,20 @@ private fun WaitingListPlayerItem(
                     .heightIn(min = 60.dp)
                     .padding(vertical = 12.dp)
                     .padding(start = 16.dp, end = 4.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onLongPress = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMenu = true
+                    .then(
+                        if (isSpectator) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        showMenu = true
+                                    }
+                                )
                             }
-                        )
-                    },
+                        }
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -668,16 +680,18 @@ private fun WaitingListPlayerItem(
                         }
                     }
                 }
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.minimumInteractiveComponentSize()
-                ) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.options_menu),
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
+                if (!isSpectator) {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.options_menu),
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
         }
@@ -693,66 +707,68 @@ private fun WaitingListPlayerItem(
             ) { }
         }
 
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-            offset = DpOffset(x = 16.dp, y = 0.dp)
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.start_of_queue)) },
-                leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
-                onClick = {
-                    onMoveToBeginning()
-                    showMenu = false
-                },
-                enabled = !isFirst
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.move_up)) },
-                leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
-                onClick = {
-                    onMoveUp()
-                    showMenu = false
-                },
-                enabled = !isFirst
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.move_down)) },
-                leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
-                onClick = {
-                    onMoveDown()
-                    showMenu = false
-                },
-                enabled = !isLast
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.end_of_queue)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.VerticalAlignBottom,
-                        contentDescription = null
-                    )
-                },
-                onClick = {
-                    onMoveToEnd()
-                    showMenu = false
-                },
-                enabled = !isLast
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.remove_from_queue), color = MaterialTheme.colorScheme.error) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                },
-                onClick = {
-                    onRemove()
-                    showMenu = false
-                }
-            )
+        if (!isSpectator) {
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                offset = DpOffset(x = 16.dp, y = 0.dp)
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.start_of_queue)) },
+                    leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
+                    onClick = {
+                        onMoveToBeginning()
+                        showMenu = false
+                    },
+                    enabled = !isFirst
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.move_up)) },
+                    leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
+                    onClick = {
+                        onMoveUp()
+                        showMenu = false
+                    },
+                    enabled = !isFirst
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.move_down)) },
+                    leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
+                    onClick = {
+                        onMoveDown()
+                        showMenu = false
+                    },
+                    enabled = !isLast
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.end_of_queue)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.VerticalAlignBottom,
+                            contentDescription = null
+                        )
+                    },
+                    onClick = {
+                        onMoveToEnd()
+                        showMenu = false
+                    },
+                    enabled = !isLast
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.remove_from_queue), color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    onClick = {
+                        onRemove()
+                        showMenu = false
+                    }
+                )
+            }
         }
     }
 }
@@ -764,6 +780,7 @@ private fun InactivePlayerItem(
     player: Player,
     showElo: Boolean,
     usesPositions: Boolean = false,
+    isSpectator: Boolean = false,
     onMoveToBeginning: () -> Unit,
     onMoveToEnd: () -> Unit
 ) {
@@ -794,14 +811,20 @@ private fun InactivePlayerItem(
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
                     .padding(start = 16.dp, end = 6.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onLongPress = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMenu = true
+                    .then(
+                        if (isSpectator) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        showMenu = true
+                                    }
+                                )
                             }
-                        )
-                    },
+                        }
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -869,47 +892,51 @@ private fun InactivePlayerItem(
                         }
                     }
                 }
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.minimumInteractiveComponentSize()
-                ) {
-                    Icon(
-                        Icons.Default.PersonAddAlt1,
-                        contentDescription = stringResource(R.string.add_to_queue),
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
+                if (!isSpectator) {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            Icons.Default.PersonAddAlt1,
+                            contentDescription = stringResource(R.string.add_to_queue),
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
                 }
             }
             }
         }
 
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-            offset = DpOffset(x = 16.dp, y = 0.dp)
-        ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.start_of_queue)) },
-                leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
-                onClick = {
-                    onMoveToBeginning()
-                    showMenu = false
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.end_of_queue)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.VerticalAlignBottom,
-                        contentDescription = null
-                    )
-                },
-                onClick = {
-                    onMoveToEnd()
-                    showMenu = false
-                }
-            )
+        if (!isSpectator) {
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                offset = DpOffset(x = 16.dp, y = 0.dp)
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.start_of_queue)) },
+                    leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
+                    onClick = {
+                        onMoveToBeginning()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.end_of_queue)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.VerticalAlignBottom,
+                            contentDescription = null
+                        )
+                    },
+                    onClick = {
+                        onMoveToEnd()
+                        showMenu = false
+                    }
+                )
+            }
         }
     }
 }

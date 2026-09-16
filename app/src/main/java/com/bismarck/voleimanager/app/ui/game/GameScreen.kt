@@ -198,6 +198,7 @@ fun GameScreenContent(
     val presentIds by viewModel.presentPlayerIds.collectAsState()
     val hasPrev by viewModel.hasPreviousMatch.collectAsState()
     val config by viewModel.currentGroupConfig.collectAsState()
+    val isSpectator by viewModel.isSpectatorOfCurrentGroup.collectAsState()
     val assignedPositions by viewModel.assignedPositions.collectAsState()
     val assignedSlotIndices by viewModel.assignedSlotIndices.collectAsState()
     val streak by viewModel.currentStreak.collectAsState()
@@ -387,10 +388,22 @@ fun GameScreenContent(
             onboardingGroupNameSource = config.groupName
         }
     }
+    LaunchedEffect(isSpectator) {
+        if (isSpectator) {
+            showCancel = false
+            subOut = null
+            editP = null
+            confirmWinTeam = null
+            playerSearchQuery = ""
+            playerSearchExpanded = false
+            focusManager.clearFocus(force = true)
+            if (isSetupMode) onSetupModeChange(false)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
-            targetState = isSetupMode,
+            targetState = isSetupMode && !isSpectator,
             transitionSpec = {
                 fadeIn(animationSpec = tween(500)) togetherWith fadeOut(
                     animationSpec = tween(500)
@@ -451,7 +464,8 @@ fun GameScreenContent(
                             { confirmWinTeam = it },
                             presentIds,
                             sortedPlayers,
-                            headerDoubleTapTick
+                            headerDoubleTapTick,
+                            isSpectator = isSpectator
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -559,7 +573,8 @@ fun GameScreenContent(
                                                     searchExpanded = playerSearchExpanded,
                                                     searchQuery = playerSearchQuery,
                                                     onSearchExpandedChange = { playerSearchExpanded = it },
-                                                    onSearchQueryChange = { playerSearchQuery = it }
+                                                    onSearchQueryChange = { playerSearchQuery = it },
+                                                    isSpectator = isSpectator
                                                 )
                                             }
                                             items(visiblePlayers) { p ->
@@ -576,7 +591,8 @@ fun GameScreenContent(
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
-                                                    { editP = p })
+                                                    { editP = p },
+                                                    isSpectator = isSpectator)
                                             }
                                             if (visiblePlayers.isEmpty()) {
                                                 item {
@@ -631,7 +647,8 @@ fun GameScreenContent(
                                                 waitingList.size,
                                                 isDarkTheme,
                                                 onShowSnackbar = onShowSnackbar,
-                                                onClearRecent = { viewModel.clearRecentGameData() }
+                                                onClearRecent = { viewModel.clearRecentGameData() },
+                                                isSpectator = isSpectator
                                             )
                                         }
 
@@ -658,7 +675,8 @@ fun GameScreenContent(
                                                     searchExpanded = playerSearchExpanded,
                                                     searchQuery = playerSearchQuery,
                                                     onSearchExpandedChange = { playerSearchExpanded = it },
-                                                    onSearchQueryChange = { playerSearchQuery = it }
+                                                    onSearchQueryChange = { playerSearchQuery = it },
+                                                    isSpectator = isSpectator
                                                 )
                                             }
                                             items(visiblePlayers) { p ->
@@ -675,7 +693,8 @@ fun GameScreenContent(
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
                                                     { onDeleteRequest(p) },
-                                                    { editP = p })
+                                                    { editP = p },
+                                                    isSpectator = isSpectator)
                                             }
                                             if (visiblePlayers.isEmpty()) {
                                                 item {
@@ -788,7 +807,8 @@ fun ActiveGameView(
     onWinRequest: (String) -> Unit,
     presentPlayerIds: Set<Int>,
     allPlayers: List<Player>,
-    headerDoubleTapTick: Int = 0
+    headerDoubleTapTick: Int = 0,
+    isSpectator: Boolean = false
 ) {
     val resources = LocalResources.current
     val locale = currentLocale()
@@ -1102,10 +1122,12 @@ fun ActiveGameView(
     }
 
     fun openStreakDialog(teamId: String) {
+        if (isSpectator) return
         streakDialogTeam = teamId
     }
 
     fun requestWinConfirmation(teamId: String) {
+        if (isSpectator) return
         val selectedScore = if (teamId == "A") scoreA else scoreB
         val otherScore = if (teamId == "A") scoreB else scoreA
         val bothScoresAreZero = scoreA == 0 && scoreB == 0
@@ -1279,12 +1301,16 @@ fun ActiveGameView(
     val firstStreakColor = if (teamsSwapped) streakColorB else streakColorA
     val firstStreak = if (teamsSwapped) teamBStreak else teamAStreak
     val firstScore = if (teamsSwapped) scoreB else scoreA
-    val firstOnIncrement: () -> Unit = if (teamsSwapped) {
+    val firstOnIncrement: () -> Unit = if (isSpectator) {
+        { }
+    } else if (teamsSwapped) {
         { viewModel.incrementScoreB() }
     } else {
         { viewModel.incrementScoreA() }
     }
-    val firstOnDecrement: () -> Unit = if (teamsSwapped) {
+    val firstOnDecrement: () -> Unit = if (isSpectator) {
+        { }
+    } else if (teamsSwapped) {
         { viewModel.decrementScoreB() }
     } else {
         { viewModel.decrementScoreA() }
@@ -1302,12 +1328,16 @@ fun ActiveGameView(
     val secondStreak = if (teamsSwapped) teamAStreak else teamBStreak
     val secondStreakTeamId = secondTeamId
     val secondScore = if (teamsSwapped) scoreA else scoreB
-    val secondOnIncrement: () -> Unit = if (teamsSwapped) {
+    val secondOnIncrement: () -> Unit = if (isSpectator) {
+        { }
+    } else if (teamsSwapped) {
         { viewModel.incrementScoreA() }
     } else {
         { viewModel.incrementScoreB() }
     }
-    val secondOnDecrement: () -> Unit = if (teamsSwapped) {
+    val secondOnDecrement: () -> Unit = if (isSpectator) {
+        { }
+    } else if (teamsSwapped) {
         { viewModel.decrementScoreA() }
     } else {
         { viewModel.decrementScoreB() }
@@ -1460,7 +1490,8 @@ fun ActiveGameView(
                 onSecondWin = { requestWinConfirmation(secondWinId) },
                 onStreakLongClick = ::openStreakDialog,
                 onSwapTeams = { viewModel.toggleTeamsSwapped() },
-                onBack = { showBigScoreboard = false }
+                onBack = { showBigScoreboard = false },
+                isSpectator = isSpectator
             )
             return@AnimatedContent
         }
@@ -1540,8 +1571,10 @@ fun ActiveGameView(
                                         onIncrementScore = firstOnIncrement,
                                         onDecrementScore = firstOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
-                                        onPlayerClick = onSubRequest
-                                    ) { requestWinConfirmation(firstWinId) }
+                                        onPlayerClick = onSubRequest,
+                                        onWin = { requestWinConfirmation(firstWinId) },
+                                        isSpectator = isSpectator
+                                    )
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
 
@@ -1611,25 +1644,29 @@ fun ActiveGameView(
                                         onIncrementScore = secondOnIncrement,
                                         onDecrementScore = secondOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
-                                        onPlayerClick = onSubRequest
-                                    ) { requestWinConfirmation(secondWinId) }
+                                        onPlayerClick = onSubRequest,
+                                        onWin = { requestWinConfirmation(secondWinId) },
+                                        isSpectator = isSpectator
+                                    )
                                 }
 
                             }
-                            TextButton(
-                                onClick = onCancelRequest,
-                                modifier = Modifier
-                                    .defaultMinSize(minHeight = 48.dp)
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(top = 4.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
-                            ) {
-                                Text(
-                                    stringResource(R.string.cancel_match_action),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    textDecoration = TextDecoration.Underline
-                                )
+                            if (!isSpectator) {
+                                TextButton(
+                                    onClick = onCancelRequest,
+                                    modifier = Modifier
+                                        .defaultMinSize(minHeight = 48.dp)
+                                        .align(Alignment.CenterHorizontally)
+                                        .padding(top = 4.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.cancel_match_action),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        textDecoration = TextDecoration.Underline
+                                    )
+                                }
                             }
                             RecentActivityCard(modifier = Modifier.padding(top = 8.dp))
                             Spacer(Modifier.height(8.dp))
@@ -1660,7 +1697,8 @@ fun ActiveGameView(
                                     .fillMaxWidth()
                                     .weight(1f),
                                 horizontalPadding = 4.dp,
-                                externalSnackbarHostState = snackbarHostState
+                                externalSnackbarHostState = snackbarHostState,
+                                isSpectator = isSpectator
                             )
                         }
                     } // end Row
@@ -1714,8 +1752,10 @@ fun ActiveGameView(
                             onIncrementScore = firstOnIncrement,
                             onDecrementScore = firstOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
-                            onPlayerClick = onSubRequest
-                        ) { requestWinConfirmation(firstWinId) }
+                            onPlayerClick = onSubRequest,
+                            onWin = { requestWinConfirmation(firstWinId) },
+                            isSpectator = isSpectator
+                        )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
@@ -1790,22 +1830,26 @@ fun ActiveGameView(
                             onIncrementScore = secondOnIncrement,
                             onDecrementScore = secondOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
-                            onPlayerClick = onSubRequest
-                        ) { requestWinConfirmation(secondWinId) }
-                    }
-                    TextButton(
-                        onClick = onCancelRequest,
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .defaultMinSize(minHeight = 48.dp)
-                            .fillMaxWidth()
-                    ) {
-                        Text(
-                            stringResource(R.string.cancel_match_action),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.titleSmall,
-                            textDecoration = TextDecoration.Underline
+                            onPlayerClick = onSubRequest,
+                            onWin = { requestWinConfirmation(secondWinId) },
+                            isSpectator = isSpectator
                         )
+                    }
+                    if (!isSpectator) {
+                        TextButton(
+                            onClick = onCancelRequest,
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .defaultMinSize(minHeight = 48.dp)
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                stringResource(R.string.cancel_match_action),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.titleSmall,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        }
                     }
                     RecentActivityCard(modifier = Modifier.padding(top = 8.dp))
                     Spacer(Modifier.height(8.dp))
@@ -1922,7 +1966,8 @@ fun ActiveGameView(
             showElo = showElo,
             sheetState = waitingSheetState,
             contentAlpha = sheetContentAlpha,
-            onDismiss = ::closeWaitingSheet
+            onDismiss = ::closeWaitingSheet,
+            isSpectator = isSpectator
         )
     }
     } // end AnimatedContent(showBigScoreboard) branch
@@ -1949,7 +1994,8 @@ private fun PlayerListHeader(
     searchExpanded: Boolean,
     searchQuery: String,
     onSearchExpandedChange: (Boolean) -> Unit,
-    onSearchQueryChange: (String) -> Unit
+    onSearchQueryChange: (String) -> Unit,
+    isSpectator: Boolean = false
 ) {
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
@@ -2032,16 +2078,18 @@ private fun PlayerListHeader(
                 )
             }
         }
-        Spacer(Modifier.width(8.dp))
-        TextButton(
-            onClick = { onToggleAll(!allPlayersSelected) },
-            modifier = Modifier.height(48.dp),
-            enabled = visiblePlayerCount > 0
-        ) {
-            Text(
-                "${if (allPlayersSelected) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all)} ($visiblePlayerCount)",
-                maxLines = 1
-            )
+        if (!isSpectator) {
+            Spacer(Modifier.width(8.dp))
+            TextButton(
+                onClick = { onToggleAll(!allPlayersSelected) },
+                modifier = Modifier.height(48.dp),
+                enabled = visiblePlayerCount > 0
+            ) {
+                Text(
+                    "${if (allPlayersSelected) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all)} ($visiblePlayerCount)",
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -2274,7 +2322,8 @@ private fun BigScoreboardScreen(
     onSecondWin: () -> Unit,
     onStreakLongClick: (String) -> Unit,
     onSwapTeams: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isSpectator: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -2301,6 +2350,7 @@ private fun BigScoreboardScreen(
             onDecrementScore = onFirstDecrement,
             onStreakLongClick = onStreakLongClick,
             onWin = onFirstWin,
+            isSpectator = isSpectator,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
@@ -2345,6 +2395,7 @@ private fun BigScoreboardScreen(
             onDecrementScore = onSecondDecrement,
             onStreakLongClick = onStreakLongClick,
             onWin = onSecondWin,
+            isSpectator = isSpectator,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
@@ -2372,6 +2423,7 @@ private fun BigScoreCard(
     onDecrementScore: () -> Unit,
     onStreakLongClick: (String) -> Unit,
     onWin: () -> Unit,
+    isSpectator: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val contentColor = if (cardColor.luminance() < 0.5f) Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.8f)
@@ -2383,40 +2435,42 @@ private fun BigScoreCard(
         shape = RoundedCornerShape(32.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Tap zones covering the whole card. The zone closer to the center of the
-            // screen (the "inner" side) decreases the score and is narrower (1/3 of the
-            // card width); the outer zone (2/3) increases it. Placed behind the content
-            // so the streak chip, point icon and victory button (each individually
-            // clickable) still intercept their own taps.
-            Row(modifier = Modifier.matchParentSize()) {
-                val incrementZone = @Composable {
-                    Box(
-                        modifier = Modifier
-                            .weight(3f)
-                            .fillMaxHeight()
-                            .rememberHoldToRepeatModifier(
-                                onTrigger = onIncrementScore,
-                                canRepeat = { score < 99 }
-                            )
-                    )
-                }
-                val decrementZone = @Composable {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .rememberHoldToRepeatModifier(
-                                onTrigger = onDecrementScore,
-                                canRepeat = { score > 0 }
-                            )
-                    )
-                }
-                if (isLeftCard) {
-                    incrementZone()
-                    decrementZone()
-                } else {
-                    decrementZone()
-                    incrementZone()
+            if (!isSpectator) {
+                // Tap zones covering the whole card. The zone closer to the center of the
+                // screen (the "inner" side) decreases the score and is narrower (1/3 of the
+                // card width); the outer zone (2/3) increases it. Placed behind the content
+                // so the streak chip, point icon and victory button (each individually
+                // clickable) still intercept their own taps.
+                Row(modifier = Modifier.matchParentSize()) {
+                    val incrementZone = @Composable {
+                        Box(
+                            modifier = Modifier
+                                .weight(3f)
+                                .fillMaxHeight()
+                                .rememberHoldToRepeatModifier(
+                                    onTrigger = onIncrementScore,
+                                    canRepeat = { score < 99 }
+                                )
+                        )
+                    }
+                    val decrementZone = @Composable {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .rememberHoldToRepeatModifier(
+                                    onTrigger = onDecrementScore,
+                                    canRepeat = { score > 0 }
+                                )
+                        )
+                    }
+                    if (isLeftCard) {
+                        incrementZone()
+                        decrementZone()
+                    } else {
+                        decrementZone()
+                        incrementZone()
+                    }
                 }
             }
 
@@ -2455,7 +2509,8 @@ private fun BigScoreCard(
                                 streak = streak,
                                 streakColor = streakColor,
                                 contentColor = contentColor,
-                                onLongClick = { onStreakLongClick(streakTeamId) }
+                                onLongClick = { onStreakLongClick(streakTeamId) },
+                                enabled = !isSpectator
                             )
                         }
                     }
@@ -2503,55 +2558,59 @@ private fun BigScoreCard(
             // edge of the card (away from the center of the screen) and the "-" sits on
             // the inner edge (matching the wider/narrower tap zones above). Centered
             // vertically relative to the whole card, not just the score row.
-            val plusMinusStyle = MaterialTheme.typography.displayMedium.copy(
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold
-            )
-            val plusIndicator: @Composable () -> Unit = {
-                Text(
-                    text = "+",
-                    style = plusMinusStyle,
-                    color = contentColor.copy(alpha = 0.4f)
+            if (!isSpectator) {
+                val plusMinusStyle = MaterialTheme.typography.displayMedium.copy(
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold
                 )
-            }
-            val minusIndicator: @Composable () -> Unit = {
-                Text(
-                    text = "\u2212",
-                    style = plusMinusStyle,
-                    color = contentColor.copy(alpha = 0.4f)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .align(if (isLeftCard) Alignment.CenterStart else Alignment.CenterEnd)
-                    .padding(horizontal = 30.dp)
-            ) {
-                plusIndicator()
-            }
-            Box(
-                modifier = Modifier
-                    .align(if (isLeftCard) Alignment.CenterEnd else Alignment.CenterStart)
-                    .padding(horizontal = 30.dp)
-            ) {
-                minusIndicator()
+                val plusIndicator: @Composable () -> Unit = {
+                    Text(
+                        text = "+",
+                        style = plusMinusStyle,
+                        color = contentColor.copy(alpha = 0.4f)
+                    )
+                }
+                val minusIndicator: @Composable () -> Unit = {
+                    Text(
+                        text = "\u2212",
+                        style = plusMinusStyle,
+                        color = contentColor.copy(alpha = 0.4f)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(if (isLeftCard) Alignment.CenterStart else Alignment.CenterEnd)
+                        .padding(horizontal = 30.dp)
+                ) {
+                    plusIndicator()
+                }
+                Box(
+                    modifier = Modifier
+                        .align(if (isLeftCard) Alignment.CenterEnd else Alignment.CenterStart)
+                        .padding(horizontal = 30.dp)
+                ) {
+                    minusIndicator()
+                }
             }
 
-            FilledIconButton(
-                onClick = onWin,
-                modifier = Modifier
-                    .align(if (isLeftCard) Alignment.BottomStart else Alignment.BottomEnd)
-                    .padding(16.dp)
-                    .size(48.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = buttonColor,
-                    contentColor = buttonTextColor
-                )
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.crown_icon),
-                    contentDescription = victoryLabel,
-                    modifier = Modifier.size(24.dp)
-                )
+            if (!isSpectator) {
+                FilledIconButton(
+                    onClick = onWin,
+                    modifier = Modifier
+                        .align(if (isLeftCard) Alignment.BottomStart else Alignment.BottomEnd)
+                        .padding(16.dp)
+                        .size(48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = buttonColor,
+                        contentColor = buttonTextColor
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.crown_icon),
+                        contentDescription = victoryLabel,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }
@@ -2613,18 +2672,25 @@ private fun StreakIndicator(
     streak: Int,
     streakColor: Color,
     contentColor: Color,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    enabled: Boolean = true
 ) {
     val haptic = LocalHapticFeedback.current
     Box(
         modifier = Modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CircleShape)
-            .combinedClickable(
-                onClick = {},
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
+            .then(
+                if (enabled) {
+                    Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick()
+                        }
+                    )
+                } else {
+                    Modifier
                 }
             ),
         contentAlignment = Alignment.Center
@@ -2762,7 +2828,8 @@ fun ActiveTeamCard(
     onDecrementScore: () -> Unit,
     onStreakLongClick: (String) -> Unit,
     onPlayerClick: (Player) -> Unit,
-    onWin: () -> Unit
+    onWin: () -> Unit,
+    isSpectator: Boolean = false
 ) {
     val avgElo = if (players.isNotEmpty()) players.map { it.elo }.average() else 0.0
     val contentColor = if (cardColor.luminance() < 0.5f) Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.8f)
@@ -2841,11 +2908,17 @@ fun ActiveTeamCard(
                         modifier = Modifier
                             .clip(CircleShape)
                             .defaultMinSize(minHeight = 48.dp, minWidth = 48.dp)
-                            .combinedClickable(
-                                onClick = { },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onStreakLongClick(streakTeamId)
+                            .then(
+                                if (isSpectator) {
+                                    Modifier
+                                } else {
+                                    Modifier.combinedClickable(
+                                        onClick = { },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onStreakLongClick(streakTeamId)
+                                        }
+                                    )
                                 }
                             )
                             .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -2954,6 +3027,17 @@ fun ActiveTeamCard(
 
     @Composable
     fun ScoreCounter() {
+        if (isSpectator) {
+            ScoreValueIndicator(
+                score = score,
+                textColor = scoreTextColor,
+                indicatorColor = buttonColor,
+                showLatestPointBorder = showLatestPointBorder,
+                showRotationIndicator = showRotationIndicator,
+                tooltipText = scoreIndicatorTooltip
+            )
+            return
+        }
         // In landscape, mirror the -/+ buttons on the left team card so they match the big
         // scoreboard layout (relative to the central VS button). Portrait is unaffected.
         val swapButtons = isLandscape && portraitPlayersFirst
@@ -3045,16 +3129,24 @@ fun ActiveTeamCard(
                                     Modifier
                                 }
                             )
-                            .combinedClickable(
-                                onClick = {
-                                    if (rowTooltipText != null) {
+                            .then(
+                                if (isSpectator) {
+                                    Modifier.clickable(enabled = rowTooltipText != null) {
                                         playerRowScope.launch { tooltipState.show() }
                                     }
-                                },
-                                onLongClick = {
-                                    tooltipState.dismiss()
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onPlayerClick(p)
+                                } else {
+                                    Modifier.combinedClickable(
+                                        onClick = {
+                                            if (rowTooltipText != null) {
+                                                playerRowScope.launch { tooltipState.show() }
+                                            }
+                                        },
+                                        onLongClick = {
+                                            tooltipState.dismiss()
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onPlayerClick(p)
+                                        }
+                                    )
                                 }
                             )
                     ) { constraints ->
@@ -3282,20 +3374,22 @@ fun ActiveTeamCard(
                         Spacer(Modifier.height(8.dp))
                     }
                     Spacer(Modifier.height(4.dp))
-                    Button(
-                        onClick = onWin,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.victory),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = buttonTextColor
-                        )
+                    if (!isSpectator) {
+                        Button(
+                            onClick = onWin,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.victory),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = buttonTextColor
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -3317,22 +3411,24 @@ fun ActiveTeamCard(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Button(
-                                onClick = onWin,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.victory_short),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = buttonTextColor
-                                )
+                            if (!isSpectator) {
+                                Button(
+                                    onClick = onWin,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.victory_short),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = buttonTextColor
+                                    )
+                                }
                             }
 
                             if (showScore) {
@@ -3358,22 +3454,24 @@ fun ActiveTeamCard(
                                 ScoreCounter()
                                 Spacer(Modifier.height(2.dp))
                             }
-                            Button(
-                                onClick = onWin,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.victory_short),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = buttonTextColor
-                                )
+                            if (!isSpectator) {
+                                Button(
+                                    onClick = onWin,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.victory_short),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = buttonTextColor
+                                    )
+                                }
                             }
                         }
                     }
@@ -4108,7 +4206,8 @@ fun EmptyStateCard(
     waitingCount: Int = 0,
     isDarkTheme: Boolean = false,
     onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit,
-    onClearRecent: () -> Unit
+    onClearRecent: () -> Unit,
+    isSpectator: Boolean = false
 ) {
     var showClearConfirmation by remember { mutableStateOf(false) }
     var showSecondaryMenu by remember { mutableStateOf(false) }
@@ -4140,6 +4239,7 @@ fun EmptyStateCard(
     val selectMinimumPlayers = stringResource(R.string.select_minimum_players, minNeeded)
     val selectMinimumPlayersLong =
         stringResource(R.string.select_minimum_players_long, minNeeded)
+    val spectatorWaitingGameStart = stringResource(R.string.spectator_waiting_game_start)
     val winnerNamesAnnotated = remember(lastWinners, presentPlayerIds) {
         buildAnnotatedString {
             append("(")
@@ -4279,13 +4379,16 @@ fun EmptyStateCard(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = if (selectedCount < minNeeded) stringResource(
+                val emptyStateMessage = when {
+                    selectedCount < minNeeded -> stringResource(
                         R.string.select_minimum_players,
                         minNeeded
-                    ) else stringResource(
-                        R.string.click_to_start_match
-                    ),
+                    )
+                    isSpectator -> spectatorWaitingGameStart
+                    else -> stringResource(R.string.click_to_start_match)
+                }
+                Text(
+                    text = emptyStateMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified,
                     textAlign = TextAlign.Center
@@ -4293,151 +4396,169 @@ fun EmptyStateCard(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    // Leading Button: Iniciar jogo / Iniciar prÃ³ximo jogo
+                if (isSpectator) {
                     Button(
-                        onClick = {
-                            if (hasPreviousMatch) {
-                                if (selectedCount >= minNeeded) {
-                                    onNextRoundClick()
-                                } else {
-                                    onShowSnackbar(selectMinimumPlayers, null, null)
-                                }
-                            } else {
-                                val canStartAuto = selectedCount >= minNeeded
-                                if (canStartAuto) {
-                                    onStartAutoClick()
-                                } else {
-                                    onShowSnackbar(selectMinimumPlayersLong, null, null)
-                                }
-                            }
-                        },
+                        onClick = {},
+                        enabled = false,
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(
-                            topEnd = 4.dp,
-                            topStart = 56.dp,
-                            bottomStart = 56.dp,
-                            bottomEnd = 4.dp
-                        )
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(56.dp)
                     ) {
-                        Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(Modifier.width(8.dp))
                         Text(
-                            if (hasPreviousMatch) stringResource(R.string.start_next_match)
-                            else stringResource(R.string.start_match),
+                            spectatorWaitingGameStart,
                             fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-
-                    // Trailing Button: Dropdown menu
-                    Box(
+                } else {
+                    Row(
                         modifier = Modifier
-                            .width(56.dp)
-                            .fillMaxHeight()
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        val rotation by animateFloatAsState(
-                            targetValue = if (showSecondaryMenu) 180f else 0f,
-                            animationSpec = tween(durationMillis = 200),
-                            label = "MenuRotation"
-                        )
-                        val iconOffset by animateDpAsState(
-                            targetValue = if (showSecondaryMenu) 0.dp else (-2).dp,
-                            animationSpec = tween(durationMillis = 200),
-                            label = "MenuIconOffset"
-                        )
-                        val cornerRadius by animateDpAsState(
-                            targetValue = if (showSecondaryMenu) 28.dp else 4.dp,
-                            animationSpec = tween(durationMillis = 200),
-                            label = "MenuCornerRadius"
-                        )
-                        val trailingColor =
-                            if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
-                        val trailingIconColor = MaterialTheme.colorScheme.onPrimary
-                        val select_minimum_4_players =
-                            stringResource(R.string.select_minimum_4_players)
-
+                        // Leading Button: Iniciar jogo / Iniciar prÃ³ximo jogo
                         Button(
-                            onClick = { showSecondaryMenu = !showSecondaryMenu },
-                            modifier = Modifier.fillMaxSize(),
+                            onClick = {
+                                if (hasPreviousMatch) {
+                                    if (selectedCount >= minNeeded) {
+                                        onNextRoundClick()
+                                    } else {
+                                        onShowSnackbar(selectMinimumPlayers, null, null)
+                                    }
+                                } else {
+                                    val canStartAuto = selectedCount >= minNeeded
+                                    if (canStartAuto) {
+                                        onStartAutoClick()
+                                    } else {
+                                        onShowSnackbar(selectMinimumPlayersLong, null, null)
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = trailingColor
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
-                            contentPadding = PaddingValues(0.dp),
                             shape = RoundedCornerShape(
-                                topStart = cornerRadius,
-                                topEnd = 28.dp,
-                                bottomEnd = 28.dp,
-                                bottomStart = cornerRadius
+                                topEnd = 4.dp,
+                                topStart = 56.dp,
+                                bottomStart = 56.dp,
+                                bottomEnd = 4.dp
                             )
                         ) {
                             Icon(
-                                Icons.Default.KeyboardArrowDown,
-                                contentDescription = stringResource(R.string.options_menu),
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .offset(x = iconOffset)
-                                    .rotate(rotation),
-                                tint = trailingIconColor
+                                Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (hasPreviousMatch) stringResource(R.string.start_next_match)
+                                else stringResource(R.string.start_match),
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        DropdownMenu(
-                            expanded = showSecondaryMenu,
-                            onDismissRequest = { showSecondaryMenu = false },
-                            offset = DpOffset(0.dp, 4.dp)
+                        // Trailing Button: Dropdown menu
+                        Box(
+                            modifier = Modifier
+                                .width(56.dp)
+                                .fillMaxHeight()
                         ) {
-                            // OpÃ§Ã£o: Montar times manualmente
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.manual_teams)) },
-                                onClick = {
-                                    showSecondaryMenu = false
-                                    if (selectedCount >= 4) {
-                                        onStartManualClick()
-                                    } else {
-                                        onShowSnackbar(select_minimum_4_players, null, null)
-                                    }
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Groups,
-                                        contentDescription = null
-                                    )
-                                }
+                            val rotation by animateFloatAsState(
+                                targetValue = if (showSecondaryMenu) 180f else 0f,
+                                animationSpec = tween(durationMillis = 200),
+                                label = "MenuRotation"
                             )
+                            val iconOffset by animateDpAsState(
+                                targetValue = if (showSecondaryMenu) 0.dp else (-2).dp,
+                                animationSpec = tween(durationMillis = 200),
+                                label = "MenuIconOffset"
+                            )
+                            val cornerRadius by animateDpAsState(
+                                targetValue = if (showSecondaryMenu) 28.dp else 4.dp,
+                                animationSpec = tween(durationMillis = 200),
+                                label = "MenuCornerRadius"
+                            )
+                            val trailingColor =
+                                if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
+                            val trailingIconColor = MaterialTheme.colorScheme.onPrimary
+                            val select_minimum_4_players =
+                                stringResource(R.string.select_minimum_4_players)
 
-                            // OpÃ§Ã£o: Limpar jogo atual
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.clear_match)) },
-                                onClick = {
-                                    showSecondaryMenu = false
-                                    showClearConfirmation = true
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.DeleteSweep,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
+                            Button(
+                                onClick = { showSecondaryMenu = !showSecondaryMenu },
+                                modifier = Modifier.fillMaxSize(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = trailingColor
+                                ),
+                                contentPadding = PaddingValues(0.dp),
+                                shape = RoundedCornerShape(
+                                    topStart = cornerRadius,
+                                    topEnd = 28.dp,
+                                    bottomEnd = 28.dp,
+                                    bottomStart = cornerRadius
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.options_menu),
+                                    modifier = Modifier
+                                        .size(26.dp)
+                                        .offset(x = iconOffset)
+                                        .rotate(rotation),
+                                    tint = trailingIconColor
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = showSecondaryMenu,
+                                onDismissRequest = { showSecondaryMenu = false },
+                                offset = DpOffset(0.dp, 4.dp)
+                            ) {
+                                // OpÃ§Ã£o: Montar times manualmente
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.manual_teams)) },
+                                    onClick = {
+                                        showSecondaryMenu = false
+                                        if (selectedCount >= 4) {
+                                            onStartManualClick()
+                                        } else {
+                                            onShowSnackbar(select_minimum_4_players, null, null)
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Groups,
+                                            contentDescription = null
+                                        )
+                                    }
+                                )
+
+                                // OpÃ§Ã£o: Limpar jogo atual
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.clear_match)) },
+                                    onClick = {
+                                        showSecondaryMenu = false
+                                        showClearConfirmation = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.DeleteSweep,
+                                            contentDescription = null
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -4461,7 +4582,8 @@ fun PlayerCard(
     onTogglePresence: () -> Unit,
     onToggleGuaranteedNextMatch: () -> Unit,
     onDelete: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    isSpectator: Boolean = false
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
@@ -4493,24 +4615,45 @@ fun PlayerCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(cardShape)
-                    .combinedClickable(
-                        onClick = onTogglePresence,
-                        onLongClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showMenu = true
+                    .then(
+                        if (isSpectator) {
+                            Modifier
+                        } else {
+                            Modifier.combinedClickable(
+                                onClick = onTogglePresence,
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    showMenu = true
+                                }
+                            )
                         }
                     )
                     .padding(start = 2.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
-                    checked = isPresent,
-                    onCheckedChange = { onTogglePresence() },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = if(isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
-                        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                if (isSpectator) {
+                    Icon(
+                        imageVector = if (isPresent) Icons.Default.Check else Icons.Default.Person,
+                        contentDescription = null,
+                        tint = if (isPresent) {
+                            if (isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 14.dp)
+                            .size(20.dp)
                     )
-                )
+                } else {
+                    Checkbox(
+                        checked = isPresent,
+                        onCheckedChange = { onTogglePresence() },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = if(isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                            uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     if (isLandscape && usesPositions) {
                         // Em paisagem, nomes longos jÃ¡ rolam via marquee; a quebra de linha dos
@@ -4595,43 +4738,45 @@ fun PlayerCard(
                 }
             }
         }
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-            offset = DpOffset(x = 16.dp, y = 0.dp)
-        ) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        if (isGuaranteedNextMatch) {
-                            stringResource(R.string.remove_next_match_guarantee)
-                        } else {
-                            stringResource(R.string.guarantee_next_match)
-                        }
-                    )
-                },
-                onClick = { showMenu = false; onToggleGuaranteedNextMatch() },
-                leadingIcon = { Icon(Icons.Default.PlayArrow, null) }
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.edit)) },
-                onClick = { showMenu = false; onEdit() },
-                leadingIcon = { Icon(Icons.Default.Edit, null) })
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(R.string.delete),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                },
-                onClick = { showMenu = false; onDelete() },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Delete,
-                        null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                })
+        if (!isSpectator) {
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                offset = DpOffset(x = 16.dp, y = 0.dp)
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (isGuaranteedNextMatch) {
+                                stringResource(R.string.remove_next_match_guarantee)
+                            } else {
+                                stringResource(R.string.guarantee_next_match)
+                            }
+                        )
+                    },
+                    onClick = { showMenu = false; onToggleGuaranteedNextMatch() },
+                    leadingIcon = { Icon(Icons.Default.PlayArrow, null) }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.edit)) },
+                    onClick = { showMenu = false; onEdit() },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) })
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(R.string.delete),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    onClick = { showMenu = false; onDelete() },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    })
+            }
         }
     }
 }

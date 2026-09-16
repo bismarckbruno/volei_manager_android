@@ -11,7 +11,7 @@
     <string name="export_csv">Exportar Excel (Avanzado)</string>
     <string name="players_word">Jugadores</string>
     <string name="history">Historial</string>
-    <string name="cloud_sync">En vivo</string>
+    <string name="cloud_sync">Premium</string>
     <string name="daily_elo">Elo diario</string>
     <string name="import_data">Importar datos</string>
     <string name="restore_backup">Restaurar Backup (.vlz)</string>
@@ -26,6 +26,8 @@
     <string name="select_word">Seleccionar</string>
     <string name="create_new_group">+ Crear nuevo grupo</string>
     <string name="game_word">Partido</string>
+    <string name="game_word_spectator">Partido (En vivo)</string>
+    <string name="spectator_waiting_game_start">Esperando el inicio del partido</string>
     <string name="faq">Preguntas frecuentes</string>
     <string name="about_app">Sobre la aplicación</string>
     <string name="settings">Configuración</string>
@@ -63,7 +65,7 @@
     <string name="team_colors_personal_override_hint">Mostrar colores diferentes solo en este dispositivo, sin cambiar lo que ven los demás miembros del grupo.</string>
     <string name="debug_simulate_premium">Simular suscripción premium (debug)</string>
     <string name="debug_simulate_premium_hint">Interruptor solo de depuración para probar funciones premium sin una compra real. Nunca aparece en compilaciones de lanzamiento.</string>
-    <string name="cloud_sync_screen_title">En vivo</string>
+    <string name="cloud_sync_screen_title">Premium</string>
     <string name="cloud_sync_screen_intro">Comparte el marcador, los equipos y el historial de este grupo en tiempo real con tus co-administradores y jugadores, en cualquier dispositivo.</string>
     <string name="cloud_sync_account_title">Cuenta</string>
     <string name="cloud_sync_account_coming_soon">El registro y el inicio de sesión llegarán pronto. Cuando estén disponibles, organizadores y co-administradores podrán crear una cuenta gratuita para sincronizar grupos.</string>
@@ -188,6 +190,7 @@
     <string name="cloud_sync_visibility_share_history">Compartir historial de partidas</string>
     <string name="cloud_sync_visibility_show_elo">Mostrar ranking de Elo a los observadores</string>
     <string name="cloud_sync_auxiliar_groups_title">Grupos que administras como coadministrador</string>
+    <string name="cloud_sync_espectador_groups_title">Grupos que sigues como observador</string>
     <string name="live_screen_spectator_title">En vivo</string>
     <string name="live_screen_spectator_no_group">Todavía no te uniste a ningún grupo. Pide al organizador un código de observador y agrégalo desde el menú de grupos.</string>
     <string name="live_screen_spectator_placeholder">Siguiendo %1$s en vivo.</string>
