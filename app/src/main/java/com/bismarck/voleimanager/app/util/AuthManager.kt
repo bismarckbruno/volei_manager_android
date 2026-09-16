@@ -38,7 +38,11 @@ data class AppAuthUser(
     /** `true` para contas Google (verificadas pelo próprio provedor) ou e-mail/senha já
      *  confirmado pelo link enviado por [AuthManager.signUp]/[AuthManager.resendVerificationEmail].
      *  Gateia a assinatura Premium (ver premium-purchase-gating). */
-    val emailVerified: Boolean
+    val emailVerified: Boolean,
+    /** `true` só para contas com login por e-mail/senha (permite alterar e-mail/senha pelo app);
+     *  contas exclusivamente Google gerenciam e-mail/senha do lado do Google, então essas opções
+     *  ficam ocultas na UI para elas. */
+    val hasPasswordProvider: Boolean
 )
 
 private const val USERS_COLLECTION = "users"
@@ -215,7 +219,10 @@ object AuthManager {
         birthDate = profile?.get(FIELD_BIRTH_DATE) as? String,
         photoBase64 = profile?.get(FIELD_PHOTO_BASE64) as? String,
         photoUrl = user.photoUrl?.toString(),
-        emailVerified = user.isEmailVerified
+        emailVerified = user.isEmailVerified,
+        hasPasswordProvider = user.providerData.any {
+            it.providerId == com.google.firebase.auth.EmailAuthProvider.PROVIDER_ID
+        }
     )
 
     /** Proteção simples e local contra scripts de criação em massa de contas: não substitui uma
@@ -458,6 +465,102 @@ object AuthManager {
         } catch (e: Exception) {
             Log.d(TAG, "Falha ao sincronizar foto de perfil com o Firestore: ${e.message}")
             null
+        }
+    }
+
+    /** Reautentica o usuário logado com a senha atual — exigido pelo Firebase antes de operações
+     *  sensíveis (trocar e-mail/senha, apagar conta) se o login não for recente. Retorna o
+     *  [FirebaseUser] em caso de sucesso, ou uma mensagem de erro amigável. */
+    private suspend fun reauthenticateWithPassword(user: FirebaseUser, currentPassword: String): String? {
+        val email = user.email ?: return "Esta conta não usa e-mail/senha."
+        val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, currentPassword)
+        return try {
+            suspendCancellableCoroutine<Result<Unit>> { cont ->
+                user.reauthenticate(credential).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        cont.resume(Result.success(Unit))
+                    } else {
+                        cont.resume(Result.failure(task.exception ?: Exception("Falha ao confirmar a senha atual")))
+                    }
+                }
+            }.getOrThrow()
+            null
+        } catch (e: Exception) {
+            "Senha atual incorreta."
+        }
+    }
+
+    /** Inicia a troca do e-mail da conta: confirma [currentPassword], então envia um link de
+     *  confirmação para [newEmail] (via [FirebaseUser.verifyBeforeUpdateEmail]) — o e-mail da
+     *  conta só muda de fato depois que o usuário clicar no link recebido na caixa de entrada
+     *  nova, então nenhuma escrita local/Firestore é feita aqui (o snapshot de
+     *  [FirebaseAuth.AuthStateListener] refletirá o novo e-mail automaticamente quando o usuário
+     *  voltar a abrir o app após confirmar). Retorna uma mensagem de erro amigável, ou `null` em
+     *  caso de sucesso (a UI deve avisar o usuário para checar a caixa de entrada do novo e-mail). */
+    suspend fun changeEmail(currentPassword: String, newEmail: String): String? {
+        if (!isValidEmail(newEmail)) return "Informe um e-mail válido."
+        val user = authOrNull()?.currentUser ?: return "Você precisa estar logado."
+        reauthenticateWithPassword(user, currentPassword)?.let { return it }
+        return try {
+            suspendCancellableCoroutine<Result<Unit>> { cont ->
+                user.verifyBeforeUpdateEmail(newEmail).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        cont.resume(Result.success(Unit))
+                    } else {
+                        cont.resume(Result.failure(task.exception ?: Exception("Falha ao iniciar a troca de e-mail")))
+                    }
+                }
+            }.getOrThrow()
+            null
+        } catch (e: Exception) {
+            e.message ?: "Não foi possível iniciar a troca de e-mail."
+        }
+    }
+
+    /** Altera a senha da conta logada, exigindo a senha atual por segurança. Retorna uma mensagem
+     *  de erro amigável em caso de falha, ou `null` em caso de sucesso. */
+    suspend fun changePassword(currentPassword: String, newPassword: String): String? {
+        if (!isValidPassword(newPassword)) {
+            return "A nova senha deve ter $MIN_PASSWORD_LENGTH-$MAX_PASSWORD_LENGTH caracteres, com maiúscula, " +
+                "minúscula, número e caractere especial."
+        }
+        val user = authOrNull()?.currentUser ?: return "Você precisa estar logado."
+        reauthenticateWithPassword(user, currentPassword)?.let { return it }
+        return try {
+            suspendCancellableCoroutine<Result<Unit>> { cont ->
+                user.updatePassword(newPassword).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        cont.resume(Result.success(Unit))
+                    } else {
+                        cont.resume(Result.failure(task.exception ?: Exception("Falha ao alterar a senha")))
+                    }
+                }
+            }.getOrThrow()
+            null
+        } catch (e: Exception) {
+            e.message ?: "Não foi possível alterar a senha."
+        }
+    }
+
+    /** Dispara o e-mail de "esqueci minha senha" do Firebase (link para redefinir a senha),
+     *  usado a partir da tela de login sem precisar estar logado. Retorna uma mensagem amigável
+     *  de erro, ou `null` em caso de sucesso. */
+    suspend fun sendPasswordResetEmail(email: String): String? {
+        if (!isValidEmail(email)) return "Informe um e-mail válido."
+        val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
+        return try {
+            suspendCancellableCoroutine<Result<Unit>> { cont ->
+                auth.sendPasswordResetEmail(email).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        cont.resume(Result.success(Unit))
+                    } else {
+                        cont.resume(Result.failure(task.exception ?: Exception("Falha ao enviar e-mail de redefinição")))
+                    }
+                }
+            }.getOrThrow()
+            null
+        } catch (e: Exception) {
+            e.message ?: "Não foi possível enviar o e-mail de redefinição de senha."
         }
     }
 

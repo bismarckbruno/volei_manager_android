@@ -132,7 +132,9 @@ private fun DrawerAccountHeader(
     onLogoutClick: () -> Unit,
     onEditPhotoClick: () -> Unit,
     onEditProfileClick: () -> Unit,
-    onResendVerificationClick: () -> Unit
+    onResendVerificationClick: () -> Unit,
+    onChangeEmailClick: () -> Unit,
+    onChangePasswordClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Box {
@@ -180,6 +182,16 @@ private fun DrawerAccountHeader(
                         onClick = onEditPhotoClick
                     )
                     DropdownMenuItem(text = { Text(stringResource(R.string.edit_profile_title)) }, onClick = onEditProfileClick)
+                    if (currentUser.hasPasswordProvider) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.change_email_menu_item)) },
+                            onClick = onChangeEmailClick
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.change_password_menu_item)) },
+                            onClick = onChangePasswordClick
+                        )
+                    }
                     if (currentUser.email != null && !currentUser.emailVerified) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.resend_verification_email)) },
@@ -296,6 +308,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showSignUpDialog by remember { mutableStateOf(false) }
     var showEditProfilePhotoDialog by remember { mutableStateOf(false) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showChangeEmailDialog by remember { mutableStateOf(false) }
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
     var showDeleteAccountConfirmDialog by remember { mutableStateOf(false) }
     var showAccountMenu by remember { mutableStateOf(false) }
     var playerToDelete by remember { mutableStateOf<Player?>(null) }
@@ -877,7 +891,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             )
                                         }
                                     }
-                                }
+                                },
+                                onChangeEmailClick = { accountMenuExpanded = false; showChangeEmailDialog = true },
+                                onChangePasswordClick = { accountMenuExpanded = false; showChangePasswordDialog = true }
                             )
                             Spacer(Modifier.height(16.dp))
 
@@ -1216,6 +1232,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             onDismiss = { showLoginDialog = false },
             onConfirm = { email, password, onResult -> viewModel.signInWithEmail(email, password, onResult) },
             onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
+            onForgotPasswordClick = { email, onResult -> viewModel.sendPasswordResetEmail(email, onResult) },
             onSwitchToSignUp = { showLoginDialog = false; showSignUpDialog = true }
         )
         if (showSignUpDialog) SignUpDialog(
@@ -1258,6 +1275,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 viewModel.updateUserProfile(nickname, fullName, birthDate, onResult)
             },
             onRequestDeleteAccount = { showEditProfileDialog = false; showDeleteAccountConfirmDialog = true }
+        )
+        if (showChangeEmailDialog) ChangeEmailDialog(
+            inProgress = authInProgress,
+            onDismiss = { showChangeEmailDialog = false },
+            onConfirm = { currentPassword, newEmail, onResult ->
+                viewModel.changeEmail(currentPassword, newEmail, onResult)
+            }
+        )
+        if (showChangePasswordDialog) ChangePasswordDialog(
+            inProgress = authInProgress,
+            onDismiss = { showChangePasswordDialog = false },
+            onConfirm = { currentPassword, newPassword, onResult ->
+                viewModel.changePassword(currentPassword, newPassword, onResult)
+            }
         )
         if (showDeleteAccountConfirmDialog) DeleteAccountConfirmDialog(
             inProgress = authInProgress,

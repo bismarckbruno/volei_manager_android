@@ -960,6 +960,41 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    /** Inicia a troca de e-mail da conta logada (confirma a senha atual, depois envia um link de
+     *  confirmação para o novo e-mail — ver [AuthManager.changeEmail]). [onResult] recebe `null`
+     *  em caso de sucesso, ou uma mensagem de erro amigável. */
+    fun changeEmail(currentPassword: String, newEmail: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = AuthManager.changeEmail(currentPassword, newEmail.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Altera a senha da conta logada, exigindo a senha atual (ver [AuthManager.changePassword]).
+     *  [onResult] recebe `null` em caso de sucesso, ou uma mensagem de erro amigável. */
+    fun changePassword(currentPassword: String, newPassword: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = AuthManager.changePassword(currentPassword, newPassword)
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Envia o e-mail de "esqueci minha senha" (ver [AuthManager.sendPasswordResetEmail]), usado
+     *  a partir da tela de login sem precisar estar logado. [onResult] recebe `null` em caso de
+     *  sucesso, ou uma mensagem de erro amigável. */
+    fun sendPasswordResetEmail(email: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = AuthManager.sendPasswordResetEmail(email.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
     fun signOut() {
         AuthManager.signOut()
     }

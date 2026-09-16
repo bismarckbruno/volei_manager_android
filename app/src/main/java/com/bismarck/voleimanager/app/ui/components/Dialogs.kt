@@ -1481,13 +1481,24 @@ fun LoginDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String, (String?) -> Unit) -> Unit,
     onGoogleClick: ((String?) -> Unit) -> Unit,
+    onForgotPasswordClick: (String, (String?) -> Unit) -> Unit,
     onSwitchToSignUp: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showForgotPassword by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+
+    if (showForgotPassword) {
+        ForgotPasswordDialog(
+            initialEmail = email,
+            inProgress = inProgress,
+            onDismiss = { showForgotPassword = false },
+            onConfirm = onForgotPasswordClick
+        )
+    }
 
     DialogKeyboardFocus(focusRequester)
 
@@ -1546,7 +1557,10 @@ fun LoginDialog(
                     Spacer(Modifier.height(4.dp))
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = { showForgotPassword = true }) {
+                    Text(stringResource(R.string.forgot_password))
+                }
                 TextButton(onClick = onSwitchToSignUp) {
                     Text(stringResource(R.string.login_switch_to_signup))
                 }
@@ -1564,6 +1578,256 @@ fun LoginDialog(
                 },
                 enabled = !inProgress && email.isNotBlank() && password.isNotBlank()
             ) { Text(stringResource(R.string.login_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo de "esqueci minha senha": envia o e-mail de redefinição do Firebase (link para
+ *  cadastrar uma nova senha) para o endereço informado — não exige estar logado. */
+@Composable
+fun ForgotPasswordDialog(
+    initialEmail: String,
+    inProgress: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String, (String?) -> Unit) -> Unit
+) {
+    var email by remember { mutableStateOf(initialEmail) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var sent by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.forgot_password)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.forgot_password_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it.take(MAX_EMAIL_LENGTH); errorMessage = null; sent = false },
+                    label = { Text(stringResource(R.string.email_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
+                    enabled = !sent
+                )
+                errorMessage?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                if (sent) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.password_reset_email_sent),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
+            if (sent) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+            } else {
+                Button(
+                    onClick = {
+                        if (!isValidEmail(email)) {
+                            errorMessage = invalidEmailMessage
+                            return@Button
+                        }
+                        onConfirm(email) { error ->
+                            if (error == null) sent = true else errorMessage = error
+                        }
+                    },
+                    enabled = !inProgress && email.isNotBlank()
+                ) { Text(stringResource(R.string.forgot_password_send)) }
+            }
+        },
+        dismissButton = {
+            if (!sent) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+        }
+    )
+}
+
+/** Diálogo de troca de e-mail da conta logada: confirma a senha atual e envia um link de
+ *  confirmação para o novo e-mail (a troca só é efetivada quando o link é confirmado — ver
+ *  [com.bismarck.voleimanager.app.util.AuthManager.changeEmail]). */
+@Composable
+fun ChangeEmailDialog(
+    inProgress: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, (String?) -> Unit) -> Unit
+) {
+    var currentPassword by remember { mutableStateOf("") }
+    var newEmail by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var sent by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.change_email_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
+                    label = { Text(stringResource(R.string.current_password_label)) },
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    enabled = !sent,
+                    trailingIcon = {
+                        IconButton(onClick = { showPassword = !showPassword }) {
+                            Icon(
+                                if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = stringResource(
+                                    if (showPassword) R.string.hide_password else R.string.show_password
+                                )
+                            )
+                        }
+                    }
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = newEmail,
+                    onValueChange = { newEmail = it.take(MAX_EMAIL_LENGTH); errorMessage = null },
+                    label = { Text(stringResource(R.string.new_email_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
+                    enabled = !sent
+                )
+                errorMessage?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                if (sent) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.change_email_confirmation_sent),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
+            if (sent) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+            } else {
+                Button(
+                    onClick = {
+                        if (!isValidEmail(newEmail)) {
+                            errorMessage = invalidEmailMessage
+                            return@Button
+                        }
+                        onConfirm(currentPassword, newEmail) { error ->
+                            if (error == null) sent = true else errorMessage = error
+                        }
+                    },
+                    enabled = !inProgress && currentPassword.isNotBlank() && newEmail.isNotBlank()
+                ) { Text(stringResource(R.string.change_email_confirm)) }
+            }
+        },
+        dismissButton = {
+            if (!sent) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+        }
+    )
+}
+
+/** Diálogo de troca de senha da conta logada: exige a senha atual e a nova senha (mesmas regras
+ *  de complexidade do cadastro — ver [isValidPassword]). */
+@Composable
+fun ChangePasswordDialog(
+    inProgress: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, (String?) -> Unit) -> Unit
+) {
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var showCurrentPassword by remember { mutableStateOf(false) }
+    var showNewPassword by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.change_password_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
+                    label = { Text(stringResource(R.string.current_password_label)) },
+                    visualTransformation = if (showCurrentPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { showCurrentPassword = !showCurrentPassword }) {
+                            Icon(
+                                if (showCurrentPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = stringResource(
+                                    if (showCurrentPassword) R.string.hide_password else R.string.show_password
+                                )
+                            )
+                        }
+                    }
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
+                    label = { Text(stringResource(R.string.new_password_label)) },
+                    supportingText = {
+                        Text(
+                            stringResource(R.string.password_requirements_hint, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH)
+                        )
+                    },
+                    visualTransformation = if (showNewPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { showNewPassword = !showNewPassword }) {
+                            Icon(
+                                if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = stringResource(
+                                    if (showNewPassword) R.string.hide_password else R.string.show_password
+                                )
+                            )
+                        }
+                    }
+                )
+                errorMessage?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            val invalidPasswordMessage = stringResource(
+                R.string.auth_invalid_password, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
+            )
+            Button(
+                onClick = {
+                    if (!isValidPassword(newPassword)) {
+                        errorMessage = invalidPasswordMessage
+                        return@Button
+                    }
+                    onConfirm(currentPassword, newPassword) { error ->
+                        if (error == null) onDismiss() else errorMessage = error
+                    }
+                },
+                enabled = !inProgress && currentPassword.isNotBlank() && newPassword.isNotBlank()
+            ) { Text(stringResource(R.string.change_password_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
