@@ -139,6 +139,14 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
+            // Perfil "Espectador" é escolhido uma única vez no primeiro onboarding do app; quem
+            // errou a resposta (ou mudou de ideia depois) não tinha, até aqui, nenhum jeito de
+            // corrigir sem reinstalar. Reaproveita o mesmo retorno usado pelo botão "voltar" do
+            // onboarding (ver [VoleiViewModel.returnToProfileSelection]) para reabrir a pergunta de
+            // perfil e permitir escolher Organizador(a)/Auxiliar.
+            TextButton(onClick = { viewModel.returnToProfileSelection() }) {
+                Text(stringResource(R.string.live_screen_not_spectator_hint))
+            }
         }
 
         if (remoteSpectatorGroup != null) {

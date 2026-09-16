@@ -200,6 +200,7 @@
     <string name="live_screen_spectator_title">Live</string>
     <string name="live_screen_spectator_no_group">You haven\'t joined any group yet. Ask the organizer for an observer code and add it from the group menu.</string>
     <string name="live_screen_spectator_placeholder">Following %1$s live.</string>
+    <string name="live_screen_not_spectator_hint">Not an observer? Change profile</string>
     <string name="live_screen_team_a_label">Team A</string>
     <string name="live_screen_team_b_label">Team B</string>
     <string name="live_screen_waiting_list_label">Waiting queue</string>

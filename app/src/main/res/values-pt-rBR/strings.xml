@@ -194,6 +194,7 @@
     <string name="live_screen_spectator_title">Ao vivo</string>
     <string name="live_screen_spectator_no_group">Você ainda não entrou em nenhum grupo. Peça ao organizador um código de espectador e adicione pelo menu de grupos.</string>
     <string name="live_screen_spectator_placeholder">Acompanhando %1$s ao vivo.</string>
+    <string name="live_screen_not_spectator_hint">Não é espectador? Mudar perfil</string>
     <string name="live_screen_team_a_label">Time A</string>
     <string name="live_screen_team_b_label">Time B</string>
     <string name="live_screen_waiting_list_label">Fila de espera</string>
