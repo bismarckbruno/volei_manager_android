@@ -653,16 +653,18 @@ fun GameScreenContent(
                                         }
 
                                         if (sortedPlayers.isEmpty()) {
-                                            item {
-                                                Text(
-                                                    text = stringResource(R.string.to_start_add_players),
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    textAlign = TextAlign.Center,
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(32.dp)
-                                                )
+                                            if (!isSpectator) {
+                                                item {
+                                                    Text(
+                                                        text = stringResource(R.string.to_start_add_players),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        textAlign = TextAlign.Center,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(32.dp)
+                                                    )
+                                                }
                                             }
                                         } else {
                                             item {
@@ -4380,11 +4382,11 @@ fun EmptyStateCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 val emptyStateMessage = when {
+                    isSpectator -> spectatorWaitingGameStart
                     selectedCount < minNeeded -> stringResource(
                         R.string.select_minimum_players,
                         minNeeded
                     )
-                    isSpectator -> spectatorWaitingGameStart
                     else -> stringResource(R.string.click_to_start_match)
                 }
                 Text(

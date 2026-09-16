@@ -23,18 +23,28 @@ private const val FIELD_SHOW_ELO = "showEloToObservers"
 private const val REMOTE_LIST_LIMIT = 100L
 
 /** Jogador "enxuto" sincronizado em `liveState` — usa [publicId] (estável entre dispositivos) em
- *  vez do id local autoGenerate do Room, que não tem significado fora do aparelho de origem. */
+ *  vez do id local autoGenerate do Room, que não tem significado fora do aparelho de origem.
+ *  Inclui os campos exibidos nos cards da tela "Jogo" (fora tolerância/posição do dia, que não
+ *  fazem sentido fora do aparelho que calcula presença localmente). */
 data class RemotePlayerSnapshot(
     val publicId: String = "",
     val name: String = "",
     val elo: Double = 1200.0,
-    val isPriority: Boolean = false
+    val isPriority: Boolean = false,
+    val matchesPlayed: Int = 0,
+    val victories: Int = 0,
+    val preferredPosition: String? = null,
+    val secondaryPosition: String? = null
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "publicId" to publicId,
         "name" to name,
         "elo" to elo,
-        "isPriority" to isPriority
+        "isPriority" to isPriority,
+        "matchesPlayed" to matchesPlayed,
+        "victories" to victories,
+        "preferredPosition" to preferredPosition,
+        "secondaryPosition" to secondaryPosition
     )
 
     companion object {
@@ -42,14 +52,21 @@ data class RemotePlayerSnapshot(
             publicId = map["publicId"] as? String ?: "",
             name = map["name"] as? String ?: "",
             elo = (map["elo"] as? Number)?.toDouble() ?: 1200.0,
-            isPriority = map["isPriority"] as? Boolean ?: false
+            isPriority = map["isPriority"] as? Boolean ?: false,
+            matchesPlayed = (map["matchesPlayed"] as? Number)?.toInt() ?: 0,
+            victories = (map["victories"] as? Number)?.toInt() ?: 0,
+            preferredPosition = map["preferredPosition"] as? String,
+            secondaryPosition = map["secondaryPosition"] as? String
         )
     }
 }
 
 /** Espelha o jogo em andamento de um grupo premium sincronizado: times em quadra, fila de espera
- *  e placar — é isto que um(a) Espectador(a) (ou um Auxiliar que entrou via código, antes de
- *  `role-permission-matrix` liberar escrita remota) vê em tempo real na tela "Ao vivo". */
+ *  e placar — é isto que um(a) Espectador(a) (ou Auxiliar) vê em tempo real na tela "Jogo (Ao
+ *  vivo)". Também carrega o canal de comando usado por um(a) Auxiliar para pedir que o
+ *  organizador finalize a partida em andamento (só o dispositivo organizador tem os registros
+ *  locais de jogador no Room para calcular Elo/histórico de verdade, ver
+ *  [pendingFinishWinner]/[pendingFinishRequestId] e `role-permission-matrix`). */
 data class LiveGameState(
     val groupName: String = "",
     val teamA: List<RemotePlayerSnapshot> = emptyList(),
@@ -59,7 +76,14 @@ data class LiveGameState(
     val scoreB: Int = 0,
     val currentStreak: Int = 0,
     val streakOwner: String? = null,
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    /** Time ("A"/"B") que um Auxiliar pediu para vencer a partida em andamento; só o
+     *  organizador processa este campo (chamando sua lógica real de fim de partida) e volta a
+     *  publicá-lo como `null` assim que atender o pedido. */
+    val pendingFinishWinner: String? = null,
+    /** Identificador único do pedido acima, usado pelo organizador para não processar o mesmo
+     *  pedido duas vezes caso receba a mesma atualização mais de uma vez. */
+    val pendingFinishRequestId: String? = null
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "groupName" to groupName,
@@ -70,7 +94,9 @@ data class LiveGameState(
         "scoreB" to scoreB,
         "currentStreak" to currentStreak,
         "streakOwner" to streakOwner,
-        "updatedAt" to updatedAt
+        "updatedAt" to updatedAt,
+        "pendingFinishWinner" to pendingFinishWinner,
+        "pendingFinishRequestId" to pendingFinishRequestId
     )
 }
 
@@ -184,7 +210,9 @@ object CloudSyncManager {
                             scoreB = (data["scoreB"] as? Number)?.toInt() ?: 0,
                             currentStreak = (data["currentStreak"] as? Number)?.toInt() ?: 0,
                             streakOwner = data["streakOwner"] as? String,
-                            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L,
+                            pendingFinishWinner = data["pendingFinishWinner"] as? String,
+                            pendingFinishRequestId = data["pendingFinishRequestId"] as? String
                         )
                     )
                 }

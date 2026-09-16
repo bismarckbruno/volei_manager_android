@@ -252,7 +252,33 @@ internal fun Player.toRemoteSnapshot() = RemotePlayerSnapshot(
     publicId = publicId,
     name = name,
     elo = elo,
-    isPriority = isPriority
+    isPriority = isPriority,
+    matchesPlayed = matchesPlayed,
+    victories = victories,
+    preferredPosition = preferredPosition,
+    secondaryPosition = secondaryPosition
+)
+
+/** Reconstrói um [Player] "sintético" a partir de um snapshot remoto, para os dispositivos que
+ *  entraram via código (Auxiliar/Espectador) reaproveitarem a mesma UI local de [Player]
+ *  ([GameScreenContent][com.bismarck.voleimanager.app.ui.game.GameScreenContent]) sem terem
+ *  nenhuma linha real na tabela `players` do Room. [Player.id] é derivado de forma estável a
+ *  partir do [RemotePlayerSnapshot.publicId] (nunca colide com ids reais do Room porque esses
+ *  dispositivos nunca têm jogadores reais salvos para o grupo remoto — a tabela local fica vazia
+ *  para ele). Tolerância (`dailyToll`) e posição do dia não são sincronizadas: cada aparelho as
+ *  calcularia de um jeito diferente sem sentido fora de quem organiza a presença localmente.
+ */
+internal fun RemotePlayerSnapshot.toSyntheticPlayer(groupName: String) = Player(
+    id = publicId.hashCode(),
+    name = name,
+    elo = elo,
+    matchesPlayed = matchesPlayed,
+    victories = victories,
+    isPriority = isPriority,
+    groupName = groupName,
+    preferredPosition = preferredPosition,
+    secondaryPosition = secondaryPosition,
+    publicId = publicId
 )
 
 private data class TeamSnapshotEntry(
@@ -523,6 +549,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _isGroupDataLoading = MutableStateFlow(true)
     val isGroupDataLoading: StateFlow<Boolean> = _isGroupDataLoading.asStateFlow()
     private var groupLoadToken = 0
+
+    /** Timestamp da última [LiveGameState] que este próprio dispositivo publicou — usado para
+     *  descartar o "eco" de estados remotos recebidos de volta pelo listener de
+     *  [CloudSyncManager.observeLiveState] logo após publicarmos algo (ver `aux-bidirectional-sync`). */
+    private var lastPushedUpdatedAt: Long = 0L
+
+    /** ID do último pedido de encerramento de partida ([LiveGameState.pendingFinishRequestId]) já
+     *  processado pelo organizador — evita chamar [finishGame] duas vezes para o mesmo pedido de
+     *  um Auxiliar remoto. */
+    private var lastProcessedFinishRequestId: String? = null
 
     private val _currentGroupConfig = MutableStateFlow(
         GroupConfig(groupName = "", onboardingStep = ONBOARDING_STEP_GROUP_NAME)
@@ -1472,6 +1508,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         observeAndPersistGameState()
         observeAndPushCloudLiveState()
+        observeAndMirrorRemoteLiveState()
         observeRemoteGroupVisibility()
         viewModelScope.launch {
             availableHistoryDates.collect { dates ->
@@ -1558,7 +1595,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         viewModelScope.launch {
             combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner) { config, partial, streak, owner ->
-                if (config.remoteRole == null && config.isCloudSynced && config.cloudGroupId != null) {
+                // Organizador (grupo próprio) e Auxiliar (`remoteRole == "AUXILIAR"`) publicam o
+                // estado ao vivo; Espectador nunca escreve (fica só na ponta de leitura abaixo).
+                val canPush = config.isCloudSynced && config.cloudGroupId != null &&
+                    (config.remoteRole == null || config.remoteRole == UserProfileType.AUXILIAR.name)
+                if (canPush) {
                     config.cloudGroupId to LiveGameState(
                         groupName = config.groupName,
                         teamA = partial.teamA.map { it.toRemoteSnapshot() },
@@ -1572,8 +1613,78 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     )
                 } else null
             }.debounce(400).collect { pushable ->
-                if (pushable != null) CloudSyncManager.pushLiveState(pushable.first, pushable.second)
+                if (pushable != null) {
+                    lastPushedUpdatedAt = pushable.second.updatedAt
+                    CloudSyncManager.pushLiveState(pushable.first, pushable.second)
+                }
             }
+        }
+    }
+
+    /**
+     * Espelha o [LiveGameState] em nuvem de volta para as flows locais de jogo (`_teamA`,
+     * `_teamB`, `_waitingList`, `_scoreA`, `_scoreB`, `_currentStreak`, `_streakOwner`) que
+     * alimentam a mesma [com.bismarck.voleimanager.app.ui.game.GameScreenContent] usada
+     * localmente — é isso que permite ao Auxiliar/Espectador reaproveitarem toda a UI rica do
+     * jogo (ver `aux-bidirectional-sync`), e ao organizador enxergar em tempo real uma edição
+     * feita por um Auxiliar em outro aparelho.
+     *
+     * Descarta qualquer estado remoto que seja só o eco da última publicação deste próprio
+     * dispositivo (comparando `updatedAt` com [lastPushedUpdatedAt]), já que não há um id de
+     * dispositivo separado nesta v1 (ver decisão de "echo-suppression" do plano).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeAndMirrorRemoteLiveState() {
+        viewModelScope.launch {
+            _currentGroupConfig
+                .map { it.cloudGroupId }
+                .distinctUntilChanged()
+                .flatMapLatest { cloudGroupId ->
+                    if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeLiveState(cloudGroupId)
+                }
+                .collect { state ->
+                    if (state == null) return@collect
+                    if (state.updatedAt <= lastPushedUpdatedAt) return@collect
+                    val config = _currentGroupConfig.value
+                    if (config.cloudGroupId == null) return@collect
+
+                    if (config.remoteRole == null) {
+                        // Organizador: remapeia os snapshots remotos para os Players reais deste
+                        // aparelho via publicId (só aceita se todos os jogadores citados existirem
+                        // localmente, para não "sumir" gente da tela por uma corrida de sincronismo).
+                        val localByPublicId = currentGroupPlayers.value.associateBy { it.publicId }
+                        fun mapBack(list: List<RemotePlayerSnapshot>): List<Player>? =
+                            list.map { localByPublicId[it.publicId] ?: return null }
+                        val mappedA = mapBack(state.teamA)
+                        val mappedB = mapBack(state.teamB)
+                        val mappedWait = mapBack(state.waitingList)
+                        if (mappedA != null && mappedB != null && mappedWait != null) {
+                            _teamA.value = mappedA
+                            _teamB.value = mappedB
+                            _waitingList.value = mappedWait
+                            _scoreA.value = state.scoreA
+                            _scoreB.value = state.scoreB
+                            _currentStreak.value = state.currentStreak
+                            _streakOwner.value = state.streakOwner
+                        }
+                        val requestId = state.pendingFinishRequestId
+                        val requestWinner = state.pendingFinishWinner
+                        if (requestId != null && requestId != lastProcessedFinishRequestId && requestWinner != null) {
+                            lastProcessedFinishRequestId = requestId
+                            finishGame(requestWinner)
+                        }
+                    } else {
+                        // Auxiliar/Espectador: não existem Players reais no Room local deste
+                        // aparelho para o grupo remoto, então reconstruímos objetos sintéticos.
+                        _teamA.value = state.teamA.map { it.toSyntheticPlayer(config.groupName) }
+                        _teamB.value = state.teamB.map { it.toSyntheticPlayer(config.groupName) }
+                        _waitingList.value = state.waitingList.map { it.toSyntheticPlayer(config.groupName) }
+                        _scoreA.value = state.scoreA
+                        _scoreB.value = state.scoreB
+                        _currentStreak.value = state.currentStreak
+                        _streakOwner.value = state.streakOwner
+                    }
+                }
         }
     }
 
@@ -1623,27 +1734,30 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         .stateIn(viewModelScope, screenDataSharing, null)
 
-    /** Histórico de partidas do grupo remoto ativo, só não-vazio quando o organizador/auxiliar
-     *  ligou [GroupConfig.shareHistoryWithObservers] (também reforçado nas firestore.rules). */
+    /** Histórico de partidas do grupo remoto ativo. Auxiliar sempre vê tudo (regras do Firestore já
+     *  concedem acesso total a `canManageGroupContent`); Espectador só vê quando o organizador/
+     *  auxiliar ligou [GroupConfig.shareHistoryWithObservers]. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val remoteHistory: StateFlow<List<RemoteHistoryEntry>> = _currentGroupConfig
         .flatMapLatest { config ->
             val cloudGroupId = config.cloudGroupId
-            if (config.remoteRole != null && cloudGroupId != null && config.shareHistoryWithObservers) {
+            val allowed = config.remoteRole == UserProfileType.AUXILIAR.name || config.shareHistoryWithObservers
+            if (config.remoteRole != null && cloudGroupId != null && allowed) {
                 CloudSyncManager.observeHistory(cloudGroupId)
             } else flowOf(emptyList())
         }
         .stateIn(viewModelScope, screenDataSharing, emptyList())
 
-    /** Ranking de Elo do grupo remoto ativo, só não-vazio quando o organizador/auxiliar ligou
-     *  tanto [GroupConfig.shareHistoryWithObservers] quanto [GroupConfig.showEloToObservers]. */
+    /** Ranking de Elo do grupo remoto ativo. Auxiliar sempre vê tudo; Espectador só quando o
+     *  organizador/auxiliar ligou tanto [GroupConfig.shareHistoryWithObservers] quanto
+     *  [GroupConfig.showEloToObservers]. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val remoteEloLogs: StateFlow<List<RemoteEloLogEntry>> = _currentGroupConfig
         .flatMapLatest { config ->
             val cloudGroupId = config.cloudGroupId
-            if (config.remoteRole != null && cloudGroupId != null &&
-                config.shareHistoryWithObservers && config.showEloToObservers
-            ) {
+            val allowed = config.remoteRole == UserProfileType.AUXILIAR.name ||
+                (config.shareHistoryWithObservers && config.showEloToObservers)
+            if (config.remoteRole != null && cloudGroupId != null && allowed) {
                 CloudSyncManager.observeEloLogs(cloudGroupId)
             } else flowOf(emptyList())
         }
@@ -3062,6 +3176,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun finishGame(winner: String) {
+        val conf = _currentGroupConfig.value
+        if (conf.remoteRole == UserProfileType.AUXILIAR.name) {
+            requestRemoteFinish(winner)
+            return
+        }
         clearAllActivityLogs()
         val cA = _teamA.value
         val cB = _teamB.value
@@ -3172,6 +3291,49 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _teamA.value = emptyList(); _teamB.value = emptyList()
             resetScoresAndPointIndicator()
             _currentMatchStartTimestamp.value = null
+        }
+    }
+
+    /**
+     * Equivalente de [finishGame] para um Auxiliar remoto: como este aparelho não tem os
+     * `Player` reais do grupo no Room (não é dono da tabela), ele não pode rodar o cálculo de
+     * Elo/vitórias/histórico localmente. Em vez disso, publica um "pedido de encerramento"
+     * (`pendingFinishWinner`/`pendingFinishRequestId`) em [LiveGameState]; o organizador (que tem
+     * os `Player` reais) detecta o pedido em [observeAndMirrorRemoteLiveState] e roda o
+     * [finishGame] de verdade, cujo push subsequente já limpa os campos pendentes e propaga o
+     * placar/times zerados de volta para este Auxiliar. Localmente só atualizamos cosméticos
+     * (sequência de vitórias e destaque de "última vitória") para dar feedback imediato.
+     */
+    private fun requestRemoteFinish(winner: String) {
+        val conf = _currentGroupConfig.value
+        val cloudGroupId = conf.cloudGroupId ?: return
+        val cA = _teamA.value
+        val cB = _teamB.value
+        if (cA.isEmpty() || cB.isEmpty()) return
+
+        if (_streakOwner.value == winner) _currentStreak.value++ else {
+            _streakOwner.value = winner; _currentStreak.value = 1
+        }
+        val (winners, losers) = if (winner == "A") cA to cB else cB to cA
+        _lastWinners.value = winners; lastLosers = losers; _hasPreviousMatch.value = true
+
+        val requestId = java.util.UUID.randomUUID().toString()
+        val pending = LiveGameState(
+            groupName = conf.groupName,
+            teamA = cA.map { it.toRemoteSnapshot() },
+            teamB = cB.map { it.toRemoteSnapshot() },
+            waitingList = _waitingList.value.map { it.toRemoteSnapshot() },
+            scoreA = _scoreA.value,
+            scoreB = _scoreB.value,
+            currentStreak = _currentStreak.value,
+            streakOwner = _streakOwner.value,
+            updatedAt = System.currentTimeMillis(),
+            pendingFinishWinner = winner,
+            pendingFinishRequestId = requestId
+        )
+        lastPushedUpdatedAt = pending.updatedAt
+        viewModelScope.launch(Dispatchers.IO) {
+            CloudSyncManager.pushLiveState(cloudGroupId, pending)
         }
     }
 

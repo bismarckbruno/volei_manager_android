@@ -103,7 +103,8 @@ fun RemoteHistoryScreen(viewModel: VoleiViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        if (!groupConfig.shareHistoryWithObservers) {
+        val isAuxiliar = groupConfig.remoteRole == com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType.AUXILIAR.name
+        if (!isAuxiliar && !groupConfig.shareHistoryWithObservers) {
             SectionCard {
                 Text(
                     stringResource(R.string.live_screen_history_hidden),
@@ -131,7 +132,7 @@ fun RemoteHistoryScreen(viewModel: VoleiViewModel) {
             }
         }
 
-        if (groupConfig.showEloToObservers) {
+        if (isAuxiliar || groupConfig.showEloToObservers) {
             SectionCard {
                 Text(
                     stringResource(R.string.live_screen_elo_title),

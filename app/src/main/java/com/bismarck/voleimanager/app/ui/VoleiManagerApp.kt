@@ -2199,9 +2199,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                          label = "ScreenAnim"
                      ) { screen ->
                         when (screen) {
-                            Screen.GAME -> if (groupConfig.remoteRole != null) {
-                                RemoteGameScreen(viewModel = viewModel)
-                            } else GameScreenContent(
+                            Screen.GAME -> GameScreenContent(
                                 viewModel = viewModel,
                                 selectedGroup = selectedGroup ?: groupConfig.groupName,
                                 onSelectedGroupChange = { selectedGroup = it },
