@@ -130,6 +130,18 @@ fun parseTeamAccentColorOrNull(name: String): TeamAccentColor? = try {
 enum class UserProfileType { ORGANIZADOR, AUXILIAR, ESPECTADOR }
 
 /**
+ * Passos intermediários mostrados uma única vez, logo após [VoleiViewModel.setUserProfileType],
+ * antes do onboarding normal de criação de grupo. Organizador/Auxiliar são obrigados a criar
+ * conta/entrar ([AUTH_REQUIRED]) antes de prosseguir (não precisam confirmar o e-mail ainda,
+ * só ter feito login/cadastro). Espectador vê uma sugestão pulável de login
+ * ([SPECTATOR_AUTH_SUGGESTION]) seguida de uma sugestão pulável de código de grupo
+ * ([SPECTATOR_JOIN_SUGGESTION]). É um estado transitório, não persistido: se o app for encerrado
+ * no meio do fluxo, o usuário simplesmente cai direto no onboarding normal de grupo na próxima
+ * abertura (a pergunta de perfil em si já não seria mostrada de novo).
+ */
+enum class PostProfileOnboardingStage { NONE, AUTH_REQUIRED, SPECTATOR_AUTH_SUGGESTION, SPECTATOR_JOIN_SUGGESTION }
+
+/**
  * Pacote de assinatura premium da sincronização em nuvem: [NONE] (sem assinatura), [SINGLE]
  * (1 grupo sincronizado, R$ 9,90/mês) ou [MULTI] (até 5 grupos sincronizados, R$ 19,90/mês).
  * A validação real do pacote ativo vem do backend (ver `billing-integration`/
@@ -665,6 +677,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  uma única vez, antes de qualquer outra etapa do onboarding, inclusive o de grupo). */
     private val _showUserProfileOnboarding = MutableStateFlow(false)
     val showUserProfileOnboarding: StateFlow<Boolean> = _showUserProfileOnboarding.asStateFlow()
+
+    private val _postProfileOnboardingStage = MutableStateFlow(PostProfileOnboardingStage.NONE)
+    val postProfileOnboardingStage: StateFlow<PostProfileOnboardingStage> = _postProfileOnboardingStage.asStateFlow()
 
     /**
      * Sobreposição pessoal (só neste dispositivo/usuário) das cores de time, disponível apenas
@@ -1784,6 +1799,35 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _showUserProfileOnboarding.value = false
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
             .putString("user_profile_type", type.name).apply()
+        _postProfileOnboardingStage.value = when (type) {
+            UserProfileType.ORGANIZADOR, UserProfileType.AUXILIAR ->
+                if (currentUser.value == null) PostProfileOnboardingStage.AUTH_REQUIRED else PostProfileOnboardingStage.NONE
+            UserProfileType.ESPECTADOR -> PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION
+        }
+    }
+
+    /** Chamado assim que o gate obrigatório de conta (Organizador/Auxiliar) é atendido — login ou
+     *  cadastro concluído —, liberando o onboarding normal de grupo. */
+    fun onAuthGatePassed() {
+        if (_postProfileOnboardingStage.value == PostProfileOnboardingStage.AUTH_REQUIRED) {
+            _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE
+        }
+    }
+
+    /** Chamado quando o Espectador pula (ou conclui com sucesso) a sugestão de login/cadastro,
+     *  avançando para a sugestão de código de grupo. */
+    fun onSpectatorAuthStepDone() {
+        if (_postProfileOnboardingStage.value == PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION) {
+            _postProfileOnboardingStage.value = PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION
+        }
+    }
+
+    /** Chamado quando o Espectador pula (ou conclui com sucesso) a sugestão de código de grupo,
+     *  encerrando o roteamento por perfil e liberando o onboarding normal de criação de grupo. */
+    fun onSpectatorJoinStepDone() {
+        if (_postProfileOnboardingStage.value == PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION) {
+            _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE
+        }
     }
 
     /** Usado pela dica de rolagem do cabeçalho (rotação/duplo toque), exibida uma vez por grupo. */

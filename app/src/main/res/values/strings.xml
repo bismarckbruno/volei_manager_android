@@ -422,6 +422,14 @@
     <string name="onboarding_add_players_instruction">Add at least %1$d people with the \"+\" button or import them from Data > Import</string>
     <string name="onboarding_profile_question">What is your profile in this group?</string>
     <string name="onboarding_profile_hint">This helps us show you the right setup steps. You can review this later in the \"Cloud\" screen.</string>
+    <string name="onboarding_auth_required_title">Create your free account</string>
+    <string name="onboarding_auth_required_hint">Organizers and assistants need a free account to keep their data safe and, later on, to sync groups in the cloud. You can keep using the app right away — you don\'t need to confirm your e-mail yet.</string>
+    <string name="onboarding_spectator_auth_title">Want to save your progress?</string>
+    <string name="onboarding_spectator_auth_hint">Creating a free account lets you keep your profile if you switch phones, and is required later if you decide to subscribe to Premium. This step is optional.</string>
+    <string name="onboarding_spectator_join_title">Have a group invite code?</string>
+    <string name="onboarding_spectator_join_hint">If an organizer or assistant shared a code with you, enter it now to join their group. You can also skip this and explore the app on your own.</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_explore_without_group">Explore without a group</string>
     <string name="user_profile_organizer">Organizer</string>
     <string name="user_profile_organizer_desc">You create and manage the group: players, rules, and results.</string>
     <string name="user_profile_assistant">Assistant</string>

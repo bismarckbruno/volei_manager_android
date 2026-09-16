@@ -26,9 +26,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -157,6 +159,102 @@ private fun UserProfileOptionCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Passo obrigatório logo após escolher o perfil Organizador/Auxiliar: sem botão de pular, já que
+ * uma conta gratuita é exigida antes de prosseguir para o onboarding de grupo (mas a confirmação
+ * do e-mail em si não é obrigatória — ver [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.onAuthGatePassed]).
+ */
+@Composable
+fun MandatoryAccountGateScreen(onLoginClick: () -> Unit, onSignUpClick: () -> Unit) {
+    ProfileRoutingScreenScaffold(
+        titleRes = R.string.onboarding_auth_required_title,
+        hintRes = R.string.onboarding_auth_required_hint
+    ) {
+        Button(onClick = onSignUpClick, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.signup_title))
+        }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onLoginClick, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.login_title))
+        }
+    }
+}
+
+/** Sugestão pulável de login/cadastro para quem escolheu o perfil Espectador. */
+@Composable
+fun SpectatorAuthSuggestionScreen(
+    onLoginClick: () -> Unit,
+    onSignUpClick: () -> Unit,
+    onSkip: () -> Unit
+) {
+    ProfileRoutingScreenScaffold(
+        titleRes = R.string.onboarding_spectator_auth_title,
+        hintRes = R.string.onboarding_spectator_auth_hint
+    ) {
+        Button(onClick = onSignUpClick, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.signup_title))
+        }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onLoginClick, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.login_title))
+        }
+        Spacer(Modifier.height(12.dp))
+        TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.onboarding_skip))
+        }
+    }
+}
+
+/** Sugestão pulável de código de convite de grupo, exibida após [SpectatorAuthSuggestionScreen]. */
+@Composable
+fun SpectatorJoinSuggestionScreen(onJoinClick: () -> Unit, onSkip: () -> Unit) {
+    ProfileRoutingScreenScaffold(
+        titleRes = R.string.onboarding_spectator_join_title,
+        hintRes = R.string.onboarding_spectator_join_hint
+    ) {
+        Button(onClick = onJoinClick, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.join_existing_group))
+        }
+        Spacer(Modifier.height(12.dp))
+        TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.onboarding_explore_without_group))
+        }
+    }
+}
+
+/** Estrutura comum das telas de roteamento por perfil (título, texto de apoio e botões). */
+@Composable
+private fun ProfileRoutingScreenScaffold(
+    titleRes: Int,
+    hintRes: Int,
+    buttons: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = stringResource(titleRes),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(hintRes),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(32.dp))
+                buttons()
             }
         }
     }

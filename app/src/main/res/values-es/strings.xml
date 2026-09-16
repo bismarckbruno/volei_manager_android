@@ -415,6 +415,14 @@
     <string name="onboarding_add_players_instruction">Agrega al menos %1$d personas con el botón \"+\" o impórtalas desde Datos > Importar</string>
     <string name="onboarding_profile_question">¿Cuál es tu perfil en este grupo?</string>
     <string name="onboarding_profile_hint">Esto nos ayuda a mostrarte los pasos correctos. Puedes revisar esto después en la pantalla \"Nube\".</string>
+    <string name="onboarding_auth_required_title">Crea tu cuenta gratuita</string>
+    <string name="onboarding_auth_required_hint">Organizadores y auxiliares necesitan una cuenta gratuita para mantener sus datos a salvo y, más adelante, sincronizar grupos en la nube. Ya puedes seguir usando la app — no es necesario confirmar el correo todavía.</string>
+    <string name="onboarding_spectator_auth_title">¿Quieres guardar tu progreso?</string>
+    <string name="onboarding_spectator_auth_hint">Crear una cuenta gratuita te permite conservar tu perfil si cambias de teléfono, y será necesario más adelante si decides suscribirte a Premium. Este paso es opcional.</string>
+    <string name="onboarding_spectator_join_title">¿Tienes un código de invitación de grupo?</string>
+    <string name="onboarding_spectator_join_hint">Si un organizador o auxiliar compartió un código contigo, ingrésalo ahora para unirte a su grupo. También puedes omitir este paso y explorar la app por tu cuenta.</string>
+    <string name="onboarding_skip">Omitir</string>
+    <string name="onboarding_explore_without_group">Explorar sin grupo</string>
     <string name="user_profile_organizer">Organizador</string>
     <string name="user_profile_organizer_desc">Creas y administras el grupo: jugadores, reglas y resultados.</string>
     <string name="user_profile_assistant">Asistente</string>

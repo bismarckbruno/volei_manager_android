@@ -72,6 +72,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
+import com.bismarck.voleimanager.app.ui.viewmodel.PostProfileOnboardingStage
 import com.bismarck.voleimanager.app.util.AppAuthUser
 import com.bismarck.voleimanager.app.util.decodeAvatarBase64
 import com.bismarck.voleimanager.app.util.loadBitmapForAvatarEditing
@@ -273,6 +274,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val telemetryEnabled by viewModel.telemetryEnabled.collectAsState()
     val showTelemetryConsentPrompt by viewModel.showTelemetryConsentPrompt.collectAsState()
     val showUserProfileOnboarding by viewModel.showUserProfileOnboarding.collectAsState()
+    val postProfileOnboardingStage by viewModel.postProfileOnboardingStage.collectAsState()
     val userProfileType by viewModel.userProfileType.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val hasPremiumAccessGlobal by viewModel.hasPremiumAccess.collectAsState()
@@ -851,6 +853,76 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         return
     }
 
+    // Diálogos de conta/entrada em grupo — declarados fora do ModalNavigationDrawer (e antes dos
+    // "return" abaixo) para que também funcionem nas telas de roteamento por perfil
+    // (Organizador/Auxiliar/Espectador), que ainda não chegam ao conteúdo principal do app.
+    if (showJoinGroupDialog) JoinExistingGroupDialog(
+        onDismiss = { showJoinGroupDialog = false },
+        onConfirm = { code, onResult ->
+            viewModel.joinGroupWithCode(code) { error ->
+                if (error == null) {
+                    scope.launch { drawerState.close() }
+                    if (postProfileOnboardingStage == PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION) {
+                        viewModel.onSpectatorJoinStepDone()
+                    }
+                }
+                onResult(error)
+            }
+        }
+    )
+    if (showLoginDialog) LoginDialog(
+        inProgress = authInProgress,
+        onDismiss = { showLoginDialog = false },
+        onConfirm = { email, password, onResult -> viewModel.signInWithEmail(email, password, onResult) },
+        onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
+        onForgotPasswordClick = { email, onResult -> viewModel.sendPasswordResetEmail(email, onResult) },
+        onSwitchToSignUp = { showLoginDialog = false; showSignUpDialog = true }
+    )
+    if (showSignUpDialog) SignUpDialog(
+        inProgress = authInProgress,
+        onDismiss = { showSignUpDialog = false },
+        onConfirm = { email, password, fullName, nickname, birthDate, onResult ->
+            viewModel.signUpWithEmail(email, password, fullName, nickname, birthDate, onResult)
+        },
+        onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
+        onSwitchToLogin = { showSignUpDialog = false; showLoginDialog = true }
+    )
+
+    // Roteamento por perfil: avança automaticamente assim que o login/cadastro é concluído,
+    // enquanto uma dessas etapas está visível (ver VoleiViewModel.PostProfileOnboardingStage).
+    LaunchedEffect(currentUser, postProfileOnboardingStage) {
+        if (currentUser != null) {
+            when (postProfileOnboardingStage) {
+                PostProfileOnboardingStage.AUTH_REQUIRED -> viewModel.onAuthGatePassed()
+                PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION -> viewModel.onSpectatorAuthStepDone()
+                else -> {}
+            }
+        }
+    }
+
+    if (postProfileOnboardingStage == PostProfileOnboardingStage.AUTH_REQUIRED) {
+        MandatoryAccountGateScreen(
+            onLoginClick = { showLoginDialog = true },
+            onSignUpClick = { showSignUpDialog = true }
+        )
+        return
+    }
+    if (postProfileOnboardingStage == PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION) {
+        SpectatorAuthSuggestionScreen(
+            onLoginClick = { showLoginDialog = true },
+            onSignUpClick = { showSignUpDialog = true },
+            onSkip = { viewModel.onSpectatorAuthStepDone() }
+        )
+        return
+    }
+    if (postProfileOnboardingStage == PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION) {
+        SpectatorJoinSuggestionScreen(
+            onJoinClick = { showJoinGroupDialog = true },
+            onSkip = { viewModel.onSpectatorJoinStepDone() }
+        )
+        return
+    }
+
     ModalNavigationDrawer(
         modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
@@ -1218,32 +1290,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 showCreateGroupDialog = false
                 scope.launch { drawerState.close() }
             })
-        if (showJoinGroupDialog) JoinExistingGroupDialog(
-            onDismiss = { showJoinGroupDialog = false },
-            onConfirm = { code, onResult ->
-                viewModel.joinGroupWithCode(code) { error ->
-                    if (error == null) scope.launch { drawerState.close() }
-                    onResult(error)
-                }
-            }
-        )
-        if (showLoginDialog) LoginDialog(
-            inProgress = authInProgress,
-            onDismiss = { showLoginDialog = false },
-            onConfirm = { email, password, onResult -> viewModel.signInWithEmail(email, password, onResult) },
-            onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
-            onForgotPasswordClick = { email, onResult -> viewModel.sendPasswordResetEmail(email, onResult) },
-            onSwitchToSignUp = { showLoginDialog = false; showSignUpDialog = true }
-        )
-        if (showSignUpDialog) SignUpDialog(
-            inProgress = authInProgress,
-            onDismiss = { showSignUpDialog = false },
-            onConfirm = { email, password, fullName, nickname, birthDate, onResult ->
-                viewModel.signUpWithEmail(email, password, fullName, nickname, birthDate, onResult)
-            },
-            onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
-            onSwitchToLogin = { showSignUpDialog = false; showLoginDialog = true }
-        )
         if (showEditProfilePhotoDialog) EditProfilePhotoDialog(
             hasPhoto = currentUser?.photoBase64 != null,
             onDismiss = { showEditProfilePhotoDialog = false },
