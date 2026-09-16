@@ -190,7 +190,7 @@
     <string name="transfer_ownership_cancel">Cancelar</string>
     <string name="cloud_sync_visibility_title">Visibilidad para observadores</string>
     <string name="cloud_sync_visibility_share_history">Compartir historial de partidas</string>
-    <string name="cloud_sync_visibility_show_elo">Mostrar ranking de Elo a los observadores</string>
+    <string name="cloud_sync_visibility_show_elo">Mostrar Elo a los observadores</string>
     <string name="cloud_sync_auxiliar_groups_title">Grupos que administras como coadministrador</string>
     <string name="cloud_sync_espectador_groups_title">Grupos que sigues como observador</string>
     <string name="live_screen_spectator_title">En vivo</string>

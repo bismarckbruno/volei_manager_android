@@ -83,72 +83,7 @@ fun RemoteGameScreen(viewModel: VoleiViewModel) {
     }
 }
 
-/**
- * Substitui a tela "Histórico" quando o grupo ativo é remoto — lê [VoleiViewModel.remoteHistory]
- * e [VoleiViewModel.remoteEloLogs] (Firestore), que só vêm preenchidos quando o organizador/
- * auxiliar do grupo ligou, respectivamente,
- * [com.bismarck.voleimanager.app.data.model.GroupConfig.shareHistoryWithObservers] e
- * [com.bismarck.voleimanager.app.data.model.GroupConfig.showEloToObservers].
- */
-@Composable
-fun RemoteHistoryScreen(viewModel: VoleiViewModel) {
-    val groupConfig by viewModel.currentGroupConfig.collectAsState()
-    val remoteHistory by viewModel.remoteHistory.collectAsState()
-    val remoteEloLogs by viewModel.remoteEloLogs.collectAsState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        val isAuxiliar = groupConfig.remoteRole == com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType.AUXILIAR.name
-        if (!isAuxiliar && !groupConfig.shareHistoryWithObservers) {
-            SectionCard {
-                Text(
-                    stringResource(R.string.live_screen_history_hidden),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            return
-        }
-
-        SectionCard {
-            Text(
-                stringResource(R.string.live_screen_history_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            if (remoteHistory.isEmpty()) {
-                Text(
-                    stringResource(R.string.live_screen_history_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                remoteHistory.forEach { entry -> RemoteHistoryRow(entry) }
-            }
-        }
-
-        if (isAuxiliar || groupConfig.showEloToObservers) {
-            SectionCard {
-                Text(
-                    stringResource(R.string.live_screen_elo_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                if (remoteEloLogs.isEmpty()) {
-                    Text(
-                        stringResource(R.string.live_screen_elo_empty),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    remoteEloLogs.forEach { entry -> RemoteEloRow(entry) }
-                }
-            }
-        }
-    }
-}
+// RemoteHistoryScreen foi removida: a tela "Histórico" (HistoryScreen, em AppScreens.kt) agora
+// reaproveita a UI rica tanto para grupos locais quanto remotos, alimentando-se de
+// VoleiViewModel.remoteHistory/remoteEloLogs quando o grupo ativo é remoto (ver
+// HistoryScreen.toMatchHistory/toPlayerEloLogs).

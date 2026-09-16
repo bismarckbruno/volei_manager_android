@@ -349,75 +349,76 @@ internal fun WaitingListContent(
                 }
             }
 
-            item(key = "inactive_header") {
-                Column(
-                    modifier = Modifier
-                        .animateItem()
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { absentExpanded = !absentExpanded },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(8.dp)
+            if (!isSpectator) {
+                item(key = "inactive_header") {
+                    Column(
+                        modifier = Modifier
+                            .animateItem()
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { absentExpanded = !absentExpanded },
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            stringResource(R.string.absent, absentPlayers.size),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        val absentRotation by animateFloatAsState(
-                            targetValue = if (absentExpanded) 180f else 0f,
-                            animationSpec = tween(durationMillis = 200),
-                            label = "AbsentRotation"
-                        )
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (absentExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
-                            modifier = Modifier
-                                .size(20.dp)
-                                .rotate(absentRotation),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(8.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.absent, absentPlayers.size),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            val absentRotation by animateFloatAsState(
+                                targetValue = if (absentExpanded) 180f else 0f,
+                                animationSpec = tween(durationMillis = 200),
+                                label = "AbsentRotation"
+                            )
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (absentExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .rotate(absentRotation),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
-            }
 
-            if (absentExpanded) {
-                if (absentPlayers.isEmpty()) {
-                    item(key = "inactive_empty") {
-                        Text(
-                            text = stringResource(R.string.all_players_present),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .animateItem()
-                                .padding(horizontal = 8.dp, vertical = 12.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    itemsIndexed(
-                        absentPlayers,
-                        key = { _, player -> "inactive_${player.id}" }) { _, player ->
-                        InactivePlayerItem(
-                            modifier = Modifier.animateItem(),
-                            player = player,
-                            showElo = showElo,
-                            usesPositions = usesPositions,
-                            isSpectator = isSpectator,
-                            onMoveToBeginning = {
-                                val targetIndex = 0
-                                undoAction = UndoAction.Add(player, targetIndex)
-                                viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                val has_entered_start_queue = resources.getString(R.string.has_entered_start_queue, player.name)
-                                showSnackbar(has_entered_start_queue, true)
-                                scope.launch { delay(100); listState.animateScrollToItem(0) }
-                            },
+                if (absentExpanded) {
+                    if (absentPlayers.isEmpty()) {
+                        item(key = "inactive_empty") {
+                            Text(
+                                text = stringResource(R.string.all_players_present),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .animateItem()
+                                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        itemsIndexed(
+                            absentPlayers,
+                            key = { _, player -> "inactive_${player.id}" }) { _, player ->
+                            InactivePlayerItem(
+                                modifier = Modifier.animateItem(),
+                                player = player,
+                                showElo = showElo,
+                                usesPositions = usesPositions,
+                                isSpectator = isSpectator,
+                                onMoveToBeginning = {
+                                    val targetIndex = 0
+                                    undoAction = UndoAction.Add(player, targetIndex)
+                                    viewModel.insertPlayerIntoWaitingList(player, targetIndex)
+                                    val has_entered_start_queue = resources.getString(R.string.has_entered_start_queue, player.name)
+                                    showSnackbar(has_entered_start_queue, true)
+                                    scope.launch { delay(100); listState.animateScrollToItem(0) }
+                                },
                             onMoveToEnd = {
                                 val targetIndex = waitingList.size
                                 undoAction = UndoAction.Add(player, targetIndex)
@@ -435,6 +436,7 @@ internal fun WaitingListContent(
                     }
                 }
             }
+        }
         } // end LazyColumn
 
         LazyListFastScroller(

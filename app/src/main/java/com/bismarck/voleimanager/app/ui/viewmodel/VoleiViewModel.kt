@@ -560,6 +560,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  um Auxiliar remoto. */
     private var lastProcessedFinishRequestId: String? = null
 
+    /** Último [LiveGameState.presentPlayers] recebido/observado — usado por um Auxiliar remoto
+     *  para "ecoar" essa lista ao publicar suas próprias atualizações (placar, times), já que só
+     *  o organizador tem o roster real no Room para recalculá-la (ver [observeAndPushCloudLiveState]). */
+    private var lastKnownRemotePresentPlayers: List<RemotePlayerSnapshot> = emptyList()
+
     private val _currentGroupConfig = MutableStateFlow(
         GroupConfig(groupName = "", onboardingStep = ONBOARDING_STEP_GROUP_NAME)
     )
@@ -1449,6 +1454,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _presentPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
     val presentPlayerIds = _presentPlayerIds.asStateFlow()
 
+    /** Jogadores marcados como presentes/selecionados, sincronizados via [LiveGameState.presentPlayers]
+     *  para dispositivos que entraram como Auxiliar/Espectador (sem roster real no Room). Alimenta a
+     *  tela "Jogo (Ao vivo)" antes de uma partida começar (ver `spectator-player-list-visible`). */
+    private val _remoteSelectedPlayers = MutableStateFlow<List<Player>>(emptyList())
+    val remoteSelectedPlayers = _remoteSelectedPlayers.asStateFlow()
+
     /** Posição ocupada por cada jogador na partida atual. Vazio fora do Modo Posições Fixas. */
     private val _assignedPositions = MutableStateFlow<Map<Int, PlayerPosition>>(emptyMap())
     val assignedPositions = _assignedPositions.asStateFlow()
@@ -1588,18 +1599,31 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val teamB: List<Player>,
             val waitingList: List<Player>,
             val scoreA: Int,
-            val scoreB: Int
+            val scoreB: Int,
+            val presentPlayerIds: Set<Int>
         )
-        val partialFlow = combine(_teamA, _teamB, _waitingList, _scoreA, _scoreB) { teamA, teamB, waiting, scoreA, scoreB ->
-            LiveGameStatePartial(teamA, teamB, waiting, scoreA, scoreB)
+        val partialFlow = combine(
+            combine(_teamA, _teamB, _waitingList) { teamA, teamB, waiting -> Triple(teamA, teamB, waiting) },
+            _scoreA, _scoreB, _presentPlayerIds
+        ) { teams, scoreA, scoreB, presentIds ->
+            LiveGameStatePartial(teams.first, teams.second, teams.third, scoreA, scoreB, presentIds)
         }
         viewModelScope.launch {
-            combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner) { config, partial, streak, owner ->
+            combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner, currentGroupPlayers) { config, partial, streak, owner, groupPlayers ->
                 // Organizador (grupo próprio) e Auxiliar (`remoteRole == "AUXILIAR"`) publicam o
                 // estado ao vivo; Espectador nunca escreve (fica só na ponta de leitura abaixo).
                 val canPush = config.isCloudSynced && config.cloudGroupId != null &&
                     (config.remoteRole == null || config.remoteRole == UserProfileType.AUXILIAR.name)
                 if (canPush) {
+                    // Presença/seleção pré-partida: só o organizador tem o roster real no Room
+                    // para calculá-la; o Auxiliar ecoa o último valor observado, para não apagar
+                    // essa lista com um valor vazio ao publicar sua própria edição de placar/times.
+                    val presentSnapshots = if (config.remoteRole == null) {
+                        partial.presentPlayerIds.mapNotNull { id -> groupPlayers.find { it.id == id } }
+                            .map { it.toRemoteSnapshot() }
+                    } else {
+                        lastKnownRemotePresentPlayers
+                    }
                     config.cloudGroupId to LiveGameState(
                         groupName = config.groupName,
                         teamA = partial.teamA.map { it.toRemoteSnapshot() },
@@ -1609,12 +1633,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         scoreB = partial.scoreB,
                         currentStreak = streak,
                         streakOwner = owner,
-                        updatedAt = System.currentTimeMillis()
+                        updatedAt = System.currentTimeMillis(),
+                        presentPlayers = presentSnapshots
                     )
                 } else null
             }.debounce(400).collect { pushable ->
                 if (pushable != null) {
                     lastPushedUpdatedAt = pushable.second.updatedAt
+                    lastKnownRemotePresentPlayers = pushable.second.presentPlayers
                     CloudSyncManager.pushLiveState(pushable.first, pushable.second)
                 }
             }
@@ -1647,6 +1673,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (state.updatedAt <= lastPushedUpdatedAt) return@collect
                     val config = _currentGroupConfig.value
                     if (config.cloudGroupId == null) return@collect
+
+                    lastKnownRemotePresentPlayers = state.presentPlayers
 
                     if (config.remoteRole == null) {
                         // Organizador: remapeia os snapshots remotos para os Players reais deste
@@ -1684,6 +1712,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         _currentStreak.value = state.currentStreak
                         _streakOwner.value = state.streakOwner
                     }
+                    _remoteSelectedPlayers.value = state.presentPlayers.map { it.toSyntheticPlayer(config.groupName) }
                 }
         }
     }
@@ -3238,7 +3267,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (cloudGroupId != null) {
                         CloudSyncManager.pushEloLogEntry(
                             cloudGroupId,
-                            RemoteEloLogEntry(playerNameSnapshot = nameSnapshot, date = dateLog, elo = newElo, won = won)
+                            RemoteEloLogEntry(playerNameSnapshot = nameSnapshot, date = dateLog, elo = newElo, won = won, endTimestamp = endTimestamp)
                         )
                     }
                 }
@@ -3329,7 +3358,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             streakOwner = _streakOwner.value,
             updatedAt = System.currentTimeMillis(),
             pendingFinishWinner = winner,
-            pendingFinishRequestId = requestId
+            pendingFinishRequestId = requestId,
+            presentPlayers = lastKnownRemotePresentPlayers
         )
         lastPushedUpdatedAt = pending.updatedAt
         viewModelScope.launch(Dispatchers.IO) {

@@ -87,6 +87,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.RoundedSearchTextField
@@ -97,12 +98,49 @@ import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.FaqSearch
+import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
+import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+/** Converte uma entrada "enxuta" de histórico remoto ([RemoteHistoryEntry], vinda do Firestore)
+ *  em um [MatchHistory] local, para reaproveitar toda a computação/UI de [HistoryScreen] tanto
+ *  para grupos locais quanto sincronizados (Auxiliar/Espectador). Campos ausentes na versão
+ *  remota (Elo médio dos times, ids de jogadores, duração) ficam nulos/vazios — o próprio
+ *  [computeHistoryComputation] já sabe lidar com jogadores não resolvidos por id (usa o nome). */
+fun RemoteHistoryEntry.toMatchHistory(groupName: String): MatchHistory = MatchHistory(
+    id = id.hashCode(),
+    date = date,
+    teamA = teamA,
+    teamB = teamB,
+    winner = winner,
+    eloPoints = 0.0,
+    groupName = groupName,
+    teamAScore = teamAScore,
+    teamBScore = teamBScore,
+    endTimestamp = endTimestamp
+)
+
+/** Converte a lista de [RemoteEloLogEntry] (já ordenada do mais recente para o mais antigo, ver
+ *  [com.bismarck.voleimanager.app.util.CloudSyncManager.observeEloLogs]) em [PlayerEloLog], com
+ *  `id` decrescente conforme a posição na lista para que `maxByOrNull { it.id }` (usado por
+ *  [computeHistoryComputation] para achar o Elo mais atual de cada jogador) continue funcionando. */
+fun List<RemoteEloLogEntry>.toPlayerEloLogs(groupName: String): List<PlayerEloLog> =
+    mapIndexed { index, entry ->
+        PlayerEloLog(
+            id = size - index,
+            playerId = 0,
+            playerNameSnapshot = entry.playerNameSnapshot,
+            date = entry.date,
+            elo = entry.elo,
+            groupName = groupName,
+            won = entry.won
+        )
+    }
 
 data class HistoryPlayerInfo(
     val player: Player,
@@ -502,12 +540,36 @@ fun HistoryScreen(
     onPlayerSortModeChanged: (PlayerSortMode) -> Unit = {},
     onContentReady: () -> Unit = {}
 ) {
-    val groupHistory by viewModel.currentGroupHistory.collectAsState()
-    val historyDate by viewModel.historyDateFilter.collectAsState()
-    val availableDates by viewModel.availableHistoryDates.collectAsState()
-    val eloLogs by viewModel.currentGroupEloLogs.collectAsState()
-    val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
+    val isRemoteGroup = groupConfig.remoteRole != null
+    val localGroupHistory by viewModel.currentGroupHistory.collectAsState()
+    val localEloLogs by viewModel.currentGroupEloLogs.collectAsState()
+    val localGroupPlayers by viewModel.currentGroupPlayers.collectAsState()
+    val remoteHistoryEntries by viewModel.remoteHistory.collectAsState()
+    val remoteEloEntries by viewModel.remoteEloLogs.collectAsState()
+
+    // Grupos remotos (Auxiliar/Espectador) nunca têm partidas/Elo reais no Room local (ver
+    // VoleiViewModel.joinRemoteGroup) — nesse caso, reaproveitamos toda a UI abaixo alimentando-a
+    // com os dados espelhados do Firestore (já filtrados por visibilidade em remoteHistory/
+    // remoteEloLogs: vazios quando o organizador/auxiliar não liberou compartilhamento).
+    val groupHistory = if (isRemoteGroup) {
+        remoteHistoryEntries.map { it.toMatchHistory(groupConfig.groupName) }
+    } else {
+        localGroupHistory
+    }
+    val eloLogs = if (isRemoteGroup) remoteEloEntries.toPlayerEloLogs(groupConfig.groupName) else localEloLogs
+    val groupPlayers = if (isRemoteGroup) emptyList() else localGroupPlayers
+    val historyDate by viewModel.historyDateFilter.collectAsState()
+    val availableDates = remember(groupHistory) {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        groupHistory.map { it.date.split(" ")[0] }.distinct().sortedWith { d1, d2 ->
+            try {
+                sdf.parse(d1)?.compareTo(sdf.parse(d2)) ?: 0
+            } catch (e: Exception) {
+                0
+            }
+        }.reversed()
+    }
     val usesPositions = groupConfig.type.usesPositions
     val teamAAccentColor by viewModel.effectiveTeamAColor.collectAsState()
     val teamBAccentColor by viewModel.effectiveTeamBColor.collectAsState()
@@ -967,7 +1029,9 @@ fun HistoryScreen(
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_score_diff)); Spacer(Modifier.weight(1f)); Icon(Icons.Outlined.Scoreboard, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false })
                                         } else {
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.alphabetical)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
+                                            if (showElo) {
+                                                DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
+                                            }
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_played_time)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_matches)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.volei_manager_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_victories)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.crown_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false })
@@ -1375,18 +1439,20 @@ fun HistoryScreen(
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false }
                         )
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_elo))
-                                    Spacer(Modifier.weight(1f))
-                                    Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            },
-                            onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false }
-                        )
+                        if (showElo) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.by_elo))
+                                        Spacer(Modifier.weight(1f))
+                                        Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                },
+                                onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false }
+                            )
+                        }
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {

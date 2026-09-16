@@ -273,7 +273,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isGroupDataLoading by viewModel.isGroupDataLoading.collectAsState()
     val allPlayers by viewModel.players.collectAsState()
-    val showElo by viewModel.showElo.collectAsState()
+    val showEloPreference by viewModel.showElo.collectAsState()
     val showToll by viewModel.showToll.collectAsState()
     val telemetryEnabled by viewModel.telemetryEnabled.collectAsState()
     val showTelemetryConsentPrompt by viewModel.showTelemetryConsentPrompt.collectAsState()
@@ -284,6 +284,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val authInProgress by viewModel.authInProgress.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val isSpectatorOfCurrentGroup by viewModel.isSpectatorOfCurrentGroup.collectAsState()
+    // Espectador nunca vê Elo se o Administrador/Auxiliar desativou "Mostrar Elo aos
+    // espectadores" (GroupConfig.showEloToObservers) — mesmo que a preferência local do
+    // dispositivo esteja ligada (ver "elo-observer-toggle-rename-hardgate").
+    val showElo = if (isSpectatorOfCurrentGroup) {
+        showEloPreference && groupConfig.showEloToObservers
+    } else {
+        showEloPreference
+    }
     val showScore = groupConfig.scoreEnabled
     // Papel deste dispositivo no grupo ativo (não a resposta global do onboarding) — ver
     // activeGroupProfileType. null enquanto nenhum grupo foi criado/carregado ainda.
@@ -1892,9 +1900,23 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         } else if (currentScreen == Screen.HISTORY) {
                             val view = LocalView.current
                             val historyDate by viewModel.historyDateFilter.collectAsState()
-                            val groupHistory by viewModel.currentGroupHistory.collectAsState()
-                            val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
-                            val eloLogs by viewModel.currentGroupEloLogs.collectAsState()
+                            val isRemoteHistoryGroup = groupConfig.remoteRole != null
+                            val localGroupHistoryForExport by viewModel.currentGroupHistory.collectAsState()
+                            val localGroupPlayersForExport by viewModel.currentGroupPlayers.collectAsState()
+                            val localEloLogsForExport by viewModel.currentGroupEloLogs.collectAsState()
+                            val remoteHistoryForExport by viewModel.remoteHistory.collectAsState()
+                            val remoteEloLogsForExport by viewModel.remoteEloLogs.collectAsState()
+                            // Grupo remoto (Auxiliar/Espectador): reaproveita os mesmos dados
+                            // espelhados do Firestore que alimentam a tela de Histórico (ver
+                            // HistoryScreen.toMatchHistory/toPlayerEloLogs em AppScreens.kt), já
+                            // filtrados por visibilidade (remoteHistory/remoteEloLogs).
+                            val groupHistory = if (isRemoteHistoryGroup) {
+                                remoteHistoryForExport.map { it.toMatchHistory(groupConfig.groupName) }
+                            } else {
+                                localGroupHistoryForExport
+                            }
+                            val groupPlayers = if (isRemoteHistoryGroup) emptyList() else localGroupPlayersForExport
+                            val eloLogs = if (isRemoteHistoryGroup) remoteEloLogsForExport.toPlayerEloLogs(groupConfig.groupName) else localEloLogsForExport
 
                             IconButton(onClick = {
                                 if (historyDate == null) {
@@ -2226,15 +2248,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 }
                             )
 
-                            Screen.HISTORY -> if (groupConfig.remoteRole != null) {
-                                LaunchedEffect(Unit) {
-                                    if (pendingDrawerCloseScreen == Screen.HISTORY && drawerState.isOpen) {
-                                        drawerState.close()
-                                        pendingDrawerCloseScreen = null
-                                    }
-                                }
-                                RemoteHistoryScreen(viewModel = viewModel)
-                            } else HistoryScreen(
+                            Screen.HISTORY -> HistoryScreen(
                                 matchSortMode = historyMatchSortMode,
                                 onMatchSortModeChanged = { historyMatchSortMode = it },
                                 viewModel = viewModel,

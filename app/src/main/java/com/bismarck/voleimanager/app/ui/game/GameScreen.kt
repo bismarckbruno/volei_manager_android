@@ -188,17 +188,23 @@ fun GameScreenContent(
     val resources = LocalResources.current
     val focusManager = LocalFocusManager.current
     val undoLabel = stringResource(R.string.undo)
-    val sortedPlayers by viewModel.sortedPlayersForPresence.collectAsState()
+    val sortedPlayersFromRoom by viewModel.sortedPlayersForPresence.collectAsState()
+    val remoteSelectedPlayers by viewModel.remoteSelectedPlayers.collectAsState()
     val currentGroupHistory by viewModel.currentGroupHistory.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
     val targetDate by viewModel.targetDate.collectAsState()
     val teamA by viewModel.teamA.collectAsState()
     val teamB by viewModel.teamB.collectAsState()
     val waitingList by viewModel.waitingList.collectAsState()
-    val presentIds by viewModel.presentPlayerIds.collectAsState()
+    val presentIdsFromVm by viewModel.presentPlayerIds.collectAsState()
     val hasPrev by viewModel.hasPreviousMatch.collectAsState()
     val config by viewModel.currentGroupConfig.collectAsState()
     val isSpectator by viewModel.isSpectatorOfCurrentGroup.collectAsState()
+    // Espectador não tem roster real no Room (nunca cria jogadores localmente para um grupo de
+    // outra pessoa), então a lista "selecionada no momento" vem espelhada do organizador via
+    // LiveGameState.presentPlayers, em vez do roster completo local (ver `spectator-player-list-visible`).
+    val sortedPlayers = if (isSpectator) remoteSelectedPlayers else sortedPlayersFromRoom
+    val presentIds = if (isSpectator) remoteSelectedPlayers.map { it.id }.toSet() else presentIdsFromVm
     val assignedPositions by viewModel.assignedPositions.collectAsState()
     val assignedSlotIndices by viewModel.assignedSlotIndices.collectAsState()
     val streak by viewModel.currentStreak.collectAsState()

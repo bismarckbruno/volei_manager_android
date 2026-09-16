@@ -196,7 +196,7 @@
     <string name="transfer_ownership_cancel">Cancel</string>
     <string name="cloud_sync_visibility_title">Visibility for observers</string>
     <string name="cloud_sync_visibility_share_history">Share match history</string>
-    <string name="cloud_sync_visibility_show_elo">Show Elo ranking to observers</string>
+    <string name="cloud_sync_visibility_show_elo">Show Elo to observers</string>
     <string name="cloud_sync_auxiliar_groups_title">Groups you manage as assistant</string>
     <string name="cloud_sync_espectador_groups_title">Groups you follow as observer</string>
     <string name="live_screen_spectator_title">Live</string>

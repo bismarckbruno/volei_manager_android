@@ -83,7 +83,13 @@ data class LiveGameState(
     val pendingFinishWinner: String? = null,
     /** Identificador único do pedido acima, usado pelo organizador para não processar o mesmo
      *  pedido duas vezes caso receba a mesma atualização mais de uma vez. */
-    val pendingFinishRequestId: String? = null
+    val pendingFinishRequestId: String? = null,
+    /** Jogadores marcados como presentes/selecionados no aparelho do organizador *antes* de uma
+     *  partida começar (ainda sem times formados). Publicado só pelo organizador (único
+     *  dispositivo com o roster real do grupo no Room); Auxiliar apenas ecoa o último valor
+     *  recebido ao publicar suas próprias atualizações, para não apagar essa lista sem querer.
+     *  Usado pelo Espectador para ver "quem está presente agora" antes do jogo começar. */
+    val presentPlayers: List<RemotePlayerSnapshot> = emptyList()
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "groupName" to groupName,
@@ -96,7 +102,8 @@ data class LiveGameState(
         "streakOwner" to streakOwner,
         "updatedAt" to updatedAt,
         "pendingFinishWinner" to pendingFinishWinner,
-        "pendingFinishRequestId" to pendingFinishRequestId
+        "pendingFinishRequestId" to pendingFinishRequestId,
+        "presentPlayers" to presentPlayers.map { it.toMap() }
     )
 }
 
@@ -121,7 +128,11 @@ data class RemoteEloLogEntry(
     val playerNameSnapshot: String = "",
     val date: String = "",
     val elo: Double = 1200.0,
-    val won: Boolean = false
+    val won: Boolean = false,
+    /** Timestamp de fim da partida que gerou este registro — usado só para ordenar/descobrir o
+     *  Elo "mais recente" de cada jogador ao reconstruir o histórico no aparelho remoto, já que a
+     *  consulta do Firestore não garante ordem de inserção. */
+    val endTimestamp: Long? = null
 )
 
 /** Toggles de visibilidade do grupo para observadores, espelhados de `cloudGroups/{id}.visibility`. */
@@ -212,7 +223,8 @@ object CloudSyncManager {
                             streakOwner = data["streakOwner"] as? String,
                             updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L,
                             pendingFinishWinner = data["pendingFinishWinner"] as? String,
-                            pendingFinishRequestId = data["pendingFinishRequestId"] as? String
+                            pendingFinishRequestId = data["pendingFinishRequestId"] as? String,
+                            presentPlayers = (data["presentPlayers"] as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.let(RemotePlayerSnapshot::fromMap) }.orEmpty()
                         )
                     )
                 }
@@ -257,7 +269,8 @@ object CloudSyncManager {
                         "playerNameSnapshot" to entry.playerNameSnapshot,
                         "date" to entry.date,
                         "elo" to entry.elo,
-                        "won" to entry.won
+                        "won" to entry.won,
+                        "endTimestamp" to entry.endTimestamp
                     )
                 ).addOnCompleteListener { cont.resume(Unit) }
             }
@@ -312,6 +325,7 @@ object CloudSyncManager {
             return@callbackFlow
         }
         val registration = groupDoc(firestore, cloudGroupId).collection(ELO_LOGS_COLLECTION)
+            .orderBy("endTimestamp", Query.Direction.DESCENDING)
             .limit(REMOTE_LIST_LIMIT)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -325,7 +339,8 @@ object CloudSyncManager {
                             playerNameSnapshot = doc.getString("playerNameSnapshot") ?: "",
                             date = doc.getString("date") ?: "",
                             elo = doc.getDouble("elo") ?: 1200.0,
-                            won = doc.getBoolean("won") ?: false
+                            won = doc.getBoolean("won") ?: false,
+                            endTimestamp = (doc.get("endTimestamp") as? Number)?.toLong()
                         )
                     }
                 )
