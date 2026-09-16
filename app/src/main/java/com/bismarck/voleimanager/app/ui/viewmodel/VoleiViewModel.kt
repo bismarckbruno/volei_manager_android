@@ -975,6 +975,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    /** Recarrega o usuário logado (ver [AuthManager.refreshCurrentUser]) para que
+     *  [currentUser].emailVerified reflita uma confirmação feita fora do app (link recebido por
+     *  e-mail) assim que o app volta ao primeiro plano — faz o botão "Reenviar e-mail de
+     *  confirmação" sumir automaticamente sem precisar de nenhuma ação do usuário. */
+    fun refreshCurrentUser() {
+        viewModelScope.launch { AuthManager.refreshCurrentUser() }
+    }
+
     /** Inicia a troca de e-mail da conta logada (confirma a senha atual, depois envia um link de
      *  confirmação para o novo e-mail — ver [AuthManager.changeEmail]). [onResult] recebe `null`
      *  em caso de sucesso, ou uma mensagem de erro amigável. */

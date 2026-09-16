@@ -116,6 +116,12 @@ object AuthManager {
     private val localOverrides = MutableStateFlow<Map<String, String?>>(emptyMap())
     private var localOverridesUid: String? = null
 
+    /** Incrementado por [refreshCurrentUser] para forçar [currentUser] a reemitir depois de um
+     *  [FirebaseUser.reload] — necessário porque a confirmação de e-mail acontece fora do app (o
+     *  usuário clica num link recebido por e-mail), então o [FirebaseAuth.AuthStateListener]
+     *  sozinho nunca dispara de novo sem essa releitura explícita. */
+    private val _reloadTrigger = MutableStateFlow(0)
+
     private fun cachePrefs() = appContext?.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun cacheKey(uid: String, field: String) = "${uid}_$field"
@@ -167,7 +173,7 @@ object AuthManager {
                 localOverridesUid = user.uid
                 localOverrides.value = readCachedProfile(user.uid)
             }
-            combine(profileDocFlow(user.uid), localOverrides) { remote, overrides ->
+            combine(profileDocFlow(user.uid), localOverrides, _reloadTrigger) { remote, overrides, _ ->
                 val reconciled = overrides.filterKeys { field -> remote?.get(field) != overrides[field] }
                 if (reconciled.size != overrides.size) {
                     localOverrides.value = reconciled
@@ -176,6 +182,23 @@ object AuthManager {
                 reconciled.forEach { (field, value) -> merged[field] = value }
                 buildAppAuthUser(user, merged)
             }
+        }
+    }
+
+    /** Recarrega o [FirebaseUser] logado (via [FirebaseUser.reload]) para refletir mudanças feitas
+     *  fora do app — hoje, apenas a confirmação de e-mail por link. Chamado quando o app volta ao
+     *  primeiro plano; não falha nada se estiver deslogado/offline, apenas não atualiza. */
+    suspend fun refreshCurrentUser() {
+        val user = authOrNull()?.currentUser ?: return
+        try {
+            suspendCancellableCoroutine<Unit> { cont ->
+                user.reload().addOnCompleteListener {
+                    if (cont.isActive) cont.resume(Unit)
+                }
+            }
+            _reloadTrigger.value += 1
+        } catch (e: Exception) {
+            Log.d(TAG, "Falha ao recarregar usuário: ${e.message}")
         }
     }
 

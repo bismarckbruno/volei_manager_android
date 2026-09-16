@@ -5,6 +5,8 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -54,6 +56,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
@@ -112,12 +115,25 @@ private fun userProfileTypeLabel(type: UserProfileType): String = when (type) {
 }
 
 /**
+ * Deriva o papel do usuário *no grupo ativo* a partir de [GroupConfig.remoteRole]: `null`
+ * significa que este dispositivo criou o grupo localmente (Organizador/a dele), enquanto
+ * "AUXILIAR"/"ESPECTADOR" refletem o papel obtido ao resgatar um código de convite. Substitui o
+ * antigo rótulo estático baseado só na resposta do onboarding (que não mudava por grupo).
+ */
+private fun activeGroupProfileType(remoteRole: String?): UserProfileType = when (remoteRole) {
+    UserProfileType.AUXILIAR.name -> UserProfileType.AUXILIAR
+    UserProfileType.ESPECTADOR.name -> UserProfileType.ESPECTADOR
+    else -> UserProfileType.ORGANIZADOR
+}
+
+/**
  * Cabeçalho do menu lateral: substitui o nome estático do app por um avatar (foto de perfil
  * quando logado e definida, placeholder caso contrário), o apelido público do usuário logado (ou
- * o nome do app, se deslogado), seu status de perfil (Organizador(a)/Auxiliar/Espectador(a), com
- * sufixo "Premium" para um(a) Espectador(a) premium) e um selo ao lado do nome quando é assinante.
- * Tocar no avatar abre um menu de login/cadastro (deslogado) ou logout + edição de perfil/foto
- * (logado).
+ * o nome do app, se deslogado), o papel deste dispositivo *no grupo ativo* (Organizador(a) se
+ * criado localmente, Auxiliar/Espectador(a) se obtido por código de convite — ver
+ * [activeGroupProfileType] —, com sufixo "Premium" para um(a) Espectador(a) premium) e um selo ao
+ * lado do nome quando é assinante. Tocar no avatar abre um menu de login/cadastro (deslogado) ou
+ * logout + edição de conta/foto (logado).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,9 +149,7 @@ private fun DrawerAccountHeader(
     onLogoutClick: () -> Unit,
     onEditPhotoClick: () -> Unit,
     onEditProfileClick: () -> Unit,
-    onResendVerificationClick: () -> Unit,
-    onChangeEmailClick: () -> Unit,
-    onChangePasswordClick: () -> Unit
+    onResendVerificationClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Box {
@@ -183,16 +197,6 @@ private fun DrawerAccountHeader(
                         onClick = onEditPhotoClick
                     )
                     DropdownMenuItem(text = { Text(stringResource(R.string.edit_profile_title)) }, onClick = onEditProfileClick)
-                    if (currentUser.hasPasswordProvider) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.change_email_menu_item)) },
-                            onClick = onChangeEmailClick
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.change_password_menu_item)) },
-                            onClick = onChangePasswordClick
-                        )
-                    }
                     if (currentUser.email != null && !currentUser.emailVerified) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.resend_verification_email)) },
@@ -227,7 +231,7 @@ private fun DrawerAccountHeader(
                     )
                 }
             }
-            if (currentUser != null && userProfileType != null) {
+            if (userProfileType != null) {
                 val roleLabel = userProfileTypeLabel(userProfileType)
                 val statusText = if (userProfileType == UserProfileType.ESPECTADOR && hasPremiumAccess) {
                     stringResource(R.string.drawer_status_premium_suffix, roleLabel)
@@ -275,12 +279,18 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val showTelemetryConsentPrompt by viewModel.showTelemetryConsentPrompt.collectAsState()
     val showUserProfileOnboarding by viewModel.showUserProfileOnboarding.collectAsState()
     val postProfileOnboardingStage by viewModel.postProfileOnboardingStage.collectAsState()
-    val userProfileType by viewModel.userProfileType.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val hasPremiumAccessGlobal by viewModel.hasPremiumAccess.collectAsState()
     val authInProgress by viewModel.authInProgress.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val showScore = groupConfig.scoreEnabled
+    // Papel deste dispositivo no grupo ativo (não a resposta global do onboarding) — ver
+    // activeGroupProfileType. null enquanto nenhum grupo foi criado/carregado ainda.
+    val activeGroupRole = if (groupConfig.groupName.isNotBlank()) {
+        activeGroupProfileType(groupConfig.remoteRole)
+    } else {
+        null
+    }
     val groupsSortedByRecent by viewModel.groupsSortedByRecentHistory.collectAsState()
     val allGroupConfigsList by viewModel.allGroupConfigs.collectAsState()
     var selectedGroup by rememberSaveable { mutableStateOf<String?>(null) }
@@ -312,6 +322,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showChangeEmailDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteAccountConfirmDialog by remember { mutableStateOf(false) }
     var showAccountMenu by remember { mutableStateOf(false) }
     var playerToDelete by remember { mutableStateOf<Player?>(null) }
@@ -357,6 +368,18 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
         "application/vnd.ms-excel" // .xls (legacy binary format; parsing not supported, shows a clear error)
     )
+
+    // Recarrega o usuário logado ao voltar ao primeiro plano (ex.: após confirmar o e-mail pelo
+    // link recebido, num navegador ou app de e-mail à parte), fazendo o botão "Reenviar e-mail de
+    // confirmação" sumir automaticamente assim que a confirmação for detectada.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshCurrentUser()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(groupsSortedByRecent, groupConfig.groupName, isGroupDataLoading, selectedGroup) {
         if (isGroupDataLoading) return@LaunchedEffect
@@ -944,14 +967,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             val verificationEmailSentMessage = stringResource(R.string.verification_email_sent)
                             DrawerAccountHeader(
                                 currentUser = currentUser,
-                                userProfileType = userProfileType,
+                                userProfileType = activeGroupRole,
                                 hasPremiumAccess = hasPremiumAccessGlobal,
                                 menuExpanded = accountMenuExpanded,
                                 onAvatarClick = { accountMenuExpanded = true },
                                 onDismissMenu = { accountMenuExpanded = false },
                                 onLoginClick = { accountMenuExpanded = false; showLoginDialog = true },
                                 onSignUpClick = { accountMenuExpanded = false; showSignUpDialog = true },
-                                onLogoutClick = { accountMenuExpanded = false; viewModel.signOut() },
+                                onLogoutClick = { accountMenuExpanded = false; showLogoutConfirmDialog = true },
                                 onEditPhotoClick = { accountMenuExpanded = false; showEditProfilePhotoDialog = true },
                                 onEditProfileClick = { accountMenuExpanded = false; showEditProfileDialog = true },
                                 onResendVerificationClick = {
@@ -963,9 +986,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             )
                                         }
                                     }
-                                },
-                                onChangeEmailClick = { accountMenuExpanded = false; showChangeEmailDialog = true },
-                                onChangePasswordClick = { accountMenuExpanded = false; showChangePasswordDialog = true }
+                                }
                             )
                             Spacer(Modifier.height(16.dp))
 
@@ -1016,6 +1037,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 DropdownMenu(
                                     expanded = groupExpanded,
                                     onDismissRequest = { groupExpanded = false },
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                                     offset = DpOffset(x = 0.dp, y = 4.dp),
                                     modifier = Modifier
                                         .heightIn(max = groupMaxMenuHeight)
@@ -1316,11 +1338,18 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             initialFullName = currentUser?.fullName.orEmpty(),
             initialNickname = currentUser?.nickname.orEmpty(),
             initialBirthDateIso = currentUser?.birthDate,
+            hasPasswordProvider = currentUser?.hasPasswordProvider == true,
+            onChangeEmailClick = { showEditProfileDialog = false; showChangeEmailDialog = true },
+            onChangePasswordClick = { showEditProfileDialog = false; showChangePasswordDialog = true },
             onDismiss = { showEditProfileDialog = false },
             onConfirm = { nickname, fullName, birthDate, onResult ->
                 viewModel.updateUserProfile(nickname, fullName, birthDate, onResult)
             },
             onRequestDeleteAccount = { showEditProfileDialog = false; showDeleteAccountConfirmDialog = true }
+        )
+        if (showLogoutConfirmDialog) LogoutConfirmDialog(
+            onDismiss = { showLogoutConfirmDialog = false },
+            onConfirm = { showLogoutConfirmDialog = false; viewModel.signOut() }
         )
         if (showChangeEmailDialog) ChangeEmailDialog(
             inProgress = authInProgress,

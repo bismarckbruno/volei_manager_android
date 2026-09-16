@@ -158,7 +158,9 @@
     <string name="edit_profile_photo_title">Editar foto de perfil</string>
     <string name="profile_photo_choose_from_gallery">Escolher da galeria</string>
     <string name="profile_photo_remove">Remover foto</string>
-    <string name="edit_profile_title">Editar perfil</string>
+    <string name="edit_profile_title">Editar conta</string>
+    <string name="logout_confirm_title">Sair da conta?</string>
+    <string name="logout_confirm_text">Tem certeza de que deseja sair da sua conta?</string>
     <string name="edit_profile_confirm">Salvar</string>
     <string name="delete_account_action">Apagar conta</string>
     <string name="delete_account_title">Apagar conta?</string>

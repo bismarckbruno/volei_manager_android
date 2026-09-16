@@ -164,7 +164,9 @@
     <string name="edit_profile_photo_title">Edit profile photo</string>
     <string name="profile_photo_choose_from_gallery">Choose from gallery</string>
     <string name="profile_photo_remove">Remove photo</string>
-    <string name="edit_profile_title">Edit profile</string>
+    <string name="edit_profile_title">Edit account</string>
+    <string name="logout_confirm_title">Log out?</string>
+    <string name="logout_confirm_text">Are you sure you want to log out of your account?</string>
     <string name="edit_profile_confirm">Save</string>
     <string name="delete_account_action">Delete account</string>
     <string name="delete_account_title">Delete account?</string>

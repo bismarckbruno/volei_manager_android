@@ -2074,7 +2074,8 @@ fun EditProfilePhotoDialog(
     )
 }
 
-/** Diálogo de edição de perfil: nome completo, apelido público e data de nascimento, além da
+/** Diálogo de edição de conta ("Editar conta"): nome completo, apelido público, data de
+ *  nascimento, atalhos para alterar e-mail/senha (só para contas com login por e-mail/senha) e a
  *  opção (com confirmação separada) de apagar a conta definitivamente. */
 @Composable
 fun EditProfileDialog(
@@ -2082,6 +2083,9 @@ fun EditProfileDialog(
     initialFullName: String,
     initialNickname: String,
     initialBirthDateIso: String?,
+    hasPasswordProvider: Boolean,
+    onChangeEmailClick: () -> Unit,
+    onChangePasswordClick: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (String, String, String, (String?) -> Unit) -> Unit,
     onRequestDeleteAccount: () -> Unit
@@ -2129,6 +2133,17 @@ fun EditProfileDialog(
                     Spacer(Modifier.height(4.dp))
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
+                if (hasPasswordProvider) {
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = onChangeEmailClick) {
+                        Text(stringResource(R.string.change_email_menu_item))
+                    }
+                    TextButton(onClick = onChangePasswordClick) {
+                        Text(stringResource(R.string.change_password_menu_item))
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
@@ -2173,6 +2188,24 @@ fun DeleteAccountConfirmDialog(
                 enabled = !inProgress,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) { Text(stringResource(R.string.delete_account_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    )
+}
+
+/** Diálogo simples de confirmação antes de sair da conta ("Sair"), para evitar toques acidentais
+ *  no menu do avatar. */
+@Composable
+fun LogoutConfirmDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.logout_confirm_title)) },
+        text = { Text(stringResource(R.string.logout_confirm_text)) },
+        confirmButton = {
+            Button(onClick = onConfirm) { Text(stringResource(R.string.logout)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
