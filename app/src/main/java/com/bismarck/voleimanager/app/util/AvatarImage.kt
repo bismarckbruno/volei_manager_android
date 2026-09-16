@@ -103,6 +103,32 @@ fun compressAvatarBitmap(bitmap: Bitmap): String {
     return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
 }
 
+/** Baixa a foto de perfil pública de [urlString] (ex.: a foto da conta Google, obtida durante o
+ *  primeiro login com Google — ver [com.bismarck.voleimanager.app.util.AuthManager]) e já a
+ *  processa exatamente como uma foto escolhida manualmente na galeria: recorte central quadrado
+ *  reduzido a [AVATAR_OUTPUT_PX] pixels de lado e compressão JPEG (ver [cropAvatarBitmap] e
+ *  [compressAvatarBitmap]), para não guardar uma imagem pesada no documento Firestore do usuário.
+ *  Deve ser chamada fora da thread principal (I/O de rede). Retorna `null` em qualquer falha (URL
+ *  inválida, sem rede, etc.) — nunca lança exceção. */
+fun downloadAndCompressAvatarFromUrl(urlString: String): String? = try {
+    val connection = (java.net.URL(urlString).openConnection() as java.net.HttpURLConnection).apply {
+        connectTimeout = 8_000
+        readTimeout = 8_000
+        doInput = true
+    }
+    val bytes = connection.inputStream.use { it.readBytes() }
+    val original = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    if (original == null) {
+        null
+    } else {
+        val square = cropAvatarBitmap(original, zoom = 1f, pan = Offset.Zero, viewportPx = 1f)
+        compressAvatarBitmap(square)
+    }
+} catch (e: Exception) {
+    Log.w(TAG, "Falha ao baixar foto de perfil da conta Google: ${e.message}")
+    null
+}
+
 /** Decodifica uma foto de perfil previamente salva por [compressAvatarBitmap] de volta para um
  *  [Bitmap], para exibição em `Image`/`Icon` compostos manualmente com `BitmapFactory`. */
 fun decodeAvatarBase64(base64: String): Bitmap? = try {

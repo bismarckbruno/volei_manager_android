@@ -951,6 +951,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    /** Reenvia o e-mail de confirmação da conta logada (ver [AuthManager.resendVerificationEmail]).
+     *  [onResult] recebe `null` em caso de sucesso, ou uma mensagem amigável (erro, ou aviso caso
+     *  o e-mail já esteja confirmado). */
+    fun resendVerificationEmail(onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            onResult(AuthManager.resendVerificationEmail())
+        }
+    }
+
     fun signOut() {
         AuthManager.signOut()
     }

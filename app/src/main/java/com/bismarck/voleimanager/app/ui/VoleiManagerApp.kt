@@ -131,7 +131,8 @@ private fun DrawerAccountHeader(
     onSignUpClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onEditPhotoClick: () -> Unit,
-    onEditProfileClick: () -> Unit
+    onEditProfileClick: () -> Unit,
+    onResendVerificationClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Box {
@@ -179,6 +180,12 @@ private fun DrawerAccountHeader(
                         onClick = onEditPhotoClick
                     )
                     DropdownMenuItem(text = { Text(stringResource(R.string.edit_profile_title)) }, onClick = onEditProfileClick)
+                    if (currentUser.email != null && !currentUser.emailVerified) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.resend_verification_email)) },
+                            onClick = onResendVerificationClick
+                        )
+                    }
                     DropdownMenuItem(text = { Text(stringResource(R.string.logout)) }, onClick = onLogoutClick)
                 }
             }
@@ -848,6 +855,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 .verticalScroll(rememberScrollState())
                         ) {
                             var accountMenuExpanded by remember { mutableStateOf(false) }
+                            val verificationEmailSentMessage = stringResource(R.string.verification_email_sent)
                             DrawerAccountHeader(
                                 currentUser = currentUser,
                                 userProfileType = userProfileType,
@@ -859,7 +867,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onSignUpClick = { accountMenuExpanded = false; showSignUpDialog = true },
                                 onLogoutClick = { accountMenuExpanded = false; viewModel.signOut() },
                                 onEditPhotoClick = { accountMenuExpanded = false; showEditProfilePhotoDialog = true },
-                                onEditProfileClick = { accountMenuExpanded = false; showEditProfileDialog = true }
+                                onEditProfileClick = { accountMenuExpanded = false; showEditProfileDialog = true },
+                                onResendVerificationClick = {
+                                    accountMenuExpanded = false
+                                    viewModel.resendVerificationEmail { error ->
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                error ?: verificationEmailSentMessage
+                                            )
+                                        }
+                                    }
+                                }
                             )
                             Spacer(Modifier.height(16.dp))
 

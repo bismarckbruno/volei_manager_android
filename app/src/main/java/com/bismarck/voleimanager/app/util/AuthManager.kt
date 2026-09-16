@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /** Usuário autenticado, já convertido para um tipo simples (sem depender do SDK do Firebase fora
@@ -33,7 +34,11 @@ data class AppAuthUser(
     val fullName: String?,
     val birthDate: String?,
     val photoBase64: String?,
-    val photoUrl: String?
+    val photoUrl: String?,
+    /** `true` para contas Google (verificadas pelo próprio provedor) ou e-mail/senha já
+     *  confirmado pelo link enviado por [AuthManager.signUp]/[AuthManager.resendVerificationEmail].
+     *  Gateia a assinatura Premium (ver premium-purchase-gating). */
+    val emailVerified: Boolean
 )
 
 private const val USERS_COLLECTION = "users"
@@ -41,6 +46,14 @@ private const val FIELD_NICKNAME = "nickname"
 private const val FIELD_FULL_NAME = "fullName"
 private const val FIELD_BIRTH_DATE = "birthDate"
 private const val FIELD_PHOTO_BASE64 = "photoBase64"
+
+private const val RATE_LIMIT_PREFS_NAME = "auth_rate_limit"
+private const val KEY_SIGNUP_ATTEMPT_COUNT = "signup_attempt_count"
+private const val KEY_SIGNUP_LAST_ATTEMPT_AT = "signup_last_attempt_at"
+private const val KEY_SIGNUP_WINDOW_START_AT = "signup_window_start_at"
+private const val SIGNUP_RATE_LIMIT_WINDOW_MS = 15L * 60L * 1000L
+private const val SIGNUP_RATE_LIMIT_FREE_ATTEMPTS = 3
+private const val SIGNUP_RATE_LIMIT_BASE_COOLDOWN_MS = 30L * 1000L
 
 /**
  * Fachada única sobre o Firebase Authentication (e-mail/senha e login com Google — ver
@@ -201,8 +214,79 @@ object AuthManager {
         fullName = profile?.get(FIELD_FULL_NAME) as? String,
         birthDate = profile?.get(FIELD_BIRTH_DATE) as? String,
         photoBase64 = profile?.get(FIELD_PHOTO_BASE64) as? String,
-        photoUrl = user.photoUrl?.toString()
+        photoUrl = user.photoUrl?.toString(),
+        emailVerified = user.isEmailVerified
     )
+
+    /** Proteção simples e local contra scripts de criação em massa de contas: não substitui uma
+     *  defesa de verdade (App Check/quotas no backend cabem em [purchase-validation-function] e
+     *  Cloud Functions), mas já cria fricção crescente contra automações ingênuas batendo direto
+     *  no app. Dentro da mesma janela de [SIGNUP_RATE_LIMIT_WINDOW_MS], as primeiras
+     *  [SIGNUP_RATE_LIMIT_FREE_ATTEMPTS] tentativas passam livres; a partir daí, o tempo mínimo de
+     *  espera até a próxima tentativa dobra a cada nova tentativa (backoff exponencial). Retorna
+     *  uma mensagem amigável se a tentativa atual precisar esperar, ou `null` (e já registra a
+     *  tentativa) se puder prosseguir. */
+    private fun checkAndRecordSignupAttempt(): String? {
+        val prefs = appContext?.getSharedPreferences(RATE_LIMIT_PREFS_NAME, Context.MODE_PRIVATE) ?: return null
+        val now = System.currentTimeMillis()
+        var windowStart = prefs.getLong(KEY_SIGNUP_WINDOW_START_AT, 0L)
+        var count = prefs.getInt(KEY_SIGNUP_ATTEMPT_COUNT, 0)
+        if (now - windowStart > SIGNUP_RATE_LIMIT_WINDOW_MS) {
+            windowStart = now
+            count = 0
+        }
+        if (count >= SIGNUP_RATE_LIMIT_FREE_ATTEMPTS) {
+            val cooldownMs = SIGNUP_RATE_LIMIT_BASE_COOLDOWN_MS shl
+                (count - SIGNUP_RATE_LIMIT_FREE_ATTEMPTS).coerceAtMost(6)
+            val remaining = cooldownMs - (now - prefs.getLong(KEY_SIGNUP_LAST_ATTEMPT_AT, 0L))
+            if (remaining > 0) {
+                val minutes = (remaining / 60_000L) + 1
+                return "Muitas tentativas de cadastro em pouco tempo. Tente novamente em cerca de $minutes minuto(s)."
+            }
+        }
+        prefs.edit()
+            .putLong(KEY_SIGNUP_WINDOW_START_AT, windowStart)
+            .putInt(KEY_SIGNUP_ATTEMPT_COUNT, count + 1)
+            .putLong(KEY_SIGNUP_LAST_ATTEMPT_AT, now)
+            .apply()
+        return null
+    }
+
+    /** Dispara o e-mail de verificação sem bloquear o restante do cadastro em caso de falha (rede
+     *  instável, quota do Firebase etc.) — o usuário pode reenviar depois via
+     *  [resendVerificationEmail]. */
+    private fun sendVerificationEmailSafely(user: FirebaseUser) {
+        try {
+            user.sendEmailVerification().addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    Log.d(TAG, "Falha ao enviar e-mail de verificação: ${task.exception?.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Falha ao disparar e-mail de verificação: ${e.message}")
+        }
+    }
+
+    /** Reenvia o e-mail de confirmação da conta logada. Retorna uma mensagem amigável de erro (ou
+     *  de aviso, se o e-mail já estiver confirmado), ou `null` em caso de sucesso. */
+    suspend fun resendVerificationEmail(): String? {
+        val user = authOrNull()?.currentUser ?: return "Você precisa estar logado para reenviar a confirmação."
+        if (user.isEmailVerified) return "Seu e-mail já está confirmado."
+        return try {
+            suspendCancellableCoroutine<Result<Unit>> { cont ->
+                user.sendEmailVerification().addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        cont.resume(Result.success(Unit))
+                    } else {
+                        cont.resume(Result.failure(task.exception ?: Exception("Falha ao reenviar e-mail")))
+                    }
+                }
+            }.getOrThrow()
+            null
+        } catch (e: Exception) {
+            e.message ?: "Não foi possível reenviar o e-mail de confirmação."
+        }
+    }
 
     /** Cria uma conta gratuita com e-mail/senha, grava o perfil complementar (apelido exibido no
      *  app, nome completo e data de nascimento — usada futuramente para checar elegibilidade de
@@ -215,6 +299,13 @@ object AuthManager {
         nickname: String,
         birthDate: String
     ): String? {
+        if (!isValidEmail(email)) return "Informe um e-mail válido."
+        if (!isValidPassword(password)) {
+            return "A senha deve ter de $MIN_PASSWORD_LENGTH a $MAX_PASSWORD_LENGTH caracteres, com ao menos " +
+                "uma letra maiúscula, uma minúscula, um número e um caractere especial."
+        }
+        if (fullName.length > MAX_FULL_NAME_LENGTH) return "Nome completo muito longo."
+        checkAndRecordSignupAttempt()?.let { return it }
         val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
         return try {
             val result = suspendCancellableCoroutine<Result<FirebaseUser?>> { cont ->
@@ -232,6 +323,7 @@ object AuthManager {
                     awaitProfileUpdate(user, nickname)
                 }
                 saveProfileDoc(user.uid, fullName = fullName, nickname = nickname, birthDate = birthDate)
+                sendVerificationEmailSafely(user)
             }
             null
         } catch (e: Exception) {
@@ -242,6 +334,9 @@ object AuthManager {
     /** Autentica com e-mail/senha. Retorna uma mensagem de erro amigável em caso de falha, ou
      *  `null` em caso de sucesso. */
     suspend fun signIn(email: String, password: String): String? {
+        if (email.length > MAX_EMAIL_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+            return "Entrada inválida."
+        }
         val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
         return try {
             val result = suspendCancellableCoroutine<Result<Unit>> { cont ->
@@ -292,7 +387,12 @@ object AuthManager {
 
     /** Preenche o perfil complementar (`users/{uid}`) com dados da conta Google só quando ele
      *  ainda não existir — evita sobrescrever um apelido/nome/data de nascimento que o usuário já
-     *  tenha editado manualmente em um login anterior (com e-mail/senha ou Google). */
+     *  tenha editado manualmente em um login anterior (com e-mail/senha ou Google). Também baixa e
+     *  comprime a foto de perfil do Google (ver [downloadAndCompressAvatarFromUrl]), guardando
+     *  apenas a miniatura reduzida — nunca a URL/imagem original pesada. A data de nascimento não
+     *  é solicitada aqui (exigiria o escopo adicional da People API, fora do fluxo simples do
+     *  Credential Manager), então fica em branco até o usuário preenchê-la manualmente em "Editar
+     *  perfil". */
     private suspend fun initializeProfileIfFirstLogin(user: FirebaseUser) {
         val firestore = firestoreOrNull() ?: return
         val alreadyHasProfile = try {
@@ -310,6 +410,12 @@ object AuthManager {
         val displayName = user.displayName.orEmpty()
         val firstName = displayName.trim().substringBefore(" ").ifBlank { displayName }
         saveProfileDoc(uid = user.uid, fullName = displayName, nickname = firstName, birthDate = "")
+        user.photoUrl?.toString()?.let { photoUrl ->
+            val base64 = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                downloadAndCompressAvatarFromUrl(photoUrl)
+            }
+            if (base64 != null) updateProfilePhoto(base64)
+        }
     }
 
     fun signOut() {

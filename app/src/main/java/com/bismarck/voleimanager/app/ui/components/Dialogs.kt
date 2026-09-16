@@ -60,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -75,6 +76,14 @@ import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.TeamAccentColor
 import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import com.bismarck.voleimanager.app.util.MAX_EMAIL_LENGTH
+import com.bismarck.voleimanager.app.util.MAX_FULL_NAME_LENGTH
+import com.bismarck.voleimanager.app.util.MAX_PASSWORD_LENGTH
+import com.bismarck.voleimanager.app.util.MIN_PASSWORD_LENGTH
+import com.bismarck.voleimanager.app.util.isValidEmail
+import com.bismarck.voleimanager.app.util.isValidPassword
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -1476,6 +1485,7 @@ fun LoginDialog(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
 
@@ -1507,7 +1517,7 @@ fun LoginDialog(
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it; errorMessage = null },
+                    onValueChange = { email = it.take(MAX_EMAIL_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
@@ -1516,11 +1526,21 @@ fun LoginDialog(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it; errorMessage = null },
+                    onValueChange = { password = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.password_label)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { showPassword = !showPassword }) {
+                            Icon(
+                                if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = stringResource(
+                                    if (showPassword) R.string.hide_password else R.string.show_password
+                                )
+                            )
+                        }
+                    }
                 )
                 errorMessage?.let {
                     Spacer(Modifier.height(4.dp))
@@ -1533,8 +1553,13 @@ fun LoginDialog(
             }
         },
         confirmButton = {
+            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
             Button(
                 onClick = {
+                    if (!isValidEmail(email)) {
+                        errorMessage = invalidEmailMessage
+                        return@Button
+                    }
                     onConfirm(email, password) { error -> if (error == null) onDismiss() else errorMessage = error }
                 },
                 enabled = !inProgress && email.isNotBlank() && password.isNotBlank()
@@ -1619,6 +1644,7 @@ fun SignUpDialog(
     var birthDateValue by remember { mutableStateOf(TextFieldValue("")) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
 
@@ -1650,7 +1676,7 @@ fun SignUpDialog(
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = fullName,
-                    onValueChange = { fullName = it; errorMessage = null },
+                    onValueChange = { fullName = it.take(MAX_FULL_NAME_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.full_name_label)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
@@ -1659,7 +1685,7 @@ fun SignUpDialog(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = nickname,
-                    onValueChange = { nickname = it; errorMessage = null },
+                    onValueChange = { nickname = it.take(MAX_PLAYER_NAME_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.nickname_label)) },
                     supportingText = { Text(stringResource(R.string.nickname_hint)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
@@ -1677,7 +1703,7 @@ fun SignUpDialog(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it; errorMessage = null },
+                    onValueChange = { email = it.take(MAX_EMAIL_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true
@@ -1685,11 +1711,26 @@ fun SignUpDialog(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it; errorMessage = null },
+                    onValueChange = { password = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.password_label)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    supportingText = {
+                        Text(
+                            stringResource(R.string.password_requirements_hint, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH)
+                        )
+                    },
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { showPassword = !showPassword }) {
+                            Icon(
+                                if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = stringResource(
+                                    if (showPassword) R.string.hide_password else R.string.show_password
+                                )
+                            )
+                        }
+                    }
                 )
                 errorMessage?.let {
                     Spacer(Modifier.height(4.dp))
@@ -1703,8 +1744,20 @@ fun SignUpDialog(
         },
         confirmButton = {
             val birthDateHelp = stringResource(R.string.birth_date_invalid)
+            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
+            val invalidPasswordMessage = stringResource(
+                R.string.auth_invalid_password, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
+            )
             Button(
                 onClick = {
+                    if (!isValidEmail(email)) {
+                        errorMessage = invalidEmailMessage
+                        return@Button
+                    }
+                    if (!isValidPassword(password)) {
+                        errorMessage = invalidPasswordMessage
+                        return@Button
+                    }
                     val birthIso = parseBirthDateToIso(birthDateValue.text)
                     if (birthIso == null) {
                         errorMessage = birthDateHelp

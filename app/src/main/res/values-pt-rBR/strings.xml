@@ -127,6 +127,14 @@
     <string name="birth_date_label">Data de nascimento</string>
     <string name="birth_date_placeholder">DD/MM/AAAA</string>
     <string name="birth_date_invalid">Informe uma data válida (DD/MM/AAAA).</string>
+    <string name="show_password">Mostrar senha</string>
+    <string name="hide_password">Esconder senha</string>
+    <string name="password_requirements_hint">%1$d–%2$d caracteres, com maiúscula, minúscula, número e caractere especial.</string>
+    <string name="auth_invalid_email">Informe um e-mail válido.</string>
+    <string name="auth_invalid_password">A senha deve ter %1$d–%2$d caracteres, com maiúscula, minúscula, número e caractere especial.</string>
+    <string name="resend_verification_email">Reenviar e-mail de confirmação</string>
+    <string name="verification_email_sent">E-mail de confirmação enviado. Confira sua caixa de entrada.</string>
+    <string name="email_not_verified_banner">Confirme seu e-mail para poder assinar o Premium.</string>
     <string name="logout">Sair</string>
     <string name="account_avatar_content_description">Conta</string>
     <string name="premium_subscriber_badge">Assinante premium</string>
