@@ -212,10 +212,14 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
 }
 
 @Composable
-private fun LiveScoreboard(state: LiveGameState) {
+internal fun LiveScoreboard(state: LiveGameState, swapSides: Boolean = false) {
+    val (leftTeam, rightTeam) = if (swapSides) state.teamB to state.teamA else state.teamA to state.teamB
+    val (leftScore, rightScore) = if (swapSides) state.scoreB to state.scoreA else state.scoreA to state.scoreB
+    val leftLabelRes = if (swapSides) R.string.live_screen_team_b_label else R.string.live_screen_team_a_label
+    val rightLabelRes = if (swapSides) R.string.live_screen_team_a_label else R.string.live_screen_team_b_label
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         Text(
-            "${state.scoreA} x ${state.scoreB}",
+            "$leftScore x $rightScore",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -223,19 +227,19 @@ private fun LiveScoreboard(state: LiveGameState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                stringResource(R.string.live_screen_team_a_label),
+                stringResource(leftLabelRes),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold
             )
-            state.teamA.forEach { player -> Text(player.name, style = MaterialTheme.typography.bodyMedium) }
+            leftTeam.forEach { player -> Text(player.name, style = MaterialTheme.typography.bodyMedium) }
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                stringResource(R.string.live_screen_team_b_label),
+                stringResource(rightLabelRes),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold
             )
-            state.teamB.forEach { player -> Text(player.name, style = MaterialTheme.typography.bodyMedium) }
+            rightTeam.forEach { player -> Text(player.name, style = MaterialTheme.typography.bodyMedium) }
         }
     }
     HorizontalDivider(
@@ -261,7 +265,7 @@ private fun LiveScoreboard(state: LiveGameState) {
 }
 
 @Composable
-private fun RemoteHistoryRow(entry: RemoteHistoryEntry) {
+internal fun RemoteHistoryRow(entry: RemoteHistoryEntry) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(entry.date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("${entry.teamA}  ${entry.teamAScore ?: "-"} x ${entry.teamBScore ?: "-"}  ${entry.teamB}", style = MaterialTheme.typography.bodyMedium)
@@ -269,7 +273,7 @@ private fun RemoteHistoryRow(entry: RemoteHistoryEntry) {
 }
 
 @Composable
-private fun RemoteEloRow(entry: RemoteEloLogEntry) {
+internal fun RemoteEloRow(entry: RemoteEloLogEntry) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(entry.playerNameSnapshot, style = MaterialTheme.typography.bodyMedium)
         Text("%.0f".format(entry.elo), style = MaterialTheme.typography.bodyMedium)
@@ -721,7 +725,7 @@ private fun PlanOptionRow(
 }
 
 @Composable
-private fun SectionCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+internal fun SectionCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),

@@ -2363,16 +2363,22 @@ fun GenerateJoinCodeDialog(
 ) {
     var loading by remember { mutableStateOf(false) }
     var generatedCode by remember { mutableStateOf<String?>(null) }
+    var generatedRole by remember { mutableStateOf<com.bismarck.voleimanager.app.util.JoinRole?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
-    fun generate(action: ((com.bismarck.voleimanager.app.util.GeneratedJoinCode?, String?) -> Unit) -> Unit) {
+    fun generate(
+        role: com.bismarck.voleimanager.app.util.JoinRole,
+        action: ((com.bismarck.voleimanager.app.util.GeneratedJoinCode?, String?) -> Unit) -> Unit
+    ) {
         loading = true
         errorMessage = null
         generatedCode = null
+        generatedRole = null
         action { result, error ->
             loading = false
             generatedCode = result?.code
+            generatedRole = if (result != null) role else null
             errorMessage = error
         }
     }
@@ -2403,7 +2409,13 @@ fun GenerateJoinCodeDialog(
                         }
                     }
                     Text(
-                        stringResource(R.string.generate_join_code_expiry_hint),
+                        stringResource(
+                            if (generatedRole == com.bismarck.voleimanager.app.util.JoinRole.ESPECTADOR) {
+                                R.string.generate_join_code_expiry_hint_espectador
+                            } else {
+                                R.string.generate_join_code_expiry_hint_auxiliar
+                            }
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2411,10 +2423,14 @@ fun GenerateJoinCodeDialog(
                     CircularProgressIndicator(modifier = Modifier.padding(vertical = 8.dp))
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { generate(onGenerateAuxiliar) }) {
+                        OutlinedButton(onClick = {
+                            generate(com.bismarck.voleimanager.app.util.JoinRole.AUXILIAR, onGenerateAuxiliar)
+                        }) {
                             Text(stringResource(R.string.generate_join_code_role_auxiliar))
                         }
-                        OutlinedButton(onClick = { generate(onGenerateEspectador) }) {
+                        OutlinedButton(onClick = {
+                            generate(com.bismarck.voleimanager.app.util.JoinRole.ESPECTADOR, onGenerateEspectador)
+                        }) {
                             Text(stringResource(R.string.generate_join_code_role_espectador))
                         }
                     }

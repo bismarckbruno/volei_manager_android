@@ -16,8 +16,9 @@ enum class JoinRole { AUXILIAR, ESPECTADOR }
 /** Código de convite recém-gerado, pronto para compartilhar (expira em 30 minutos). */
 data class GeneratedJoinCode(val code: String, val expiresAtMillis: Long)
 
-/** Resultado de resgatar um código de convite: grupo em nuvem + papel concedido. */
-data class RedeemedJoinCode(val cloudGroupId: String, val role: JoinRole)
+/** Resultado de resgatar um código de convite: grupo em nuvem + papel concedido + nome real do
+ *  grupo (para não depender de um placeholder local com o código dentro). */
+data class RedeemedJoinCode(val cloudGroupId: String, val role: JoinRole, val groupName: String?)
 
 /**
  * Fachada sobre as Cloud Functions "callable" do backend (`volei_manager_backend`) responsáveis
@@ -61,9 +62,10 @@ object CloudFunctionsManager {
         }
     }
 
-    /** Gera um código de convite (PIN de 6 caracteres, válido por 30 minutos) para um grupo já
-     *  sincronizado em nuvem. Só funciona para quem é organizador ou auxiliar do grupo (checado
-     *  no próprio backend). */
+    /** Gera um código de convite (PIN de 6 caracteres) para um grupo já sincronizado em nuvem. Só
+     *  funciona para quem é organizador ou auxiliar do grupo (checado no próprio backend). Código
+     *  de Auxiliar: uso único, válido por 30 minutos. Código de Espectador: até 100 resgates,
+     *  válido por 30 dias. */
     suspend fun createJoinCode(cloudGroupId: String, role: JoinRole): Result<GeneratedJoinCode> {
         val functions = functionsOrNull()
             ?: return Result.failure(Exception("Serviço de nuvem indisponível no momento."))
@@ -99,7 +101,7 @@ object CloudFunctionsManager {
             if (cloudGroupId == null || role == null) {
                 Result.failure(Exception("Resposta inesperada do servidor."))
             } else {
-                Result.success(RedeemedJoinCode(cloudGroupId, role))
+                Result.success(RedeemedJoinCode(cloudGroupId, role, data["groupName"] as? String))
             }
         } catch (e: Exception) {
             Result.failure(Exception(friendlyMessage(e)))

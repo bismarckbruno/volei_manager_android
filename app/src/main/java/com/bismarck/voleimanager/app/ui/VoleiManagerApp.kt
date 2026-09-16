@@ -389,6 +389,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             showAddPlayerDialog = false
             showExportDialog = false
             showImportDialog = false
+            showConfigDialog = false
         }
     }
 
@@ -1210,14 +1211,16 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                             Text(text = stringResource(R.string.settings), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
 
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.Settings, null) },
-                                label = { Text(stringResource(R.string.group_rules)) },
-                                selected = false,
-                                onClick = {
-                                    showConfigDialog = true; scope.launch { drawerState.close() }
-                                }
-                            )
+                            if (!isSpectatorOfCurrentGroup) {
+                                FlexibleDrawerItem(
+                                    icon = { Icon(Icons.Outlined.Settings, null) },
+                                    label = { Text(stringResource(R.string.group_rules)) },
+                                    selected = false,
+                                    onClick = {
+                                        showConfigDialog = true; scope.launch { drawerState.close() }
+                                    }
+                                )
+                            }
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.Palette, null) },
                                 label = { Text(stringResource(R.string.theme)) },
@@ -1314,7 +1317,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         }
 
     ) {
-        if (showConfigDialog) {
+        if (showConfigDialog && !isSpectatorOfCurrentGroup) {
             GroupConfigDialog(
                 groupName = selectedGroup ?: groupConfig.groupName,
                 initialTeamSize = groupConfig.teamSize,
@@ -2196,7 +2199,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                          label = "ScreenAnim"
                      ) { screen ->
                         when (screen) {
-                            Screen.GAME -> GameScreenContent(
+                            Screen.GAME -> if (groupConfig.remoteRole != null) {
+                                RemoteGameScreen(viewModel = viewModel)
+                            } else GameScreenContent(
                                 viewModel = viewModel,
                                 selectedGroup = selectedGroup ?: groupConfig.groupName,
                                 onSelectedGroupChange = { selectedGroup = it },
@@ -2223,7 +2228,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 }
                             )
 
-                            Screen.HISTORY -> HistoryScreen(
+                            Screen.HISTORY -> if (groupConfig.remoteRole != null) {
+                                LaunchedEffect(Unit) {
+                                    if (pendingDrawerCloseScreen == Screen.HISTORY && drawerState.isOpen) {
+                                        drawerState.close()
+                                        pendingDrawerCloseScreen = null
+                                    }
+                                }
+                                RemoteHistoryScreen(viewModel = viewModel)
+                            } else HistoryScreen(
                                 matchSortMode = historyMatchSortMode,
                                 onMatchSortModeChanged = { historyMatchSortMode = it },
                                 viewModel = viewModel,

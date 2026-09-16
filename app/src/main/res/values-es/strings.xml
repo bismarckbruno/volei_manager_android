@@ -28,6 +28,7 @@
     <string name="game_word">Partido</string>
     <string name="game_word_spectator">Partido (En vivo)</string>
     <string name="spectator_waiting_game_start">Esperando el inicio del partido</string>
+    <string name="swap_team_sides">Cambiar lados de los equipos</string>
     <string name="faq">Preguntas frecuentes</string>
     <string name="about_app">Sobre la aplicación</string>
     <string name="settings">Configuración</string>
@@ -106,11 +107,12 @@
     <string name="join_group_invalid_code">Código inválido o expirado.</string>
     <string name="generate_join_code_menu_item">Generar código de invitación…</string>
     <string name="generate_join_code_title">Código de invitación de %1$s</string>
-    <string name="generate_join_code_hint">Genera un código de 6 caracteres, válido por 30 minutos, para que alguien entre a este grupo como coadministrador u observador.</string>
+    <string name="generate_join_code_hint">Genera un código para que alguien entre a este grupo como coadministrador (uso único, válido por 30 minutos) u observador (hasta 100 usos, válido por 30 días).</string>
     <string name="generate_join_code_role_auxiliar">Coadministrador</string>
     <string name="generate_join_code_role_espectador">Observador(a)</string>
     <string name="generate_join_code_copy">Copiar</string>
-    <string name="generate_join_code_expiry_hint">Válido por 30 minutos — compártelo solo con una persona.</string>
+    <string name="generate_join_code_expiry_hint_auxiliar">Válido por 30 minutos y solo se puede usar una vez — compártelo solo con una persona.</string>
+    <string name="generate_join_code_expiry_hint_espectador">Válido por 30 días y puede ser usado por hasta 100 personas.</string>
     <string name="generate_join_code_group_not_synced">Sincroniza este grupo en la nube antes de generar un código de invitación.</string>
     <string name="join_group_remote_group_name">Grupo remoto (%1$s)</string>
     <string name="join_group_already_joined">Ya te uniste a este grupo.</string>

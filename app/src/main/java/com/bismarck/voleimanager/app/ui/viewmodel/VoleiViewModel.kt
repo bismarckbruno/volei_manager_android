@@ -1161,7 +1161,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 JoinRole.AUXILIAR -> UserProfileType.AUXILIAR
                 JoinRole.ESPECTADOR -> UserProfileType.ESPECTADOR
             }
-            joinRemoteGroup(cloudGroupId = redeemed.cloudGroupId, role = remoteRole, displayCode = trimmed, onResult = onResult)
+            joinRemoteGroup(
+                cloudGroupId = redeemed.cloudGroupId,
+                role = remoteRole,
+                displayCode = trimmed,
+                remoteGroupName = redeemed.groupName,
+                onResult = onResult
+            )
             return@launch
         }
 
@@ -1185,14 +1191,26 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         cloudGroupId: String,
         role: UserProfileType,
         displayCode: String,
+        remoteGroupName: String? = null,
         onResult: (String?) -> Unit
     ) {
-        val groupName = normalizeGroupName(
-            getApplication<Application>().getString(R.string.join_group_remote_group_name, displayCode)
+        val baseName = normalizeGroupName(
+            remoteGroupName?.takeIf { it.isNotBlank() }
+                ?: getApplication<Application>().getString(R.string.join_group_remote_group_name, displayCode)
         )
-        if (repository.getGroupConfig(groupName) != null) {
-            onResult(getApplication<Application>().getString(R.string.join_group_already_joined))
-            return
+        // Se já existir um grupo local com o mesmo nome (ex.: dois grupos remotos com nomes
+        // iguais, ou colisão com um grupo próprio), acrescenta um sufixo numérico até achar um
+        // nome livre, em vez de bloquear a entrada ou sobrescrever o grupo existente.
+        var groupName = baseName
+        var suffix = 2
+        while (repository.getGroupConfig(groupName) != null) {
+            val candidate = "$baseName ($suffix)"
+            groupName = normalizeGroupName(candidate)
+            suffix++
+            if (suffix > 50) {
+                onResult(getApplication<Application>().getString(R.string.join_group_already_joined))
+                return
+            }
         }
         val cfg = GroupConfig(
             groupName = groupName,

@@ -28,6 +28,7 @@
     <string name="game_word">Match</string>
     <string name="game_word_spectator">Match (Live)</string>
     <string name="spectator_waiting_game_start">Waiting for the match to start</string>
+    <string name="swap_team_sides">Swap team sides</string>
     <string name="faq">FAQ</string>
     <string name="about_app">About the app</string>
     <string name="settings">Settings</string>
@@ -106,11 +107,12 @@
     <string name="join_group_invalid_code">Invalid or expired code.</string>
     <string name="generate_join_code_menu_item">Generate invite code…</string>
     <string name="generate_join_code_title">Invite code for %1$s</string>
-    <string name="generate_join_code_hint">Generate a 6-character code, valid for 30 minutes, so someone can join this group as assistant or observer.</string>
+    <string name="generate_join_code_hint">Generate a code so someone can join this group as assistant (single use, valid for 30 minutes) or observer (up to 100 uses, valid for 30 days).</string>
     <string name="generate_join_code_role_auxiliar">Assistant</string>
     <string name="generate_join_code_role_espectador">Observer</string>
     <string name="generate_join_code_copy">Copy</string>
-    <string name="generate_join_code_expiry_hint">Valid for 30 minutes — share it with just one person.</string>
+    <string name="generate_join_code_expiry_hint_auxiliar">Valid for 30 minutes and can only be used once — share it with just one person.</string>
+    <string name="generate_join_code_expiry_hint_espectador">Valid for 30 days and can be used by up to 100 people.</string>
     <string name="generate_join_code_group_not_synced">Sync this group in the cloud before generating an invite code.</string>
     <string name="join_group_remote_group_name">Remote group (%1$s)</string>
     <string name="join_group_already_joined">You already joined this group.</string>

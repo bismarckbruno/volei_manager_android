@@ -28,6 +28,7 @@
     <string name="game_word">Jogo</string>
     <string name="game_word_spectator">Jogo (Ao vivo)</string>
     <string name="spectator_waiting_game_start">Aguardando início do jogo</string>
+    <string name="swap_team_sides">Trocar lados dos times</string>
     <string name="faq">Perguntas frequentes</string>
     <string name="about_app">Sobre o app</string>
     <string name="settings">Configurações</string>
@@ -106,11 +107,12 @@
     <string name="join_group_invalid_code">Código inválido ou expirado.</string>
     <string name="generate_join_code_menu_item">Gerar código de convite…</string>
     <string name="generate_join_code_title">Código de convite de %1$s</string>
-    <string name="generate_join_code_hint">Gere um código de 6 caracteres, válido por 30 minutos, para alguém entrar neste grupo como auxiliar ou espectador.</string>
+    <string name="generate_join_code_hint">Gere um código para alguém entrar neste grupo como auxiliar (uso único, válido por 30 minutos) ou espectador (até 100 usos, válido por 30 dias).</string>
     <string name="generate_join_code_role_auxiliar">Auxiliar</string>
     <string name="generate_join_code_role_espectador">Espectador(a)</string>
     <string name="generate_join_code_copy">Copiar</string>
-    <string name="generate_join_code_expiry_hint">Válido por 30 minutos — compartilhe só com uma pessoa.</string>
+    <string name="generate_join_code_expiry_hint_auxiliar">Válido por 30 minutos e só pode ser usado uma vez — compartilhe só com uma pessoa.</string>
+    <string name="generate_join_code_expiry_hint_espectador">Válido por 30 dias e pode ser usado por até 100 pessoas.</string>
     <string name="generate_join_code_group_not_synced">Sincronize este grupo em nuvem antes de gerar um código de convite.</string>
     <string name="join_group_remote_group_name">Grupo remoto (%1$s)</string>
     <string name="join_group_already_joined">Você já entrou neste grupo.</string>
