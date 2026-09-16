@@ -130,14 +130,15 @@ class CloudSyncPermissionsTest {
     }
 
     @Test
-    fun joinGroupWithCode_debugFallback_auxiliarPrefix_createsRemoteAuxiliarGroup() = runBlocking {
+    fun joinGroupWithCode_debugFallback_auxiliarPrefix_isTemporarilyUnavailable() = runBlocking {
+        // Papel Auxiliar temporariamente oculto/desativado para o lançamento (ver
+        // `hide-auxiliar-role-temporarily`) — mesmo o fallback local de debug deve recusar.
         val env = createEnv()
         val error = env.vm.joinGroupWithCodeAwait("AUX-ABC123")
 
-        assertNull(error)
+        assertNotNull(error)
         val remoteGroup = env.repo.getAllGroupConfigs().firstOrNull { it.remoteRole == UserProfileType.AUXILIAR.name }
-        assertNotNull(remoteGroup)
-        assertTrue(remoteGroup!!.isCloudSynced)
+        assertNull(remoteGroup)
     }
 
     @Test
@@ -161,10 +162,10 @@ class CloudSyncPermissionsTest {
     @Test
     fun joinGroupWithCode_sameCodeTwice_secondAttemptReturnsAlreadyJoinedError() = runBlocking {
         val env = createEnv()
-        val firstError = env.vm.joinGroupWithCodeAwait("AUX-SAME1")
+        val firstError = env.vm.joinGroupWithCodeAwait("ESP-SAME1")
         assertNull(firstError)
 
-        val secondError = env.vm.joinGroupWithCodeAwait("AUX-SAME1")
+        val secondError = env.vm.joinGroupWithCodeAwait("ESP-SAME1")
         assertNotNull(secondError)
     }
 

@@ -1259,6 +1259,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val remoteResult = CloudFunctionsManager.redeemJoinCode(trimmed)
         val redeemed = remoteResult.getOrNull()
         if (redeemed != null) {
+            // Papel Auxiliar temporariamente oculto/desativado (ver `hide-auxiliar-role-temporarily`):
+            // a sincronização Admin<->Auxiliar ainda não está estável para o lançamento, então um
+            // código de Auxiliar (novo ou antigo, já gerado antes desta mudança) não é aceito.
+            if (redeemed.role == JoinRole.AUXILIAR) {
+                onResult(getApplication<Application>().getString(R.string.join_group_auxiliar_unavailable))
+                return@launch
+            }
             val remoteRole = when (redeemed.role) {
                 JoinRole.AUXILIAR -> UserProfileType.AUXILIAR
                 JoinRole.ESPECTADOR -> UserProfileType.ESPECTADOR
@@ -1279,6 +1286,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 upper.startsWith("AUX") -> UserProfileType.AUXILIAR
                 upper.startsWith("ESP") -> UserProfileType.ESPECTADOR
                 else -> null
+            }
+            if (debugRole == UserProfileType.AUXILIAR) {
+                onResult(getApplication<Application>().getString(R.string.join_group_auxiliar_unavailable))
+                return@launch
             }
             if (debugRole != null) {
                 joinRemoteGroup(cloudGroupId = upper, role = debugRole, displayCode = upper, onResult = onResult)

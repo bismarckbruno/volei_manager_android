@@ -2440,17 +2440,12 @@ fun GenerateJoinCodeDialog(
                 } else if (loading) {
                     CircularProgressIndicator(modifier = Modifier.padding(vertical = 8.dp))
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            generate(com.bismarck.voleimanager.app.util.JoinRole.AUXILIAR, onGenerateAuxiliar)
-                        }) {
-                            Text(stringResource(R.string.generate_join_code_role_auxiliar))
-                        }
-                        OutlinedButton(onClick = {
-                            generate(com.bismarck.voleimanager.app.util.JoinRole.ESPECTADOR, onGenerateEspectador)
-                        }) {
-                            Text(stringResource(R.string.generate_join_code_role_espectador))
-                        }
+                    // Papel Auxiliar temporariamente oculto (ver `hide-auxiliar-role-temporarily`):
+                    // só oferecemos geração de código de Espectador por enquanto.
+                    Button(onClick = {
+                        generate(com.bismarck.voleimanager.app.util.JoinRole.ESPECTADOR, onGenerateEspectador)
+                    }) {
+                        Text(stringResource(R.string.generate_join_code_role_espectador))
                     }
                 }
                 errorMessage?.let {

@@ -77,9 +77,11 @@ fun UserProfileOnboardingScreen(onProfileSelected: (UserProfileType) -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                // Auxiliar temporariamente oculto: a sincronização Admin<->Auxiliar ainda não está
+                // estável o suficiente para lançar (ver `hide-auxiliar-role-temporarily`). Só
+                // Organizador/Espectador ficam disponíveis por enquanto.
                 val options = listOf(
                     UserProfileType.ORGANIZADOR,
-                    UserProfileType.AUXILIAR,
                     UserProfileType.ESPECTADOR
                 )
                 items(options) { profile ->

@@ -106,6 +106,7 @@
     <string name="join_existing_group_code_label">Código</string>
     <string name="join_existing_group_confirm">Entrar</string>
     <string name="join_group_invalid_code">Código inválido ou expirado.</string>
+    <string name="join_group_auxiliar_unavailable">O papel de Auxiliar está temporariamente indisponível.</string>
     <string name="generate_join_code_menu_item">Gerar código de convite…</string>
     <string name="generate_join_code_title">Código de convite de %1$s</string>
     <string name="generate_join_code_hint">Gere um código para alguém entrar neste grupo como auxiliar (uso único, válido por 30 minutos) ou espectador (até 100 usos, válido por 30 dias).</string>

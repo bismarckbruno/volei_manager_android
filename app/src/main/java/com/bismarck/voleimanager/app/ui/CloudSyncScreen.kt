@@ -594,24 +594,10 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
         }
 
         // ========== GRUPOS ADMINISTRADOS COMO AUXILIAR ==========
-        val auxiliarGroups = allGroups.filter { it.remoteRole == UserProfileType.AUXILIAR.name }
-        if (auxiliarGroups.isNotEmpty()) {
-            SectionCard {
-                Text(
-                    stringResource(R.string.cloud_sync_auxiliar_groups_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                auxiliarGroups.sortedBy { it.groupName }.forEach { group ->
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(group.groupName, style = MaterialTheme.typography.bodyMedium)
-                        GroupVisibilityToggles(group = group, onChange = { shareHistory, showElo ->
-                            viewModel.setGroupVisibility(group.groupName, shareHistory, showElo)
-                        })
-                    }
-                }
-            }
-        }
+        // Papel Auxiliar temporariamente oculto/desativado para o lançamento (a sincronização
+        // Admin<->Auxiliar ainda não está estável) — ver `hide-auxiliar-role-temporarily`. Novos
+        // códigos de Auxiliar não são mais gerados nem resgatáveis; esta seção fica escondida
+        // mesmo que algum dispositivo de teste ainda tenha um grupo remoto com esse papel salvo.
 
         // ========== GRUPOS ACOMPANHADOS COMO ESPECTADOR ==========
         // Um mesmo dispositivo/conta pode ser Auxiliar de um grupo e Espectador de outro ao mesmo
