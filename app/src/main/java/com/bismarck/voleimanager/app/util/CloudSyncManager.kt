@@ -20,6 +20,9 @@ private const val ELO_LOGS_COLLECTION = "eloLogs"
 private const val FIELD_VISIBILITY = "visibility"
 private const val FIELD_SHARE_HISTORY = "shareHistoryWithObservers"
 private const val FIELD_SHOW_ELO = "showEloToObservers"
+private const val FIELD_GROUP_TYPE = "groupType"
+private const val FIELD_BALANCING_MODE = "balancingMode"
+private const val FIELD_TEAM_SIZE = "teamSize"
 private const val REMOTE_LIST_LIMIT = 100L
 
 /** Jogador "enxuto" sincronizado em `liveState` — usa [publicId] (estável entre dispositivos) em
@@ -89,7 +92,25 @@ data class LiveGameState(
      *  dispositivo com o roster real do grupo no Room); Auxiliar apenas ecoa o último valor
      *  recebido ao publicar suas próprias atualizações, para não apagar essa lista sem querer.
      *  Usado pelo Espectador para ver "quem está presente agora" antes do jogo começar. */
-    val presentPlayers: List<RemotePlayerSnapshot> = emptyList()
+    val presentPlayers: List<RemotePlayerSnapshot> = emptyList(),
+    /** Lista completa do elenco do grupo (sem filtro de presença), publicada só pelo organizador
+     *  (único com o roster real no Room) e ecoada por um Auxiliar remoto — usada para o Auxiliar
+     *  enxergar a lista de jogadores completa, sem as restrições de edição do Espectador. */
+    val allPlayers: List<RemotePlayerSnapshot> = emptyList(),
+    /** Instante (epoch millis) em que a partida em andamento começou, usado para calcular tempo de
+     *  partida/tempo médio de duração em todos os papéis. */
+    val matchStartTimestamp: Long? = null,
+    /** Time ("A"/"B") que fez o ponto mais recente, para o indicador visual no placar. */
+    val lastScoringTeam: String? = null,
+    /** Time ("A"/"B") que deve fazer rodízio, para o indicador visual no placar. */
+    val rotationRequiredForTeam: String? = null,
+    /** publicId do jogador cuja presença um Auxiliar remoto pediu para alternar; só o organizador
+     *  processa este campo (aplicando sua própria lógica local de presença/fila) e volta a
+     *  publicá-lo como `null` assim que atender o pedido — mesmo padrão de
+     *  [pendingFinishWinner]/[pendingFinishRequestId]. */
+    val pendingPresenceTogglePublicId: String? = null,
+    /** Identificador único do pedido acima, ver [pendingFinishRequestId]. */
+    val pendingPresenceToggleRequestId: String? = null
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "groupName" to groupName,
@@ -103,7 +124,13 @@ data class LiveGameState(
         "updatedAt" to updatedAt,
         "pendingFinishWinner" to pendingFinishWinner,
         "pendingFinishRequestId" to pendingFinishRequestId,
-        "presentPlayers" to presentPlayers.map { it.toMap() }
+        "presentPlayers" to presentPlayers.map { it.toMap() },
+        "allPlayers" to allPlayers.map { it.toMap() },
+        "matchStartTimestamp" to matchStartTimestamp,
+        "lastScoringTeam" to lastScoringTeam,
+        "rotationRequiredForTeam" to rotationRequiredForTeam,
+        "pendingPresenceTogglePublicId" to pendingPresenceTogglePublicId,
+        "pendingPresenceToggleRequestId" to pendingPresenceToggleRequestId
     )
 }
 
@@ -118,7 +145,11 @@ data class RemoteHistoryEntry(
     val winner: String = "",
     val teamAScore: Int? = null,
     val teamBScore: Int? = null,
-    val endTimestamp: Long? = null
+    val endTimestamp: Long? = null,
+    val startTimestamp: Long? = null,
+    val eloPoints: Double = 0.0,
+    val teamAAverageElo: Double? = null,
+    val teamBAverageElo: Double? = null
 )
 
 /** Entrada de Elo "enxuta" publicada em `cloudGroups/{id}/eloLogs` — só visível a observadores
@@ -138,7 +169,13 @@ data class RemoteEloLogEntry(
 /** Toggles de visibilidade do grupo para observadores, espelhados de `cloudGroups/{id}.visibility`. */
 data class GroupVisibility(
     val shareHistoryWithObservers: Boolean = false,
-    val showEloToObservers: Boolean = false
+    val showEloToObservers: Boolean = false,
+    /** Metadados do grupo espelhados no documento raiz (fora do mapa `visibility`) para que
+     *  ícones de tipo/balanceamento/tamanho de time no cabeçalho fiquem sincronizados entre
+     *  organizador, auxiliar e espectador — ver `GroupConfig.groupType`/`balancingMode`/`teamSize`. */
+    val groupType: String? = null,
+    val balancingMode: String? = null,
+    val teamSize: Int? = null
 )
 
 /**
@@ -224,7 +261,13 @@ object CloudSyncManager {
                             updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L,
                             pendingFinishWinner = data["pendingFinishWinner"] as? String,
                             pendingFinishRequestId = data["pendingFinishRequestId"] as? String,
-                            presentPlayers = (data["presentPlayers"] as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.let(RemotePlayerSnapshot::fromMap) }.orEmpty()
+                            presentPlayers = (data["presentPlayers"] as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.let(RemotePlayerSnapshot::fromMap) }.orEmpty(),
+                            allPlayers = (data["allPlayers"] as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.let(RemotePlayerSnapshot::fromMap) }.orEmpty(),
+                            matchStartTimestamp = (data["matchStartTimestamp"] as? Number)?.toLong(),
+                            lastScoringTeam = data["lastScoringTeam"] as? String,
+                            rotationRequiredForTeam = data["rotationRequiredForTeam"] as? String,
+                            pendingPresenceTogglePublicId = data["pendingPresenceTogglePublicId"] as? String,
+                            pendingPresenceToggleRequestId = data["pendingPresenceToggleRequestId"] as? String
                         )
                     )
                 }
@@ -250,7 +293,11 @@ object CloudSyncManager {
                         "winner" to entry.winner,
                         "teamAScore" to entry.teamAScore,
                         "teamBScore" to entry.teamBScore,
-                        "endTimestamp" to entry.endTimestamp
+                        "endTimestamp" to entry.endTimestamp,
+                        "startTimestamp" to entry.startTimestamp,
+                        "eloPoints" to entry.eloPoints,
+                        "teamAAverageElo" to entry.teamAAverageElo,
+                        "teamBAverageElo" to entry.teamBAverageElo
                     )
                 ).addOnCompleteListener { cont.resume(Unit) }
             }
@@ -308,7 +355,11 @@ object CloudSyncManager {
                             winner = doc.getString("winner") ?: "",
                             teamAScore = (doc.get("teamAScore") as? Number)?.toInt(),
                             teamBScore = (doc.get("teamBScore") as? Number)?.toInt(),
-                            endTimestamp = (doc.get("endTimestamp") as? Number)?.toLong()
+                            endTimestamp = (doc.get("endTimestamp") as? Number)?.toLong(),
+                            startTimestamp = (doc.get("startTimestamp") as? Number)?.toLong(),
+                            eloPoints = (doc.get("eloPoints") as? Number)?.toDouble() ?: 0.0,
+                            teamAAverageElo = (doc.get("teamAAverageElo") as? Number)?.toDouble(),
+                            teamBAverageElo = (doc.get("teamBAverageElo") as? Number)?.toDouble()
                         )
                     }
                 )
@@ -369,13 +420,19 @@ object CloudSyncManager {
                     return@addSnapshotListener
                 }
                 val visibility = snapshot?.get(FIELD_VISIBILITY) as? Map<*, *>
-                if (visibility == null) {
+                val groupType = snapshot?.getString(FIELD_GROUP_TYPE)
+                val balancingMode = snapshot?.getString(FIELD_BALANCING_MODE)
+                val teamSize = (snapshot?.get(FIELD_TEAM_SIZE) as? Number)?.toInt()
+                if (visibility == null && groupType == null && balancingMode == null && teamSize == null) {
                     trySend(null)
                 } else {
                     trySend(
                         GroupVisibility(
-                            shareHistoryWithObservers = visibility[FIELD_SHARE_HISTORY] as? Boolean ?: false,
-                            showEloToObservers = visibility[FIELD_SHOW_ELO] as? Boolean ?: false
+                            shareHistoryWithObservers = visibility?.get(FIELD_SHARE_HISTORY) as? Boolean ?: false,
+                            showEloToObservers = visibility?.get(FIELD_SHOW_ELO) as? Boolean ?: false,
+                            groupType = groupType,
+                            balancingMode = balancingMode,
+                            teamSize = teamSize
                         )
                     )
                 }
@@ -408,5 +465,23 @@ object CloudSyncManager {
             Log.d(TAG, "Falha ao salvar visibilidade: ${e.message}")
             e.message ?: "Não foi possível salvar a visibilidade agora."
         }
+    }
+
+    /** Publica os metadados de cabeçalho do grupo (tipo, modo de balanceamento, tamanho de time)
+     *  de [cloudGroupId] (melhor esforço, permitido a organizador/auxiliar — nenhum destes campos
+     *  é sensível em `onlyTouchesClientEditableFields()` em firestore.rules). Usado para manter os
+     *  ícones do cabeçalho sincronizados entre organizador/auxiliar/espectador. */
+    fun setGroupMeta(cloudGroupId: String, groupType: String, balancingMode: String, teamSize: Int) {
+        val firestore = firestoreOrNull() ?: return
+        groupDoc(firestore, cloudGroupId)
+            .set(
+                mapOf(
+                    FIELD_GROUP_TYPE to groupType,
+                    FIELD_BALANCING_MODE to balancingMode,
+                    FIELD_TEAM_SIZE to teamSize
+                ),
+                SetOptions.merge()
+            )
+            .addOnFailureListener { e -> Log.d(TAG, "Falha ao publicar metadados do grupo (best-effort): ${e.message}") }
     }
 }

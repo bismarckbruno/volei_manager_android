@@ -565,6 +565,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  o organizador tem o roster real no Room para recalculá-la (ver [observeAndPushCloudLiveState]). */
     private var lastKnownRemotePresentPlayers: List<RemotePlayerSnapshot> = emptyList()
 
+    /** Último [LiveGameState.allPlayers] recebido/observado — mesmo papel de
+     *  [lastKnownRemotePresentPlayers], mas para o elenco completo do grupo (usado pelo Auxiliar
+     *  para ver a lista de jogadores completa, sem restrição de edição). */
+    private var lastKnownRemoteAllPlayers: List<RemotePlayerSnapshot> = emptyList()
+
+    /** Último id de pedido de alternância de presença ([LiveGameState.pendingPresenceToggleRequestId])
+     *  já processado pelo organizador, para não aplicar o mesmo pedido de um Auxiliar duas vezes
+     *  (mesmo padrão de [lastProcessedFinishRequestId]). */
+    private var lastProcessedPresenceToggleRequestId: String? = null
+
     private val _currentGroupConfig = MutableStateFlow(
         GroupConfig(groupName = "", onboardingStep = ONBOARDING_STEP_GROUP_NAME)
     )
@@ -579,6 +589,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      */
     val isSpectatorOfCurrentGroup: StateFlow<Boolean> = _currentGroupConfig
         .map { it.remoteRole == UserProfileType.ESPECTADOR.name }
+        .stateIn(viewModelScope, screenDataSharing, false)
+
+    /** `true` quando o grupo ativo foi acessado via código de Auxiliar
+     *  ([GroupConfig.remoteRole] == `"AUXILIAR"`) — este dispositivo não tem roster real no Room
+     *  para o grupo (não é o dono), mas tem permissão de edição total, só que espelhada via
+     *  [LiveGameState] (ver `aux-full-roster-sync`). */
+    val isAuxiliarOfCurrentGroup: StateFlow<Boolean> = _currentGroupConfig
+        .map { it.remoteRole == UserProfileType.AUXILIAR.name }
         .stateIn(viewModelScope, screenDataSharing, false)
 
     val players = repository.allPlayers.stateIn(
@@ -1460,6 +1478,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _remoteSelectedPlayers = MutableStateFlow<List<Player>>(emptyList())
     val remoteSelectedPlayers = _remoteSelectedPlayers.asStateFlow()
 
+    /** Elenco completo (sem filtro de presença) do grupo remoto, sincronizado via
+     *  [LiveGameState.allPlayers] — usado pelo Auxiliar para ver a lista de jogadores completa do
+     *  grupo, sem as restrições de edição do Espectador (ver `aux-full-roster-sync`). */
+    private val _remoteAllPlayers = MutableStateFlow<List<Player>>(emptyList())
+    val remoteAllPlayers = _remoteAllPlayers.asStateFlow()
+
     /** Posição ocupada por cada jogador na partida atual. Vazio fora do Modo Posições Fixas. */
     private val _assignedPositions = MutableStateFlow<Map<Int, PlayerPosition>>(emptyMap())
     val assignedPositions = _assignedPositions.asStateFlow()
@@ -1608,21 +1632,35 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         ) { teams, scoreA, scoreB, presentIds ->
             LiveGameStatePartial(teams.first, teams.second, teams.third, scoreA, scoreB, presentIds)
         }
+        // Campos extras que também dependem de um Player.id real (elenco completo, marcador de
+        // ponto/rodízio, início da partida) são agrupados aqui para não estourar o limite de 5
+        // flows tipadas do combine() abaixo.
+        val extraFlow = combine(_currentMatchStartTimestamp, _lastScoringTeam, _rotationRequiredForTeam) { ts, lastTeam, rotation ->
+            Triple(ts, lastTeam, rotation)
+        }
+        val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow) { players, extra -> players to extra }
         viewModelScope.launch {
-            combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner, currentGroupPlayers) { config, partial, streak, owner, groupPlayers ->
+            combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner, groupPlayersAndExtra) { config, partial, streak, owner, playersAndExtra ->
+                val groupPlayers = playersAndExtra.first
+                val (matchStartTimestamp, lastScoringTeam, rotationRequiredForTeam) = playersAndExtra.second
                 // Organizador (grupo próprio) e Auxiliar (`remoteRole == "AUXILIAR"`) publicam o
                 // estado ao vivo; Espectador nunca escreve (fica só na ponta de leitura abaixo).
                 val canPush = config.isCloudSynced && config.cloudGroupId != null &&
                     (config.remoteRole == null || config.remoteRole == UserProfileType.AUXILIAR.name)
                 if (canPush) {
-                    // Presença/seleção pré-partida: só o organizador tem o roster real no Room
-                    // para calculá-la; o Auxiliar ecoa o último valor observado, para não apagar
-                    // essa lista com um valor vazio ao publicar sua própria edição de placar/times.
-                    val presentSnapshots = if (config.remoteRole == null) {
-                        partial.presentPlayerIds.mapNotNull { id -> groupPlayers.find { it.id == id } }
+                    // Presença/seleção pré-partida e elenco completo: só o organizador tem o
+                    // roster real no Room para calculá-los; o Auxiliar ecoa o último valor
+                    // observado, para não apagar essas listas com um valor vazio ao publicar sua
+                    // própria edição de placar/times.
+                    val presentSnapshots: List<RemotePlayerSnapshot>
+                    val allPlayerSnapshots: List<RemotePlayerSnapshot>
+                    if (config.remoteRole == null) {
+                        presentSnapshots = partial.presentPlayerIds.mapNotNull { id -> groupPlayers.find { it.id == id } }
                             .map { it.toRemoteSnapshot() }
+                        allPlayerSnapshots = groupPlayers.map { it.toRemoteSnapshot() }
                     } else {
-                        lastKnownRemotePresentPlayers
+                        presentSnapshots = lastKnownRemotePresentPlayers
+                        allPlayerSnapshots = lastKnownRemoteAllPlayers
                     }
                     config.cloudGroupId to LiveGameState(
                         groupName = config.groupName,
@@ -1634,13 +1672,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         currentStreak = streak,
                         streakOwner = owner,
                         updatedAt = System.currentTimeMillis(),
-                        presentPlayers = presentSnapshots
+                        presentPlayers = presentSnapshots,
+                        allPlayers = allPlayerSnapshots,
+                        matchStartTimestamp = matchStartTimestamp,
+                        lastScoringTeam = lastScoringTeam,
+                        rotationRequiredForTeam = rotationRequiredForTeam
                     )
                 } else null
             }.debounce(400).collect { pushable ->
                 if (pushable != null) {
                     lastPushedUpdatedAt = pushable.second.updatedAt
                     lastKnownRemotePresentPlayers = pushable.second.presentPlayers
+                    lastKnownRemoteAllPlayers = pushable.second.allPlayers
                     CloudSyncManager.pushLiveState(pushable.first, pushable.second)
                 }
             }
@@ -1675,6 +1718,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (config.cloudGroupId == null) return@collect
 
                     lastKnownRemotePresentPlayers = state.presentPlayers
+                    lastKnownRemoteAllPlayers = state.allPlayers
+                    _remoteAllPlayers.value = state.allPlayers.map { it.toSyntheticPlayer(config.groupName) }
+                    // Sincronizado para todos os papéis (organizador, auxiliar, espectador): quem
+                    // publicou o valor mais recente já é o único responsável por "ser dono" dele
+                    // (organizador para o início da partida, quem tocou no placar por último para
+                    // marcador de ponto/rodízio), então basta espelhar sem checagem extra de papel.
+                    _currentMatchStartTimestamp.value = state.matchStartTimestamp
+                    _lastScoringTeam.value = state.lastScoringTeam
+                    _rotationRequiredForTeam.value = state.rotationRequiredForTeam
 
                     if (config.remoteRole == null) {
                         // Organizador: remapeia os snapshots remotos para os Players reais deste
@@ -1700,6 +1752,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         if (requestId != null && requestId != lastProcessedFinishRequestId && requestWinner != null) {
                             lastProcessedFinishRequestId = requestId
                             finishGame(requestWinner)
+                        }
+                        val presenceRequestId = state.pendingPresenceToggleRequestId
+                        val presencePublicId = state.pendingPresenceTogglePublicId
+                        if (presenceRequestId != null && presenceRequestId != lastProcessedPresenceToggleRequestId && presencePublicId != null) {
+                            lastProcessedPresenceToggleRequestId = presenceRequestId
+                            currentGroupPlayers.value.find { it.publicId == presencePublicId }?.let { togglePlayerPresence(it) }
                         }
                     } else {
                         // Auxiliar/Espectador: não existem Players reais no Room local deste
@@ -1737,12 +1795,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (visibility == null) return@collect
                     val current = _currentGroupConfig.value
                     if (current.cloudGroupId == null) return@collect
+                    val newGroupType = visibility.groupType ?: current.groupType
+                    val newBalancingMode = visibility.balancingMode ?: current.balancingMode
+                    val newTeamSize = visibility.teamSize ?: current.teamSize
                     if (current.shareHistoryWithObservers != visibility.shareHistoryWithObservers ||
-                        current.showEloToObservers != visibility.showEloToObservers
+                        current.showEloToObservers != visibility.showEloToObservers ||
+                        current.groupType != newGroupType ||
+                        current.balancingMode != newBalancingMode ||
+                        current.teamSize != newTeamSize
                     ) {
                         val updated = current.copy(
                             shareHistoryWithObservers = visibility.shareHistoryWithObservers,
-                            showEloToObservers = visibility.showEloToObservers
+                            showEloToObservers = visibility.showEloToObservers,
+                            groupType = newGroupType,
+                            balancingMode = newBalancingMode,
+                            teamSize = newTeamSize
                         )
                         _currentGroupConfig.value = updated
                         repository.saveGroupConfig(updated)
@@ -2476,6 +2543,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         refreshPositionAssignments()
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+        val updatedConfig = _currentGroupConfig.value
+        val cloudGroupId = updatedConfig.cloudGroupId
+        if (cloudGroupId != null && updatedConfig.remoteRole != UserProfileType.ESPECTADOR.name) {
+            // Repassa tipo/balanceamento/tamanho de time ao Firestore (organizador e Auxiliar
+            // podem editar) para que os ícones do cabeçalho fiquem sincronizados em todos os
+            // aparelhos do grupo (ver `header-meta-sync`).
+            viewModelScope.launch(Dispatchers.IO) {
+                CloudSyncManager.setGroupMeta(
+                    cloudGroupId,
+                    updatedConfig.groupType,
+                    updatedConfig.balancingMode,
+                    updatedConfig.teamSize
+                )
+            }
+        }
     }
 
     private fun trimGuaranteedNextMatchToCapacity(maxPlayersInCourt: Int) {
@@ -2771,6 +2853,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun togglePlayerPresence(p: Player) {
+        if (_currentGroupConfig.value.remoteRole == UserProfileType.AUXILIAR.name) {
+            requestRemotePresenceToggle(p.publicId)
+            return
+        }
         val ids = _presentPlayerIds.value.toMutableSet()
         if (ids.contains(p.id)) {
             ids.remove(p.id)
@@ -2904,8 +2990,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun setAllPlayersPresence(list: List<Player>, present: Boolean) {
+        // Auxiliar não tem `_presentPlayerIds` local válido (não é dono do Room do grupo) — usa a
+        // lista de presentes espelhada do organizador para saber quem já está presente antes de
+        // decidir se precisa alternar (ver `aux-full-roster-sync`/[togglePlayerPresence]).
+        val currentlyPresentIds = if (_currentGroupConfig.value.remoteRole == UserProfileType.AUXILIAR.name) {
+            _remoteSelectedPlayers.value.map { it.id }.toSet()
+        } else {
+            _presentPlayerIds.value
+        }
         list.forEach { player ->
-            val isCurrentlyPresent = _presentPlayerIds.value.contains(player.id)
+            val isCurrentlyPresent = currentlyPresentIds.contains(player.id)
             val shouldToggle =
                 (present && !isCurrentlyPresent) || (!present && isCurrentlyPresent)
             if (shouldToggle) {
@@ -3307,7 +3401,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         winner = winner,
                         teamAScore = sA,
                         teamBScore = sB,
-                        endTimestamp = endTimestamp
+                        endTimestamp = endTimestamp,
+                        startTimestamp = startTimestamp,
+                        eloPoints = delta,
+                        teamAAverageElo = avgA,
+                        teamBAverageElo = avgB
                     )
                 )
             }
@@ -3359,7 +3457,48 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             updatedAt = System.currentTimeMillis(),
             pendingFinishWinner = winner,
             pendingFinishRequestId = requestId,
-            presentPlayers = lastKnownRemotePresentPlayers
+            presentPlayers = lastKnownRemotePresentPlayers,
+            allPlayers = lastKnownRemoteAllPlayers,
+            matchStartTimestamp = _currentMatchStartTimestamp.value,
+            lastScoringTeam = _lastScoringTeam.value,
+            rotationRequiredForTeam = _rotationRequiredForTeam.value
+        )
+        lastPushedUpdatedAt = pending.updatedAt
+        viewModelScope.launch(Dispatchers.IO) {
+            CloudSyncManager.pushLiveState(cloudGroupId, pending)
+        }
+    }
+
+    /**
+     * Pedido de um Auxiliar remoto para alternar a presença de um jogador (marcar/desmarcar antes
+     * da partida começar). Como este aparelho não tem o roster real no Room, não pode recalcular
+     * localmente os efeitos colaterais de presença (fila de espera, tolerância, etc.) — em vez
+     * disso publica um pedido (`pendingPresenceTogglePublicId`/`pendingPresenceToggleRequestId`)
+     * que o organizador detecta em [observeAndMirrorRemoteLiveState] e resolve chamando sua
+     * própria lógica real de [togglePlayerPresence]; o push seguinte do organizador já limpa os
+     * campos pendentes e propaga o novo estado de volta. Mesmo padrão de [requestRemoteFinish].
+     */
+    private fun requestRemotePresenceToggle(publicId: String) {
+        val conf = _currentGroupConfig.value
+        val cloudGroupId = conf.cloudGroupId ?: return
+        val requestId = java.util.UUID.randomUUID().toString()
+        val pending = LiveGameState(
+            groupName = conf.groupName,
+            teamA = _teamA.value.map { it.toRemoteSnapshot() },
+            teamB = _teamB.value.map { it.toRemoteSnapshot() },
+            waitingList = _waitingList.value.map { it.toRemoteSnapshot() },
+            scoreA = _scoreA.value,
+            scoreB = _scoreB.value,
+            currentStreak = _currentStreak.value,
+            streakOwner = _streakOwner.value,
+            updatedAt = System.currentTimeMillis(),
+            presentPlayers = lastKnownRemotePresentPlayers,
+            allPlayers = lastKnownRemoteAllPlayers,
+            matchStartTimestamp = _currentMatchStartTimestamp.value,
+            lastScoringTeam = _lastScoringTeam.value,
+            rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            pendingPresenceTogglePublicId = publicId,
+            pendingPresenceToggleRequestId = requestId
         )
         lastPushedUpdatedAt = pending.updatedAt
         viewModelScope.launch(Dispatchers.IO) {

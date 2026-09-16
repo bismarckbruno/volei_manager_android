@@ -190,6 +190,7 @@ fun GameScreenContent(
     val undoLabel = stringResource(R.string.undo)
     val sortedPlayersFromRoom by viewModel.sortedPlayersForPresence.collectAsState()
     val remoteSelectedPlayers by viewModel.remoteSelectedPlayers.collectAsState()
+    val remoteAllPlayers by viewModel.remoteAllPlayers.collectAsState()
     val currentGroupHistory by viewModel.currentGroupHistory.collectAsState()
     val gamesPlayedMap by viewModel.gamesPlayedTodayMap.collectAsState()
     val targetDate by viewModel.targetDate.collectAsState()
@@ -200,11 +201,23 @@ fun GameScreenContent(
     val hasPrev by viewModel.hasPreviousMatch.collectAsState()
     val config by viewModel.currentGroupConfig.collectAsState()
     val isSpectator by viewModel.isSpectatorOfCurrentGroup.collectAsState()
+    val isAuxiliarRemote by viewModel.isAuxiliarOfCurrentGroup.collectAsState()
     // Espectador não tem roster real no Room (nunca cria jogadores localmente para um grupo de
     // outra pessoa), então a lista "selecionada no momento" vem espelhada do organizador via
     // LiveGameState.presentPlayers, em vez do roster completo local (ver `spectator-player-list-visible`).
-    val sortedPlayers = if (isSpectator) remoteSelectedPlayers else sortedPlayersFromRoom
-    val presentIds = if (isSpectator) remoteSelectedPlayers.map { it.id }.toSet() else presentIdsFromVm
+    // Auxiliar também não tem roster real no Room, mas tem permissão de edição total: usa o
+    // elenco completo espelhado (LiveGameState.allPlayers) e a presença remota calculada a partir
+    // de LiveGameState.presentPlayers (ver `aux-full-roster-sync`).
+    val sortedPlayers = when {
+        isSpectator -> remoteSelectedPlayers
+        isAuxiliarRemote -> remoteAllPlayers
+        else -> sortedPlayersFromRoom
+    }
+    val presentIds = when {
+        isSpectator -> remoteSelectedPlayers.map { it.id }.toSet()
+        isAuxiliarRemote -> remoteSelectedPlayers.map { it.id }.toSet()
+        else -> presentIdsFromVm
+    }
     val assignedPositions by viewModel.assignedPositions.collectAsState()
     val assignedSlotIndices by viewModel.assignedSlotIndices.collectAsState()
     val streak by viewModel.currentStreak.collectAsState()
@@ -3036,13 +3049,17 @@ fun ActiveTeamCard(
     @Composable
     fun ScoreCounter() {
         if (isSpectator) {
+            // Espectador não vê o botão "VITÓRIA" (só o Organizador/Auxiliar decretam vitória),
+            // então o placar pode ocupar um pouco mais do espaço liberado por ele.
             ScoreValueIndicator(
                 score = score,
                 textColor = scoreTextColor,
                 indicatorColor = buttonColor,
                 showLatestPointBorder = showLatestPointBorder,
                 showRotationIndicator = showRotationIndicator,
-                tooltipText = scoreIndicatorTooltip
+                tooltipText = scoreIndicatorTooltip,
+                circleSize = 64.dp,
+                textStyle = MaterialTheme.typography.displaySmall
             )
             return
         }

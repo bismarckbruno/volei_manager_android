@@ -109,19 +109,22 @@ import java.util.Locale
 
 /** Converte uma entrada "enxuta" de histórico remoto ([RemoteHistoryEntry], vinda do Firestore)
  *  em um [MatchHistory] local, para reaproveitar toda a computação/UI de [HistoryScreen] tanto
- *  para grupos locais quanto sincronizados (Auxiliar/Espectador). Campos ausentes na versão
- *  remota (Elo médio dos times, ids de jogadores, duração) ficam nulos/vazios — o próprio
- *  [computeHistoryComputation] já sabe lidar com jogadores não resolvidos por id (usa o nome). */
+ *  para grupos locais quanto sincronizados (Auxiliar/Espectador). Ids de jogadores ficam vazios
+ *  (não fazem sentido fora do aparelho de origem) — o próprio [computeHistoryComputation] já sabe
+ *  lidar com jogadores não resolvidos por id (usa o nome). */
 fun RemoteHistoryEntry.toMatchHistory(groupName: String): MatchHistory = MatchHistory(
     id = id.hashCode(),
     date = date,
     teamA = teamA,
     teamB = teamB,
     winner = winner,
-    eloPoints = 0.0,
+    eloPoints = eloPoints,
     groupName = groupName,
     teamAScore = teamAScore,
     teamBScore = teamBScore,
+    teamAAverageElo = teamAAverageElo,
+    teamBAverageElo = teamBAverageElo,
+    startTimestamp = startTimestamp,
     endTimestamp = endTimestamp
 )
 
