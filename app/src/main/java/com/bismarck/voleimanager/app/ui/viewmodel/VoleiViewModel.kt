@@ -1000,6 +1000,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (target.isCloudSynced == synced) return@launch
 
         if (!synced) {
+            // Publica isActive=false ANTES de zerar o cloudGroupId localmente — o Firestore
+            // mantém o documento e o código de convite intactos, só sinaliza para
+            // Auxiliar/Espectador ocultarem os dados instantaneamente (ver
+            // GroupVisibility.isActive) até o grupo voltar a ser sincronizado.
+            val cloudGroupIdToDeactivate = target.cloudGroupId ?: target.publicId
+            CloudSyncManager.setGroupActiveState(cloudGroupIdToDeactivate, isActive = false)
             repository.saveGroupConfig(target.copy(isCloudSynced = false, cloudGroupId = null))
             if (_currentGroupConfig.value.groupName == groupName) {
                 _currentGroupConfig.value = _currentGroupConfig.value.copy(
@@ -1039,6 +1045,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             lastPremiumSwitchAt = now
         )
         repository.saveGroupConfig(updated)
+        // Reativa isActive=true no Firestore — reaproveita o mesmo documento/código de convite
+        // que já existia (ver observação em setGroupCloudSynced acima).
+        CloudSyncManager.setGroupActiveState(target.publicId, isActive = true)
         if (_currentGroupConfig.value.groupName == groupName) {
             _currentGroupConfig.value = _currentGroupConfig.value.copy(
                 isCloudSynced = true,
@@ -1800,16 +1809,55 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * `updatedAt` (relógio do aparelho), que é sujeito a variação entre dispositivos e podia
      * causar "rollback" de placar (ver `fix-admin-aux-sync-races`).
      */
+    /** Zera todos os espelhos do jogo ao vivo usados por Auxiliar/Espectador (times, fila, placar,
+     *  jogadores, posições atribuídas) — chamado quando o organizador desliga a sincronização em
+     *  nuvem do grupo ([GroupVisibility.isActive] = false), para ocultar a última "foto" recebida
+     *  em vez de deixá-la travada na tela até uma próxima atualização que talvez nunca chegue. */
+    private fun clearRemoteLiveStateMirrors() {
+        lastKnownRemotePresentPlayers = emptyList()
+        lastKnownRemoteAllPlayers = emptyList()
+        lastKnownRemoteGamesPlayedToday = emptyMap()
+        lastKnownRemoteAssignedPositions = emptyMap()
+        lastKnownRemoteAssignedSlotIndices = emptyMap()
+        lastKnownRemoteCompositionIncomplete = false
+        _remoteAllPlayers.value = emptyList()
+        _remoteSelectedPlayers.value = emptyList()
+        _remoteGamesPlayedToday.value = emptyMap()
+        _teamA.value = emptyList()
+        _teamB.value = emptyList()
+        _waitingList.value = emptyList()
+        _scoreA.value = 0
+        _scoreB.value = 0
+        _currentStreak.value = 0
+        _streakOwner.value = null
+        _assignedPositions.value = emptyMap()
+        _assignedSlotIndices.value = emptyMap()
+        _compositionIncomplete.value = false
+        _currentMatchStartTimestamp.value = null
+        _lastScoringTeam.value = null
+        _rotationRequiredForTeam.value = null
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeAndMirrorRemoteLiveState() {
         viewModelScope.launch {
-            _currentGroupConfig
-                .map { it.cloudGroupId to it.remoteRole }
+            combine(
+                _currentGroupConfig.map { it.cloudGroupId to it.remoteRole }.distinctUntilChanged(),
+                isRemoteGroupActive
+            ) { pair, active -> Triple(pair.first, pair.second, active) }
                 .distinctUntilChanged()
-                .flatMapLatest { (cloudGroupId, remoteRole) ->
+                .flatMapLatest { (cloudGroupId, remoteRole, active) ->
                     remoteStateInitializedForGroupId = null
-                    _isAwaitingInitialRemoteSync.value = cloudGroupId != null && remoteRole != null
-                    if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeLiveState(cloudGroupId)
+                    _isAwaitingInitialRemoteSync.value = cloudGroupId != null && remoteRole != null && active
+                    if (remoteRole != null && !active) {
+                        // Organizador desligou a sincronização em nuvem deste grupo (ver
+                        // GroupVisibility.isActive/setGroupCloudSynced) — oculta os dados ao vivo
+                        // instantaneamente para Auxiliar/Espectador em vez de deixar a última
+                        // "foto" (times/placar/fila) travada na tela até uma próxima atualização
+                        // que talvez nunca chegue.
+                        clearRemoteLiveStateMirrors()
+                    }
+                    if (cloudGroupId == null || remoteRole == null || !active) flowOf(null) else CloudSyncManager.observeLiveState(cloudGroupId)
                 }
                 .collect { state ->
                     if (state == null) return@collect
@@ -1905,12 +1953,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeRemoteGroupVisibility() {
         viewModelScope.launch {
-            _currentGroupConfig
-                .map { it.cloudGroupId }
-                .distinctUntilChanged()
-                .flatMapLatest { cloudGroupId ->
-                    if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeGroupVisibility(cloudGroupId)
-                }
+            remoteGroupVisibility
                 .collect { visibility ->
                     if (visibility == null) return@collect
                     val current = _currentGroupConfig.value
@@ -1938,15 +1981,36 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    /** Espelha em tempo real os toggles/metadados/atividade de [GroupConfig.cloudGroupId] do grupo
+     *  ativo. Fonte única compartilhada por [remoteLiveGameState]/[remoteHistory]/[remoteEloLogs]/
+     *  [observeAndMirrorRemoteLiveState] e por [observeRemoteGroupVisibility] (evita abrir vários
+     *  listeners Firestore redundantes para o mesmo documento). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val remoteGroupVisibility: StateFlow<GroupVisibility?> = _currentGroupConfig
+        .map { it.cloudGroupId }
+        .distinctUntilChanged()
+        .flatMapLatest { cloudGroupId ->
+            if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeGroupVisibility(cloudGroupId)
+        }
+        .stateIn(viewModelScope, screenDataSharing, null)
+
+    /** `true` enquanto o organizador mantém a sincronização em nuvem do grupo ligada
+     *  ([GroupConfig.isCloudSynced]) — ver [GroupVisibility.isActive]. Quando fica `false`,
+     *  Auxiliar/Espectador devem ocultar os dados ao vivo/histórico instantaneamente (o código de
+     *  convite continua válido para quando o organizador reativar). */
+    val isRemoteGroupActive: StateFlow<Boolean> = remoteGroupVisibility
+        .map { it?.isActive ?: true }
+        .stateIn(viewModelScope, screenDataSharing, true)
+
     /** Grupo remoto observado ao vivo (times, placar, fila) quando este dispositivo entrou via
      *  código de Auxiliar/Espectador ([GroupConfig.remoteRole] não nulo) — usado pela tela "Ao
      *  vivo" no lugar da engine local de jogo, que não roda para grupos de outra pessoa. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val remoteLiveGameState: StateFlow<LiveGameState?> = _currentGroupConfig
-        .map { config -> config.takeIf { it.remoteRole != null }?.cloudGroupId }
+    val remoteLiveGameState: StateFlow<LiveGameState?> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
         .distinctUntilChanged()
-        .flatMapLatest { cloudGroupId ->
-            if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeLiveState(cloudGroupId)
+        .flatMapLatest { (config, active) ->
+            val cloudGroupId = config.takeIf { it.remoteRole != null }?.cloudGroupId
+            if (cloudGroupId == null || !active) flowOf(null) else CloudSyncManager.observeLiveState(cloudGroupId)
         }
         .stateIn(viewModelScope, screenDataSharing, null)
 
@@ -1954,10 +2018,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  concedem acesso total a `canManageGroupContent`); Espectador só vê quando o organizador/
      *  auxiliar ligou [GroupConfig.shareHistoryWithObservers]. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val remoteHistory: StateFlow<List<RemoteHistoryEntry>> = _currentGroupConfig
-        .flatMapLatest { config ->
+    val remoteHistory: StateFlow<List<RemoteHistoryEntry>> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
+        .flatMapLatest { (config, active) ->
             val cloudGroupId = config.cloudGroupId
-            val allowed = config.remoteRole == UserProfileType.AUXILIAR.name || config.shareHistoryWithObservers
+            val allowed = active && (config.remoteRole == UserProfileType.AUXILIAR.name || config.shareHistoryWithObservers)
             if (config.remoteRole != null && cloudGroupId != null && allowed) {
                 CloudSyncManager.observeHistory(cloudGroupId)
             } else flowOf(emptyList())
@@ -1968,11 +2032,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  organizador/auxiliar ligou tanto [GroupConfig.shareHistoryWithObservers] quanto
      *  [GroupConfig.showEloToObservers]. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val remoteEloLogs: StateFlow<List<RemoteEloLogEntry>> = _currentGroupConfig
-        .flatMapLatest { config ->
+    val remoteEloLogs: StateFlow<List<RemoteEloLogEntry>> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
+        .flatMapLatest { (config, active) ->
             val cloudGroupId = config.cloudGroupId
-            val allowed = config.remoteRole == UserProfileType.AUXILIAR.name ||
-                (config.shareHistoryWithObservers && config.showEloToObservers)
+            // "showEloToObservers" só deve ocultar o valor do Elo em si (gated separadamente na UI via
+            // VoleiManagerApp.showElo) — não deve impedir a busca dos logs, senão o número de
+            // partidas/vitórias (calculado a partir desses mesmos logs) some junto para o espectador.
+            val allowed = active && (config.remoteRole == UserProfileType.AUXILIAR.name ||
+                config.shareHistoryWithObservers)
             if (config.remoteRole != null && cloudGroupId != null && allowed) {
                 CloudSyncManager.observeEloLogs(cloudGroupId)
             } else flowOf(emptyList())

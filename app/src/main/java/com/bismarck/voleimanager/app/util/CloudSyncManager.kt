@@ -23,6 +23,7 @@ private const val FIELD_SHOW_ELO = "showEloToObservers"
 private const val FIELD_GROUP_TYPE = "groupType"
 private const val FIELD_BALANCING_MODE = "balancingMode"
 private const val FIELD_TEAM_SIZE = "teamSize"
+private const val FIELD_IS_ACTIVE = "isActive"
 private const val REMOTE_LIST_LIMIT = 100L
 
 /** Jogador "enxuto" sincronizado em `liveState` — usa [publicId] (estável entre dispositivos) em
@@ -211,7 +212,14 @@ data class GroupVisibility(
      *  organizador, auxiliar e espectador — ver `GroupConfig.groupType`/`balancingMode`/`teamSize`. */
     val groupType: String? = null,
     val balancingMode: String? = null,
-    val teamSize: Int? = null
+    val teamSize: Int? = null,
+    /** Espelha se o organizador ainda mantém a sincronização em nuvem deste grupo ligada
+     *  ([com.bismarck.voleimanager.app.data.model.GroupConfig.isCloudSynced]). Quando o
+     *  organizador desliga a sincronização, o código de convite continua válido (o documento
+     *  `cloudGroups/{id}` não é apagado), mas `isActive=false` faz Auxiliar/Espectador ocultarem
+     *  os dados imediatamente até o grupo voltar a ser sincronizado. Padrão `true` para grupos
+     *  antigos que nunca tinham esse campo (nunca foram desativados). */
+    val isActive: Boolean = true
 )
 
 /**
@@ -470,7 +478,8 @@ object CloudSyncManager {
                 val groupType = snapshot?.getString(FIELD_GROUP_TYPE)
                 val balancingMode = snapshot?.getString(FIELD_BALANCING_MODE)
                 val teamSize = (snapshot?.get(FIELD_TEAM_SIZE) as? Number)?.toInt()
-                if (visibility == null && groupType == null && balancingMode == null && teamSize == null) {
+                val isActive = snapshot?.get(FIELD_IS_ACTIVE) as? Boolean
+                if (visibility == null && groupType == null && balancingMode == null && teamSize == null && isActive == null) {
                     trySend(null)
                 } else {
                     trySend(
@@ -479,7 +488,8 @@ object CloudSyncManager {
                             showEloToObservers = visibility?.get(FIELD_SHOW_ELO) as? Boolean ?: false,
                             groupType = groupType,
                             balancingMode = balancingMode,
-                            teamSize = teamSize
+                            teamSize = teamSize,
+                            isActive = isActive ?: true
                         )
                     )
                 }
@@ -512,6 +522,17 @@ object CloudSyncManager {
             Log.d(TAG, "Falha ao salvar visibilidade: ${e.message}")
             e.message ?: "Não foi possível salvar a visibilidade agora."
         }
+    }
+
+    /** Liga/desliga a flag `isActive` do documento raiz (melhor esforço), refletindo
+     *  [com.bismarck.voleimanager.app.data.model.GroupConfig.isCloudSynced] do organizador —
+     *  ver [GroupVisibility.isActive]. Nunca apaga o documento nem o código de convite, então a
+     *  sincronização volta a funcionar normalmente assim que o organizador reativar. */
+    fun setGroupActiveState(cloudGroupId: String, isActive: Boolean) {
+        val firestore = firestoreOrNull() ?: return
+        groupDoc(firestore, cloudGroupId)
+            .set(mapOf(FIELD_IS_ACTIVE to isActive), SetOptions.merge())
+            .addOnFailureListener { e -> Log.d(TAG, "Falha ao publicar isActive (best-effort): ${e.message}") }
     }
 
     /** Publica os metadados de cabeçalho do grupo (tipo, modo de balanceamento, tamanho de time)

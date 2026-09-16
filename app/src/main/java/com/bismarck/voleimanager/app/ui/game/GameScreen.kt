@@ -752,7 +752,12 @@ fun GameScreenContent(
                                     shadowElevation = 2.dp
                                 ) {
                                     val selCount = presentIds.size
-                                    val totalCount = sortedPlayers.size
+                                    // Espectador só vê os NOMES dos selecionados (remoteSelectedPlayers),
+                                    // mas o total de "cadastrados" no cabeçalho deve refletir o elenco
+                                    // completo do grupo (remoteAllPlayers, já espelhado independente do
+                                    // papel), não a mesma lista de selecionados usada para renderizar os
+                                    // cards — senão os dois números do cabeçalho ficam iguais.
+                                    val totalCount = if (isSpectator) remoteAllPlayers.size else sortedPlayers.size
                                     if (totalCount == 0) {
                                         Text(
                                             text = stringResource(R.string.no_entries),
@@ -3655,13 +3660,18 @@ private fun ScoreValueIndicator(
             when {
                 showRotationIndicator -> {
                     Canvas(modifier = Modifier.size(circleSize)) {
+                        // O tracejado escala com o tamanho do círculo (mínimo igual ao anterior)
+                        // para continuar visível de longe nos placares grandes (circleSize maior),
+                        // sem alterar a aparência dos placares pequenos que já funcionavam bem.
+                        val dashLengthPx = (circleSize.toPx() * 0.1f).coerceAtLeast(6.dp.toPx())
+                        val dashGapPx = (circleSize.toPx() * 0.07f).coerceAtLeast(4.dp.toPx())
                         drawCircle(
                             color = indicatorColor,
                             radius = size.minDimension / 2f - strokeWidth.toPx(),
                             style = Stroke(
                                 width = strokeWidth.toPx(),
                                 pathEffect = PathEffect.dashPathEffect(
-                                    floatArrayOf(6.dp.toPx(), 4.dp.toPx())
+                                    floatArrayOf(dashLengthPx, dashGapPx)
                                 )
                             )
                         )
@@ -4414,20 +4424,21 @@ fun EmptyStateCard(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                val emptyStateMessage = when {
-                    isSpectator -> spectatorWaitingGameStart
-                    selectedCount < minNeeded -> stringResource(
-                        R.string.select_minimum_players,
-                        minNeeded
+                // Para Espectador, a mesma mensagem já aparece dentro do botão desabilitado
+                // "Aguardando início do jogo" logo abaixo — evita duplicar o texto na tela.
+                if (!isSpectator) {
+                    val emptyStateMessage = if (selectedCount < minNeeded) {
+                        stringResource(R.string.select_minimum_players, minNeeded)
+                    } else {
+                        stringResource(R.string.click_to_start_match)
+                    }
+                    Text(
+                        text = emptyStateMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified,
+                        textAlign = TextAlign.Center
                     )
-                    else -> stringResource(R.string.click_to_start_match)
                 }
-                Text(
-                    text = emptyStateMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (selectedCount < minNeeded) MaterialTheme.colorScheme.error else Color.Unspecified,
-                    textAlign = TextAlign.Center
-                )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

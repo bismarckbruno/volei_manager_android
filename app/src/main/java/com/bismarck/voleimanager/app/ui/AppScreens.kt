@@ -417,7 +417,11 @@ private fun computeHistoryComputation(
             canonicalIdentifierName = canonicalIdentifierName
         )
         val logsForPlayer = when {
-            player != null -> logsByPlayerId[player.id].orEmpty()
+            // Logs remotos sempre chegam com playerId=0 (ver RemoteEloLogEntry.toPlayerEloLogs) —
+            // por isso o cruzamento por id só é confiável quando de fato encontra algo; caso
+            // contrário caímos para o nome canônico, que é o que realmente casa os logs remotos
+            // com o jogador espelhado (evitando estatísticas zeradas para o Espectador).
+            player != null && logsByPlayerId[player.id].orEmpty().isNotEmpty() -> logsByPlayerId[player.id].orEmpty()
             else -> logsByCanonicalName[canonicalIdentifierName].orEmpty()
         }
         val games = logsForPlayer.size
@@ -560,8 +564,12 @@ fun HistoryScreen(
     } else {
         localGroupHistory
     }
+    val remoteAllPlayersState by viewModel.remoteAllPlayers.collectAsState()
     val eloLogs = if (isRemoteGroup) remoteEloEntries.toPlayerEloLogs(groupConfig.groupName) else localEloLogs
-    val groupPlayers = if (isRemoteGroup) emptyList() else localGroupPlayers
+    // Usa o elenco espelhado (remoteAllPlayers, já sincronizado independente do papel) em vez de
+    // uma lista vazia — sem isso, todo jogador remoto era tratado como "removido" (isDeleted=true),
+    // o que pintava o ícone de pessoa de vermelho para TODOS no modo alfabético do Espectador.
+    val groupPlayers = if (isRemoteGroup) remoteAllPlayersState else localGroupPlayers
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates = remember(groupHistory) {
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
