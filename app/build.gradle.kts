@@ -170,4 +170,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+
+    // Google Play Billing (assinaturas premium) - ver util/BillingManager.kt
+    implementation(libs.billing.ktx)
 }

@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.ui.viewmodel
 
+import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -37,6 +38,8 @@ import com.bismarck.voleimanager.app.data.model.TournamentTeam
 import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
 import com.bismarck.voleimanager.app.util.AppAuthUser
 import com.bismarck.voleimanager.app.util.AuthManager
+import com.bismarck.voleimanager.app.util.BillingManager
+import com.bismarck.voleimanager.app.util.BillingProductIds
 import com.bismarck.voleimanager.app.util.CloudFunctionsManager
 import com.bismarck.voleimanager.app.util.CloudSyncManager
 import com.bismarck.voleimanager.app.util.EloCalculator
@@ -49,6 +52,7 @@ import com.bismarck.voleimanager.app.util.PositionAssigner
 import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
 import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
+import com.bismarck.voleimanager.app.util.SubscriptionOffer
 import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TelemetryManager
 import com.bismarck.voleimanager.app.util.TollCalculator
@@ -143,10 +147,13 @@ enum class PostProfileOnboardingStage { NONE, AUTH_REQUIRED, SPECTATOR_AUTH_SUGG
 
 /**
  * Pacote de assinatura premium da sincronização em nuvem: [NONE] (sem assinatura), [SINGLE]
- * (1 grupo sincronizado, R$ 9,90/mês) ou [MULTI] (até 5 grupos sincronizados, R$ 19,90/mês).
- * A validação real do pacote ativo vem do backend (ver `billing-integration`/
- * `purchase-validation-function`); até lá, [VoleiViewModel.effectivePremiumPlanTier] usa
- * [VoleiViewModel.debugPremiumPlanTier] (só em build de debug) para permitir testar localmente.
+ * (1 grupo sincronizado) ou [MULTI] (até 5 grupos sincronizados). O preço de cada pacote é
+ * definido inteiramente no Play Console (com preço por região, ex.: R$ 4,90/R$ 9,90 no Brasil) —
+ * ver [com.bismarck.voleimanager.app.util.BillingManager]. A confirmação definitiva do pacote
+ * ativo vem do backend (ver `billing-integration`/`purchase-validation-function`); até lá,
+ * [VoleiViewModel.effectivePremiumPlanTier] usa o estado local do Play Billing
+ * ([VoleiViewModel.realBillingPremiumPlanTier]) ou, só em build de debug sem uma compra real,
+ * [VoleiViewModel.debugPremiumPlanTier].
  */
 enum class CloudPlanTier(val maxSyncedGroups: Int) { NONE(0), SINGLE(1), MULTI(5) }
 
@@ -693,11 +700,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _personalTeamBColor = MutableStateFlow(TeamAccentColor.YELLOW)
 
     /**
-     * Reservado para a futura assinatura real (validada via Cloud Function/Firestore, ver
-     * `billing-integration`/`purchase-validation-function`). Por enquanto sempre `false` — a
-     * única forma de ativar cores premium hoje é via [debugPremiumOverride] em build de debug.
+     * Estado local e otimista da assinatura, refletindo a última compra conhecida pelo Play
+     * Billing neste aparelho ([BillingManager.activeProductIds]) — `true` assim que uma das duas
+     * assinaturas ([BillingProductIds.SINGLE_GROUP]/[BillingProductIds.MULTI_GROUP]) é comprada e
+     * reconhecida (`acknowledge`), mesmo antes do backend confirmar via Real-time Developer
+     * Notifications (`purchase-validation-function`, ainda não implementada em
+     * `volei_manager_backend`). Quando essa fase existir, isso deve ser substituído/combinado com
+     * `users/{uid}.activeEntitlement` do Firestore, que é a fonte de verdade definitiva (única
+     * capaz de refletir cancelamento, reembolso ou expiração sem o app precisar estar aberto).
      */
-    private val _realPremiumEntitlement = MutableStateFlow(false)
+    private val _realPremiumEntitlement: StateFlow<Boolean> = BillingManager.activeProductIds
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, screenDataSharing, false)
 
     /**
      * Interruptor **apenas de debug** para simular uma assinatura premium ativa sem precisar de
@@ -773,11 +787,20 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         .stateIn(viewModelScope, screenDataSharing, emptyList())
 
     /**
-     * Reservado para o pacote real (validado via Cloud Function, ver `purchase-validation-function`).
-     * Até lá, sempre [CloudPlanTier.NONE] — o pacote "ativo" em build de debug vem de
-     * [debugPremiumPlanTier].
+     * Pacote real derivado das assinaturas ativas conhecidas pelo Play Billing neste aparelho
+     * ([BillingManager.activeProductIds]) — [CloudPlanTier.MULTI] tem prioridade sobre
+     * [CloudPlanTier.SINGLE] no caso (não esperado) de ambas aparecerem ativas ao mesmo tempo.
+     * Ver a ressalva de [_realPremiumEntitlement] sobre isso ainda não ser validado pelo backend.
      */
-    private val _realPremiumPlanTier = MutableStateFlow(CloudPlanTier.NONE)
+    private val _realPremiumPlanTier: StateFlow<CloudPlanTier> = BillingManager.activeProductIds
+        .map { productIds ->
+            when {
+                BillingProductIds.MULTI_GROUP in productIds -> CloudPlanTier.MULTI
+                BillingProductIds.SINGLE_GROUP in productIds -> CloudPlanTier.SINGLE
+                else -> CloudPlanTier.NONE
+            }
+        }
+        .stateIn(viewModelScope, screenDataSharing, CloudPlanTier.NONE)
 
     /** Pacote simulado **apenas em build de debug**, para testar o limite de grupos sincronizados
      *  sem precisar de uma compra real (ver [setDebugPremiumPlanTier]). */
@@ -808,6 +831,47 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
             .putString("debug_premium_plan_tier", tier.name).apply()
     }
+
+    /** Ofertas de assinatura disponíveis na Play Store (preço já formatado/localizado), vindas do
+     *  [BillingManager] — vazio até os produtos existirem no Play Console e o billing conectar. */
+    val subscriptionOffers: StateFlow<List<SubscriptionOffer>> = BillingManager.offers
+
+    /** Melhor oferta disponível para [tier] (mensal ou anual, conforme [annual]), ou `null` se as
+     *  ofertas ainda não carregaram (ex.: produto ainda não cadastrado no Play Console, ou sem
+     *  conexão) — quem chama deve tratar esse caso com uma mensagem amigável. */
+    fun findSubscriptionOffer(tier: CloudPlanTier, annual: Boolean): SubscriptionOffer? {
+        val productId = when (tier) {
+            CloudPlanTier.SINGLE -> BillingProductIds.SINGLE_GROUP
+            CloudPlanTier.MULTI -> BillingProductIds.MULTI_GROUP
+            CloudPlanTier.NONE -> return null
+        }
+        val basePlanId = if (annual) BillingProductIds.BASE_PLAN_ANNUAL else BillingProductIds.BASE_PLAN_MONTHLY
+        val offers = subscriptionOffers.value.filter { it.productId == productId }
+        return offers.firstOrNull { it.basePlanId == basePlanId } ?: offers.firstOrNull()
+    }
+
+    /**
+     * Lança o fluxo de compra nativo da Play Store para o pacote [tier] (mensal ou anual). Requer
+     * que [subscriptionOffers] já tenha a oferta correspondente (senão mostra uma mensagem
+     * amigável) — a confirmação chega de forma assíncrona pelo `PurchasesUpdatedListener` do
+     * [BillingManager], refletida automaticamente em [hasPremiumAccess]/[effectivePremiumPlanTier]
+     * assim que a compra for reconhecida.
+     */
+    fun purchasePremiumPlan(activity: Activity, tier: CloudPlanTier, annual: Boolean) {
+        val offer = findSubscriptionOffer(tier, annual)
+        if (offer == null) {
+            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
+            return
+        }
+        val launched = BillingManager.launchPurchaseFlow(activity, offer)
+        if (!launched) {
+            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
+        }
+    }
+
+    /** Reconsulta as assinaturas ativas conhecidas pela Play Store (ex.: ao o usuário voltar ao
+     *  app depois de concluir uma compra na tela nativa da Play Store) — ver [BillingManager.refreshPurchases]. */
+    fun refreshPurchases() = BillingManager.refreshPurchases()
 
     /**
      * Ativa ou desativa a sincronização em nuvem de [groupName]. Exige acesso premium; ao ativar,
@@ -2064,6 +2128,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _showTelemetryConsentPrompt.value = !prefs.contains(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED)
         TelemetryManager.init(getApplication(), _telemetryEnabled.value)
         AuthManager.init(getApplication())
+        BillingManager.init(getApplication())
         _debugPremiumOverride.value =
             BuildConfig.DEBUG && prefs.getBoolean("debug_premium_override", false)
         _debugPremiumPlanTier.value = prefs.getString("debug_premium_plan_tier", null)?.let {

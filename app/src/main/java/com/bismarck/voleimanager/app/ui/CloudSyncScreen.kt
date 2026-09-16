@@ -35,9 +35,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.app.Activity
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
@@ -47,6 +49,7 @@ import com.bismarck.voleimanager.app.ui.components.TransferGroupOwnershipDialog
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
+import com.bismarck.voleimanager.app.util.BillingProductIds
 import com.bismarck.voleimanager.app.util.JoinRole
 import com.bismarck.voleimanager.app.util.LiveGameState
 import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
@@ -270,6 +273,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val syncedGroupNames by viewModel.cloudSyncedGroupNames.collectAsState()
+    val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
+    val activity = LocalContext.current as? Activity
 
     var transferDialogFor by remember { mutableStateOf<String?>(null) }
     transferDialogFor?.let { groupName ->
@@ -384,24 +389,45 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
             )
 
+            val singleMonthlyOffer = subscriptionOffers.firstOrNull {
+                it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
+            }
+            val singleAnnualOffer = subscriptionOffers.firstOrNull {
+                it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
+            }
+            val multiMonthlyOffer = subscriptionOffers.firstOrNull {
+                it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
+            }
+            val multiAnnualOffer = subscriptionOffers.firstOrNull {
+                it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
+            }
+
             PlanOptionRow(
                 title = stringResource(R.string.cloud_sync_plan_single_title),
-                price = stringResource(R.string.cloud_sync_plan_single_price),
+                price = singleMonthlyOffer?.formattedPrice
+                    ?: stringResource(R.string.cloud_sync_plan_single_price),
                 selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
-                onSubscribeClick = {
-                    viewModel.setDebugPremiumPlanTier(CloudPlanTier.SINGLE)
-                    viewModel.setDebugPremiumOverride(true)
-                }.takeIf { BuildConfig.DEBUG }
+                onSubscribeClick = activity?.let { act ->
+                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
+                },
+                annualPrice = singleAnnualOffer?.formattedPrice,
+                onSubscribeAnnualClick = activity?.takeIf { singleAnnualOffer != null }?.let { act ->
+                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
+                }
             )
             Spacer(Modifier.height(8.dp))
             PlanOptionRow(
                 title = stringResource(R.string.cloud_sync_plan_multi_title),
-                price = stringResource(R.string.cloud_sync_plan_multi_price),
+                price = multiMonthlyOffer?.formattedPrice
+                    ?: stringResource(R.string.cloud_sync_plan_multi_price),
                 selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
-                onSubscribeClick = {
-                    viewModel.setDebugPremiumPlanTier(CloudPlanTier.MULTI)
-                    viewModel.setDebugPremiumOverride(true)
-                }.takeIf { BuildConfig.DEBUG }
+                onSubscribeClick = activity?.let { act ->
+                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
+                },
+                annualPrice = multiAnnualOffer?.formattedPrice,
+                onSubscribeAnnualClick = activity?.takeIf { multiAnnualOffer != null }?.let { act ->
+                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
+                }
             )
             Text(
                 stringResource(R.string.cloud_sync_plan_annual_hint),
@@ -420,6 +446,20 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Row {
+                    TextButton(onClick = {
+                        viewModel.setDebugPremiumPlanTier(CloudPlanTier.SINGLE)
+                        viewModel.setDebugPremiumOverride(true)
+                    }) {
+                        Text(stringResource(R.string.cloud_sync_debug_simulate_single))
+                    }
+                    TextButton(onClick = {
+                        viewModel.setDebugPremiumPlanTier(CloudPlanTier.MULTI)
+                        viewModel.setDebugPremiumOverride(true)
+                    }) {
+                        Text(stringResource(R.string.cloud_sync_debug_simulate_multi))
+                    }
+                }
                 if (debugPremiumOverride) {
                     Spacer(Modifier.height(8.dp))
                     TextButton(onClick = { viewModel.setDebugPremiumOverride(false) }) {
@@ -601,7 +641,9 @@ private fun PlanOptionRow(
     title: String,
     price: String,
     selected: Boolean,
-    onSubscribeClick: (() -> Unit)?
+    onSubscribeClick: (() -> Unit)?,
+    annualPrice: String? = null,
+    onSubscribeAnnualClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -625,6 +667,23 @@ private fun PlanOptionRow(
                 modifier = Modifier.width(IntrinsicSize.Min)
             ) {
                 Text(stringResource(R.string.cloud_sync_plan_subscribe))
+            }
+        }
+    }
+    if (onSubscribeAnnualClick != null && annualPrice != null) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.cloud_sync_plan_annual_price, annualPrice),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            TextButton(onClick = onSubscribeAnnualClick) {
+                Text(stringResource(R.string.cloud_sync_plan_subscribe_annual))
             }
         }
     }
