@@ -779,8 +779,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _showToll = MutableStateFlow(false)
     val showToll: StateFlow<Boolean> = _showToll.asStateFlow()
 
+    /** Flag manual/local (debug ou marcador otimista após uma compra bem-sucedida, ver
+     *  [setSupporter]) — o valor público [isSupporter] também considera a assinatura real de
+     *  apoio via Play Billing ([BillingProductIds.SUPPORTER]). */
     private val _isSupporter = MutableStateFlow(false)
-    val isSupporter: StateFlow<Boolean> = _isSupporter.asStateFlow()
+    val isSupporter: StateFlow<Boolean> = combine(_isSupporter, BillingManager.activeProductIds) { manual, activeIds ->
+        manual || BillingProductIds.SUPPORTER in activeIds
+    }.stateIn(viewModelScope, screenDataSharing, false)
 
     private val _telemetryEnabled = MutableStateFlow(false)
     val telemetryEnabled: StateFlow<Boolean> = _telemetryEnabled.asStateFlow()
@@ -972,6 +977,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      */
     fun purchasePremiumPlan(activity: Activity, tier: CloudPlanTier, annual: Boolean) {
         val offer = findSubscriptionOffer(tier, annual)
+        if (offer == null) {
+            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
+            return
+        }
+        val launched = BillingManager.launchPurchaseFlow(activity, offer)
+        if (!launched) {
+            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
+        }
+    }
+
+    /**
+     * Lança o fluxo de compra nativo da Play Store para a assinatura simbólica de apoio ao
+     * projeto ([BillingProductIds.SUPPORTER]) — disponível para qualquer perfil (inclusive
+     * Espectador sem nenhum grupo premium), já que não desbloqueia sincronização em nuvem, só
+     * marca o usuário como apoiador (ver [isSupporter]).
+     */
+    fun purchaseSupporterPlan(activity: Activity) {
+        val offer = subscriptionOffers.value.firstOrNull { it.productId == BillingProductIds.SUPPORTER }
         if (offer == null) {
             showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
             return

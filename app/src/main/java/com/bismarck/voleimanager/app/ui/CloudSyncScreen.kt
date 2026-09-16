@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.Card
@@ -105,6 +106,10 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
     val liveState by viewModel.remoteLiveGameState.collectAsState()
     val remoteHistory by viewModel.remoteHistory.collectAsState()
     val remoteEloLogs by viewModel.remoteEloLogs.collectAsState()
+    val isSupporter by viewModel.isSupporter.collectAsState()
+    val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
+    val context = LocalContext.current
+    val activity = context as? Activity
 
     Column(
         modifier = Modifier
@@ -205,6 +210,54 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+        }
+
+        // ========== APOIE O PROJETO (opcional, para qualquer Espectador) ==========
+        // Diferente dos planos "1 grupo"/"até 5 grupos" (que exigem ser Organizador/Auxiliar para
+        // fazer sentido), esta é uma contribuição simbólica sem nenhuma funcionalidade extra
+        // atrelada — só uma forma de quem quiser e puder ajudar a bancar os custos de manter o
+        // app no ar, mesmo sem administrar nenhum grupo.
+        SectionCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.supporter_donation_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                stringResource(R.string.supporter_donation_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
+            if (isSupporter) {
+                Text(
+                    stringResource(R.string.supporter_donation_thanks),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                val supporterOffer = subscriptionOffers.firstOrNull { it.productId == BillingProductIds.SUPPORTER }
+                OutlinedButton(onClick = { activity?.let { viewModel.purchaseSupporterPlan(it) } }) {
+                    Text(
+                        supporterOffer?.formattedPrice?.let {
+                            stringResource(R.string.supporter_donation_button_with_price, it)
+                        } ?: stringResource(R.string.supporter_donation_button)
+                    )
+                }
+                if (BuildConfig.DEBUG) {
+                    TextButton(onClick = { viewModel.setSupporter(true) }) {
+                        Text(stringResource(R.string.cloud_sync_debug_simulate_supporter))
+                    }
                 }
             }
         }

@@ -92,6 +92,12 @@
     <string name="cloud_sync_debug_simulate_single">Simular 1 grupo</string>
     <string name="cloud_sync_debug_simulate_multi">Simular hasta 5 grupos</string>
     <string name="cloud_sync_debug_cancel_simulation">Cancelar simulación</string>
+    <string name="cloud_sync_debug_simulate_supporter">Simular colaborador (debug)</string>
+    <string name="supporter_donation_title">Apoya a Voleizin</string>
+    <string name="supporter_donation_description">Mantener la app funcionando, con mantenimiento y mejoras, tiene costos reales. Si quieres ayudar — sin ninguna obligación, es solo una contribución simbólica — significa mucho. ¡Gracias!</string>
+    <string name="supporter_donation_button">Contribuir</string>
+    <string name="supporter_donation_button_with_price">Contribuir (%1$s/mes)</string>
+    <string name="supporter_donation_thanks">¡Gracias por apoyar a Voleizin! 💙</string>
     <string name="cloud_sync_groups_title">Grupos sincronizados</string>
     <string name="cloud_sync_groups_hint">Elige qué grupo(s) local(es) permanecen sincronizados en la nube. Cambiar cuál grupo es premium está permitido como máximo una vez cada 15 días.</string>
     <string name="cloud_sync_groups_locked_hint">Suscríbete a un plan premium para sincronizar tus grupos en la nube.</string>

@@ -30,6 +30,11 @@ object BillingProductIds {
     const val MULTI_GROUP = "premium_multi_group"
     const val BASE_PLAN_MONTHLY = "mensal"
     const val BASE_PLAN_ANNUAL = "anual"
+    /** Contribuição simbólica/apoio ao projeto — não desbloqueia nenhuma funcionalidade de
+     *  sincronização em nuvem, só marca o usuário como apoiador (ver
+     *  [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.isSupporter]). Único plano base
+     *  mensal (sem opção anual). */
+    const val SUPPORTER = "premium_supporter"
 }
 
 /** Uma oferta de assinatura comprável: um par (produto, plano base) já com o preço formatado e
@@ -112,7 +117,7 @@ object BillingManager {
 
     private fun queryOffers() {
         val client = billingClient ?: return
-        val products = listOf(BillingProductIds.SINGLE_GROUP, BillingProductIds.MULTI_GROUP).map { id ->
+        val products = listOf(BillingProductIds.SINGLE_GROUP, BillingProductIds.MULTI_GROUP, BillingProductIds.SUPPORTER).map { id ->
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(id)
                 .setProductType(BillingClient.ProductType.SUBS)
