@@ -1814,6 +1814,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    /** Chamado quando o usuário aperta "voltar" numa das etapas intermediárias de roteamento por
+     *  perfil (gate de conta obrigatória, ou sugestões puláveis de login/código para o
+     *  Espectador), caso se arrependa da escolha de perfil feita na primeira tela — volta para lá
+     *  para que ele possa escolher de novo (a persistência em SharedPreferences só é
+     *  sobrescrita quando [setUserProfileType] roda de novo). */
+    fun returnToProfileSelection() {
+        _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE
+        _showUserProfileOnboarding.value = true
+    }
+
     /** Chamado assim que o gate obrigatório de conta (Organizador/Auxiliar) é atendido — login ou
      *  cadastro concluído —, liberando o onboarding normal de grupo. */
     fun onAuthGatePassed() {

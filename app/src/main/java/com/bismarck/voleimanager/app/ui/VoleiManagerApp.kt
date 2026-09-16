@@ -924,24 +924,30 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     if (postProfileOnboardingStage == PostProfileOnboardingStage.AUTH_REQUIRED) {
+        BackHandler { viewModel.returnToProfileSelection() }
         MandatoryAccountGateScreen(
             onLoginClick = { showLoginDialog = true },
-            onSignUpClick = { showSignUpDialog = true }
+            onSignUpClick = { showSignUpDialog = true },
+            onBackClick = { viewModel.returnToProfileSelection() }
         )
         return
     }
     if (postProfileOnboardingStage == PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION) {
+        BackHandler { viewModel.returnToProfileSelection() }
         SpectatorAuthSuggestionScreen(
             onLoginClick = { showLoginDialog = true },
             onSignUpClick = { showSignUpDialog = true },
-            onSkip = { viewModel.onSpectatorAuthStepDone() }
+            onSkip = { viewModel.onSpectatorAuthStepDone() },
+            onBackClick = { viewModel.returnToProfileSelection() }
         )
         return
     }
     if (postProfileOnboardingStage == PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION) {
+        BackHandler { viewModel.returnToProfileSelection() }
         SpectatorJoinSuggestionScreen(
             onJoinClick = { showJoinGroupDialog = true },
-            onSkip = { viewModel.onSpectatorJoinStepDone() }
+            onSkip = { viewModel.onSpectatorJoinStepDone() },
+            onBackClick = { viewModel.returnToProfileSelection() }
         )
         return
     }

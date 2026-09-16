@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.SupervisorAccount
 import androidx.compose.material.icons.filled.Visibility
@@ -25,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -170,10 +172,11 @@ private fun UserProfileOptionCard(
  * do e-mail em si não é obrigatória — ver [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.onAuthGatePassed]).
  */
 @Composable
-fun MandatoryAccountGateScreen(onLoginClick: () -> Unit, onSignUpClick: () -> Unit) {
+fun MandatoryAccountGateScreen(onLoginClick: () -> Unit, onSignUpClick: () -> Unit, onBackClick: () -> Unit) {
     ProfileRoutingScreenScaffold(
         titleRes = R.string.onboarding_auth_required_title,
-        hintRes = R.string.onboarding_auth_required_hint
+        hintRes = R.string.onboarding_auth_required_hint,
+        onBackClick = onBackClick
     ) {
         Button(onClick = onSignUpClick, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.signup_title))
@@ -190,11 +193,13 @@ fun MandatoryAccountGateScreen(onLoginClick: () -> Unit, onSignUpClick: () -> Un
 fun SpectatorAuthSuggestionScreen(
     onLoginClick: () -> Unit,
     onSignUpClick: () -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    onBackClick: () -> Unit
 ) {
     ProfileRoutingScreenScaffold(
         titleRes = R.string.onboarding_spectator_auth_title,
-        hintRes = R.string.onboarding_spectator_auth_hint
+        hintRes = R.string.onboarding_spectator_auth_hint,
+        onBackClick = onBackClick
     ) {
         Button(onClick = onSignUpClick, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.signup_title))
@@ -212,10 +217,11 @@ fun SpectatorAuthSuggestionScreen(
 
 /** Sugestão pulável de código de convite de grupo, exibida após [SpectatorAuthSuggestionScreen]. */
 @Composable
-fun SpectatorJoinSuggestionScreen(onJoinClick: () -> Unit, onSkip: () -> Unit) {
+fun SpectatorJoinSuggestionScreen(onJoinClick: () -> Unit, onSkip: () -> Unit, onBackClick: () -> Unit) {
     ProfileRoutingScreenScaffold(
         titleRes = R.string.onboarding_spectator_join_title,
-        hintRes = R.string.onboarding_spectator_join_hint
+        hintRes = R.string.onboarding_spectator_join_hint,
+        onBackClick = onBackClick
     ) {
         Button(onClick = onJoinClick, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.join_existing_group))
@@ -227,34 +233,46 @@ fun SpectatorJoinSuggestionScreen(onJoinClick: () -> Unit, onSkip: () -> Unit) {
     }
 }
 
-/** Estrutura comum das telas de roteamento por perfil (título, texto de apoio e botões). */
+/** Estrutura comum das telas de roteamento por perfil (botão de voltar, título, texto de apoio e
+ *  botões) — [onBackClick] permite reconsiderar a escolha de perfil feita na primeira tela,
+ *  também acionável pelo botão/gesto de voltar do sistema (ver [androidx.activity.compose.BackHandler]
+ *  no call site em `VoleiManagerApp`). */
 @Composable
 private fun ProfileRoutingScreenScaffold(
     titleRes: Int,
     hintRes: Int,
+    onBackClick: () -> Unit,
     buttons: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = stringResource(titleRes),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = stringResource(hintRes),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(32.dp))
-                buttons()
+            Column(modifier = Modifier.fillMaxSize()) {
+                IconButton(onClick = onBackClick, modifier = Modifier.padding(4.dp)) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = stringResource(titleRes),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(hintRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(32.dp))
+                    buttons()
+                }
             }
         }
     }
