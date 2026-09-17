@@ -623,6 +623,30 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     )
     val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
 
+    /** Espelha em tempo real os toggles/metadados/atividade de [GroupConfig.cloudGroupId] do grupo
+     *  ativo. Fonte única compartilhada por [remoteLiveGameState]/[remoteHistory]/[remoteEloLogs]/
+     *  [observeAndMirrorRemoteLiveState] e por [observeRemoteGroupVisibility] (evita abrir vários
+     *  listeners Firestore redundantes para o mesmo documento). Precisa ser declarada bem antes do
+     *  bloco `init` (que dispara [observeRemoteGroupVisibility]/[observeAndMirrorRemoteLiveState]
+     *  de forma síncrona via `Dispatchers.Main.immediate`) — senão o `collect` roda antes desta
+     *  propriedade ser inicializada e derruba o app com NPE na primeira abertura. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val remoteGroupVisibility: StateFlow<GroupVisibility?> = _currentGroupConfig
+        .map { it.cloudGroupId }
+        .distinctUntilChanged()
+        .flatMapLatest { cloudGroupId ->
+            if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeGroupVisibility(cloudGroupId)
+        }
+        .stateIn(viewModelScope, screenDataSharing, null)
+
+    /** `true` enquanto o organizador mantém a sincronização em nuvem do grupo ligada
+     *  ([GroupConfig.isCloudSynced]) — ver [GroupVisibility.isActive]. Quando fica `false`,
+     *  Auxiliar/Espectador devem ocultar os dados ao vivo/histórico instantaneamente (o código de
+     *  convite continua válido para quando o organizador reativar). */
+    val isRemoteGroupActive: StateFlow<Boolean> = remoteGroupVisibility
+        .map { it?.isActive ?: true }
+        .stateIn(viewModelScope, screenDataSharing, true)
+
     /**
      * `true` quando o grupo atualmente selecionado foi sincronizado via código de convite de
      * Espectador ([GroupConfig.remoteRole] == `"ESPECTADOR"`) — ou seja, este dispositivo não tem
@@ -2003,27 +2027,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 }
         }
     }
-
-    /** Espelha em tempo real os toggles/metadados/atividade de [GroupConfig.cloudGroupId] do grupo
-     *  ativo. Fonte única compartilhada por [remoteLiveGameState]/[remoteHistory]/[remoteEloLogs]/
-     *  [observeAndMirrorRemoteLiveState] e por [observeRemoteGroupVisibility] (evita abrir vários
-     *  listeners Firestore redundantes para o mesmo documento). */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val remoteGroupVisibility: StateFlow<GroupVisibility?> = _currentGroupConfig
-        .map { it.cloudGroupId }
-        .distinctUntilChanged()
-        .flatMapLatest { cloudGroupId ->
-            if (cloudGroupId == null) flowOf(null) else CloudSyncManager.observeGroupVisibility(cloudGroupId)
-        }
-        .stateIn(viewModelScope, screenDataSharing, null)
-
-    /** `true` enquanto o organizador mantém a sincronização em nuvem do grupo ligada
-     *  ([GroupConfig.isCloudSynced]) — ver [GroupVisibility.isActive]. Quando fica `false`,
-     *  Auxiliar/Espectador devem ocultar os dados ao vivo/histórico instantaneamente (o código de
-     *  convite continua válido para quando o organizador reativar). */
-    val isRemoteGroupActive: StateFlow<Boolean> = remoteGroupVisibility
-        .map { it?.isActive ?: true }
-        .stateIn(viewModelScope, screenDataSharing, true)
 
     /** Grupo remoto observado ao vivo (times, placar, fila) quando este dispositivo entrou via
      *  código de Auxiliar/Espectador ([GroupConfig.remoteRole] não nulo) — usado pela tela "Ao
