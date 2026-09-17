@@ -52,7 +52,6 @@ import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.ui.components.GenerateJoinCodeDialog
-import com.bismarck.voleimanager.app.ui.components.TransferGroupOwnershipDialog
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
@@ -234,17 +233,9 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val syncedGroupNames by viewModel.cloudSyncedGroupNames.collectAsState()
 
-    var transferDialogFor by remember { mutableStateOf<String?>(null) }
-    transferDialogFor?.let { groupName ->
-        TransferGroupOwnershipDialog(
-            groupName = groupName,
-            onDismiss = { transferDialogFor = null },
-            onConfirm = { email ->
-                viewModel.requestGroupOwnershipTransfer(groupName, email)
-                transferDialogFor = null
-            }
-        )
-    }
+    // Transferência de posse do grupo temporariamente oculta (ver `hide-ownership-transfer-temporarily`)
+    // — a funcionalidade em si (VoleiViewModel.requestGroupOwnershipTransfer/cancelGroupOwnershipTransfer)
+    // continua implementada; só a UI de acesso fica escondida por enquanto para revisitar depois.
 
     var generateCodeDialogFor by remember { mutableStateOf<String?>(null) }
     generateCodeDialogFor?.let { groupName ->
@@ -410,26 +401,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                         GroupVisibilityToggles(group = selectedGroup, onChange = { shareHistory, showElo ->
                             viewModel.setGroupVisibility(selectedGroup.groupName, shareHistory, showElo)
                         })
-                        if (selectedGroup.pendingOwnershipTransferTo != null) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    stringResource(
-                                        R.string.transfer_ownership_pending_label,
-                                        selectedGroup.pendingOwnershipTransferTo.orEmpty()
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TextButton(onClick = { viewModel.cancelGroupOwnershipTransfer(selectedGroup.groupName) }) {
-                                    Text(stringResource(R.string.transfer_ownership_cancel))
-                                }
-                            }
-                        } else {
-                            TextButton(onClick = { transferDialogFor = selectedGroup.groupName }) {
-                                Text(stringResource(R.string.transfer_ownership_menu_item))
-                            }
-                        }
+                        // Transferência de posse oculta por enquanto — ver comentário acima.
                     }
                 }
             }
