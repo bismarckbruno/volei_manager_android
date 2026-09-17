@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WorkspacePremium
@@ -24,13 +28,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -343,10 +348,24 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(stringResource(R.string.cloud_sync_groups_selector_label)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        trailingIcon = {
+                            val rotation by animateFloatAsState(
+                                targetValue = if (expanded) 180f else 0f,
+                                animationSpec = tween(durationMillis = 200),
+                                label = "CloudSyncGroupMenuRotation"
+                            )
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = stringResource(R.string.keyboard_arrow_down),
+                                modifier = Modifier
+                                    .rotate(rotation)
+                                    .size(24.dp)
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        shape = RoundedCornerShape(56.dp)
                     )
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         sortedGroups.forEach { group ->
@@ -382,7 +401,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            selectedGroup.groupName,
+                            stringResource(R.string.cloud_sync_groups_activate_label),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f)
                         )
@@ -391,7 +410,15 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                             enabled = hasPremiumAccess,
                             onCheckedChange = { checked ->
                                 viewModel.setGroupCloudSynced(selectedGroup.groupName, checked)
-                            }
+                            },
+                            colors = SwitchDefaults.colors(
+                                disabledCheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                disabledCheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                            )
                         )
                     }
                     if (selectedGroup.isCloudSynced) {
@@ -439,33 +466,44 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
  *  espectadores. Mostrar Elo exige compartilhar histórico também (ver [VoleiViewModel.setGroupVisibility]). */
 @Composable
 private fun GroupVisibilityToggles(group: GroupConfig, onChange: (shareHistory: Boolean, showElo: Boolean) -> Unit) {
+    // Mesmas cores usadas para um Switch desabilitado em "Regras do grupo" (ver TooltipToggleRow em
+    // Dialogs.kt): o alpha padrão do Material3 (~12%) some no fundo do card nesta tela.
+    val lockedSwitchColors = SwitchDefaults.colors(
+        disabledCheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+        disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+        disabledCheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+        disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+    )
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-        Text(
-            stringResource(R.string.cloud_sync_visibility_title),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 12.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
         )
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(R.string.cloud_sync_visibility_share_history),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
             Switch(
                 checked = group.shareHistoryWithObservers,
-                onCheckedChange = { checked -> onChange(checked, group.showEloToObservers && checked) }
+                onCheckedChange = { checked -> onChange(checked, group.showEloToObservers && checked) },
+                colors = lockedSwitchColors
             )
         }
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(R.string.cloud_sync_visibility_show_elo),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
             Switch(
                 checked = group.showEloToObservers,
                 enabled = group.shareHistoryWithObservers,
-                onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked) }
+                onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked) },
+                colors = lockedSwitchColors
             )
         }
     }

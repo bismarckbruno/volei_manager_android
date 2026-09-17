@@ -96,6 +96,7 @@
     <string name="cloud_sync_groups_locked_hint">Subscribe to a premium plan to sync your groups in the cloud.</string>
     <string name="cloud_sync_groups_empty">You don\'t have any group yet.</string>
     <string name="cloud_sync_groups_selector_label">Group</string>
+    <string name="cloud_sync_groups_activate_label">Enable sync</string>
     <string name="cloud_sync_groups_synced_badge">Synced</string>
     <string name="cloud_sync_groups_limit_label">%1$d of %2$d synced group(s)</string>
     <string name="cloud_sync_limit_reached">You\'ve reached your plan\'s synced group limit.</string>
@@ -195,7 +196,6 @@
     <string name="transfer_ownership_menu_item">Transfer ownership…</string>
     <string name="transfer_ownership_pending_label">Transfer pending to %1$s</string>
     <string name="transfer_ownership_cancel">Cancel</string>
-    <string name="cloud_sync_visibility_title">Visibility for observers</string>
     <string name="cloud_sync_visibility_share_history">Share match history</string>
     <string name="cloud_sync_visibility_show_elo">Show Elo to observers</string>
     <string name="cloud_sync_auxiliar_groups_title">Groups you manage as assistant</string>

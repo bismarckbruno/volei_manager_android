@@ -96,6 +96,7 @@
     <string name="cloud_sync_groups_locked_hint">Suscríbete a un plan premium para sincronizar tus grupos en la nube.</string>
     <string name="cloud_sync_groups_empty">Todavía no tienes ningún grupo creado.</string>
     <string name="cloud_sync_groups_selector_label">Grupo</string>
+    <string name="cloud_sync_groups_activate_label">Activar sincronización</string>
     <string name="cloud_sync_groups_synced_badge">Sincronizado</string>
     <string name="cloud_sync_groups_limit_label">%1$d de %2$d grupo(s) sincronizado(s)</string>
     <string name="cloud_sync_limit_reached">Se alcanzó el límite de grupos sincronizados de tu paquete.</string>
@@ -189,7 +190,6 @@
     <string name="transfer_ownership_menu_item">Transferir propiedad…</string>
     <string name="transfer_ownership_pending_label">Transferencia pendiente para %1$s</string>
     <string name="transfer_ownership_cancel">Cancelar</string>
-    <string name="cloud_sync_visibility_title">Visibilidad para observadores</string>
     <string name="cloud_sync_visibility_share_history">Compartir historial de partidas</string>
     <string name="cloud_sync_visibility_show_elo">Mostrar Elo a los observadores</string>
     <string name="cloud_sync_auxiliar_groups_title">Grupos que administras como coadministrador</string>
