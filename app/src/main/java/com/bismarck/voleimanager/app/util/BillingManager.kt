@@ -92,6 +92,10 @@ object BillingManager {
             .enablePendingPurchases(
                 PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
             )
+            // PBL 8.0.0+: deixa a própria biblioteca reconectar ao serviço da Play Store quando
+            // uma chamada é feita com a conexão caída, em vez de exigir startConnection() manual
+            // a cada onBillingServiceDisconnected.
+            .enableAutoServiceReconnection()
             .build()
         billingClient = client
         client.startConnection(object : BillingClientStateListener {
@@ -119,11 +123,19 @@ object BillingManager {
                 .build()
         }
         val params = QueryProductDetailsParams.newBuilder().setProductList(products).build()
-        client.queryProductDetailsAsync(params) { billingResult, detailsList ->
+        // PBL 8.0.0 mudou a assinatura do listener: o segundo parâmetro agora é um
+        // QueryProductDetailsResult (com productDetailsList + unfetchedProductList), não mais a
+        // List<ProductDetails> direta.
+        client.queryProductDetailsAsync(params) { billingResult, queryProductDetailsResult ->
             if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                 // Esperado até os produtos existirem no Play Console (ver plano de implementação).
                 Log.d(TAG, "queryProductDetails falhou: ${billingResult.debugMessage}")
                 return@queryProductDetailsAsync
+            }
+            val detailsList = queryProductDetailsResult.productDetailsList
+            if (queryProductDetailsResult.unfetchedProductList.isNotEmpty()) {
+                // Esperado até todos os produtos/planos existirem no Play Console.
+                Log.d(TAG, "Produtos não encontrados: ${queryProductDetailsResult.unfetchedProductList}")
             }
             productDetailsCache = detailsList.associateBy { it.productId }
             _offers.value = detailsList.flatMap { details ->
