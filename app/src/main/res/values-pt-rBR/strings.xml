@@ -92,12 +92,8 @@
     <string name="cloud_sync_debug_simulate_single">Simular 1 grupo</string>
     <string name="cloud_sync_debug_simulate_multi">Simular até 5 grupos</string>
     <string name="cloud_sync_debug_cancel_simulation">Cancelar simulação</string>
-    <string name="cloud_sync_debug_simulate_supporter">Simular apoiador (debug)</string>
-    <string name="supporter_donation_title">Apoie o Voleizin</string>
-    <string name="supporter_donation_description">Manter o app no ar, com manutenção e melhorias, tem custos reais. Se quiser ajudar — sem nenhuma obrigação, é só uma contribuição simbólica — isso significa muito. Obrigado!</string>
-    <string name="supporter_donation_button">Contribuir</string>
-    <string name="supporter_donation_button_with_price">Contribuir (%1$s/mês)</string>
-    <string name="supporter_donation_thanks">Obrigado por apoiar o Voleizin! 💙</string>
+    <string name="cloud_sync_spectator_support_title">Apoie o Voleizin</string>
+    <string name="cloud_sync_spectator_support_description">Como espectador(a) você não precisa sincronizar nenhum grupo, mas assinar qualquer um dos planos abaixo também ajuda a cobrir os custos reais de manter o app no ar, com manutenção e melhorias — e libera a personalização de cores de time só para você (aplicada apenas neste aparelho). Obrigado!</string>
     <string name="cloud_sync_groups_title">Grupos sincronizados</string>
     <string name="cloud_sync_groups_hint">Escolha qual(is) grupo(s) local(is) ficam sincronizados em nuvem. Trocar qual grupo é o premium é permitido no máximo uma vez a cada 15 dias.</string>
     <string name="cloud_sync_groups_locked_hint">Assine um plano premium para sincronizar seus grupos em nuvem.</string>
@@ -210,12 +206,6 @@
     <string name="live_screen_waiting_list_label">Fila de espera</string>
     <string name="live_screen_waiting_list_empty">Ninguém na fila</string>
     <string name="live_screen_no_live_state">Aguardando a primeira atualização do organizador…</string>
-    <string name="live_screen_history_title">Histórico de partidas</string>
-    <string name="live_screen_history_hidden">O organizador ainda não compartilhou o histórico de partidas.</string>
-    <string name="live_screen_history_empty">Nenhuma partida ainda.</string>
-    <string name="live_screen_elo_title">Ranking de Elo</string>
-    <string name="live_screen_elo_hidden">O organizador ainda não compartilhou o ranking de Elo.</string>
-    <string name="live_screen_elo_empty">Nenhum dado de Elo ainda.</string>
     <string name="delete">Excluir</string>
     <string name="delete_player_title">Excluir %1$s?</string>
     <string name="delete_player_text">A pessoa será removida da lista ativa, mas seu histórico de partidas SERÁ MANTIDO.</string>

@@ -1483,28 +1483,32 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                         }
 
-                        HorizontalDivider(
-                            Modifier.padding(vertical = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                        )
                         // Cores oficiais do grupo atual: valem para todo mundo que o visualiza
-                        // (inclusive observadores sem premium), definidas por quem tem premium.
-                        TeamColorPickerSection(
-                            title = stringResource(R.string.team_colors_group_title),
-                            hint = if (hasPremiumAccess) {
-                                stringResource(R.string.team_colors_group_hint)
-                            } else {
-                                stringResource(R.string.team_colors_locked_hint)
-                            },
-                            teamAColor = groupTeamAColor,
-                            teamBColor = groupTeamBColor,
-                            hasPremiumAccess = hasPremiumAccess,
-                            isDarkTheme = isDarkTheme,
-                            onColorsSelected = { a, b -> viewModel.setGroupTeamColors(a, b) },
-                            onLockedClick = {
-                                viewModel.showMessage(teamColorsLockedMessage)
-                            }
-                        )
+                        // (inclusive observadores sem premium), definidas apenas pelo organizador
+                        // — Espectador (mesmo premium) nunca edita as cores oficiais do grupo, só
+                        // a sobreposição pessoal abaixo (ver [VoleiViewModel.setGroupTeamColors]).
+                        if (!isSpectatorOfCurrentGroup) {
+                            HorizontalDivider(
+                                Modifier.padding(vertical = 12.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            )
+                            TeamColorPickerSection(
+                                title = stringResource(R.string.team_colors_group_title),
+                                hint = if (hasPremiumAccess) {
+                                    stringResource(R.string.team_colors_group_hint)
+                                } else {
+                                    stringResource(R.string.team_colors_locked_hint)
+                                },
+                                teamAColor = groupTeamAColor,
+                                teamBColor = groupTeamBColor,
+                                hasPremiumAccess = hasPremiumAccess,
+                                isDarkTheme = isDarkTheme,
+                                onColorsSelected = { a, b -> viewModel.setGroupTeamColors(a, b) },
+                                onLockedClick = {
+                                    viewModel.showMessage(teamColorsLockedMessage)
+                                }
+                            )
+                        }
 
                         HorizontalDivider(
                             Modifier.padding(vertical = 12.dp),

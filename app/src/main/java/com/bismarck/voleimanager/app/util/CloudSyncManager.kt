@@ -24,6 +24,8 @@ private const val FIELD_GROUP_TYPE = "groupType"
 private const val FIELD_BALANCING_MODE = "balancingMode"
 private const val FIELD_TEAM_SIZE = "teamSize"
 private const val FIELD_IS_ACTIVE = "isActive"
+private const val FIELD_TEAM_A_COLOR = "teamAColorName"
+private const val FIELD_TEAM_B_COLOR = "teamBColorName"
 private const val REMOTE_LIST_LIMIT = 100L
 
 /** Jogador "enxuto" sincronizado em `liveState` — usa [publicId] (estável entre dispositivos) em
@@ -213,6 +215,12 @@ data class GroupVisibility(
     val groupType: String? = null,
     val balancingMode: String? = null,
     val teamSize: Int? = null,
+    /** Cores oficiais do Time A/Time B definidas pelo organizador ([TeamAccentColor.name]),
+     *  espelhadas aqui para que Espectadores enxerguem a mesma escolha de cores do organizador
+     *  (ver [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.setGroupTeamColors]).
+     *  `null` enquanto o organizador nunca personalizou as cores (usa o padrão azul/amarelo). */
+    val teamAColorName: String? = null,
+    val teamBColorName: String? = null,
     /** Espelha se o organizador ainda mantém a sincronização em nuvem deste grupo ligada
      *  ([com.bismarck.voleimanager.app.data.model.GroupConfig.isCloudSynced]). Quando o
      *  organizador desliga a sincronização, o código de convite continua válido (o documento
@@ -478,8 +486,12 @@ object CloudSyncManager {
                 val groupType = snapshot?.getString(FIELD_GROUP_TYPE)
                 val balancingMode = snapshot?.getString(FIELD_BALANCING_MODE)
                 val teamSize = (snapshot?.get(FIELD_TEAM_SIZE) as? Number)?.toInt()
+                val teamAColorName = snapshot?.getString(FIELD_TEAM_A_COLOR)
+                val teamBColorName = snapshot?.getString(FIELD_TEAM_B_COLOR)
                 val isActive = snapshot?.get(FIELD_IS_ACTIVE) as? Boolean
-                if (visibility == null && groupType == null && balancingMode == null && teamSize == null && isActive == null) {
+                if (visibility == null && groupType == null && balancingMode == null && teamSize == null &&
+                    teamAColorName == null && teamBColorName == null && isActive == null
+                ) {
                     trySend(null)
                 } else {
                     trySend(
@@ -489,6 +501,8 @@ object CloudSyncManager {
                             groupType = groupType,
                             balancingMode = balancingMode,
                             teamSize = teamSize,
+                            teamAColorName = teamAColorName,
+                            teamBColorName = teamBColorName,
                             isActive = isActive ?: true
                         )
                     )
@@ -551,5 +565,21 @@ object CloudSyncManager {
                 SetOptions.merge()
             )
             .addOnFailureListener { e -> Log.d(TAG, "Falha ao publicar metadados do grupo (best-effort): ${e.message}") }
+    }
+
+    /** Publica as cores oficiais de Time A/Time B de [cloudGroupId] (melhor esforço), definidas
+     *  pelo organizador via [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.setGroupTeamColors]
+     *  — usado para que Auxiliar/Espectador vejam a mesma personalização de cores do organizador. */
+    fun setGroupTeamColors(cloudGroupId: String, teamAColorName: String, teamBColorName: String) {
+        val firestore = firestoreOrNull() ?: return
+        groupDoc(firestore, cloudGroupId)
+            .set(
+                mapOf(
+                    FIELD_TEAM_A_COLOR to teamAColorName,
+                    FIELD_TEAM_B_COLOR to teamBColorName
+                ),
+                SetOptions.merge()
+            )
+            .addOnFailureListener { e -> Log.d(TAG, "Falha ao publicar cores do grupo (best-effort): ${e.message}") }
     }
 }

@@ -803,14 +803,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private val _showToll = MutableStateFlow(false)
     val showToll: StateFlow<Boolean> = _showToll.asStateFlow()
 
-    /** Flag manual/local (debug ou marcador otimista após uma compra bem-sucedida, ver
-     *  [setSupporter]) — o valor público [isSupporter] também considera a assinatura real de
-     *  apoio via Play Billing ([BillingProductIds.SUPPORTER]). */
-    private val _isSupporter = MutableStateFlow(false)
-    val isSupporter: StateFlow<Boolean> = combine(_isSupporter, BillingManager.activeProductIds) { manual, activeIds ->
-        manual || BillingProductIds.SUPPORTER in activeIds
-    }.stateIn(viewModelScope, screenDataSharing, false)
-
     private val _telemetryEnabled = MutableStateFlow(false)
     val telemetryEnabled: StateFlow<Boolean> = _telemetryEnabled.asStateFlow()
 
@@ -1001,24 +993,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      */
     fun purchasePremiumPlan(activity: Activity, tier: CloudPlanTier, annual: Boolean) {
         val offer = findSubscriptionOffer(tier, annual)
-        if (offer == null) {
-            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
-            return
-        }
-        val launched = BillingManager.launchPurchaseFlow(activity, offer)
-        if (!launched) {
-            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
-        }
-    }
-
-    /**
-     * Lança o fluxo de compra nativo da Play Store para a assinatura simbólica de apoio ao
-     * projeto ([BillingProductIds.SUPPORTER]) — disponível para qualquer perfil (inclusive
-     * Espectador sem nenhum grupo premium), já que não desbloqueia sincronização em nuvem, só
-     * marca o usuário como apoiador (ver [isSupporter]).
-     */
-    fun purchaseSupporterPlan(activity: Activity) {
-        val offer = subscriptionOffers.value.firstOrNull { it.productId == BillingProductIds.SUPPORTER }
         if (offer == null) {
             showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
             return
@@ -2008,18 +1982,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     val newGroupType = visibility.groupType ?: current.groupType
                     val newBalancingMode = visibility.balancingMode ?: current.balancingMode
                     val newTeamSize = visibility.teamSize ?: current.teamSize
+                    val newTeamAColorName = visibility.teamAColorName ?: current.teamAColorName
+                    val newTeamBColorName = visibility.teamBColorName ?: current.teamBColorName
                     if (current.shareHistoryWithObservers != visibility.shareHistoryWithObservers ||
                         current.showEloToObservers != visibility.showEloToObservers ||
                         current.groupType != newGroupType ||
                         current.balancingMode != newBalancingMode ||
-                        current.teamSize != newTeamSize
+                        current.teamSize != newTeamSize ||
+                        current.teamAColorName != newTeamAColorName ||
+                        current.teamBColorName != newTeamBColorName
                     ) {
                         val updated = current.copy(
                             shareHistoryWithObservers = visibility.shareHistoryWithObservers,
                             showEloToObservers = visibility.showEloToObservers,
                             groupType = newGroupType,
                             balancingMode = newBalancingMode,
-                            teamSize = newTeamSize
+                            teamSize = newTeamSize,
+                            teamAColorName = newTeamAColorName,
+                            teamBColorName = newTeamBColorName
                         )
                         _currentGroupConfig.value = updated
                         repository.saveGroupConfig(updated)
@@ -2235,12 +2215,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .putBoolean("show_toll", show).apply()
     }
 
-    fun setSupporter(isSupporter: Boolean) {
-        _isSupporter.value = isSupporter
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
-            .putBoolean("is_supporter", isSupporter).apply()
-    }
-
     /**
      * Registra a escolha de consentimento de telemetria (opt-in/opt-out), liga/desliga a coleta
      * no [TelemetryManager] e marca que o diálogo já foi respondido (não é mostrado de novo
@@ -2255,19 +2229,28 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     /**
-     * Define as cores **oficiais** do grupo atual (Time A/B), definidas pelo organizador ou
-     * auxiliar premium — passam a valer para todos que visualizam este grupo, inclusive
-     * observadores sem premium (a menos que eles próprios tenham premium e uma sobreposição
-     * pessoal ativa, ver [setPersonalTeamColorOverride]). Só tem efeito se o usuário tiver acesso
-     * premium ([hasPremiumAccess]) e as duas cores forem diferentes entre si.
+     * Define as cores **oficiais** do grupo atual (Time A/B), definidas apenas pelo organizador
+     * (nunca por um Espectador, mesmo premium — ver [isSpectatorOfCurrentGroup]) — passam a valer
+     * para todos que visualizam este grupo, inclusive observadores sem premium (a menos que eles
+     * próprios tenham premium e uma sobreposição pessoal ativa, ver
+     * [setPersonalTeamColorOverride]). Só tem efeito se o usuário tiver acesso premium
+     * ([hasPremiumAccess]) e as duas cores forem diferentes entre si. Quando o grupo está
+     * sincronizado em nuvem, também publica a escolha em Firestore ([CloudSyncManager.setGroupTeamColors])
+     * para que Espectadores vejam a mesma personalização em tempo real (ver `spectator-color-sync`).
      */
     fun setGroupTeamColors(teamA: TeamAccentColor, teamB: TeamAccentColor) {
-        if (!hasPremiumAccess.value || teamA == teamB) return
+        if (!hasPremiumAccess.value || teamA == teamB || isSpectatorOfCurrentGroup.value) return
         _currentGroupConfig.value = _currentGroupConfig.value.copy(
             teamAColorName = teamA.name,
             teamBColorName = teamB.name
         )
         viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+        val cloudGroupId = _currentGroupConfig.value.cloudGroupId
+        if (cloudGroupId != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                CloudSyncManager.setGroupTeamColors(cloudGroupId, teamA.name, teamB.name)
+            }
+        }
     }
 
     /**
@@ -2575,7 +2558,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         _showElo.value = prefs.getBoolean("show_elo", false)
         _showToll.value = prefs.getBoolean("show_toll", false)
-        _isSupporter.value = prefs.getBoolean("is_supporter", false)
         _telemetryEnabled.value = prefs.getBoolean(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED, false)
         _showTelemetryConsentPrompt.value = !prefs.contains(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED)
         TelemetryManager.init(getApplication(), _telemetryEnabled.value)

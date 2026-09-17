@@ -15,7 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.Card
@@ -103,13 +102,6 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
 private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val remoteSpectatorGroup = allGroups.firstOrNull { it.remoteRole == UserProfileType.ESPECTADOR.name }
-    val liveState by viewModel.remoteLiveGameState.collectAsState()
-    val remoteHistory by viewModel.remoteHistory.collectAsState()
-    val remoteEloLogs by viewModel.remoteEloLogs.collectAsState()
-    val isSupporter by viewModel.isSupporter.collectAsState()
-    val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
-    val context = LocalContext.current
-    val activity = context as? Activity
 
     Column(
         modifier = Modifier
@@ -154,113 +146,15 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
             }
         }
 
-        if (remoteSpectatorGroup != null) {
-            SectionCard {
-                if (liveState == null) {
-                    Text(
-                        stringResource(R.string.live_screen_no_live_state),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    LiveScoreboard(liveState!!)
-                }
-            }
-
-            if (remoteSpectatorGroup.shareHistoryWithObservers) {
-                SectionCard {
-                    Text(
-                        stringResource(R.string.live_screen_history_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (remoteHistory.isEmpty()) {
-                        Text(
-                            stringResource(R.string.live_screen_history_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        remoteHistory.take(20).forEach { entry -> RemoteHistoryRow(entry) }
-                    }
-                }
-
-                if (remoteSpectatorGroup.showEloToObservers) {
-                    SectionCard {
-                        Text(
-                            stringResource(R.string.live_screen_elo_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (remoteEloLogs.isEmpty()) {
-                            Text(
-                                stringResource(R.string.live_screen_elo_empty),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            remoteEloLogs.take(20).forEach { entry -> RemoteEloRow(entry) }
-                        }
-                    }
-                }
-            } else {
-                SectionCard {
-                    Text(
-                        stringResource(R.string.live_screen_history_hidden),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        // ========== APOIE O PROJETO (opcional, para qualquer Espectador) ==========
-        // Diferente dos planos "1 grupo"/"até 5 grupos" (que exigem ser Organizador/Auxiliar para
-        // fazer sentido), esta é uma contribuição simbólica sem nenhuma funcionalidade extra
-        // atrelada — só uma forma de quem quiser e puder ajudar a bancar os custos de manter o
-        // app no ar, mesmo sem administrar nenhum grupo.
-        SectionCard {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Outlined.Favorite,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.supporter_donation_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Text(
-                stringResource(R.string.supporter_donation_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-            )
-            if (isSupporter) {
-                Text(
-                    stringResource(R.string.supporter_donation_thanks),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            } else {
-                val supporterOffer = subscriptionOffers.firstOrNull { it.productId == BillingProductIds.SUPPORTER }
-                OutlinedButton(onClick = { activity?.let { viewModel.purchaseSupporterPlan(it) } }) {
-                    Text(
-                        supporterOffer?.formattedPrice?.let {
-                            stringResource(R.string.supporter_donation_button_with_price, it)
-                        } ?: stringResource(R.string.supporter_donation_button)
-                    )
-                }
-                if (BuildConfig.DEBUG) {
-                    TextButton(onClick = { viewModel.setSupporter(true) }) {
-                        Text(stringResource(R.string.cloud_sync_debug_simulate_supporter))
-                    }
-                }
-            }
-        }
+        // O placar, a fila de espera e o histórico de partidas já aparecem com muito mais detalhe
+        // e qualidade nas telas "Jogo (Ao vivo)" e "Histórico" (que reaproveitam a mesma base
+        // visual do organizador — ver `spectator-reuse-game-screen`/`spectator-reuse-history-screen`).
+        // Esta tela não repete essas visualizações simplificadas; foca só no apoio ao projeto.
+        PremiumPlansSection(
+            viewModel = viewModel,
+            title = stringResource(R.string.cloud_sync_spectator_support_title),
+            description = stringResource(R.string.cloud_sync_spectator_support_description)
+        )
     }
 }
 
@@ -337,12 +231,9 @@ internal fun RemoteEloRow(entry: RemoteEloLogEntry) {
 private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroupClick: () -> Unit) {
     val currentUser by viewModel.currentUser.collectAsState()
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
-    val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val syncedGroupNames by viewModel.cloudSyncedGroupNames.collectAsState()
-    val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
-    val activity = LocalContext.current as? Activity
 
     var transferDialogFor by remember { mutableStateOf<String?>(null) }
     transferDialogFor?.let { groupName ->
@@ -445,124 +336,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
         }
 
         // ========== ASSINATURA E PLANOS ==========
-        SectionCard {
-            Text(
-                stringResource(R.string.cloud_sync_status_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                if (hasPremiumAccess) {
-                    val tierLabel = stringResource(
-                        if (effectivePlanTier == CloudPlanTier.MULTI) {
-                            R.string.cloud_sync_tier_multi
-                        } else {
-                            R.string.cloud_sync_tier_single
-                        }
-                    )
-                    stringResource(R.string.cloud_sync_status_active, tierLabel)
-                } else {
-                    stringResource(R.string.cloud_sync_status_inactive)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (hasPremiumAccess) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-
-            HorizontalDivider(
-                Modifier.padding(vertical = 12.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-            )
-
-            val singleMonthlyOffer = subscriptionOffers.firstOrNull {
-                it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
-            }
-            val singleAnnualOffer = subscriptionOffers.firstOrNull {
-                it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
-            }
-            val multiMonthlyOffer = subscriptionOffers.firstOrNull {
-                it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
-            }
-            val multiAnnualOffer = subscriptionOffers.firstOrNull {
-                it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
-            }
-
-            PlanOptionRow(
-                title = stringResource(R.string.cloud_sync_plan_single_title),
-                price = singleMonthlyOffer?.formattedPrice
-                    ?: stringResource(R.string.cloud_sync_plan_single_price),
-                selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
-                onSubscribeClick = activity?.let { act ->
-                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
-                },
-                annualPrice = singleAnnualOffer?.formattedPrice,
-                onSubscribeAnnualClick = activity?.takeIf { singleAnnualOffer != null }?.let { act ->
-                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
-                }
-            )
-            Spacer(Modifier.height(8.dp))
-            PlanOptionRow(
-                title = stringResource(R.string.cloud_sync_plan_multi_title),
-                price = multiMonthlyOffer?.formattedPrice
-                    ?: stringResource(R.string.cloud_sync_plan_multi_price),
-                selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
-                onSubscribeClick = activity?.let { act ->
-                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
-                },
-                annualPrice = multiAnnualOffer?.formattedPrice,
-                onSubscribeAnnualClick = activity?.takeIf { multiAnnualOffer != null }?.let { act ->
-                    { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
-                }
-            )
-            Text(
-                stringResource(R.string.cloud_sync_plan_annual_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            if (BuildConfig.DEBUG) {
-                HorizontalDivider(
-                    Modifier.padding(vertical = 12.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                )
-                Text(
-                    stringResource(R.string.cloud_sync_debug_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row {
-                    TextButton(onClick = {
-                        viewModel.setDebugPremiumPlanTier(CloudPlanTier.SINGLE)
-                        viewModel.setDebugPremiumOverride(true)
-                    }) {
-                        Text(stringResource(R.string.cloud_sync_debug_simulate_single))
-                    }
-                    TextButton(onClick = {
-                        viewModel.setDebugPremiumPlanTier(CloudPlanTier.MULTI)
-                        viewModel.setDebugPremiumOverride(true)
-                    }) {
-                        Text(stringResource(R.string.cloud_sync_debug_simulate_multi))
-                    }
-                }
-                if (debugPremiumOverride) {
-                    Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = { viewModel.setDebugPremiumOverride(false) }) {
-                        Text(stringResource(R.string.cloud_sync_debug_cancel_simulation))
-                    }
-                }
-            } else if (!hasPremiumAccess) {
-                Text(
-                    stringResource(R.string.cloud_sync_plan_coming_soon),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-        }
+        PremiumPlansSection(viewModel = viewModel)
 
         // ========== GRUPOS SINCRONIZADOS ==========
         SectionCard {
@@ -705,6 +479,157 @@ private fun GroupVisibilityToggles(group: GroupConfig, onChange: (shareHistory: 
                 checked = group.showEloToObservers,
                 enabled = group.shareHistoryWithObservers,
                 onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked) }
+            )
+        }
+    }
+}
+
+/**
+ * Card "Assinatura" reaproveitado tanto pelo Organizador/Auxiliar (para sincronizar grupo(s) em
+ * nuvem) quanto pelo Espectador (para apoiar financeiramente o projeto). Os dois pacotes de
+ * assinatura são exatamente os mesmos ([BillingProductIds.SINGLE_GROUP]/[BillingProductIds.MULTI_GROUP])
+ * — na prática tanto faz assinar para de fato sincronizar um grupo quanto assinar só para apoiar o
+ * desenvolvimento, já que todo assinante ganha os mesmos benefícios: personalização de cores de
+ * time (local para qualquer assinante; também sincronizada em grupo para o organizador) e o limite
+ * de grupos sincronizados do pacote escolhido (1 ou até 5), mesmo que um Espectador normalmente não
+ * tenha motivo para sincronizar um grupo próprio. [title]/[description] permitem customizar a
+ * chamada conforme o perfil (ver [SpectatorLiveScreen]/[OrganizerAssistantCloudScreen]).
+ */
+@Composable
+internal fun PremiumPlansSection(
+    viewModel: VoleiViewModel,
+    title: String = stringResource(R.string.cloud_sync_status_title),
+    description: String? = null
+) {
+    val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
+    val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
+    val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
+    val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
+    val activity = LocalContext.current as? Activity
+
+    SectionCard {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        if (description != null) {
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            )
+        }
+        Text(
+            if (hasPremiumAccess) {
+                val tierLabel = stringResource(
+                    if (effectivePlanTier == CloudPlanTier.MULTI) {
+                        R.string.cloud_sync_tier_multi
+                    } else {
+                        R.string.cloud_sync_tier_single
+                    }
+                )
+                stringResource(R.string.cloud_sync_status_active, tierLabel)
+            } else {
+                stringResource(R.string.cloud_sync_status_inactive)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (hasPremiumAccess) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+
+        HorizontalDivider(
+            Modifier.padding(vertical = 12.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+        )
+
+        val singleMonthlyOffer = subscriptionOffers.firstOrNull {
+            it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
+        }
+        val singleAnnualOffer = subscriptionOffers.firstOrNull {
+            it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
+        }
+        val multiMonthlyOffer = subscriptionOffers.firstOrNull {
+            it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
+        }
+        val multiAnnualOffer = subscriptionOffers.firstOrNull {
+            it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
+        }
+
+        PlanOptionRow(
+            title = stringResource(R.string.cloud_sync_plan_single_title),
+            price = singleMonthlyOffer?.formattedPrice
+                ?: stringResource(R.string.cloud_sync_plan_single_price),
+            selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
+            onSubscribeClick = activity?.let { act ->
+                { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
+            },
+            annualPrice = singleAnnualOffer?.formattedPrice,
+            onSubscribeAnnualClick = activity?.takeIf { singleAnnualOffer != null }?.let { act ->
+                { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
+            }
+        )
+        Spacer(Modifier.height(8.dp))
+        PlanOptionRow(
+            title = stringResource(R.string.cloud_sync_plan_multi_title),
+            price = multiMonthlyOffer?.formattedPrice
+                ?: stringResource(R.string.cloud_sync_plan_multi_price),
+            selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
+            onSubscribeClick = activity?.let { act ->
+                { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
+            },
+            annualPrice = multiAnnualOffer?.formattedPrice,
+            onSubscribeAnnualClick = activity?.takeIf { multiAnnualOffer != null }?.let { act ->
+                { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
+            }
+        )
+        Text(
+            stringResource(R.string.cloud_sync_plan_annual_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+        if (BuildConfig.DEBUG) {
+            HorizontalDivider(
+                Modifier.padding(vertical = 12.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+            )
+            Text(
+                stringResource(R.string.cloud_sync_debug_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row {
+                TextButton(onClick = {
+                    viewModel.setDebugPremiumPlanTier(CloudPlanTier.SINGLE)
+                    viewModel.setDebugPremiumOverride(true)
+                }) {
+                    Text(stringResource(R.string.cloud_sync_debug_simulate_single))
+                }
+                TextButton(onClick = {
+                    viewModel.setDebugPremiumPlanTier(CloudPlanTier.MULTI)
+                    viewModel.setDebugPremiumOverride(true)
+                }) {
+                    Text(stringResource(R.string.cloud_sync_debug_simulate_multi))
+                }
+            }
+            if (debugPremiumOverride) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = { viewModel.setDebugPremiumOverride(false) }) {
+                    Text(stringResource(R.string.cloud_sync_debug_cancel_simulation))
+                }
+            }
+        } else if (!hasPremiumAccess) {
+            Text(
+                stringResource(R.string.cloud_sync_plan_coming_soon),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
     }

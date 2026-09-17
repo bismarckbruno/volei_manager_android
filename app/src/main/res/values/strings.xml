@@ -92,12 +92,8 @@
     <string name="cloud_sync_debug_simulate_single">Simulate 1 group</string>
     <string name="cloud_sync_debug_simulate_multi">Simulate up to 5 groups</string>
     <string name="cloud_sync_debug_cancel_simulation">Cancel simulation</string>
-    <string name="cloud_sync_debug_simulate_supporter">Simulate supporter (debug)</string>
-    <string name="supporter_donation_title">Support Voleizin</string>
-    <string name="supporter_donation_description">Keeping the app running, maintained and improved has real costs. If you\'d like to help — no obligation, just a symbolic contribution — it means a lot. Thank you!</string>
-    <string name="supporter_donation_button">Contribute</string>
-    <string name="supporter_donation_button_with_price">Contribute (%1$s/month)</string>
-    <string name="supporter_donation_thanks">Thank you for supporting Voleizin! 💙</string>
+    <string name="cloud_sync_spectator_support_title">Support Voleizin</string>
+    <string name="cloud_sync_spectator_support_description">As a viewer you don\'t need to sync a group, but subscribing to either plan below also helps cover the real costs of keeping the app running, maintained, and improved — and unlocks custom team colors for you (applied only on this device). Thank you!</string>
     <string name="cloud_sync_groups_title">Synced groups</string>
     <string name="cloud_sync_groups_hint">Choose which local group(s) stay synced in the cloud. Changing which group is premium is allowed at most once every 15 days.</string>
     <string name="cloud_sync_groups_locked_hint">Subscribe to a premium plan to sync your groups in the cloud.</string>
@@ -216,12 +212,6 @@
     <string name="live_screen_waiting_list_label">Waiting queue</string>
     <string name="live_screen_waiting_list_empty">No one waiting</string>
     <string name="live_screen_no_live_state">Waiting for the first update from the organizer…</string>
-    <string name="live_screen_history_title">Match history</string>
-    <string name="live_screen_history_hidden">The organizer hasn\'t shared match history yet.</string>
-    <string name="live_screen_history_empty">No matches yet.</string>
-    <string name="live_screen_elo_title">Elo ranking</string>
-    <string name="live_screen_elo_hidden">The organizer hasn\'t shared the Elo ranking yet.</string>
-    <string name="live_screen_elo_empty">No Elo data yet.</string>
     <string name="delete">Delete</string>
     <string name="delete_player_title">Delete %1$s?</string>
     <string name="delete_player_text">The person will be removed from the active list, but their match history WILL BE KEPT.</string>
