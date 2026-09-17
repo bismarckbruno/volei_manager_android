@@ -5213,8 +5213,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             root.addView(scrollView, android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT))
             scrollView.postDelayed({
                 try {
+                    // ExportableImageContent tem largura fixa de 400.dp (ver AppScreens.kt). Convertemos
+                    // esse valor para pixels usando a densidade real do dispositivo — usar um valor fixo
+                    // em pixels (ex.: 1440) fazia a imagem sair com margens em branco desproporcionais
+                    // (e por consequência "mais larga") em aparelhos com densidade de tela menor, já que
+                    // o mesmo "1440px" representa uma largura em dp bem maior nesses aparelhos. Isso
+                    // acontecia igualmente para Administrador e Espectador, mas só ficava visível quando
+                    // os dois usavam celulares com densidades diferentes nos testes.
+                    val exportWidthPx = (400f * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
                     composeView.measure(
-                        android.view.View.MeasureSpec.makeMeasureSpec(1440, android.view.View.MeasureSpec.EXACTLY),
+                        android.view.View.MeasureSpec.makeMeasureSpec(exportWidthPx, android.view.View.MeasureSpec.EXACTLY),
                         android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
                     )
                     composeView.layout(0, 0, composeView.measuredWidth, composeView.measuredHeight)
