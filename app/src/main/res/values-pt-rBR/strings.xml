@@ -69,9 +69,6 @@
     <string name="debug_simulate_premium_hint">Interruptor só de debug para testar recursos premium sem uma compra real. Nunca aparece em builds de release.</string>
     <string name="cloud_sync_screen_title">Premium</string>
     <string name="cloud_sync_screen_intro">Compartilhe o placar, times e histórico deste grupo em tempo real com seus auxiliares e jogadores, em qualquer dispositivo.</string>
-    <string name="cloud_sync_account_title">Conta</string>
-    <string name="cloud_sync_account_coming_soon">Cadastro e login chegam em breve. Quando disponíveis, organizadores e auxiliares poderão criar uma conta gratuita para sincronizar grupos.</string>
-    <string name="cloud_sync_account_signed_out_hint">Crie uma conta gratuita ou faça login para sincronizar grupos em nuvem e permitir que auxiliares/espectadores acompanhem em tempo real.</string>
     <string name="cloud_sync_status_title">Assinatura</string>
     <string name="cloud_sync_status_active">Premium ativo — %1$s</string>
     <string name="cloud_sync_status_inactive">Sem assinatura ativa</string>
@@ -98,11 +95,11 @@
     <string name="cloud_sync_groups_hint">Escolha qual(is) grupo(s) local(is) ficam sincronizados em nuvem. Trocar qual grupo é o premium é permitido no máximo uma vez a cada 15 dias.</string>
     <string name="cloud_sync_groups_locked_hint">Assine um plano premium para sincronizar seus grupos em nuvem.</string>
     <string name="cloud_sync_groups_empty">Você ainda não tem nenhum grupo criado.</string>
+    <string name="cloud_sync_groups_selector_label">Grupo</string>
+    <string name="cloud_sync_groups_synced_badge">Sincronizado</string>
     <string name="cloud_sync_groups_limit_label">%1$d de %2$d grupo(s) sincronizado(s)</string>
     <string name="cloud_sync_limit_reached">Limite de grupos sincronizados do seu pacote atingido.</string>
     <string name="cloud_sync_switch_cooldown">Você só pode trocar o grupo premium a cada 15 dias. Tente novamente mais tarde.</string>
-    <string name="cloud_sync_join_title">Entrar em um grupo</string>
-    <string name="cloud_sync_join_hint">Informe um código de convite compartilhado pelo organizador ou auxiliar do grupo — o código já carrega o seu papel (auxiliar ou espectador).</string>
     <string name="join_existing_group">+ Adicionar grupo existente</string>
     <string name="join_existing_group_hint">Informe o código de convite compartilhado pelo organizador ou auxiliar do grupo.</string>
     <string name="join_existing_group_code_label">Código</string>

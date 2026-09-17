@@ -15,18 +15,26 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +51,6 @@ import android.app.Activity
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
-import com.bismarck.voleimanager.app.ui.components.JoinExistingGroupDialog
 import com.bismarck.voleimanager.app.ui.components.GenerateJoinCodeDialog
 import com.bismarck.voleimanager.app.ui.components.TransferGroupOwnershipDialog
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
@@ -84,17 +91,9 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
         return
     }
 
-    var showJoinDialog by rememberSaveable { mutableStateOf(false) }
-    if (showJoinDialog) {
-        JoinExistingGroupDialog(
-            onDismiss = { showJoinDialog = false },
-            onConfirm = { code, onResult -> viewModel.joinGroupWithCode(code, onResult) }
-        )
-    }
-
     when (userProfileType) {
         UserProfileType.ESPECTADOR -> SpectatorLiveScreen(viewModel)
-        else -> OrganizerAssistantCloudScreen(viewModel, onJoinGroupClick = { showJoinDialog = true })
+        else -> OrganizerAssistantCloudScreen(viewModel)
     }
 }
 
@@ -227,9 +226,9 @@ internal fun RemoteEloRow(entry: RemoteEloLogEntry) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroupClick: () -> Unit) {
-    val currentUser by viewModel.currentUser.collectAsState()
+private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
     val allGroups by viewModel.allGroupConfigs.collectAsState()
@@ -290,50 +289,9 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
             )
         }
 
-        // ========== ENTRAR EM UM GRUPO (código de Auxiliar/Espectador) ==========
-        // Colocado logo no topo: é o ponto de entrada mais comum para quem chega nesta tela com
-        // um código em mãos (recebido de um organizador/auxiliar), sem precisar rolar a tela.
-        SectionCard {
-            Text(
-                stringResource(R.string.cloud_sync_join_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                stringResource(R.string.cloud_sync_join_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onJoinGroupClick) {
-                Text(stringResource(R.string.join_existing_group))
-            }
-        }
-
-        // ========== CONTA (Firebase Auth e-mail/senha) ==========
-        SectionCard {
-            Text(
-                stringResource(R.string.cloud_sync_account_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            if (currentUser != null) {
-                Text(
-                    currentUser?.nickname?.takeIf { it.isNotBlank() }
-                        ?: currentUser?.email.orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                TextButton(onClick = { viewModel.signOut() }) {
-                    Text(stringResource(R.string.logout))
-                }
-            } else {
-                Text(
-                    stringResource(R.string.cloud_sync_account_signed_out_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        // Entrar em um grupo (código de Auxiliar/Espectador) e gestão de Conta (login/logout) já
+        // ficam disponíveis em outros pontos do app (menu do avatar/gaveta de navegação — ver
+        // [VoleiManagerApp]), então não são repetidos nesta tela para evitar redundância.
 
         // ========== ASSINATURA E PLANOS ==========
         PremiumPlansSection(viewModel = viewModel)
@@ -360,6 +318,10 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
             )
             Spacer(Modifier.height(8.dp))
 
+            // Só os grupos criados/administrados pelo próprio usuário (remoteRole == null)
+            // aparecem aqui — grupos onde ele é Espectador ficam na seção seguinte. Um dropdown
+            // mostra um grupo por vez (em vez de listar todos empilhados), ordenado com os já
+            // sincronizados primeiro e, dentro de cada grupo, em ordem alfabética.
             val ownGroups = allGroups.filter { it.remoteRole == null }
             if (ownGroups.isEmpty()) {
                 Text(
@@ -368,51 +330,104 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, onJoinGroup
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                ownGroups.sortedBy { it.groupName }.forEach { group: GroupConfig ->
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                group.groupName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Switch(
-                                checked = group.isCloudSynced,
-                                enabled = hasPremiumAccess,
-                                onCheckedChange = { checked ->
-                                    viewModel.setGroupCloudSynced(group.groupName, checked)
+                val sortedGroups = remember(ownGroups) {
+                    ownGroups.sortedWith(
+                        compareByDescending<GroupConfig> { it.isCloudSynced }.thenBy { it.groupName }
+                    )
+                }
+                var selectedGroupName by rememberSaveable { mutableStateOf<String?>(null) }
+                val selectedGroup = sortedGroups.firstOrNull { it.groupName == selectedGroupName }
+                    ?: sortedGroups.first()
+                LaunchedEffect(selectedGroup.groupName) {
+                    selectedGroupName = selectedGroup.groupName
+                }
+
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedGroup.groupName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.cloud_sync_groups_selector_label)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        sortedGroups.forEach { group ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(group.groupName, modifier = Modifier.weight(1f))
+                                        if (group.isCloudSynced) {
+                                            Icon(
+                                                Icons.Outlined.CloudDone,
+                                                contentDescription = stringResource(R.string.cloud_sync_groups_synced_badge),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    selectedGroupName = group.groupName
+                                    expanded = false
                                 }
                             )
                         }
-                        if (group.isCloudSynced) {
-                            TextButton(onClick = { generateCodeDialogFor = group.groupName }) {
-                                Text(stringResource(R.string.generate_join_code_menu_item))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            selectedGroup.groupName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = selectedGroup.isCloudSynced,
+                            enabled = hasPremiumAccess,
+                            onCheckedChange = { checked ->
+                                viewModel.setGroupCloudSynced(selectedGroup.groupName, checked)
                             }
-                            GroupVisibilityToggles(group = group, onChange = { shareHistory, showElo ->
-                                viewModel.setGroupVisibility(group.groupName, shareHistory, showElo)
-                            })
-                            if (group.pendingOwnershipTransferTo != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        stringResource(
-                                            R.string.transfer_ownership_pending_label,
-                                            group.pendingOwnershipTransferTo.orEmpty()
-                                        ),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    TextButton(onClick = { viewModel.cancelGroupOwnershipTransfer(group.groupName) }) {
-                                        Text(stringResource(R.string.transfer_ownership_cancel))
-                                    }
+                        )
+                    }
+                    if (selectedGroup.isCloudSynced) {
+                        TextButton(onClick = { generateCodeDialogFor = selectedGroup.groupName }) {
+                            Text(stringResource(R.string.generate_join_code_menu_item))
+                        }
+                        GroupVisibilityToggles(group = selectedGroup, onChange = { shareHistory, showElo ->
+                            viewModel.setGroupVisibility(selectedGroup.groupName, shareHistory, showElo)
+                        })
+                        if (selectedGroup.pendingOwnershipTransferTo != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    stringResource(
+                                        R.string.transfer_ownership_pending_label,
+                                        selectedGroup.pendingOwnershipTransferTo.orEmpty()
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(onClick = { viewModel.cancelGroupOwnershipTransfer(selectedGroup.groupName) }) {
+                                    Text(stringResource(R.string.transfer_ownership_cancel))
                                 }
-                            } else {
-                                TextButton(onClick = { transferDialogFor = group.groupName }) {
-                                    Text(stringResource(R.string.transfer_ownership_menu_item))
-                                }
+                            }
+                        } else {
+                            TextButton(onClick = { transferDialogFor = selectedGroup.groupName }) {
+                                Text(stringResource(R.string.transfer_ownership_menu_item))
                             }
                         }
                     }

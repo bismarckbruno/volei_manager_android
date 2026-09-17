@@ -69,9 +69,6 @@
     <string name="debug_simulate_premium_hint">Debug-only toggle to test premium features without a real purchase. Never shown in release builds.</string>
     <string name="cloud_sync_screen_title">Premium</string>
     <string name="cloud_sync_screen_intro">Share the live scoreboard, teams, and history of this group in real time with your co-admins and players, on any device.</string>
-    <string name="cloud_sync_account_title">Account</string>
-    <string name="cloud_sync_account_coming_soon">Sign-up and login are coming soon. Once available, organizers and co-admins will be able to create a free account to sync groups.</string>
-    <string name="cloud_sync_account_signed_out_hint">Sign up for a free account or log in to sync groups in the cloud and let co-admins/observers follow along in real time.</string>
     <string name="cloud_sync_status_title">Subscription</string>
     <string name="cloud_sync_status_active">Premium active — %1$s</string>
     <string name="cloud_sync_status_inactive">No active subscription</string>
@@ -98,11 +95,11 @@
     <string name="cloud_sync_groups_hint">Choose which local group(s) stay synced in the cloud. Changing which group is premium is allowed at most once every 15 days.</string>
     <string name="cloud_sync_groups_locked_hint">Subscribe to a premium plan to sync your groups in the cloud.</string>
     <string name="cloud_sync_groups_empty">You don\'t have any group yet.</string>
+    <string name="cloud_sync_groups_selector_label">Group</string>
+    <string name="cloud_sync_groups_synced_badge">Synced</string>
     <string name="cloud_sync_groups_limit_label">%1$d of %2$d synced group(s)</string>
     <string name="cloud_sync_limit_reached">You\'ve reached your plan\'s synced group limit.</string>
     <string name="cloud_sync_switch_cooldown">You can only change the premium group once every 15 days. Please try again later.</string>
-    <string name="cloud_sync_join_title">Join a group</string>
-    <string name="cloud_sync_join_hint">Enter an invite code shared by someone else\'s group organizer or assistant — the code already carries your role (assistant or observer).</string>
     <string name="join_existing_group">+ Add existing group</string>
     <string name="join_existing_group_hint">Enter the invite code shared by the group\'s organizer or assistant.</string>
     <string name="join_existing_group_code_label">Code</string>
