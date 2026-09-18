@@ -98,6 +98,7 @@ import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.FaqSearch
+import com.bismarck.voleimanager.app.util.containsIgnoreDiacritics
 import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
 import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import kotlinx.coroutines.Dispatchers
@@ -1684,7 +1685,7 @@ private fun HistoryPlayerFilterDialog(
         val filtered = if (searchQuery.isBlank()) {
             playerNames
         } else {
-            playerNames.filter { it.contains(searchQuery.trim(), ignoreCase = true) }
+            playerNames.filter { it.containsIgnoreDiacritics(searchQuery.trim()) }
         }
         
         if (sortByDates) {

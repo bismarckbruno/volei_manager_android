@@ -6,9 +6,13 @@ import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -139,6 +143,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
+import com.bismarck.voleimanager.app.util.containsIgnoreDiacritics
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
@@ -254,7 +259,7 @@ fun GameScreenContent(
             sortedPlayers
         } else {
             val query = playerSearchQuery.trim()
-            sortedPlayers.filter { it.name.contains(query, ignoreCase = true) }
+            sortedPlayers.filter { it.name.containsIgnoreDiacritics(query) }
         }
     }
     val historyPlayerIds = remember(currentGroupHistory) {
@@ -3659,7 +3664,20 @@ private fun ScoreValueIndicator(
         ) {
             when {
                 showRotationIndicator -> {
-                    Canvas(modifier = Modifier.size(circleSize)) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "rotationIndicator")
+                    val rotationAngle by infiniteTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 360f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 6000, easing = LinearEasing)
+                        ),
+                        label = "rotationIndicatorAngle"
+                    )
+                    Canvas(
+                        modifier = Modifier
+                            .size(circleSize)
+                            .rotate(rotationAngle)
+                    ) {
                         // O tracejado escala com o tamanho do círculo (mínimo igual ao anterior)
                         // para continuar visível de longe nos placares grandes (circleSize maior),
                         // sem alterar a aparência dos placares pequenos que já funcionavam bem.
