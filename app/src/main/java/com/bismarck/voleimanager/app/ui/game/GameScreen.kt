@@ -152,6 +152,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.PI
 import kotlin.math.roundToInt
 
 
@@ -3683,13 +3684,24 @@ private fun ScoreValueIndicator(
                         // sem alterar a aparência dos placares pequenos que já funcionavam bem.
                         val dashLengthPx = (circleSize.toPx() * 0.1f).coerceAtLeast(6.dp.toPx())
                         val dashGapPx = (circleSize.toPx() * 0.07f).coerceAtLeast(4.dp.toPx())
+                        val radiusPx = size.minDimension / 2f - strokeWidth.toPx()
+                        // Ajusta traço e espaço para caberem um número inteiro de vezes na
+                        // circunferência, mantendo a proporção original entre eles. Isso evita
+                        // que o último segmento "cole" no primeiro e fique com tamanho diferente.
+                        val circumferencePx = 2f * PI.toFloat() * radiusPx
+                        val idealPeriodPx = dashLengthPx + dashGapPx
+                        val dashRatio = dashLengthPx / idealPeriodPx
+                        val segmentCount = (circumferencePx / idealPeriodPx).roundToInt().coerceAtLeast(1)
+                        val actualPeriodPx = circumferencePx / segmentCount
+                        val actualDashPx = actualPeriodPx * dashRatio
+                        val actualGapPx = actualPeriodPx - actualDashPx
                         drawCircle(
                             color = indicatorColor,
-                            radius = size.minDimension / 2f - strokeWidth.toPx(),
+                            radius = radiusPx,
                             style = Stroke(
                                 width = strokeWidth.toPx(),
                                 pathEffect = PathEffect.dashPathEffect(
-                                    floatArrayOf(dashLengthPx, dashGapPx)
+                                    floatArrayOf(actualDashPx, actualGapPx)
                                 )
                             )
                         )
