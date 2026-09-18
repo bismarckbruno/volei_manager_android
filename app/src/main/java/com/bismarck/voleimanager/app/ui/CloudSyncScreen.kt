@@ -376,8 +376,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                     ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.offset(x = 0.dp, y = 4.dp)) {
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
                         sortedGroups.forEach { group ->
                             DropdownMenuItem(
                                 text = {
