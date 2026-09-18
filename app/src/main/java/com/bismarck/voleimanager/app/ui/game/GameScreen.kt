@@ -4699,6 +4699,7 @@ fun PlayerCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .defaultMinSize(minHeight = 64.dp)
                     .clip(cardShape)
                     .then(
                         if (isSpectator) {

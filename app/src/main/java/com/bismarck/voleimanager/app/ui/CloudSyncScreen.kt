@@ -56,7 +56,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.app.Activity
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.DpOffset
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
@@ -371,7 +373,11 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                         shape = RoundedCornerShape(56.dp)
                     )
-                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.offset(x = 0.dp, y = 4.dp)) {
                         sortedGroups.forEach { group ->
                             DropdownMenuItem(
                                 text = {
@@ -543,6 +549,7 @@ private fun GroupVisibilityToggles(
                     )
                 }
             }
+            Spacer(Modifier.height(8.dp))
         }
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
