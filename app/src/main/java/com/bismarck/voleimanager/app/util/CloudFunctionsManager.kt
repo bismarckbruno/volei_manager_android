@@ -13,6 +13,11 @@ import kotlin.coroutines.resume
  *  (`volei_manager_backend/functions/src/groups/joinCodes.ts`). */
 enum class JoinRole { AUXILIAR, ESPECTADOR }
 
+/** Limite de caracteres para o campo de código digitado manualmente pelo usuário — os códigos
+ *  gerados são bem mais curtos que isso; o limite existe só para barrar colagens absurdamente
+ *  longas antes de enviar ao backend. */
+const val MAX_JOIN_CODE_LENGTH = 20
+
 /** Código de convite recém-gerado, pronto para compartilhar (expira em 30 minutos). */
 data class GeneratedJoinCode(val code: String, val expiresAtMillis: Long)
 

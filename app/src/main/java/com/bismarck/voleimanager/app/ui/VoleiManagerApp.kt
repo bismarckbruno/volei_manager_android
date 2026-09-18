@@ -70,6 +70,7 @@ import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.*
 import com.bismarck.voleimanager.app.ui.game.GameScreenContent
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_EXPORT_FILE_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.CsvType
 import com.bismarck.voleimanager.app.ui.viewmodel.Screen
@@ -510,7 +511,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 ) {
                     OutlinedTextField(
                         value = exportFileName,
-                        onValueChange = { exportFileName = it },
+                        onValueChange = { exportFileName = it.take(MAX_EXPORT_FILE_NAME_LENGTH) },
                         label = { Text(stringResource(R.string.file_name)) })
                     Spacer(Modifier.height(16.dp))
                     Button(
@@ -1019,8 +1020,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                             Spacer(Modifier.height(16.dp))
 
-                            Text(stringResource(R.string.current_group), style = MaterialTheme.typography.labelMedium)
-                            Spacer(Modifier.height(8.dp))
                             var groupExpanded by remember { mutableStateOf(false) }
                             var groupAnchorWidth by remember { mutableStateOf(280.dp) }
                             val groupConfiguration = LocalConfiguration.current

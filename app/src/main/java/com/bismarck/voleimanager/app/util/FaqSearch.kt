@@ -14,6 +14,10 @@ import java.text.Normalizer
  */
 object FaqSearch {
 
+    /** Limite de caracteres para a caixa de busca — bem acima de qualquer pergunta plausível,
+     *  apenas para barrar colagens de texto absurdamente longas antes de normalizar/comparar. */
+    const val MAX_QUERY_LENGTH = 100
+
     /** Extra weight given to a query token match found inside an entry's keyword list. */
     private const val KEYWORD_MATCH_WEIGHT = 3
     private const val TEXT_MATCH_WEIGHT = 1

@@ -139,6 +139,7 @@ import com.bismarck.voleimanager.app.ui.components.setterIconRes
 import com.bismarck.voleimanager.app.ui.getDisplayGroupName
 import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
@@ -2065,7 +2066,7 @@ private fun PlayerListHeader(
             if (searchExpanded) {
                 RoundedSearchTextField(
                     value = searchQuery,
-                    onValueChange = onSearchQueryChange,
+                    onValueChange = { onSearchQueryChange(it.take(MAX_PLAYER_NAME_LENGTH)) },
                     placeholder = { Text(stringResource(R.string.search_player), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = null)
@@ -3810,8 +3811,16 @@ private fun GroupOnboardingNameCard(
             OutlinedTextField(
                 value = textFieldValue,
                 onValueChange = {
-                    textFieldValue = it
-                    onGroupNameChange(it.text)
+                    val truncated = if (it.text.length > MAX_GROUP_NAME_LENGTH) {
+                        it.copy(
+                            text = it.text.take(MAX_GROUP_NAME_LENGTH),
+                            selection = TextRange(it.selection.end.coerceAtMost(MAX_GROUP_NAME_LENGTH))
+                        )
+                    } else {
+                        it
+                    }
+                    textFieldValue = truncated
+                    onGroupNameChange(truncated.text)
                 },
                 label = { Text(stringResource(R.string.group_name)) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),

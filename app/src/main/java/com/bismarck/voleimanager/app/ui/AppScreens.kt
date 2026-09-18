@@ -95,6 +95,7 @@ import com.bismarck.voleimanager.app.ui.components.groupTypeIcon
 import com.bismarck.voleimanager.app.ui.theme.LocalExtendedColors
 import com.bismarck.voleimanager.app.ui.theme.ColorFamily
 import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
+import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.FaqSearch
@@ -1719,7 +1720,7 @@ private fun HistoryPlayerFilterDialog(
                     ) {
                         RoundedSearchTextField(
                             value = searchQuery,
-                            onValueChange = onSearchQueryChange,
+                            onValueChange = { onSearchQueryChange(it.take(MAX_PLAYER_NAME_LENGTH)) },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text(stringResource(R.string.search_player)) },
                             trailingIcon = {
@@ -2785,7 +2786,7 @@ fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit
 
         OutlinedTextField(
             value = searchQuery,
-            onValueChange = { searchQuery = it },
+            onValueChange = { searchQuery = it.take(FaqSearch.MAX_QUERY_LENGTH) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text(stringResource(R.string.faq_search_hint)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },

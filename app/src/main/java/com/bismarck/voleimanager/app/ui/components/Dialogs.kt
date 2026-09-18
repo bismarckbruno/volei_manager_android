@@ -81,6 +81,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import com.bismarck.voleimanager.app.util.MAX_EMAIL_LENGTH
 import com.bismarck.voleimanager.app.util.MAX_FULL_NAME_LENGTH
+import com.bismarck.voleimanager.app.util.MAX_JOIN_CODE_LENGTH
 import com.bismarck.voleimanager.app.util.MAX_PASSWORD_LENGTH
 import com.bismarck.voleimanager.app.util.MIN_PASSWORD_LENGTH
 import com.bismarck.voleimanager.app.util.isValidEmail
@@ -299,7 +300,7 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = newName,
-                    onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) newName = it },
+                    onValueChange = { newName = it.take(MAX_GROUP_NAME_LENGTH) },
                     label = { Text(stringResource(R.string.new_name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
@@ -523,7 +524,7 @@ fun EditPlayerDialog(
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = newName,
-                    onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) newName = it },
+                    onValueChange = { newName = it.take(MAX_PLAYER_NAME_LENGTH) },
                     label = { Text(stringResource(R.string.name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
@@ -694,7 +695,7 @@ fun AddPlayerDialog(
             ) {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { if (it.length <= MAX_PLAYER_NAME_LENGTH) name = it },
+                    onValueChange = { name = it.take(MAX_PLAYER_NAME_LENGTH) },
                     label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
@@ -1320,7 +1321,7 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { if (it.length <= MAX_GROUP_NAME_LENGTH) text = it },
+                    onValueChange = { text = it.take(MAX_GROUP_NAME_LENGTH) },
                     label = { Text(stringResource(R.string.group_name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
@@ -1454,7 +1455,7 @@ fun JoinExistingGroupDialog(
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = code,
-                    onValueChange = { code = it; errorMessage = null },
+                    onValueChange = { code = it.take(MAX_JOIN_CODE_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.join_existing_group_code_label)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                     singleLine = true,
@@ -2165,7 +2166,7 @@ fun EditProfileDialog(
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = fullName,
-                    onValueChange = { fullName = it; errorMessage = null },
+                    onValueChange = { fullName = it.take(MAX_FULL_NAME_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.full_name_label)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
@@ -2174,7 +2175,7 @@ fun EditProfileDialog(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = nickname,
-                    onValueChange = { nickname = it; errorMessage = null },
+                    onValueChange = { nickname = it.take(MAX_PLAYER_NAME_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.nickname_label)) },
                     supportingText = { Text(stringResource(R.string.nickname_hint)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
@@ -2297,7 +2298,7 @@ fun TransferGroupOwnershipDialog(
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = targetEmail,
-                    onValueChange = { targetEmail = it },
+                    onValueChange = { targetEmail = it.take(MAX_EMAIL_LENGTH) },
                     label = { Text(stringResource(R.string.transfer_ownership_email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
