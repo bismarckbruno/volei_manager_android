@@ -2023,10 +2023,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         .stateIn(viewModelScope, screenDataSharing, null)
 
-    /** Data de hoje no formato `yyyy-MM-dd`, usada para filtrar histórico/logs de Elo remotos
-     *  quando [GroupConfig.shareOnlyTodayHistory] estiver ligado. */
+    /** Data de hoje no formato `yyyy-MM-dd`, usada para filtrar logs de Elo remotos (cujo campo
+     *  `date` já vem nesse formato, ver `dateLog` em [finishGame]) quando
+     *  [GroupConfig.shareOnlyTodayHistory] estiver ligado. */
     private fun todayDateString(): String =
         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+    /** Início do dia de hoje (00:00, fuso local) em epoch millis — usado para filtrar
+     *  [RemoteHistoryEntry] por [RemoteHistoryEntry.endTimestamp], já que o campo `date` dessas
+     *  entradas é uma string de exibição (`dd/MM/yyyy HH:mm`, ver `dateDisplay` em [finishGame])
+     *  e não pode ser comparada diretamente com [todayDateString]. */
+    private fun startOfTodayMillis(): Long = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, 0)
+        set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
     /** Histórico de partidas do grupo remoto ativo. Auxiliar sempre vê tudo (regras do Firestore já
      *  concedem acesso total a `canManageGroupContent`); Espectador só vê quando o organizador/
@@ -2041,8 +2053,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 val restrictToToday = config.remoteRole == UserProfileType.ESPECTADOR.name && config.shareOnlyTodayHistory
                 if (restrictToToday) {
                     CloudSyncManager.observeHistory(cloudGroupId).map { entries ->
-                        val today = todayDateString()
-                        entries.filter { it.date == today }
+                        val startOfToday = startOfTodayMillis()
+                        entries.filter { (it.endTimestamp ?: 0L) >= startOfToday }
                     }
                 } else {
                     CloudSyncManager.observeHistory(cloudGroupId)
