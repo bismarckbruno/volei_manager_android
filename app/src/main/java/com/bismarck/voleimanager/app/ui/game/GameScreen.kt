@@ -3669,7 +3669,7 @@ private fun ScoreValueIndicator(
                         initialValue = 0f,
                         targetValue = 360f,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 6000, easing = LinearEasing)
+                            animation = tween(durationMillis = 12000, easing = LinearEasing)
                         ),
                         label = "rotationIndicatorAngle"
                     )
