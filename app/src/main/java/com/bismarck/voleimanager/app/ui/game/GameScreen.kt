@@ -4728,18 +4728,26 @@ fun PlayerCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isSpectator) {
-                    Icon(
-                        imageVector = if (isPresent) Icons.Default.Check else Icons.Default.Person,
-                        contentDescription = null,
-                        tint = if (isPresent) {
-                            if (isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier
-                            .padding(horizontal = 14.dp)
-                            .size(20.dp)
-                    )
+                    // Crossfade suave em vez de troca abrupta do ícone quando o Administrador
+                    // marca/desmarca presença remotamente (o Espectador só espelha esse estado).
+                    AnimatedContent(
+                        targetState = isPresent,
+                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(220)) },
+                        label = "PlayerCardPresenceIcon"
+                    ) { present ->
+                        Icon(
+                            imageVector = if (present) Icons.Default.Check else Icons.Default.Person,
+                            contentDescription = null,
+                            tint = if (present) {
+                                if (isGuaranteedNextMatch) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier
+                                .padding(horizontal = 14.dp)
+                                .size(20.dp)
+                        )
+                    }
                 } else {
                     Checkbox(
                         checked = isPresent,

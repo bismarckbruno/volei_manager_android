@@ -145,7 +145,13 @@ data class LiveGameState(
     /** Se a composição do time está incompleta (algum slot preenchido abaixo do nível
      *  secundário) — replicado para o aviso "composição incompleta" também aparecer para
      *  Auxiliar/Espectador. */
-    val compositionIncomplete: Boolean = false
+    val compositionIncomplete: Boolean = false,
+    /** Se a última partida deste grupo já terminou (times zerados aguardando a próxima rodada) —
+     *  replicado para que o banner de "time vencedor" (`EmptyStateCard`) apareça também para
+     *  Auxiliar/Espectador, que não têm essa informação calculada localmente. */
+    val hasPreviousMatch: Boolean = false,
+    /** Jogadores do time vencedor da última partida encerrada, ver [hasPreviousMatch]. */
+    val lastWinners: List<RemotePlayerSnapshot> = emptyList()
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "groupName" to groupName,
@@ -170,7 +176,9 @@ data class LiveGameState(
         "gamesPlayedToday" to gamesPlayedToday,
         "assignedPositions" to assignedPositions,
         "assignedSlotIndices" to assignedSlotIndices,
-        "compositionIncomplete" to compositionIncomplete
+        "compositionIncomplete" to compositionIncomplete,
+        "hasPreviousMatch" to hasPreviousMatch,
+        "lastWinners" to lastWinners.map { it.toMap() }
     )
 }
 
@@ -333,7 +341,9 @@ object CloudSyncManager {
                             assignedSlotIndices = (data["assignedSlotIndices"] as? Map<*, *>)?.entries
                                 ?.mapNotNull { (k, v) -> (k as? String)?.let { key -> key to ((v as? Number)?.toInt() ?: return@let null) } }
                                 ?.toMap().orEmpty(),
-                            compositionIncomplete = data["compositionIncomplete"] as? Boolean ?: false
+                            compositionIncomplete = data["compositionIncomplete"] as? Boolean ?: false,
+                            hasPreviousMatch = data["hasPreviousMatch"] as? Boolean ?: false,
+                            lastWinners = (data["lastWinners"] as? List<*>)?.mapNotNull { (it as? Map<*, *>)?.let(RemotePlayerSnapshot::fromMap) }.orEmpty()
                         )
                     )
                 }

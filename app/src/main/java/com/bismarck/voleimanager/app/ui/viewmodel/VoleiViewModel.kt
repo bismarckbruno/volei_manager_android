@@ -1717,7 +1717,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val rotationRequiredForTeam: String?,
             val assignedPositions: Map<Int, PlayerPosition>,
             val assignedSlotIndices: Map<Int, Int>,
-            val compositionIncomplete: Boolean
+            val compositionIncomplete: Boolean,
+            val hasPreviousMatch: Boolean,
+            val lastWinners: List<Player>
         )
         val partialFlow = combine(
             combine(_teamA, _teamB, _waitingList) { teamA, teamB, waiting -> Triple(teamA, teamB, waiting) },
@@ -1730,8 +1732,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         // estourar o limite de 5 flows tipadas do combine() abaixo.
         val extraFlow = combine(
             combine(_currentMatchStartTimestamp, _lastScoringTeam, _rotationRequiredForTeam) { ts, lastTeam, rotation -> Triple(ts, lastTeam, rotation) },
-            combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { positions, slots, incomplete -> Triple(positions, slots, incomplete) }
-        ) { a, b -> ExtraFieldsPartial(a.first, a.second, a.third, b.first, b.second, b.third) }
+            combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { positions, slots, incomplete -> Triple(positions, slots, incomplete) },
+            combine(_hasPreviousMatch, _lastWinners) { hasPrev, winners -> hasPrev to winners }
+        ) { a, b, c -> ExtraFieldsPartial(a.first, a.second, a.third, b.first, b.second, b.third, c.first, c.second) }
         val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow, gamesPlayedStrictTodayMap) { players, extra, gamesMap -> Triple(players, extra, gamesMap) }
         viewModelScope.launch {
             combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner, groupPlayersAndExtra) { config, partial, streak, owner, playersAndExtra ->
@@ -1800,7 +1803,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         gamesPlayedToday = gamesPlayedTodayByPublicId,
                         assignedPositions = assignedPositionsByPublicId,
                         assignedSlotIndices = assignedSlotIndicesByPublicId,
-                        compositionIncomplete = compositionIncompleteValue
+                        compositionIncomplete = compositionIncompleteValue,
+                        hasPreviousMatch = extra.hasPreviousMatch,
+                        lastWinners = extra.lastWinners.map { it.toRemoteSnapshot() }
                     )
                 } else null
             }.debounce(400).collect { pushable ->
@@ -1858,6 +1863,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _currentMatchStartTimestamp.value = null
         _lastScoringTeam.value = null
         _rotationRequiredForTeam.value = null
+        _hasPreviousMatch.value = false
+        _lastWinners.value = emptyList()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -1944,6 +1951,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         _scoreB.value = state.scoreB
                         _currentStreak.value = state.currentStreak
                         _streakOwner.value = state.streakOwner
+                        // Banner de "time vencedor" (EmptyStateCard): estes valores só existem
+                        // localmente quando uma partida é encerrada neste próprio aparelho, então
+                        // para Auxiliar/Espectador eles precisam vir espelhados do organizador.
+                        _hasPreviousMatch.value = state.hasPreviousMatch
+                        _lastWinners.value = state.lastWinners.map { it.toSyntheticPlayer(config.groupName) }
                         // Não rodamos o algoritmo de PositionAssigner localmente para um grupo
                         // remoto — adotamos direto o mapa de posições/composição publicado pelo
                         // organizador (traduzindo publicId -> id sintético via hashCode, mesmo
