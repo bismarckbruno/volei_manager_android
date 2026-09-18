@@ -140,7 +140,13 @@
     <string name="birth_date_invalid">Informe uma data válida (DD/MM/AAAA).</string>
     <string name="show_password">Mostrar senha</string>
     <string name="hide_password">Esconder senha</string>
-    <string name="password_requirements_hint">%1$d–%2$d caracteres, com maiúscula, minúscula, número e caractere especial.</string>
+    <string name="password_requirement_length">%1$d–%2$d caracteres</string>
+    <string name="password_requirement_uppercase">Uma letra maiúscula</string>
+    <string name="password_requirement_lowercase">Uma letra minúscula</string>
+    <string name="password_requirement_digit">Um número</string>
+    <string name="password_requirement_special">Um caractere especial</string>
+    <string name="password_requirement_met">Requisito atendido</string>
+    <string name="password_requirement_not_met">Requisito não atendido</string>
     <string name="auth_invalid_email">Informe um e-mail válido.</string>
     <string name="auth_invalid_password">A senha deve ter %1$d–%2$d caracteres, com maiúscula, minúscula, número e caractere especial.</string>
     <string name="resend_verification_email">Reenviar e-mail de confirmação</string>

@@ -76,6 +76,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.TeamAccentColor
 import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import com.bismarck.voleimanager.app.util.MAX_EMAIL_LENGTH
@@ -84,6 +85,11 @@ import com.bismarck.voleimanager.app.util.MAX_PASSWORD_LENGTH
 import com.bismarck.voleimanager.app.util.MIN_PASSWORD_LENGTH
 import com.bismarck.voleimanager.app.util.isValidEmail
 import com.bismarck.voleimanager.app.util.isValidPassword
+import com.bismarck.voleimanager.app.util.passwordHasDigit
+import com.bismarck.voleimanager.app.util.passwordHasLowercase
+import com.bismarck.voleimanager.app.util.passwordHasSpecialChar
+import com.bismarck.voleimanager.app.util.passwordHasUppercase
+import com.bismarck.voleimanager.app.util.passwordHasValidLength
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -1763,6 +1769,44 @@ fun ChangeEmailDialog(
     )
 }
 
+/** Lista vertical dos requisitos de senha, com um ícone de check verde ao lado de cada item já
+ *  atendido — atualiza em tempo real enquanto o usuário digita, servindo de guia visual (ver
+ *  [isValidPassword] e as funções `passwordHas*` em `AuthValidation.kt` para as mesmas regras). */
+@Composable
+private fun PasswordRequirementsChecklist(password: String, modifier: Modifier = Modifier) {
+    val requirements = listOf(
+        stringResource(R.string.password_requirement_length, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH) to
+            passwordHasValidLength(password),
+        stringResource(R.string.password_requirement_uppercase) to passwordHasUppercase(password),
+        stringResource(R.string.password_requirement_lowercase) to passwordHasLowercase(password),
+        stringResource(R.string.password_requirement_digit) to passwordHasDigit(password),
+        stringResource(R.string.password_requirement_special) to passwordHasSpecialChar(password)
+    )
+    val metDescription = stringResource(R.string.password_requirement_met)
+    val notMetDescription = stringResource(R.string.password_requirement_not_met)
+    Column(modifier = modifier) {
+        requirements.forEach { (label, met) ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 2.dp)
+            ) {
+                Icon(
+                    imageVector = if (met) Icons.Default.Check else Icons.Default.RadioButtonUnchecked,
+                    contentDescription = if (met) metDescription else notMetDescription,
+                    tint = if (met) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (met) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
 /** Diálogo de troca de senha da conta logada: exige a senha atual e a nova senha (mesmas regras
  *  de complexidade do cadastro — ver [isValidPassword]). */
 @Composable
@@ -1805,11 +1849,6 @@ fun ChangePasswordDialog(
                     value = newPassword,
                     onValueChange = { newPassword = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.new_password_label)) },
-                    supportingText = {
-                        Text(
-                            stringResource(R.string.password_requirements_hint, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH)
-                        )
-                    },
                     visualTransformation = if (showNewPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1823,6 +1862,10 @@ fun ChangePasswordDialog(
                             )
                         }
                     }
+                )
+                PasswordRequirementsChecklist(
+                    password = newPassword,
+                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
                 )
                 errorMessage?.let {
                     Spacer(Modifier.height(4.dp))
@@ -1995,11 +2038,6 @@ fun SignUpDialog(
                     value = password,
                     onValueChange = { password = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
                     label = { Text(stringResource(R.string.password_label)) },
-                    supportingText = {
-                        Text(
-                            stringResource(R.string.password_requirements_hint, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH)
-                        )
-                    },
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -2013,6 +2051,10 @@ fun SignUpDialog(
                             )
                         }
                     }
+                )
+                PasswordRequirementsChecklist(
+                    password = password,
+                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
                 )
                 errorMessage?.let {
                     Spacer(Modifier.height(4.dp))

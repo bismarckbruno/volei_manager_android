@@ -24,9 +24,23 @@ private val PASSWORD_SPECIAL_REGEX = Regex(".*[^A-Za-z0-9].*")
 fun isValidEmail(email: String): Boolean =
     email.length <= MAX_EMAIL_LENGTH && EMAIL_REGEX.matches(email.trim())
 
+/** Requisitos individuais de senha, expostos separadamente para alimentar a checklist visual
+ *  exibida enquanto o usuário digita (ver `PasswordRequirementsChecklist` em Dialogs.kt) — cada
+ *  função aqui corresponde a um item da lista. */
+fun passwordHasValidLength(password: String): Boolean =
+    password.length in MIN_PASSWORD_LENGTH..MAX_PASSWORD_LENGTH
+
+fun passwordHasUppercase(password: String): Boolean = PASSWORD_UPPERCASE_REGEX.matches(password)
+
+fun passwordHasLowercase(password: String): Boolean = PASSWORD_LOWERCASE_REGEX.matches(password)
+
+fun passwordHasDigit(password: String): Boolean = PASSWORD_DIGIT_REGEX.matches(password)
+
+fun passwordHasSpecialChar(password: String): Boolean = PASSWORD_SPECIAL_REGEX.matches(password)
+
 fun isValidPassword(password: String): Boolean =
-    password.length in MIN_PASSWORD_LENGTH..MAX_PASSWORD_LENGTH &&
-        PASSWORD_UPPERCASE_REGEX.matches(password) &&
-        PASSWORD_LOWERCASE_REGEX.matches(password) &&
-        PASSWORD_DIGIT_REGEX.matches(password) &&
-        PASSWORD_SPECIAL_REGEX.matches(password)
+    passwordHasValidLength(password) &&
+        passwordHasUppercase(password) &&
+        passwordHasLowercase(password) &&
+        passwordHasDigit(password) &&
+        passwordHasSpecialChar(password)
