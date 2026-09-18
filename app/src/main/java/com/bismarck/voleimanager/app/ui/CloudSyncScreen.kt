@@ -1,8 +1,15 @@
 package com.bismarck.voleimanager.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -56,6 +63,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpOffset
@@ -162,7 +171,8 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
         PremiumPlansSection(
             viewModel = viewModel,
             title = stringResource(R.string.cloud_sync_spectator_support_title),
-            description = stringResource(R.string.cloud_sync_spectator_support_description)
+            description = stringResource(R.string.cloud_sync_spectator_support_description),
+            collapsible = false
         )
     }
 }
@@ -295,9 +305,6 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
         // ficam disponíveis em outros pontos do app (menu do avatar/gaveta de navegação — ver
         // [VoleiManagerApp]), então não são repetidos nesta tela para evitar redundância.
 
-        // ========== ASSINATURA E PLANOS ==========
-        PremiumPlansSection(viewModel = viewModel)
-
         // ========== GRUPOS SINCRONIZADOS ==========
         SectionCard {
             Text(
@@ -376,7 +383,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                     ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.offset(y = 4.dp)
                     ) {
                         sortedGroups.forEach { group ->
                             DropdownMenuItem(
@@ -443,6 +451,12 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                 }
             }
         }
+
+        // ========== ASSINATURA E PLANOS ==========
+        // Abaixo dos grupos sincronizados e recolhida por padrão para quem já é premium (ver
+        // PremiumPlansSection/collapsible): uma vez assinante, o foco do Administrador passa a
+        // ser configurar cada grupo, não a oferta de planos em si.
+        PremiumPlansSection(viewModel = viewModel)
 
         // ========== GRUPOS ADMINISTRADOS COMO AUXILIAR ==========
         // Papel Auxiliar temporariamente oculto/desativado para o lançamento (a sincronização
@@ -582,20 +596,60 @@ private fun GroupVisibilityToggles(
 internal fun PremiumPlansSection(
     viewModel: VoleiViewModel,
     title: String = stringResource(R.string.cloud_sync_status_title),
-    description: String? = null
+    description: String? = null,
+    collapsible: Boolean = true
 ) {
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
     val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
     val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
     val activity = LocalContext.current as? Activity
+    val context = LocalContext.current
+
+    // Só recolhe de fato quando já é premium: quem ainda não assinou precisa ver os planos
+    // (a "chamada" da seção), enquanto quem já assina tem o foco nas configurações premium de
+    // cada grupo, não mais na oferta em si — ver TooltipToggleRow em FAQItem para o mesmo padrão
+    // de seta giratória usado no FAQ.
+    val effectivelyCollapsible = collapsible && hasPremiumAccess
+    var expanded by rememberSaveable(hasPremiumAccess) { mutableStateOf(!hasPremiumAccess) }
+    val isExpanded = !effectivelyCollapsible || expanded
+    val rotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "PremiumPlansArrowRotation"
+    )
 
     SectionCard {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (effectivelyCollapsible) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { expanded = !expanded }
+                    } else {
+                        Modifier
+                    }
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            if (effectivelyCollapsible) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.rotate(rotation)
+                )
+            }
+        }
         if (description != null) {
             Text(
                 description,
@@ -625,95 +679,124 @@ internal fun PremiumPlansSection(
             }
         )
 
-        HorizontalDivider(
-            Modifier.padding(vertical = 12.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-        )
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
+            exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
+        ) {
+            Column {
+                HorizontalDivider(
+                    Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                )
 
-        val singleMonthlyOffer = subscriptionOffers.firstOrNull {
-            it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
-        }
-        val singleAnnualOffer = subscriptionOffers.firstOrNull {
-            it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
-        }
-        val multiMonthlyOffer = subscriptionOffers.firstOrNull {
-            it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
-        }
-        val multiAnnualOffer = subscriptionOffers.firstOrNull {
-            it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
-        }
-
-        PlanOptionRow(
-            title = stringResource(R.string.cloud_sync_plan_single_title),
-            price = singleMonthlyOffer?.formattedPrice
-                ?: stringResource(R.string.cloud_sync_plan_single_price),
-            selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
-            onSubscribeClick = activity?.let { act ->
-                { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
-            },
-            annualPrice = singleAnnualOffer?.formattedPrice,
-            onSubscribeAnnualClick = activity?.takeIf { singleAnnualOffer != null }?.let { act ->
-                { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
-            }
-        )
-        Spacer(Modifier.height(8.dp))
-        PlanOptionRow(
-            title = stringResource(R.string.cloud_sync_plan_multi_title),
-            price = multiMonthlyOffer?.formattedPrice
-                ?: stringResource(R.string.cloud_sync_plan_multi_price),
-            selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
-            onSubscribeClick = activity?.let { act ->
-                { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
-            },
-            annualPrice = multiAnnualOffer?.formattedPrice,
-            onSubscribeAnnualClick = activity?.takeIf { multiAnnualOffer != null }?.let { act ->
-                { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
-            }
-        )
-        Text(
-            stringResource(R.string.cloud_sync_plan_annual_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        if (BuildConfig.DEBUG) {
-            HorizontalDivider(
-                Modifier.padding(vertical = 12.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-            )
-            Text(
-                stringResource(R.string.cloud_sync_debug_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row {
-                TextButton(onClick = {
-                    viewModel.setDebugPremiumPlanTier(CloudPlanTier.SINGLE)
-                    viewModel.setDebugPremiumOverride(true)
-                }) {
-                    Text(stringResource(R.string.cloud_sync_debug_simulate_single))
+                val singleMonthlyOffer = subscriptionOffers.firstOrNull {
+                    it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
                 }
-                TextButton(onClick = {
-                    viewModel.setDebugPremiumPlanTier(CloudPlanTier.MULTI)
-                    viewModel.setDebugPremiumOverride(true)
-                }) {
-                    Text(stringResource(R.string.cloud_sync_debug_simulate_multi))
+                val singleAnnualOffer = subscriptionOffers.firstOrNull {
+                    it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
                 }
-            }
-            if (debugPremiumOverride) {
+                val multiMonthlyOffer = subscriptionOffers.firstOrNull {
+                    it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY
+                }
+                val multiAnnualOffer = subscriptionOffers.firstOrNull {
+                    it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
+                }
+
+                PlanOptionRow(
+                    title = stringResource(R.string.cloud_sync_plan_single_title),
+                    price = singleMonthlyOffer?.formattedPrice
+                        ?: stringResource(R.string.cloud_sync_plan_single_price),
+                    selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
+                    onSubscribeClick = activity?.let { act ->
+                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
+                    },
+                    annualPrice = singleAnnualOffer?.formattedPrice,
+                    onSubscribeAnnualClick = activity?.takeIf { singleAnnualOffer != null }?.let { act ->
+                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
+                    }
+                )
                 Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { viewModel.setDebugPremiumOverride(false) }) {
-                    Text(stringResource(R.string.cloud_sync_debug_cancel_simulation))
+                PlanOptionRow(
+                    title = stringResource(R.string.cloud_sync_plan_multi_title),
+                    price = multiMonthlyOffer?.formattedPrice
+                        ?: stringResource(R.string.cloud_sync_plan_multi_price),
+                    selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
+                    onSubscribeClick = activity?.let { act ->
+                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
+                    },
+                    annualPrice = multiAnnualOffer?.formattedPrice,
+                    onSubscribeAnnualClick = activity?.takeIf { multiAnnualOffer != null }?.let { act ->
+                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
+                    }
+                )
+                Text(
+                    stringResource(R.string.cloud_sync_plan_annual_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                // Cancelamento real de assinatura é sempre feito pela própria Play Store (não há
+                // API pública de cliente para cancelar do lado do app) — abre a tela de gestão de
+                // assinaturas do Google Play já filtrada pelo produto ativo. Só faz sentido para
+                // quem tem uma assinatura de verdade (não a simulação de debug).
+                if (hasPremiumAccess && !debugPremiumOverride) {
+                    Spacer(Modifier.height(8.dp))
+                    val activeProductId = if (effectivePlanTier == CloudPlanTier.MULTI) {
+                        BillingProductIds.MULTI_GROUP
+                    } else {
+                        BillingProductIds.SINGLE_GROUP
+                    }
+                    OutlinedButton(onClick = {
+                        val uri = Uri.parse(
+                            "https://play.google.com/store/account/subscriptions?sku=$activeProductId&package=${context.packageName}"
+                        )
+                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    }) {
+                        Text(stringResource(R.string.cloud_sync_cancel_subscription))
+                    }
+                }
+
+                if (BuildConfig.DEBUG) {
+                    HorizontalDivider(
+                        Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                    Text(
+                        stringResource(R.string.cloud_sync_debug_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row {
+                        TextButton(onClick = {
+                            viewModel.setDebugPremiumPlanTier(CloudPlanTier.SINGLE)
+                            viewModel.setDebugPremiumOverride(true)
+                        }) {
+                            Text(stringResource(R.string.cloud_sync_debug_simulate_single))
+                        }
+                        TextButton(onClick = {
+                            viewModel.setDebugPremiumPlanTier(CloudPlanTier.MULTI)
+                            viewModel.setDebugPremiumOverride(true)
+                        }) {
+                            Text(stringResource(R.string.cloud_sync_debug_simulate_multi))
+                        }
+                    }
+                    if (debugPremiumOverride) {
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = { viewModel.setDebugPremiumOverride(false) }) {
+                            Text(stringResource(R.string.cloud_sync_debug_cancel_simulation))
+                        }
+                    }
+                } else if (!hasPremiumAccess) {
+                    Text(
+                        stringResource(R.string.cloud_sync_plan_coming_soon),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
-        } else if (!hasPremiumAccess) {
-            Text(
-                stringResource(R.string.cloud_sync_plan_coming_soon),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp)
-            )
         }
     }
 }

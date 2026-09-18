@@ -5,6 +5,8 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
@@ -465,11 +467,9 @@ fun GameScreenContent(
                 AnimatedContent(
                     targetState = teamA.isNotEmpty() || teamB.isNotEmpty(),
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(
-                            animationSpec = tween(
-                                150
-                            )
-                        )
+                        fadeIn(animationSpec = tween(350)) togetherWith fadeOut(
+                            animationSpec = tween(350)
+                        ) using SizeTransform(clip = false) { _, _ -> tween(350) }
                     },
                     label = "GameActiveAnim"
                 ) { active ->
@@ -4675,17 +4675,27 @@ fun PlayerCard(
     val locale = currentLocale()
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val cardShape = RoundedCornerShape(12.dp)
-    val border = when {
-        isGuaranteedNextMatch -> BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary)
-        isPresent -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-        isWithoutHistory -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        else -> null
+    // Cor/espessura da borda e cor do fundo animadas suavemente (animateColorAsState/animateDpAsState)
+    // para que, quando o Administrador marca/desmarca presença, a mudança apareça de forma fluida
+    // também para o Espectador (cujo estado é só um espelho remoto, sem interação própria).
+    val targetBorderColor = when {
+        isGuaranteedNextMatch -> MaterialTheme.colorScheme.tertiary
+        isPresent -> MaterialTheme.colorScheme.primary
+        isWithoutHistory -> MaterialTheme.colorScheme.outline
+        else -> Color.Transparent
     }
-    val containerColor = when {
+    val borderColor by animateColorAsState(targetValue = targetBorderColor, label = "PlayerCardBorderColor")
+    val borderWidth by animateDpAsState(
+        targetValue = if (isGuaranteedNextMatch) 2.dp else 1.dp,
+        label = "PlayerCardBorderWidth"
+    )
+    val border = BorderStroke(borderWidth, borderColor)
+    val targetContainerColor = when {
         isGuaranteedNextMatch -> MaterialTheme.colorScheme.tertiaryContainer
         isPresent -> MaterialTheme.colorScheme.primaryContainer
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
+    val containerColor by animateColorAsState(targetValue = targetContainerColor, label = "PlayerCardContainerColor")
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Card(

@@ -83,6 +83,7 @@
     <string name="cloud_sync_plan_subscribe_annual">Assinar anual</string>
     <string name="cloud_sync_plan_active_badge">Ativo</string>
     <string name="cloud_sync_plan_coming_soon">Pagamento chega em breve</string>
+    <string name="cloud_sync_cancel_subscription">Cancelar assinatura</string>
     <string name="cloud_sync_plan_offer_unavailable">Não foi possível carregar esse plano agora. Verifique sua conexão e tente novamente em instantes.</string>
     <string name="cloud_sync_debug_hint">Build de debug: use os botões abaixo para simular a assinatura sem precisar de uma compra real (além do fluxo de compra de verdade acima, quando os planos já estiverem cadastrados no Play Console).</string>
     <string name="cloud_sync_debug_simulate_single">Simular 1 grupo</string>
