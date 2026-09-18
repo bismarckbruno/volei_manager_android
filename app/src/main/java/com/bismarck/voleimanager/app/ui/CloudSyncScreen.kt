@@ -11,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -58,7 +61,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -73,6 +78,7 @@ import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.ui.components.GenerateJoinCodeDialog
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
+import com.bismarck.voleimanager.app.ui.viewmodel.PremiumScreenPersona
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.BillingProductIds
@@ -110,9 +116,42 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
         return
     }
 
-    when (userProfileType) {
-        UserProfileType.ESPECTADOR -> SpectatorLiveScreen(viewModel)
-        else -> OrganizerAssistantCloudScreen(viewModel)
+    val persona by viewModel.premiumScreenPersona.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Quem administra um grupo pode também ser Auxiliar/Espectador de grupos de outras
+        // pessoas (e vice-versa) — ver PremiumScreenPersona. As duas versões da tela ficam sempre
+        // disponíveis, iniciando na que corresponde à resposta do onboarding, mas o usuário pode
+        // trocar livremente depois; a escolha é persistida (ver setPremiumScreenPersona).
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            SegmentedButton(
+                selected = persona == PremiumScreenPersona.ADMIN,
+                onClick = { viewModel.setPremiumScreenPersona(PremiumScreenPersona.ADMIN) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                icon = {}
+            ) {
+                Text(stringResource(R.string.premium_screen_persona_admin))
+            }
+            SegmentedButton(
+                selected = persona == PremiumScreenPersona.ESPECTADOR,
+                onClick = { viewModel.setPremiumScreenPersona(PremiumScreenPersona.ESPECTADOR) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                icon = {}
+            ) {
+                Text(stringResource(R.string.premium_screen_persona_espectador))
+            }
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            when (persona) {
+                PremiumScreenPersona.ESPECTADOR -> SpectatorLiveScreen(viewModel)
+                PremiumScreenPersona.ADMIN -> OrganizerAssistantCloudScreen(viewModel)
+            }
+        }
     }
 }
 
@@ -352,6 +391,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                 }
 
                 var expanded by remember { mutableStateOf(false) }
+                var groupAnchorWidth by remember { mutableStateOf(0.dp) }
+                val density = LocalDensity.current
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = it }
@@ -376,15 +417,24 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                             )
                         },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            .onGloballyPositioned { coordinates ->
+                                groupAnchorWidth = with(density) { coordinates.size.width.toDp() }
+                            }
+                            .fillMaxWidth(),
                         shape = RoundedCornerShape(56.dp)
                     )
-                    ExposedDropdownMenu(
+                    // DropdownMenu comum em vez de ExposedDropdownMenu: só o primeiro aceita o
+                    // parâmetro `offset`, necessário para manter o mesmo afastamento de 4dp do
+                    // padrão do app (ver o seletor de grupo da gaveta de navegação em
+                    // VoleiManagerApp.kt). A largura do popup é travada na largura do campo âncora
+                    // via `onGloballyPositioned` acima, para não perder o alinhamento.
+                    DropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.offset(y = 4.dp)
+                        offset = DpOffset(x = 0.dp, y = 4.dp),
+                        modifier = Modifier.widthIn(min = groupAnchorWidth)
                     ) {
                         sortedGroups.forEach { group ->
                             DropdownMenuItem(

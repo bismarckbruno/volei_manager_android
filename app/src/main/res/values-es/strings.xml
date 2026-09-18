@@ -67,6 +67,8 @@
     <string name="debug_simulate_premium">Simular suscripción premium (debug)</string>
     <string name="debug_simulate_premium_hint">Interruptor solo de depuración para probar funciones premium sin una compra real. Nunca aparece en compilaciones de lanzamiento.</string>
     <string name="cloud_sync_screen_title">Premium</string>
+    <string name="premium_screen_persona_admin">Admin</string>
+    <string name="premium_screen_persona_espectador">Espectador</string>
     <string name="cloud_sync_screen_intro">Comparte el marcador, los equipos y el historial de este grupo en tiempo real con tus co-administradores y jugadores, en cualquier dispositivo.</string>
     <string name="cloud_sync_status_title">Suscripción</string>
     <string name="cloud_sync_status_active">Premium activo — %1$s</string>

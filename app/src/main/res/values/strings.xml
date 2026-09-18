@@ -67,6 +67,8 @@
     <string name="debug_simulate_premium">Simulate premium subscription (debug)</string>
     <string name="debug_simulate_premium_hint">Debug-only toggle to test premium features without a real purchase. Never shown in release builds.</string>
     <string name="cloud_sync_screen_title">Premium</string>
+    <string name="premium_screen_persona_admin">Admin</string>
+    <string name="premium_screen_persona_espectador">Spectator</string>
     <string name="cloud_sync_screen_intro">Share the live scoreboard, teams, and history of this group in real time with your co-admins and players, on any device.</string>
     <string name="cloud_sync_status_title">Subscription</string>
     <string name="cloud_sync_status_active">Premium active — %1$s</string>

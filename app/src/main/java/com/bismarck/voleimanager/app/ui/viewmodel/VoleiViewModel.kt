@@ -135,6 +135,15 @@ fun parseTeamAccentColorOrNull(name: String): TeamAccentColor? = try {
 enum class UserProfileType { ORGANIZADOR, AUXILIAR, ESPECTADOR }
 
 /**
+ * Persona exibida na tela de Premium/Nuvem, escolhida por segmented button no topo da tela.
+ * Ao contrário de [UserProfileType] (perguntado uma única vez no onboarding), este valor pode ser
+ * trocado livremente pelo usuário depois — quem é dono de alguns grupos pode também ser Auxiliar
+ * ou Espectador de grupos de outras pessoas, então ambas as versões da tela (Admin/Espectador)
+ * ficam sempre disponíveis, independente da resposta original do onboarding.
+ */
+enum class PremiumScreenPersona { ADMIN, ESPECTADOR }
+
+/**
  * Passos intermediários mostrados uma única vez, logo após [VoleiViewModel.setUserProfileType],
  * antes do onboarding normal de criação de grupo. Organizador/Auxiliar são obrigados a criar
  * conta/entrar ([AUTH_REQUIRED]) antes de prosseguir (não precisam confirmar o e-mail ainda,
@@ -814,6 +823,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private val _userProfileType = MutableStateFlow<UserProfileType?>(null)
     val userProfileType: StateFlow<UserProfileType?> = _userProfileType.asStateFlow()
+
+    /** Persona exibida no momento na tela de Premium/Nuvem (ver [PremiumScreenPersona]) — inicia
+     *  na versão correspondente ao [UserProfileType] escolhido no onboarding, mas pode ser trocada
+     *  livremente pelo usuário depois via segmented button, e essa escolha é persistida. */
+    private val _premiumScreenPersona = MutableStateFlow(PremiumScreenPersona.ADMIN)
+    val premiumScreenPersona: StateFlow<PremiumScreenPersona> = _premiumScreenPersona.asStateFlow()
 
     /** True apenas antes do usuário responder à pergunta de perfil pela primeira vez (perguntada
      *  uma única vez, antes de qualquer outra etapa do onboarding, inclusive o de grupo). */
@@ -2359,6 +2374,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
+    /** Chamado quando o usuário troca de versão (Admin/Espectador) via segmented button no topo da
+     *  tela de Premium/Nuvem — persiste a escolha para as próximas aberturas do app. */
+    fun setPremiumScreenPersona(persona: PremiumScreenPersona) {
+        _premiumScreenPersona.value = persona
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putString("premium_screen_persona", persona.name).apply()
+    }
+
     /**
      * Registra o perfil do usuário (Organizador/Auxiliar/Espectador), respondido uma única vez
      * na primeira etapa do onboarding. Organizador e Auxiliar devem ser direcionados, na UI, ao
@@ -2367,8 +2390,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun setUserProfileType(type: UserProfileType) {
         _userProfileType.value = type
         _showUserProfileOnboarding.value = false
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
-            .putString("user_profile_type", type.name).apply()
+        val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        prefs.edit().putString("user_profile_type", type.name).apply()
+        // A persona inicial da tela de Premium/Nuvem acompanha a resposta do onboarding, mas só
+        // na primeira vez — se o usuário já tiver trocado manualmente antes (ver
+        // setPremiumScreenPersona), essa escolha não é sobrescrita.
+        if (!prefs.contains("premium_screen_persona")) {
+            setPremiumScreenPersona(
+                if (type == UserProfileType.ESPECTADOR) PremiumScreenPersona.ESPECTADOR else PremiumScreenPersona.ADMIN
+            )
+        }
         _postProfileOnboardingStage.value = when (type) {
             UserProfileType.ORGANIZADOR, UserProfileType.AUXILIAR ->
                 if (currentUser.value == null) PostProfileOnboardingStage.AUTH_REQUIRED else PostProfileOnboardingStage.NONE
@@ -2651,6 +2682,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             }
         }
         _showUserProfileOnboarding.value = !prefs.contains("user_profile_type")
+        _premiumScreenPersona.value = prefs.getString("premium_screen_persona", null)?.let {
+            try {
+                PremiumScreenPersona.valueOf(it)
+            } catch (e: Exception) {
+                null
+            }
+        } ?: if (_userProfileType.value == UserProfileType.ESPECTADOR) {
+            PremiumScreenPersona.ESPECTADOR
+        } else {
+            PremiumScreenPersona.ADMIN
+        }
     }
 
     fun isGameInProgress(): Boolean = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty()
