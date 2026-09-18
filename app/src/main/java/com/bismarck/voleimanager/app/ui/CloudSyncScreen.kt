@@ -158,7 +158,12 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
 @Composable
 private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
     val allGroups by viewModel.allGroupConfigs.collectAsState()
-    val remoteSpectatorGroup = allGroups.firstOrNull { it.remoteRole == UserProfileType.ESPECTADOR.name }
+    val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
+    // Grupos onde o usuário é Espectador, ainda que ele também seja Administrador de outro grupo
+    // (essa outra parte fica só na versão Admin da tela — ver [OrganizerAssistantCloudScreen]).
+    val espectadorGroups = remember(allGroups) {
+        allGroups.filter { it.remoteRole == UserProfileType.ESPECTADOR.name }.sortedBy { it.groupName }
+    }
 
     Column(
         modifier = Modifier
@@ -182,24 +187,20 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
                     fontWeight = FontWeight.Bold
                 )
             }
-            if (remoteSpectatorGroup == null) {
+            if (espectadorGroups.isEmpty()) {
                 Text(
                     stringResource(R.string.live_screen_spectator_no_group),
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
                 Text(
-                    stringResource(R.string.live_screen_spectator_placeholder, remoteSpectatorGroup.groupName),
+                    stringResource(R.string.live_screen_spectator_groups_count, espectadorGroups.size),
                     style = MaterialTheme.typography.bodyMedium
                 )
-            }
-            // Perfil "Espectador" é escolhido uma única vez no primeiro onboarding do app; quem
-            // errou a resposta (ou mudou de ideia depois) não tinha, até aqui, nenhum jeito de
-            // corrigir sem reinstalar. Reaproveita o mesmo retorno usado pelo botão "voltar" do
-            // onboarding (ver [VoleiViewModel.returnToProfileSelection]) para reabrir a pergunta de
-            // perfil e permitir escolher Organizador(a)/Auxiliar.
-            TextButton(onClick = { viewModel.returnToProfileSelection() }) {
-                Text(stringResource(R.string.live_screen_not_spectator_hint))
+                Spacer(Modifier.height(4.dp))
+                espectadorGroups.forEach { group ->
+                    Text(group.groupName, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
 
@@ -207,12 +208,17 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
         // e qualidade nas telas "Jogo (Ao vivo)" e "Histórico" (que reaproveitam a mesma base
         // visual do organizador — ver `spectator-reuse-game-screen`/`spectator-reuse-history-screen`).
         // Esta tela não repete essas visualizações simplificadas; foca só no apoio ao projeto.
-        PremiumPlansSection(
-            viewModel = viewModel,
-            title = stringResource(R.string.cloud_sync_spectator_support_title),
-            description = stringResource(R.string.cloud_sync_spectator_support_description),
-            collapsible = false
-        )
+        // Quem já é assinante não precisa ver o pedido de apoio de novo — a seção some por
+        // completo (o gerenciamento/cancelamento da assinatura continua acessível na versão Admin
+        // da tela, que sempre mostra PremiumPlansSection independente de grupos próprios).
+        if (!hasPremiumAccess) {
+            PremiumPlansSection(
+                viewModel = viewModel,
+                title = stringResource(R.string.cloud_sync_spectator_support_title),
+                description = stringResource(R.string.cloud_sync_spectator_support_description),
+                collapsible = false
+            )
+        }
     }
 }
 
@@ -514,23 +520,10 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
         // códigos de Auxiliar não são mais gerados nem resgatáveis; esta seção fica escondida
         // mesmo que algum dispositivo de teste ainda tenha um grupo remoto com esse papel salvo.
 
-        // ========== GRUPOS ACOMPANHADOS COMO ESPECTADOR ==========
-        // Um mesmo dispositivo/conta pode ser Auxiliar de um grupo e Espectador de outro ao mesmo
-        // tempo — listar aqui também, ainda que a visualização ao vivo em si só apareça quando o
-        // perfil global escolhido no onboarding for Espectador (ver [SpectatorLiveScreen]).
-        val espectadorGroups = allGroups.filter { it.remoteRole == UserProfileType.ESPECTADOR.name }
-        if (espectadorGroups.isNotEmpty()) {
-            SectionCard {
-                Text(
-                    stringResource(R.string.cloud_sync_espectador_groups_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                espectadorGroups.sortedBy { it.groupName }.forEach { group ->
-                    Text(group.groupName, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
+        // Grupos acompanhados como Espectador agora aparecem só na versão "Espectador" da tela
+        // (ver [SpectatorLiveScreen]/[PremiumScreenPersona]), já que essa persona fica sempre
+        // acessível pelo segmented button no topo, independente de o usuário também administrar
+        // outro grupo por aqui.
 
         Spacer(Modifier.height(8.dp))
     }

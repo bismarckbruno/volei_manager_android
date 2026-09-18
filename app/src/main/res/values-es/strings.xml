@@ -203,11 +203,10 @@
     <string name="cloud_sync_visibility_share_today_history">Solo hoy</string>
     <string name="cloud_sync_visibility_show_elo">Mostrar Elo a los observadores</string>
     <string name="cloud_sync_auxiliar_groups_title">Grupos que administras como coadministrador</string>
-    <string name="cloud_sync_espectador_groups_title">Grupos que sigues como observador</string>
     <string name="live_screen_spectator_title">En vivo</string>
     <string name="live_screen_spectator_no_group">Todavía no te uniste a ningún grupo. Pide al organizador un código de observador y agrégalo desde el menú de grupos.</string>
     <string name="live_screen_spectator_placeholder">Siguiendo %1$s en vivo.</string>
-    <string name="live_screen_not_spectator_hint">¿No eres observador? Cambiar perfil</string>
+    <string name="live_screen_spectator_groups_count">Siguiendo %1$d grupo(s) como espectador:</string>
     <string name="live_screen_team_a_label">Equipo A</string>
     <string name="live_screen_team_b_label">Equipo B</string>
     <string name="live_screen_waiting_list_label">Fila de espera</string>
