@@ -33,6 +33,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -426,8 +429,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                         TextButton(onClick = { generateCodeDialogFor = selectedGroup.groupName }) {
                             Text(stringResource(R.string.generate_join_code_menu_item))
                         }
-                        GroupVisibilityToggles(group = selectedGroup, onChange = { shareHistory, showElo ->
-                            viewModel.setGroupVisibility(selectedGroup.groupName, shareHistory, showElo)
+                        GroupVisibilityToggles(group = selectedGroup, onChange = { shareHistory, showElo, shareOnlyToday ->
+                            viewModel.setGroupVisibility(selectedGroup.groupName, shareHistory, showElo, shareOnlyToday)
                         })
                         // Transferência de posse oculta por enquanto — ver comentário acima.
                     }
@@ -464,9 +467,13 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
 }
 
 /** Toggles de `observer-visibility-controls`: compartilhar histórico e ranking de Elo com
- *  espectadores. Mostrar Elo exige compartilhar histórico também (ver [VoleiViewModel.setGroupVisibility]). */
+ *  espectadores, e o alcance do histórico compartilhado (completo ou só hoje). Mostrar Elo e a
+ *  escolha de alcance exigem compartilhar histórico também (ver [VoleiViewModel.setGroupVisibility]). */
 @Composable
-private fun GroupVisibilityToggles(group: GroupConfig, onChange: (shareHistory: Boolean, showElo: Boolean) -> Unit) {
+private fun GroupVisibilityToggles(
+    group: GroupConfig,
+    onChange: (shareHistory: Boolean, showElo: Boolean, shareOnlyToday: Boolean) -> Unit
+) {
     // Mesmas cores usadas para um Switch desabilitado em "Regras do grupo" (ver TooltipToggleRow em
     // Dialogs.kt): o alpha padrão do Material3 (~12%) some no fundo do card nesta tela.
     val lockedSwitchColors = SwitchDefaults.colors(
@@ -490,9 +497,52 @@ private fun GroupVisibilityToggles(group: GroupConfig, onChange: (shareHistory: 
             )
             Switch(
                 checked = group.shareHistoryWithObservers,
-                onCheckedChange = { checked -> onChange(checked, group.showEloToObservers && checked) },
+                onCheckedChange = { checked ->
+                    onChange(checked, group.showEloToObservers && checked, group.shareOnlyTodayHistory && checked)
+                },
                 colors = lockedSwitchColors
             )
+        }
+        if (group.shareHistoryWithObservers) {
+            Spacer(Modifier.height(8.dp))
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = !group.shareOnlyTodayHistory,
+                    onClick = { onChange(true, group.showEloToObservers, false) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    icon = {}
+                ) {
+                    Text(
+                        stringResource(R.string.cloud_sync_visibility_share_full_history),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
+                }
+                SegmentedButton(
+                    selected = group.shareOnlyTodayHistory,
+                    onClick = { onChange(true, group.showEloToObservers, true) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    icon = {}
+                ) {
+                    Text(
+                        stringResource(R.string.cloud_sync_visibility_share_today_history),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
+                }
+            }
         }
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -503,7 +553,7 @@ private fun GroupVisibilityToggles(group: GroupConfig, onChange: (shareHistory: 
             Switch(
                 checked = group.showEloToObservers,
                 enabled = group.shareHistoryWithObservers,
-                onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked) },
+                onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked, group.shareOnlyTodayHistory) },
                 colors = lockedSwitchColors
             )
         }

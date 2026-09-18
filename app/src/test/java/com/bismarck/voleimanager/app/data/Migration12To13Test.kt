@@ -46,7 +46,8 @@ class Migration12To13Test {
 
         AppDatabase.MIGRATION_12_13.migrate(legacyDb)
         AppDatabase.MIGRATION_13_14.migrate(legacyDb)
-        legacyDb.version = 14
+        AppDatabase.MIGRATION_14_15.migrate(legacyDb)
+        legacyDb.version = 15
         legacyDb.close()
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_12_13)
@@ -58,13 +59,14 @@ class Migration12To13Test {
                 AppDatabase.MIGRATION_10_11,
                 AppDatabase.MIGRATION_11_12,
                 AppDatabase.MIGRATION_12_13,
-                AppDatabase.MIGRATION_13_14
+                AppDatabase.MIGRATION_13_14,
+                AppDatabase.MIGRATION_14_15
             )
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(14, migratedDb.version)
+            assertEquals(15, migratedDb.version)
 
             migratedDb.query(
                 "SELECT remoteRole, pendingOwnershipTransferTo FROM group_configs WHERE groupName = 'Grupo'"

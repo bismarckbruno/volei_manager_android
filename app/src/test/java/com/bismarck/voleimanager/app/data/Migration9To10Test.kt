@@ -66,13 +66,14 @@ class Migration9To10Test {
                 AppDatabase.MIGRATION_10_11,
                 AppDatabase.MIGRATION_11_12,
                 AppDatabase.MIGRATION_12_13,
-                AppDatabase.MIGRATION_13_14
+                AppDatabase.MIGRATION_13_14,
+                AppDatabase.MIGRATION_14_15
             )
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(14, migratedDb.version)
+            assertEquals(15, migratedDb.version)
 
             val playerPublicIds = mutableListOf<String>()
             migratedDb.query("SELECT publicId FROM players ORDER BY id").use {

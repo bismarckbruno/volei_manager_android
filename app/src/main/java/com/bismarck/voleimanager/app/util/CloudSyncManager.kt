@@ -20,6 +20,7 @@ private const val ELO_LOGS_COLLECTION = "eloLogs"
 private const val FIELD_VISIBILITY = "visibility"
 private const val FIELD_SHARE_HISTORY = "shareHistoryWithObservers"
 private const val FIELD_SHOW_ELO = "showEloToObservers"
+private const val FIELD_SHARE_ONLY_TODAY = "shareOnlyTodayHistory"
 private const val FIELD_GROUP_TYPE = "groupType"
 private const val FIELD_BALANCING_MODE = "balancingMode"
 private const val FIELD_TEAM_SIZE = "teamSize"
@@ -209,6 +210,8 @@ data class RemoteEloLogEntry(
 data class GroupVisibility(
     val shareHistoryWithObservers: Boolean = false,
     val showEloToObservers: Boolean = false,
+    /** Ver [com.bismarck.voleimanager.app.data.model.GroupConfig.shareOnlyTodayHistory]. */
+    val shareOnlyTodayHistory: Boolean = false,
     /** Metadados do grupo espelhados no documento raiz (fora do mapa `visibility`) para que
      *  ícones de tipo/balanceamento/tamanho de time no cabeçalho fiquem sincronizados entre
      *  organizador, auxiliar e espectador — ver `GroupConfig.groupType`/`balancingMode`/`teamSize`. */
@@ -498,6 +501,7 @@ object CloudSyncManager {
                         GroupVisibility(
                             shareHistoryWithObservers = visibility?.get(FIELD_SHARE_HISTORY) as? Boolean ?: false,
                             showEloToObservers = visibility?.get(FIELD_SHOW_ELO) as? Boolean ?: false,
+                            shareOnlyTodayHistory = visibility?.get(FIELD_SHARE_ONLY_TODAY) as? Boolean ?: false,
                             groupType = groupType,
                             balancingMode = balancingMode,
                             teamSize = teamSize,
@@ -514,13 +518,24 @@ object CloudSyncManager {
     /** Atualiza os toggles de visibilidade de [cloudGroupId] (permitido a organizador/auxiliar,
      *  ver `onlyTouchesClientEditableFields()` em firestore.rules — `visibility` não é um campo
      *  sensível). Retorna uma mensagem de erro amigável em caso de falha, ou `null` em sucesso. */
-    suspend fun setGroupVisibility(cloudGroupId: String, shareHistory: Boolean, showElo: Boolean): String? {
+    suspend fun setGroupVisibility(
+        cloudGroupId: String,
+        shareHistory: Boolean,
+        showElo: Boolean,
+        shareOnlyToday: Boolean = false
+    ): String? {
         val firestore = firestoreOrNull() ?: return null
         return try {
             suspendCancellableCoroutine<Result<Unit>> { cont ->
                 groupDoc(firestore, cloudGroupId)
                     .set(
-                        mapOf(FIELD_VISIBILITY to mapOf(FIELD_SHARE_HISTORY to shareHistory, FIELD_SHOW_ELO to showElo)),
+                        mapOf(
+                            FIELD_VISIBILITY to mapOf(
+                                FIELD_SHARE_HISTORY to shareHistory,
+                                FIELD_SHOW_ELO to showElo,
+                                FIELD_SHARE_ONLY_TODAY to shareOnlyToday
+                            )
+                        ),
                         SetOptions.merge()
                     )
                     .addOnCompleteListener { task ->

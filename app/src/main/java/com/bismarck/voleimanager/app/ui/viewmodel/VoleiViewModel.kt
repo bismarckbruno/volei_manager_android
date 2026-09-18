@@ -81,6 +81,7 @@ import com.bismarck.voleimanager.app.data.model.BalancingMode
 const val DEFAULT_GROUP_NAME = "Geral"
 const val MAX_GROUP_NAME_LENGTH = 20
 const val MAX_PLAYER_NAME_LENGTH = 24
+const val MAX_EXPORT_FILE_NAME_LENGTH = 80
 private const val AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS = 12L * 60L * 60L * 1000L
 private val REVIEW_REQUEST_MILESTONES = listOf(3, 10, 25)
 // Gatilho de fallback do pedido de avaliação (ver registerCompletedMatchForReviewFallback):
@@ -1986,6 +1987,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     val newTeamBColorName = visibility.teamBColorName ?: current.teamBColorName
                     if (current.shareHistoryWithObservers != visibility.shareHistoryWithObservers ||
                         current.showEloToObservers != visibility.showEloToObservers ||
+                        current.shareOnlyTodayHistory != visibility.shareOnlyTodayHistory ||
                         current.groupType != newGroupType ||
                         current.balancingMode != newBalancingMode ||
                         current.teamSize != newTeamSize ||
@@ -1995,6 +1997,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         val updated = current.copy(
                             shareHistoryWithObservers = visibility.shareHistoryWithObservers,
                             showEloToObservers = visibility.showEloToObservers,
+                            shareOnlyTodayHistory = visibility.shareOnlyTodayHistory,
                             groupType = newGroupType,
                             balancingMode = newBalancingMode,
                             teamSize = newTeamSize,
@@ -2020,23 +2023,39 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         .stateIn(viewModelScope, screenDataSharing, null)
 
+    /** Data de hoje no formato `yyyy-MM-dd`, usada para filtrar histórico/logs de Elo remotos
+     *  quando [GroupConfig.shareOnlyTodayHistory] estiver ligado. */
+    private fun todayDateString(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
     /** Histórico de partidas do grupo remoto ativo. Auxiliar sempre vê tudo (regras do Firestore já
      *  concedem acesso total a `canManageGroupContent`); Espectador só vê quando o organizador/
-     *  auxiliar ligou [GroupConfig.shareHistoryWithObservers]. */
+     *  auxiliar ligou [GroupConfig.shareHistoryWithObservers], e, se
+     *  [GroupConfig.shareOnlyTodayHistory] estiver ligado, só as partidas de hoje. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val remoteHistory: StateFlow<List<RemoteHistoryEntry>> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
         .flatMapLatest { (config, active) ->
             val cloudGroupId = config.cloudGroupId
             val allowed = active && (config.remoteRole == UserProfileType.AUXILIAR.name || config.shareHistoryWithObservers)
             if (config.remoteRole != null && cloudGroupId != null && allowed) {
-                CloudSyncManager.observeHistory(cloudGroupId)
+                val restrictToToday = config.remoteRole == UserProfileType.ESPECTADOR.name && config.shareOnlyTodayHistory
+                if (restrictToToday) {
+                    CloudSyncManager.observeHistory(cloudGroupId).map { entries ->
+                        val today = todayDateString()
+                        entries.filter { it.date == today }
+                    }
+                } else {
+                    CloudSyncManager.observeHistory(cloudGroupId)
+                }
             } else flowOf(emptyList())
         }
         .stateIn(viewModelScope, screenDataSharing, emptyList())
 
     /** Ranking de Elo do grupo remoto ativo. Auxiliar sempre vê tudo; Espectador só quando o
      *  organizador/auxiliar ligou tanto [GroupConfig.shareHistoryWithObservers] quanto
-     *  [GroupConfig.showEloToObservers]. */
+     *  [GroupConfig.showEloToObservers], e restrito a hoje se [GroupConfig.shareOnlyTodayHistory]
+     *  estiver ligado — mantém os números derivados (partidas/vitórias/porcentagem) consistentes
+     *  com o que aparece em [remoteHistory]. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val remoteEloLogs: StateFlow<List<RemoteEloLogEntry>> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
         .flatMapLatest { (config, active) ->
@@ -2047,32 +2066,52 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val allowed = active && (config.remoteRole == UserProfileType.AUXILIAR.name ||
                 config.shareHistoryWithObservers)
             if (config.remoteRole != null && cloudGroupId != null && allowed) {
-                CloudSyncManager.observeEloLogs(cloudGroupId)
+                val restrictToToday = config.remoteRole == UserProfileType.ESPECTADOR.name && config.shareOnlyTodayHistory
+                if (restrictToToday) {
+                    CloudSyncManager.observeEloLogs(cloudGroupId).map { entries ->
+                        val today = todayDateString()
+                        entries.filter { it.date == today }
+                    }
+                } else {
+                    CloudSyncManager.observeEloLogs(cloudGroupId)
+                }
             } else flowOf(emptyList())
         }
         .stateIn(viewModelScope, screenDataSharing, emptyList())
 
     /**
      * Liga/desliga, para o grupo premium sincronizado [groupName], a visibilidade de histórico
-     * ([shareHistory]) e de ranking de Elo ([showElo]) para espectadores (`observer-visibility-controls`).
+     * ([shareHistory]) e de ranking de Elo ([showElo]) para espectadores (`observer-visibility-controls`),
+     * além de escolher se o histórico exposto é completo ou só o de hoje ([shareOnlyToday]).
      * Permitido a organizador (grupo próprio) e auxiliar (grupo remoto, `remoteRole == "AUXILIAR"`)
      * — nunca a espectador. Grava localmente de imediato e envia ao Firestore em segundo plano
      * (best-effort, ver [CloudSyncManager.setGroupVisibility]).
      */
-    fun setGroupVisibility(groupName: String, shareHistory: Boolean, showElo: Boolean) = viewModelScope.launch(Dispatchers.IO) {
+    fun setGroupVisibility(
+        groupName: String,
+        shareHistory: Boolean,
+        showElo: Boolean,
+        shareOnlyToday: Boolean = false
+    ) = viewModelScope.launch(Dispatchers.IO) {
         val target = repository.getGroupConfig(groupName) ?: return@launch
         if (target.remoteRole == UserProfileType.ESPECTADOR.name) return@launch
         val cloudGroupId = target.cloudGroupId ?: return@launch
         val effectiveShowElo = showElo && shareHistory
-        val updated = target.copy(shareHistoryWithObservers = shareHistory, showEloToObservers = effectiveShowElo)
+        val effectiveShareOnlyToday = shareOnlyToday && shareHistory
+        val updated = target.copy(
+            shareHistoryWithObservers = shareHistory,
+            showEloToObservers = effectiveShowElo,
+            shareOnlyTodayHistory = effectiveShareOnlyToday
+        )
         repository.saveGroupConfig(updated)
         if (_currentGroupConfig.value.groupName == groupName) {
             _currentGroupConfig.value = _currentGroupConfig.value.copy(
                 shareHistoryWithObservers = shareHistory,
-                showEloToObservers = effectiveShowElo
+                showEloToObservers = effectiveShowElo,
+                shareOnlyTodayHistory = effectiveShareOnlyToday
             )
         }
-        val error = CloudSyncManager.setGroupVisibility(cloudGroupId, shareHistory, effectiveShowElo)
+        val error = CloudSyncManager.setGroupVisibility(cloudGroupId, shareHistory, effectiveShowElo, effectiveShareOnlyToday)
         if (error != null) showMessage(error)
     }
 

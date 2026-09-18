@@ -151,7 +151,14 @@ data class GroupConfig(
      * quando [shareHistoryWithObservers] também está ligado (um espectador não pode ver o ranking
      * de Elo sem também poder ver o histórico de partidas que o originou).
      */
-    val showEloToObservers: Boolean = false
+    val showEloToObservers: Boolean = false,
+    /**
+     * Quando [shareHistoryWithObservers] está ligado, escolhe entre expor aos observadores o
+     * histórico completo do grupo (`false`, padrão) ou apenas as partidas de hoje (`true`).
+     * Aplica-se tanto às partidas exibidas quanto aos números derivados delas (vitórias,
+     * porcentagem, tempo de jogo) para os observadores, mantendo tudo consistente.
+     */
+    val shareOnlyTodayHistory: Boolean = false
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)
