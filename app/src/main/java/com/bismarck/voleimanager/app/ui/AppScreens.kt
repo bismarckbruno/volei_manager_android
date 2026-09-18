@@ -893,7 +893,8 @@ fun HistoryScreen(
                                     DropdownMenu(
                                         expanded = dateExpanded2,
                                         onDismissRequest = { dateExpanded2 = false },
-                                        offset = DpOffset(x = 36.dp, y = 0.dp),
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        offset = DpOffset(x = 36.dp, y = 4.dp),
                                         modifier = Modifier.heightIn(max = maxMenuHeight).width(IntrinsicSize.Min)
                                     ) {
                                         DropdownMenuItem(
@@ -1030,6 +1031,7 @@ fun HistoryScreen(
                                     DropdownMenu(
                                         expanded = expandedFilter,
                                         onDismissRequest = { expandedFilter = false },
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                                         offset = DpOffset(x = 0.dp, y = 4.dp),
                                         modifier = Modifier.widthIn(min = 260.dp)
                                     ) {
@@ -1193,7 +1195,8 @@ fun HistoryScreen(
                 DropdownMenu(
                     expanded = dateExpanded,
                     onDismissRequest = { dateExpanded = false },
-                    offset = DpOffset(x = 36.dp, y = 0.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    offset = DpOffset(x = 36.dp, y = 4.dp),
                     modifier = Modifier
                         .heightIn(max = maxMenuHeight)
                         .width(IntrinsicSize.Min)
@@ -1385,6 +1388,7 @@ fun HistoryScreen(
                 DropdownMenu(
                     expanded = expandedFilter,
                     onDismissRequest = { expandedFilter = false },
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     offset = DpOffset(x = 0.dp, y = 4.dp),
                     modifier = Modifier.widthIn(min = 260.dp)
                 ) {

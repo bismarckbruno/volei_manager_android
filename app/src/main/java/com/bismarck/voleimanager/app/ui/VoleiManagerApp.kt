@@ -181,7 +181,8 @@ private fun DrawerAccountHeader(
             DropdownMenu(
                 expanded = menuExpanded,
                 onDismissRequest = onDismissMenu,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                offset = DpOffset(x = 0.dp, y = 4.dp)
             ) {
                 if (currentUser == null) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.login_title)) }, onClick = onLoginClick)
@@ -222,12 +223,12 @@ private fun DrawerAccountHeader(
                     modifier = Modifier.weight(1f, fill = false)
                 )
                 if (currentUser != null && hasPremiumAccess) {
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Icon(
-                        Icons.Filled.WorkspacePremium,
+                        painter = painterResource(R.drawable.premium_icon),
                         contentDescription = stringResource(R.string.premium_subscriber_badge),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.headlineMedium.fontSize.toDp() })
                     )
                 }
             }
@@ -1197,7 +1198,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onClick = { requestScreenSwitch(Screen.HISTORY) }
                             )
                             FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.WorkspacePremium, null) },
+                                icon = { Icon(painter = painterResource(R.drawable.premium_icon), null) },
                                 label = { Text(stringResource(R.string.cloud_sync)) },
                                 selected = currentScreen == Screen.CLOUD_SYNC,
                                 onClick = { requestScreenSwitch(Screen.CLOUD_SYNC) }
@@ -2202,7 +2203,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 modifier = Modifier.minimumInteractiveComponentSize()
                             ) {
                                 Icon(
-                                    Icons.Outlined.GroupAdd,
+                                    Icons.Default.Groups,
                                     stringResource(R.string.join_existing_group),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)

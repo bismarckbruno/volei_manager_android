@@ -53,6 +53,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.app.Activity
+import androidx.compose.ui.res.painterResource
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
@@ -268,7 +269,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Outlined.WorkspacePremium,
+                    painter = painterResource(R.drawable.premium_icon),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )

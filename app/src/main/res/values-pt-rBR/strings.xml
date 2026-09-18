@@ -101,7 +101,7 @@
     <string name="cloud_sync_groups_limit_label">%1$d de %2$d grupo(s) sincronizado(s)</string>
     <string name="cloud_sync_limit_reached">Limite de grupos sincronizados do seu pacote atingido.</string>
     <string name="cloud_sync_switch_cooldown">Você só pode trocar o grupo premium a cada 15 dias. Tente novamente mais tarde.</string>
-    <string name="join_existing_group">+ Adicionar grupo existente</string>
+    <string name="join_existing_group">+ Adicionar grupo com código</string>
     <string name="join_existing_group_hint">Informe o código de convite compartilhado pelo organizador ou auxiliar do grupo.</string>
     <string name="join_existing_group_code_label">Código</string>
     <string name="join_existing_group_confirm">Entrar</string>
