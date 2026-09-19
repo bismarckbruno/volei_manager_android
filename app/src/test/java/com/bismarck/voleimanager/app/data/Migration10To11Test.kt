@@ -61,13 +61,14 @@ class Migration10To11Test {
                 AppDatabase.MIGRATION_11_12,
                 AppDatabase.MIGRATION_12_13,
                 AppDatabase.MIGRATION_13_14,
-                AppDatabase.MIGRATION_14_15
+                AppDatabase.MIGRATION_14_15,
+                AppDatabase.MIGRATION_15_16
             )
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(15, migratedDb.version)
+            assertEquals(16, migratedDb.version)
 
             migratedDb.query(
                 "SELECT isCloudSynced, cloudGroupId, lastPremiumSwitchAt FROM group_configs WHERE groupName = 'Grupo'"

@@ -158,7 +158,26 @@ data class GroupConfig(
      * Aplica-se tanto às partidas exibidas quanto aos números derivados delas (vitórias,
      * porcentagem, tempo de jogo) para os observadores, mantendo tudo consistente.
      */
-    val shareOnlyTodayHistory: Boolean = false
+    val shareOnlyTodayHistory: Boolean = false,
+    /**
+     * Timestamp (epoch millis) de quando o histórico/Elo pré-existentes deste grupo terminaram
+     * de subir para o Firestore (`history-backfill`), na primeira vez que a sincronização foi
+     * ativada. `null` enquanto o backfill nunca rodou (grupo novo ou ainda sincronizando) — evita
+     * repetir o envio em lote a cada reativação do toggle.
+     */
+    val historyBackfilledAt: Long? = null,
+    /**
+     * Identificador (`Settings.Secure.ANDROID_ID`, ver `admin-session-transfer`) do aparelho que
+     * hoje está autorizado a escrever como organizador neste grupo em nuvem. `null` = nenhuma
+     * restrição ainda (comportamento anterior, um único aparelho sempre foi o dono local). Ao
+     * logar como organizador em um novo aparelho, o app oferece "Transferir sessão de
+     * administrador", que assume este campo e faz o aparelho anterior virar somente-leitura (ver
+     * [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.isLocalDeviceActiveAdmin]).
+     */
+    val activeAdminDeviceId: String? = null,
+    /** Timestamp (epoch millis) da última transferência de sessão de administrador — só para
+     *  exibição ("sessão transferida em..."), sem papel na lógica de bloqueio em si. */
+    val activeAdminSince: Long? = null
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)

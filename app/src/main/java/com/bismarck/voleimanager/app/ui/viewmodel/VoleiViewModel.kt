@@ -48,7 +48,9 @@ import com.bismarck.voleimanager.app.util.GoogleSignInHelper
 import com.bismarck.voleimanager.app.util.GroupVisibility
 import com.bismarck.voleimanager.app.util.JoinRole
 import com.bismarck.voleimanager.app.util.LiveGameState
+import com.bismarck.voleimanager.app.util.LivePresenceManager
 import com.bismarck.voleimanager.app.util.PositionAssigner
+import com.bismarck.voleimanager.app.util.RegeneratedSpectatorCode
 import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
 import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
@@ -657,6 +659,32 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         .map { it?.isActive ?: true }
         .stateIn(viewModelScope, screenDataSharing, true)
 
+    /** Identificador estável deste aparelho (`Settings.Secure.ANDROID_ID`, com fallback aleatório
+     *  se indisponível) — usado só para `admin-session-transfer`, nunca enviado como PII (ver
+     *  [GroupConfig.activeAdminDeviceId]). */
+    private val localDeviceId: String by lazy {
+        try {
+            android.provider.Settings.Secure.getString(
+                getApplication<Application>().contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            ).takeUnless { it.isNullOrBlank() } ?: java.util.UUID.randomUUID().toString()
+        } catch (e: Exception) {
+            java.util.UUID.randomUUID().toString()
+        }
+    }
+
+    /**
+     * `true` quando este aparelho está autorizado a publicar como organizador do grupo ativo em
+     * nuvem — só fica `false` quando outro aparelho reivindicou explicitamente a sessão de
+     * administrador via "Transferir sessão de administrador" (ver `admin-session-transfer`,
+     * [transferAdminSession], [GroupConfig.activeAdminDeviceId]). `true` por padrão enquanto
+     * ninguém reivindicou a sessão ainda, preservando o comportamento de sempre (um único
+     * aparelho por grupo, sem restrição alguma).
+     */
+    val isLocalDeviceActiveAdmin: StateFlow<Boolean> = remoteGroupVisibility
+        .map { it?.activeAdminDeviceId == null || it.activeAdminDeviceId == localDeviceId }
+        .stateIn(viewModelScope, screenDataSharing, true)
+
     /**
      * `true` quando o grupo atualmente selecionado foi sincronizado via código de convite de
      * Espectador ([GroupConfig.remoteRole] == `"ESPECTADOR"`) — ou seja, este dispositivo não tem
@@ -1106,6 +1134,99 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (backendError != null) {
             Log.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
         }
+
+        // Reivindica este aparelho como administrador ativo (só se ninguém tiver reivindicado
+        // antes — ver `admin-session-transfer`) e sobe o histórico/Elo pré-existentes do grupo em
+        // segundo plano (só roda uma vez por grupo, ver `history-backfill`).
+        claimAdminSessionIfUnclaimed(target.publicId)
+        backfillGroupHistoryIfNeeded(groupName, target.publicId)
+    }
+
+    /**
+     * Reivindica [cloudGroupId] para este aparelho como administrador ativo, mas só se nenhum
+     * outro aparelho já tiver reivindicado a sessão antes ([GroupVisibility.activeAdminDeviceId]
+     * ainda `null`) — evita sobrescrever silenciosamente uma reivindicação alheia. Chamado
+     * automaticamente ao ativar a sincronização de um grupo; a troca explícita e consciente de
+     * "dono" é [transferAdminSession].
+     */
+    private fun claimAdminSessionIfUnclaimed(cloudGroupId: String) = viewModelScope.launch(Dispatchers.IO) {
+        val current = CloudSyncManager.observeGroupVisibility(cloudGroupId).firstOrNull()
+        if (current?.activeAdminDeviceId != null) return@launch
+        CloudSyncManager.setActiveAdminDevice(cloudGroupId, localDeviceId)
+    }
+
+    /**
+     * Transfere explicitamente a sessão de administrador de [groupName] para este aparelho —
+     * usado quando o usuário loga como organizador em um novo aparelho e quer continuar
+     * administrando o grupo por ali, sabendo que o aparelho anterior passa a ficar somente-leitura
+     * em relação à publicação do jogo ao vivo (ver [isLocalDeviceActiveAdmin], `admin-session-transfer`).
+     * Sempre sobrescreve, mesmo que já exista um dono reivindicado.
+     */
+    fun transferAdminSession(groupName: String) = viewModelScope.launch(Dispatchers.IO) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        val cloudGroupId = target.cloudGroupId ?: target.publicId
+        val now = System.currentTimeMillis()
+        CloudSyncManager.setActiveAdminDevice(cloudGroupId, localDeviceId, now)
+        repository.saveGroupConfig(target.copy(activeAdminDeviceId = localDeviceId, activeAdminSince = now))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(activeAdminDeviceId = localDeviceId, activeAdminSince = now)
+        }
+    }
+
+    /**
+     * `history-backfill`: na primeira vez que [groupName] é sincronizado, sobe em lote
+     * (sequencialmente, melhor esforço) todo o histórico de partidas e log de Elo que já existiam
+     * ANTES da sincronização — sem isso, um grupo com meses de jogo mostraria só as partidas
+     * futuras a partir de hoje para quem entrar como Espectador. Marca
+     * [GroupConfig.historyBackfilledAt] ao concluir, para nunca repetir o envio em reativações
+     * seguintes do toggle. [PlayerEloLog] não guarda `endTimestamp` (só a data em texto), então os
+     * logs de Elo antigos são publicados sem essa marca — a ordenação "mais recente" cai de volta
+     * pra ordem de chegada nesse caso específico (ver [RemoteEloLogEntry.endTimestamp]).
+     */
+    private fun backfillGroupHistoryIfNeeded(groupName: String, cloudGroupId: String) = viewModelScope.launch(Dispatchers.IO) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        if (target.historyBackfilledAt != null) return@launch
+
+        val historyEntries = repository.getHistoryByGroupSync(groupName)
+        val eloEntries = repository.getEloLogsByGroupSync(groupName)
+
+        historyEntries.forEach { match ->
+            CloudSyncManager.pushHistoryEntry(
+                cloudGroupId,
+                RemoteHistoryEntry(
+                    date = match.date,
+                    teamA = match.teamA,
+                    teamB = match.teamB,
+                    winner = match.winner,
+                    teamAScore = match.teamAScore,
+                    teamBScore = match.teamBScore,
+                    endTimestamp = match.endTimestamp,
+                    startTimestamp = match.startTimestamp,
+                    eloPoints = match.eloPoints,
+                    teamAAverageElo = match.teamAAverageElo,
+                    teamBAverageElo = match.teamBAverageElo
+                )
+            )
+        }
+        eloEntries.forEach { log ->
+            CloudSyncManager.pushEloLogEntry(
+                cloudGroupId,
+                RemoteEloLogEntry(
+                    playerNameSnapshot = log.playerNameSnapshot,
+                    date = log.date,
+                    elo = log.elo,
+                    won = log.won ?: false,
+                    endTimestamp = null
+                )
+            )
+        }
+
+        val now = System.currentTimeMillis()
+        val latest = repository.getGroupConfig(groupName) ?: return@launch
+        repository.saveGroupConfig(latest.copy(historyBackfilledAt = now))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(historyBackfilledAt = now)
+        }
     }
 
     /**
@@ -1126,6 +1247,39 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val result = CloudFunctionsManager.createJoinCode(cloudGroupId, role)
             onResult(result.getOrNull(), result.exceptionOrNull()?.message)
         }
+
+    /**
+     * Força a geração de um novo código permanente de Espectador para [groupName], invalidando o
+     * anterior de verdade — a Cloud Function [CloudFunctionsManager.regenerateSpectatorCode]
+     * apaga todos os documentos de membro `ESPECTADOR` do grupo, o que faz os listeners do
+     * Firestore desses aparelhos falharem com `PERMISSION_DENIED` (ver [GroupVisibility.accessRevoked]
+     * e `spectator-code-kick`) — não é só trocar o texto do código, é revogar o acesso de fato.
+     */
+    fun regenerateSpectatorCode(groupName: String, onResult: (RegeneratedSpectatorCode?, String?) -> Unit) =
+        viewModelScope.launch(Dispatchers.IO) {
+            val target = repository.getGroupConfig(groupName)
+            val cloudGroupId = target?.cloudGroupId
+            if (cloudGroupId == null) {
+                onResult(null, getApplication<Application>().getString(R.string.generate_join_code_group_not_synced))
+                return@launch
+            }
+            val result = CloudFunctionsManager.regenerateSpectatorCode(cloudGroupId)
+            onResult(result.getOrNull(), result.exceptionOrNull()?.message)
+        }
+
+    /** Observa em tempo real os metadados/toggles de um grupo em nuvem qualquer por
+     *  [cloudGroupId] — pass-through independente do grupo ativo do app, usado pela tela Premium
+     *  (cujo seletor de grupo pode apontar para qualquer grupo do próprio usuário, não só o grupo
+     *  [_currentGroupConfig] ativo no momento; ver [remoteGroupVisibility], que é escopado só ao
+     *  grupo ativo e por isso não pode ser reaproveitado aqui). */
+    fun observeGroupCloudMeta(cloudGroupId: String): Flow<GroupVisibility?> =
+        CloudSyncManager.observeGroupVisibility(cloudGroupId)
+
+    /** Observa em tempo real quantos aparelhos estão fazendo streaming ao vivo dos dados de
+     *  [cloudGroupId] agora (presença no Realtime Database, ver [LivePresenceManager] e
+     *  `rtdb-presence-client`) — usado para mostrar "N assistindo agora" na tela Premium. */
+    fun observeLiveViewerCount(cloudGroupId: String): Flow<Int> =
+        LivePresenceManager.observePresenceCount(cloudGroupId)
 
     // ---------------------------------------------------------------------------------------
     // Conta (Firebase Auth) — cadastro/login gratuito por e-mail/senha, exigido de
@@ -1750,19 +1904,27 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { positions, slots, incomplete -> Triple(positions, slots, incomplete) },
             combine(_hasPreviousMatch, _lastWinners) { hasPrev, winners -> hasPrev to winners }
         ) { a, b, c -> ExtraFieldsPartial(a.first, a.second, a.third, b.first, b.second, b.third, c.first, c.second) }
-        val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow, gamesPlayedStrictTodayMap) { players, extra, gamesMap -> Triple(players, extra, gamesMap) }
+        val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow, gamesPlayedStrictTodayMap, isLocalDeviceActiveAdmin) { players, extra, gamesMap, adminOk ->
+            Triple(players, extra, gamesMap) to adminOk
+        }
         viewModelScope.launch {
             combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner, groupPlayersAndExtra) { config, partial, streak, owner, playersAndExtra ->
-                val groupPlayers = playersAndExtra.first
-                val extra = playersAndExtra.second
-                val gamesMap = playersAndExtra.third
-                // Organizador (grupo próprio) publica sempre; Auxiliar (`remoteRole == "AUXILIAR"`)
-                // só publica depois de ter recebido pelo menos um LiveGameState real do organizador
-                // para o grupo atual — evita que o estado local vazio/zerado de um Auxiliar recém
-                // conectado (antes do primeiro espelhamento) sobrescreva o jogo em andamento do
-                // organizador (ver `fix-admin-aux-sync-races`). Espectador nunca escreve.
+                val groupPlayers = playersAndExtra.first.first
+                val extra = playersAndExtra.first.second
+                val gamesMap = playersAndExtra.first.third
+                val isLocalAdminAllowed = playersAndExtra.second
+                // Organizador (grupo próprio) publica sempre, MAS só se este for o aparelho
+                // reivindicado como administrador ativo do grupo (ver `admin-session-transfer`,
+                // [isLocalDeviceActiveAdmin]) — sem essa checagem, um segundo aparelho logado como
+                // organizador do mesmo grupo (ex.: após restaurar um backup) sobrescreveria a
+                // qualquer momento o estado publicado pelo aparelho "de verdade". Auxiliar
+                // (`remoteRole == "AUXILIAR"`) só publica depois de ter recebido pelo menos um
+                // LiveGameState real do organizador para o grupo atual — evita que o estado local
+                // vazio/zerado de um Auxiliar recém conectado (antes do primeiro espelhamento)
+                // sobrescreva o jogo em andamento do organizador (ver `fix-admin-aux-sync-races`).
+                // Espectador nunca escreve.
                 val canPush = config.isCloudSynced && config.cloudGroupId != null &&
-                    (config.remoteRole == null ||
+                    ((config.remoteRole == null && isLocalAdminAllowed) ||
                         (config.remoteRole == UserProfileType.AUXILIAR.name &&
                             remoteStateInitializedForGroupId == config.cloudGroupId))
                 if (canPush) {
@@ -2007,6 +2169,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     if (visibility == null) return@collect
                     val current = _currentGroupConfig.value
                     if (current.cloudGroupId == null) return@collect
+                    // `spectator-code-kick`: só acontece quando o organizador regenerou o código
+                    // de Espectador ([regenerateSpectatorCode] apaga o documento de membro deste
+                    // uid), derrubando o acesso deste aparelho de verdade (não só trocando o
+                    // texto do código). Desconecta o Espectador localmente e avisa o motivo, em
+                    // vez de deixar a tela travada tentando reconectar para sempre.
+                    if (visibility.accessRevoked && current.remoteRole == UserProfileType.ESPECTADOR.name) {
+                        val groupName = current.groupName
+                        showMessage(getApplication<Application>().getString(R.string.spectator_access_revoked_message))
+                        leaveRemoteGroup(groupName)
+                        return@collect
+                    }
                     val newGroupType = visibility.groupType ?: current.groupType
                     val newBalancingMode = visibility.balancingMode ?: current.balancingMode
                     val newTeamSize = visibility.teamSize ?: current.teamSize

@@ -27,6 +27,9 @@ private const val FIELD_TEAM_SIZE = "teamSize"
 private const val FIELD_IS_ACTIVE = "isActive"
 private const val FIELD_TEAM_A_COLOR = "teamAColorName"
 private const val FIELD_TEAM_B_COLOR = "teamBColorName"
+private const val FIELD_SPECTATOR_CODE = "spectatorCode"
+private const val FIELD_ACTIVE_ADMIN_DEVICE_ID = "activeAdminDeviceId"
+private const val FIELD_ACTIVE_ADMIN_SINCE = "activeAdminSince"
 private const val REMOTE_LIST_LIMIT = 100L
 
 /** Jogador "enxuto" sincronizado em `liveState` — usa [publicId] (estável entre dispositivos) em
@@ -238,7 +241,23 @@ data class GroupVisibility(
      *  `cloudGroups/{id}` não é apagado), mas `isActive=false` faz Auxiliar/Espectador ocultarem
      *  os dados imediatamente até o grupo voltar a ser sincronizado. Padrão `true` para grupos
      *  antigos que nunca tinham esse campo (nunca foram desativados). */
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    /** Código permanente de convite de Espectador (`spectatorCode`), sempre visível na tela
+     *  Premium para o organizador/auxiliar compartilhar (texto simples/QR) — ver
+     *  `spectator-code-client`. `null` até o backend gerá-lo na primeira ativação do grupo
+     *  ([ensureSpectatorCode] em `volei_manager_backend`). */
+    val spectatorCode: String? = null,
+    /** `true` só quando o listener deste documento falhou com PERMISSION_DENIED — ou seja, este
+     *  dispositivo (Espectador) teve seu acesso revogado (organizador tocou em "Atualizar
+     *  código", ver `regenerateSpectatorCode`). Distinto de `isActive=false`: aqui o grupo pode
+     *  continuar ativo, só este dispositivo específico que perdeu o acesso e precisa reentrar com
+     *  o novo código. */
+    val accessRevoked: Boolean = false,
+    /** Ver [com.bismarck.voleimanager.app.data.model.GroupConfig.activeAdminDeviceId] —
+     *  `null` = nenhum aparelho reivindicou a sessão ainda (nenhuma restrição). */
+    val activeAdminDeviceId: String? = null,
+    /** Ver [com.bismarck.voleimanager.app.data.model.GroupConfig.activeAdminSince]. */
+    val activeAdminSince: Long? = null
 )
 
 /**
@@ -492,7 +511,13 @@ object CloudSyncManager {
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.d(TAG, "Falha ao observar visibilidade: ${error.message}")
-                    trySend(null)
+                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        // Só acontece quando o documento de membro deste usuário foi apagado
+                        // (organizador regenerou o código de Espectador) — ver [accessRevoked].
+                        trySend(GroupVisibility(isActive = false, accessRevoked = true))
+                    } else {
+                        trySend(null)
+                    }
                     return@addSnapshotListener
                 }
                 val visibility = snapshot?.get(FIELD_VISIBILITY) as? Map<*, *>
@@ -502,8 +527,12 @@ object CloudSyncManager {
                 val teamAColorName = snapshot?.getString(FIELD_TEAM_A_COLOR)
                 val teamBColorName = snapshot?.getString(FIELD_TEAM_B_COLOR)
                 val isActive = snapshot?.get(FIELD_IS_ACTIVE) as? Boolean
+                val spectatorCode = snapshot?.getString(FIELD_SPECTATOR_CODE)
+                val activeAdminDeviceId = snapshot?.getString(FIELD_ACTIVE_ADMIN_DEVICE_ID)
+                val activeAdminSince = (snapshot?.get(FIELD_ACTIVE_ADMIN_SINCE) as? Number)?.toLong()
                 if (visibility == null && groupType == null && balancingMode == null && teamSize == null &&
-                    teamAColorName == null && teamBColorName == null && isActive == null
+                    teamAColorName == null && teamBColorName == null && isActive == null && spectatorCode == null &&
+                    activeAdminDeviceId == null
                 ) {
                     trySend(null)
                 } else {
@@ -517,7 +546,10 @@ object CloudSyncManager {
                             teamSize = teamSize,
                             teamAColorName = teamAColorName,
                             teamBColorName = teamBColorName,
-                            isActive = isActive ?: true
+                            isActive = isActive ?: true,
+                            spectatorCode = spectatorCode,
+                            activeAdminDeviceId = activeAdminDeviceId,
+                            activeAdminSince = activeAdminSince
                         )
                     )
                 }
@@ -572,6 +604,21 @@ object CloudSyncManager {
         groupDoc(firestore, cloudGroupId)
             .set(mapOf(FIELD_IS_ACTIVE to isActive), SetOptions.merge())
             .addOnFailureListener { e -> Log.d(TAG, "Falha ao publicar isActive (best-effort): ${e.message}") }
+    }
+
+    /** Reivindica/transfere a sessão de administrador de [cloudGroupId] para [deviceId] (melhor
+     *  esforço) — ver `admin-session-transfer`. Chamado tanto na primeira ativação da
+     *  sincronização de um grupo (auto-reivindicação, sem sobrescrever se outro aparelho já for o
+     *  dono) quanto na transferência explícita pelo usuário (sempre sobrescreve, ver
+     *  [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.transferAdminSession]). */
+    fun setActiveAdminDevice(cloudGroupId: String, deviceId: String, since: Long = System.currentTimeMillis()) {
+        val firestore = firestoreOrNull() ?: return
+        groupDoc(firestore, cloudGroupId)
+            .set(
+                mapOf(FIELD_ACTIVE_ADMIN_DEVICE_ID to deviceId, FIELD_ACTIVE_ADMIN_SINCE to since),
+                SetOptions.merge()
+            )
+            .addOnFailureListener { e -> Log.d(TAG, "Falha ao reivindicar sessão de administrador (best-effort): ${e.message}") }
     }
 
     /** Publica os metadados de cabeçalho do grupo (tipo, modo de balanceamento, tamanho de time)

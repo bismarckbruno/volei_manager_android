@@ -21,6 +21,10 @@ const val MAX_JOIN_CODE_LENGTH = 20
 /** Código de convite recém-gerado, pronto para compartilhar (expira em 30 minutos). */
 data class GeneratedJoinCode(val code: String, val expiresAtMillis: Long)
 
+/** Resultado de trocar o código permanente de Espectador de um grupo: o novo código e quantos
+ *  espectadores tiveram o acesso revogado na troca (precisarão resgatar o novo código de novo). */
+data class RegeneratedSpectatorCode(val code: String, val revokedCount: Int)
+
 /** Resultado de resgatar um código de convite: grupo em nuvem + papel concedido + nome real do
  *  grupo (para não depender de um placeholder local com o código dentro). */
 data class RedeemedJoinCode(val cloudGroupId: String, val role: JoinRole, val groupName: String?)
@@ -67,10 +71,11 @@ object CloudFunctionsManager {
         }
     }
 
-    /** Gera um código de convite (PIN de 6 caracteres) para um grupo já sincronizado em nuvem. Só
-     *  funciona para quem é organizador ou auxiliar do grupo (checado no próprio backend). Código
-     *  de Auxiliar: uso único, válido por 30 minutos. Código de Espectador: até 100 resgates,
-     *  válido por 30 dias. */
+    /** Gera um código de convite (PIN de 6 caracteres) TEMPORÁRIO para o papel Auxiliar de um
+     *  grupo já sincronizado em nuvem (uso único, válido por 30 minutos; papel hoje oculto no
+     *  app — ver `hide-auxiliar-role-temporarily`). O código de Espectador não usa mais esta
+     *  função: é permanente, criado automaticamente pelo backend na primeira ativação do grupo e
+     *  só muda via [regenerateSpectatorCode]. */
     suspend fun createJoinCode(cloudGroupId: String, role: JoinRole): Result<GeneratedJoinCode> {
         val functions = functionsOrNull()
             ?: return Result.failure(Exception("Serviço de nuvem indisponível no momento."))
@@ -82,6 +87,28 @@ object CloudFunctionsManager {
                 Result.failure(Exception("Resposta inesperada do servidor."))
             } else {
                 Result.success(GeneratedJoinCode(code, expiresAt))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(friendlyMessage(e)))
+        }
+    }
+
+    /** "Atualizar código": troca o código permanente de Espectador de [cloudGroupId] por um novo
+     *  e revoga de fato o acesso de quem já tinha entrado com o código anterior (o backend apaga
+     *  os membros Espectador do grupo — ver `regenerateSpectatorCode` em
+     *  `volei_manager_backend`) — use só quando o organizador quiser resetar os acessos por
+     *  segurança, já que todo mundo precisará resgatar o novo código de novo. */
+    suspend fun regenerateSpectatorCode(cloudGroupId: String): Result<RegeneratedSpectatorCode> {
+        val functions = functionsOrNull()
+            ?: return Result.failure(Exception("Serviço de nuvem indisponível no momento."))
+        return try {
+            val data = call(functions, "regenerateSpectatorCode", mapOf("cloudGroupId" to cloudGroupId))
+            val code = data["code"] as? String
+            val revokedCount = (data["revokedCount"] as? Number)?.toInt() ?: 0
+            if (code == null) {
+                Result.failure(Exception("Resposta inesperada do servidor."))
+            } else {
+                Result.success(RegeneratedSpectatorCode(code, revokedCount))
             }
         } catch (e: Exception) {
             Result.failure(Exception(friendlyMessage(e)))

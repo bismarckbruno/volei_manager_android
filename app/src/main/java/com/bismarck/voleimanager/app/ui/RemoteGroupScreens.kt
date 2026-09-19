@@ -17,6 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
+import com.bismarck.voleimanager.app.util.LivePresenceManager
 
 /**
  * Substitui a tela "Jogo (Ao vivo)" quando o grupo ativo é remoto (entrado via código de
@@ -44,7 +46,27 @@ import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 @Composable
 fun RemoteGameScreen(viewModel: VoleiViewModel) {
     val liveState by viewModel.remoteLiveGameState.collectAsState()
+    val config by viewModel.currentGroupConfig.collectAsState()
+    val user by viewModel.currentUser.collectAsState()
     var swapSides by rememberSaveable { mutableStateOf(false) }
+
+    // `rtdb-presence-client`: marca este aparelho como "assistindo ao vivo" enquanto a tela
+    // estiver na composição, para alimentar a contagem em tempo real mostrada ao organizador na
+    // tela Premium (ver [LivePresenceManager]). Só funciona para quem já fez login (o Espectador
+    // não é obrigado a logar); sem uid não há como escrever com segurança nas regras do RTDB, então
+    // um Espectador anônimo simplesmente não entra nessa contagem.
+    val cloudGroupId = config.cloudGroupId
+    val uid = user?.uid
+    DisposableEffect(cloudGroupId, uid) {
+        if (cloudGroupId != null && uid != null) {
+            LivePresenceManager.markPresent(cloudGroupId, uid)
+        }
+        onDispose {
+            if (cloudGroupId != null && uid != null) {
+                LivePresenceManager.clearPresence(cloudGroupId, uid)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier

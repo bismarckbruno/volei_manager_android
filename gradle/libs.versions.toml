@@ -21,6 +21,7 @@ firebaseCrashlyticsPlugin = "3.0.8"
 credentials = "1.5.0"
 googleid = "1.1.1"
 billing = "9.1.0"
+zxing = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -65,6 +66,8 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-functions = { group = "com.google.firebase", name = "firebase-functions" }
+firebase-database = { group = "com.google.firebase", name = "firebase-database" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # Login com Google (cadastro/login via conta Google, além de e-mail/senha) - ver AuthManager /
 # GoogleSignInHelper. O Credential Manager é a API recomendada pelo Google desde 2023, substituindo

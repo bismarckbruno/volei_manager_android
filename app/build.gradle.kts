@@ -165,6 +165,14 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.functions)
+    // Realtime Database - só usado para presença "ao vivo" (contagem de espectadores assistindo
+    // um grupo agora), aproveitando onDisconnect() para expirar sozinho ao fechar o app/perder
+    // conexão - ver `rtdb-presence-client`. O Firestore não detecta desconexão automaticamente.
+    implementation(libs.firebase.database)
+
+    // Gera o QR Code do código/link de convite de Espectador (sem UI/câmera, só encoding) -
+    // ver `spectator-code-client`.
+    implementation(libs.zxing.core)
 
     // Login com Google (Credential Manager) - ver GoogleSignInHelper/AuthManager.
     implementation(libs.androidx.credentials)

@@ -120,6 +120,7 @@
     <string name="generate_join_code_group_not_synced">Sincronize este grupo em nuvem antes de gerar um código de convite.</string>
     <string name="join_group_remote_group_name">Grupo remoto (%1$s)</string>
     <string name="join_group_already_joined">Você já entrou neste grupo.</string>
+    <string name="spectator_access_revoked_message">Seu acesso a este grupo foi revogado pelo organizador. Peça o novo código para se reconectar.</string>
     <string name="remote_group_content_description">Grupo remoto (de outra pessoa)</string>
     <string name="leave_group">Sair do grupo</string>
     <string name="login_title">Entrar</string>
