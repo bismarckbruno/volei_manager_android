@@ -900,6 +900,7 @@ internal fun PremiumPlansSection(
     val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
     val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
+    val canPurchasePremium by viewModel.canPurchasePremium.collectAsState()
     val activity = LocalContext.current as? Activity
     val context = LocalContext.current
 
@@ -986,6 +987,15 @@ internal fun PremiumPlansSection(
                     Modifier.padding(vertical = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 )
+
+                if (!hasPremiumAccess && !canPurchasePremium) {
+                    Text(
+                        stringResource(R.string.premium_purchase_gating_banner),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
 
                 val singleMonthlyOffer = subscriptionOffers.firstOrNull {
                     it.productId == BillingProductIds.SINGLE_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_MONTHLY

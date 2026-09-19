@@ -87,6 +87,9 @@
     <string name="cloud_sync_plan_coming_soon">Los pagos llegarán pronto</string>
     <string name="cloud_sync_cancel_subscription">Cancelar suscripción</string>
     <string name="cloud_sync_plan_offer_unavailable">No se pudo cargar este plan ahora. Revisa tu conexión e inténtalo de nuevo en un momento.</string>
+    <string name="premium_purchase_gating_login_required">Inicia sesión o crea una cuenta gratuita antes de suscribirte a un plan premium.</string>
+    <string name="premium_purchase_gating_verify_required">Confirma tu correo antes de suscribirte a un plan premium — revisa el enlace de confirmación en tu bandeja de entrada, o reenvíalo desde tu perfil.</string>
+    <string name="premium_purchase_gating_banner">Inicia sesión con un correo confirmado (o cuenta de Google) para suscribirte a un plan premium.</string>
     <string name="cloud_sync_debug_hint">Compilación de depuración: usa los botones de abajo para simular la suscripción sin necesidad de una compra real (además del flujo de compra real de arriba, cuando los planes ya estén registrados en Play Console).</string>
     <string name="cloud_sync_debug_simulate_single">Simular 1 grupo</string>
     <string name="cloud_sync_debug_simulate_multi">Simular hasta 5 grupos</string>

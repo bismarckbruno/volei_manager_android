@@ -1040,16 +1040,31 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * amigável) — a confirmação chega de forma assíncrona pelo `PurchasesUpdatedListener` do
      * [BillingManager], refletida automaticamente em [hasPremiumAccess]/[effectivePremiumPlanTier]
      * assim que a compra for reconhecida.
+     *
+     * Bloqueia a compra (mostrando uma mensagem explicativa em vez de abrir a Play Store) se o
+     * usuário não estiver logado ou não tiver o e-mail confirmado — ver [canPurchasePremium] e
+     * `premium-purchase-gating`. Assinar sem conta verificada deixaria o entitlement órfão (sem
+     * `uid` para gravar em `users/{uid}.activeEntitlement`).
      */
     fun purchasePremiumPlan(activity: Activity, tier: CloudPlanTier, annual: Boolean) {
+        val user = currentUser.value
+        val app = getApplication<Application>()
+        if (user == null) {
+            showMessage(app.getString(R.string.premium_purchase_gating_login_required))
+            return
+        }
+        if (!user.emailVerified) {
+            showMessage(app.getString(R.string.premium_purchase_gating_verify_required))
+            return
+        }
         val offer = findSubscriptionOffer(tier, annual)
         if (offer == null) {
-            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
+            showMessage(app.getString(R.string.cloud_sync_plan_offer_unavailable))
             return
         }
         val launched = BillingManager.launchPurchaseFlow(activity, offer)
         if (!launched) {
-            showMessage(getApplication<Application>().getString(R.string.cloud_sync_plan_offer_unavailable))
+            showMessage(app.getString(R.string.cloud_sync_plan_offer_unavailable))
         }
     }
 
@@ -1296,6 +1311,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     /** Usuário logado no momento (ou `null`), refletido no cabeçalho do menu lateral. */
     val currentUser: StateFlow<AppAuthUser?> = AuthManager.currentUser
         .stateIn(viewModelScope, screenDataSharing, null)
+
+    /** `true` só quando o usuário pode assinar um pacote premium: precisa estar logado E com
+     *  e-mail confirmado (Google já conta como confirmado por natureza — ver
+     *  [AppAuthUser.emailVerified]). Gateia [purchasePremiumPlan] e também é usado pela UI
+     *  ([PremiumPlansSection]) para explicar o motivo do bloqueio antes mesmo do usuário tentar
+     *  comprar (ver `premium-purchase-gating`). */
+    val canPurchasePremium: StateFlow<Boolean> = currentUser
+        .map { it != null && it.emailVerified }
+        .stateIn(viewModelScope, screenDataSharing, false)
 
     private val _authInProgress = MutableStateFlow(false)
     val authInProgress: StateFlow<Boolean> = _authInProgress.asStateFlow()
@@ -2836,6 +2860,14 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         TelemetryManager.init(getApplication(), _telemetryEnabled.value)
         AuthManager.init(getApplication())
         BillingManager.init(getApplication())
+        viewModelScope.launch {
+            BillingManager.purchaseEvents.collect { event ->
+                val error = CloudFunctionsManager.linkPurchaseToken(event.purchaseToken, event.productId)
+                if (error != null) {
+                    Log.d("VoleiViewModel", "linkPurchaseToken (best-effort) falhou: $error")
+                }
+            }
+        }
         _debugPremiumOverride.value =
             BuildConfig.DEBUG && prefs.getBoolean("debug_premium_override", false)
         _debugPremiumPlanTier.value = prefs.getString("debug_premium_plan_tier", null)?.let {

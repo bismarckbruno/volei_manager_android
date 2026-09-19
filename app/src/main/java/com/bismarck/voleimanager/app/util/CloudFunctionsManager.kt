@@ -71,6 +71,21 @@ object CloudFunctionsManager {
         }
     }
 
+    /** Vincula um `purchaseToken` recém-visto pelo Play Billing ao usuário logado — o backend
+     *  revalida a compra de verdade na Play Developer API (nunca confia cegamente no token vindo
+     *  do client) antes de gravar `users/{uid}.activeEntitlement` com o tier e a expiração reais,
+     *  liberando o acesso premium sem esperar a primeira notificação RTDN chegar. Chamado
+     *  automaticamente pelo [VoleiViewModel] sempre que [BillingManager] emite uma compra. */
+    suspend fun linkPurchaseToken(purchaseToken: String, productId: String): String? {
+        val functions = functionsOrNull() ?: return null
+        return try {
+            call(functions, "linkPurchaseToken", mapOf("purchaseToken" to purchaseToken, "productId" to productId))
+            null
+        } catch (e: Exception) {
+            friendlyMessage(e)
+        }
+    }
+
     /** Gera um código de convite (PIN de 6 caracteres) TEMPORÁRIO para o papel Auxiliar de um
      *  grupo já sincronizado em nuvem (uso único, válido por 30 minutos; papel hoje oculto no
      *  app — ver `hide-auxiliar-role-temporarily`). O código de Espectador não usa mais esta

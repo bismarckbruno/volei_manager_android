@@ -13,8 +13,11 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
@@ -44,6 +47,12 @@ data class SubscriptionOffer(
     val billingPeriodIso: String
 )
 
+/** Compra vista pelo Play Billing neste aparelho (nova ou já conhecida de uma sessão anterior),
+ *  emitida para o [VoleiViewModel][com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel]
+ *  repassar ao backend (`linkPurchaseToken`) e obter um entitlement validado de verdade — ver
+ *  `purchase-validation-function`. */
+data class AcknowledgedPurchase(val purchaseToken: String, val productId: String)
+
 /**
  * Fachada sobre o Google Play Billing Library — busca as ofertas de assinatura cadastradas no
  * Play Console, lança o fluxo de compra nativo da Play Store e reconhece (`acknowledge`) compras
@@ -71,6 +80,11 @@ object BillingManager {
      *  localmente. Vazio enquanto não há nenhuma assinatura ativa conhecida. */
     private val _activeProductIds = MutableStateFlow<Set<String>>(emptySet())
     val activeProductIds: StateFlow<Set<String>> = _activeProductIds.asStateFlow()
+
+    /** Ver [AcknowledgedPurchase]. Buffer pequeno só para não perder um evento emitido antes do
+     *  ViewModel terminar de se inscrever (init roda [init] e a coleta quase na mesma linha). */
+    private val _purchaseEvents = MutableSharedFlow<AcknowledgedPurchase>(extraBufferCapacity = 4)
+    val purchaseEvents: SharedFlow<AcknowledgedPurchase> = _purchaseEvents.asSharedFlow()
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         when (billingResult.responseCode) {
@@ -192,6 +206,9 @@ object BillingManager {
     private fun handlePurchase(purchase: Purchase) {
         if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
         _activeProductIds.value = _activeProductIds.value + purchase.products
+        purchase.products.firstOrNull()?.let { productId ->
+            _purchaseEvents.tryEmit(AcknowledgedPurchase(purchase.purchaseToken, productId))
+        }
         if (purchase.isAcknowledged) return
         val client = billingClient ?: return
         val ackParams = AcknowledgePurchaseParams.newBuilder()
