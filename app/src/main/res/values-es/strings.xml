@@ -60,6 +60,7 @@
     <string name="team_colors_title">Colores de los equipos</string>
     <string name="team_colors_hint">Elige un color para el Equipo A y otro distinto para el Equipo B.</string>
     <string name="team_colors_locked_hint">Función premium — suscríbete para desbloquear colores personalizados de los equipos.</string>
+    <string name="premium_nudge_action">Ver planes</string>
     <string name="team_colors_group_title">Colores del grupo</string>
     <string name="team_colors_group_hint">Definidos por el admin del grupo; se aplican a todos los que lo ven, incluso sin premium.</string>
     <string name="team_colors_personal_override_title">Solo para mí</string>

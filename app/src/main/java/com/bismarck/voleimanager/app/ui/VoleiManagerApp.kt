@@ -1451,6 +1451,24 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
             val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
             val teamColorsLockedMessage = stringResource(R.string.team_colors_locked_hint)
+            val premiumNudgeActionLabel = stringResource(R.string.premium_nudge_action)
+            // Nudge de upsell: ao tocar numa cor de time bloqueada, mostra um snackbar (não um
+            // Toast) com botão que leva direto à tela Premium — só neste ponto específico, para
+            // não exagerar na quantidade de dicas (ver todo `premium-upsell-nudges`).
+            val showPremiumNudge: (String) -> Unit = { message ->
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel = premiumNudgeActionLabel,
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        showThemeDialog = false
+                        viewModel.navigateTo(Screen.CLOUD_SYNC)
+                    }
+                }
+            }
             AlertDialog(
                 onDismissRequest = { showThemeDialog = false },
                 title = { Text(stringResource(R.string.theme)) },
@@ -1505,7 +1523,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 isDarkTheme = isDarkTheme,
                                 onColorsSelected = { a, b -> viewModel.setGroupTeamColors(a, b) },
                                 onLockedClick = {
-                                    viewModel.showMessage(teamColorsLockedMessage)
+                                    showPremiumNudge(teamColorsLockedMessage)
                                 }
                             )
                         }
@@ -1556,7 +1574,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     viewModel.setPersonalTeamColorOverride(a, b)
                                 },
                                 onLockedClick = {
-                                    viewModel.showMessage(teamColorsLockedMessage)
+                                    showPremiumNudge(teamColorsLockedMessage)
                                 }
                             )
                         }

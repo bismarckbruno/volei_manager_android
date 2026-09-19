@@ -60,6 +60,7 @@
     <string name="team_colors_title">Team colors</string>
     <string name="team_colors_hint">Pick a color for Team A and a different one for Team B.</string>
     <string name="team_colors_locked_hint">Premium feature — subscribe to unlock custom team colors.</string>
+    <string name="premium_nudge_action">View plans</string>
     <string name="team_colors_group_title">Group colors</string>
     <string name="team_colors_group_hint">Set by the group admin; applies to everyone viewing this group, even without premium.</string>
     <string name="team_colors_personal_override_title">Only for me</string>

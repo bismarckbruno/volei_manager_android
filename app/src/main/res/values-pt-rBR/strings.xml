@@ -60,6 +60,7 @@
     <string name="team_colors_title">Cores dos times</string>
     <string name="team_colors_hint">Escolha uma cor para o Time A e outra diferente para o Time B.</string>
     <string name="team_colors_locked_hint">Recurso premium — assine para desbloquear cores personalizadas dos times.</string>
+    <string name="premium_nudge_action">Ver planos</string>
     <string name="team_colors_group_title">Cores do grupo</string>
     <string name="team_colors_group_hint">Definidas pelo admin do grupo; valem para todos que o visualizam, mesmo sem premium.</string>
     <string name="team_colors_personal_override_title">Só para mim</string>
