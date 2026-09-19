@@ -42,7 +42,7 @@ android {
         applicationId = "com.bismarck.voleimanager.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
+        versionCode = 12
         versionName = "1.1.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

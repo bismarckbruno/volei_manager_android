@@ -127,45 +127,44 @@ fun CloudSyncScreen(viewModel: VoleiViewModel) {
 
     val persona by viewModel.premiumScreenPersona.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Quem administra um grupo pode também ser Auxiliar/Espectador de grupos de outras
-        // pessoas (e vice-versa) — ver PremiumScreenPersona. As duas versões da tela ficam sempre
-        // disponíveis, iniciando na que corresponde à resposta do onboarding, mas o usuário pode
-        // trocar livremente depois; a escolha é persistida (ver setPremiumScreenPersona).
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            SegmentedButton(
-                selected = persona == PremiumScreenPersona.ADMIN,
-                onClick = { viewModel.setPremiumScreenPersona(PremiumScreenPersona.ADMIN) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                icon = {}
-            ) {
-                Text(stringResource(R.string.premium_screen_persona_admin))
-            }
-            SegmentedButton(
-                selected = persona == PremiumScreenPersona.ESPECTADOR,
-                onClick = { viewModel.setPremiumScreenPersona(PremiumScreenPersona.ESPECTADOR) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                icon = {}
-            ) {
-                Text(stringResource(R.string.premium_screen_persona_espectador))
-            }
-        }
+    // O segmented button rola junto com o conteúdo (é o primeiro item de cada Column com
+    // verticalScroll abaixo) em vez de ficar fixo no topo — ver `premium-persona-toggle-scrolls`.
+    when (persona) {
+        PremiumScreenPersona.ESPECTADOR -> SpectatorLiveScreen(viewModel, persona)
+        PremiumScreenPersona.ADMIN -> OrganizerAssistantCloudScreen(viewModel, persona)
+    }
+}
 
-        Box(modifier = Modifier.weight(1f)) {
-            when (persona) {
-                PremiumScreenPersona.ESPECTADOR -> SpectatorLiveScreen(viewModel)
-                PremiumScreenPersona.ADMIN -> OrganizerAssistantCloudScreen(viewModel)
-            }
+/**
+ * Quem administra um grupo pode também ser Auxiliar/Espectador de grupos de outras pessoas (e
+ * vice-versa) — ver [PremiumScreenPersona]. As duas versões da tela ficam sempre disponíveis,
+ * iniciando na que corresponde à resposta do onboarding, mas o usuário pode trocar livremente
+ * depois; a escolha é persistida (ver [VoleiViewModel.setPremiumScreenPersona]).
+ */
+@Composable
+private fun PersonaSegmentedButtonRow(viewModel: VoleiViewModel, persona: PremiumScreenPersona) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        SegmentedButton(
+            selected = persona == PremiumScreenPersona.ADMIN,
+            onClick = { viewModel.setPremiumScreenPersona(PremiumScreenPersona.ADMIN) },
+            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+            icon = {}
+        ) {
+            Text(stringResource(R.string.premium_screen_persona_admin))
+        }
+        SegmentedButton(
+            selected = persona == PremiumScreenPersona.ESPECTADOR,
+            onClick = { viewModel.setPremiumScreenPersona(PremiumScreenPersona.ESPECTADOR) },
+            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+            icon = {}
+        ) {
+            Text(stringResource(R.string.premium_screen_persona_espectador))
         }
     }
 }
 
 @Composable
-private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
+private fun SpectatorLiveScreen(viewModel: VoleiViewModel, persona: PremiumScreenPersona) {
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
     // Grupos onde o usuário é Espectador, ainda que ele também seja Administrador de outro grupo
@@ -182,6 +181,7 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel) {
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         Spacer(Modifier.height(0.dp))
+        PersonaSegmentedButtonRow(viewModel, persona)
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -302,7 +302,7 @@ internal fun RemoteEloRow(entry: RemoteEloLogEntry) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
+private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: PremiumScreenPersona) {
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
     val allGroups by viewModel.allGroupConfigs.collectAsState()
@@ -326,6 +326,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         Spacer(Modifier.height(0.dp))
+        PersonaSegmentedButtonRow(viewModel, persona)
 
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
