@@ -685,6 +685,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         .map { it?.activeAdminDeviceId == null || it.activeAdminDeviceId == localDeviceId }
         .stateIn(viewModelScope, screenDataSharing, true)
 
+    /** Mesma checagem de [isLocalDeviceActiveAdmin], mas para um grupo qualquer (não só o grupo
+     *  ativo) — usado pela tela Premium, cujo seletor de grupo pode apontar para outro grupo
+     *  próprio (ver [observeGroupCloudMeta]). */
+    fun isThisDeviceTheActiveAdmin(activeAdminDeviceId: String?): Boolean =
+        activeAdminDeviceId == null || activeAdminDeviceId == localDeviceId
+
     /**
      * `true` quando o grupo atualmente selecionado foi sincronizado via código de convite de
      * Espectador ([GroupConfig.remoteRole] == `"ESPECTADOR"`) — ou seja, este dispositivo não tem

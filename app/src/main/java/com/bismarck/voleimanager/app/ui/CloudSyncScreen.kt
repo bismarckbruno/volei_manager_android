@@ -7,6 +7,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,8 +32,12 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WorkspacePremium
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -84,9 +90,12 @@ import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.BillingProductIds
 import com.bismarck.voleimanager.app.util.JoinRole
 import com.bismarck.voleimanager.app.util.LiveGameState
+import com.bismarck.voleimanager.app.util.QrCodeGenerator
+import com.bismarck.voleimanager.app.util.RegeneratedSpectatorCode
 import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
 import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Tela "Premium": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
@@ -303,19 +312,11 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
     // — a funcionalidade em si (VoleiViewModel.requestGroupOwnershipTransfer/cancelGroupOwnershipTransfer)
     // continua implementada; só a UI de acesso fica escondida por enquanto para revisitar depois.
 
-    var generateCodeDialogFor by remember { mutableStateOf<String?>(null) }
-    generateCodeDialogFor?.let { groupName ->
-        GenerateJoinCodeDialog(
-            groupName = groupName,
-            onDismiss = { generateCodeDialogFor = null },
-            onGenerateAuxiliar = { onResult ->
-                viewModel.generateJoinCode(groupName, JoinRole.AUXILIAR, onResult)
-            },
-            onGenerateEspectador = { onResult ->
-                viewModel.generateJoinCode(groupName, JoinRole.ESPECTADOR, onResult)
-            }
-        )
-    }
+    // Geração manual de código (AUXILIAR/ESPECTADOR de 30 min) fica de fora desta tela desde
+    // `spectator-code-client`: o código de Espectador agora é permanente e gerado automaticamente
+    // na primeira ativação da sincronização (ver [SpectatorCodeSection] abaixo); o papel Auxiliar
+    // continua oculto (`hide-auxiliar-role-temporarily`). [GenerateJoinCodeDialog] segue definido
+    // em Dialogs.kt, sem uso, para quando o Auxiliar for reativado.
 
     Column(
         modifier = Modifier
@@ -496,9 +497,29 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
                         )
                     }
                     if (selectedGroup.isCloudSynced) {
-                        TextButton(onClick = { generateCodeDialogFor = selectedGroup.groupName }) {
-                            Text(stringResource(R.string.generate_join_code_menu_item))
+                        val cloudGroupId = selectedGroup.cloudGroupId
+                        val cloudMeta by remember(cloudGroupId) {
+                            if (cloudGroupId == null) flowOf(null) else viewModel.observeGroupCloudMeta(cloudGroupId)
+                        }.collectAsState(initial = null)
+                        val viewerCount by remember(cloudGroupId) {
+                            if (cloudGroupId == null) flowOf(0) else viewModel.observeLiveViewerCount(cloudGroupId)
+                        }.collectAsState(initial = 0)
+
+                        if (cloudGroupId != null && !viewModel.isThisDeviceTheActiveAdmin(cloudMeta?.activeAdminDeviceId)) {
+                            Spacer(Modifier.height(12.dp))
+                            AdminSessionTransferSection(
+                                onTransfer = { viewModel.transferAdminSession(selectedGroup.groupName) }
+                            )
                         }
+
+                        Spacer(Modifier.height(12.dp))
+                        SpectatorCodeSection(
+                            spectatorCode = cloudMeta?.spectatorCode,
+                            viewerCount = viewerCount,
+                            onRegenerate = { onResult -> viewModel.regenerateSpectatorCode(selectedGroup.groupName, onResult) }
+                        )
+
+                        Spacer(Modifier.height(12.dp))
                         GroupVisibilityToggles(group = selectedGroup, onChange = { shareHistory, showElo, shareOnlyToday ->
                             viewModel.setGroupVisibility(selectedGroup.groupName, shareHistory, showElo, shareOnlyToday)
                         })
@@ -526,6 +547,239 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel) {
         // outro grupo por aqui.
 
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * `spectator-code-client`: código permanente de convite de Espectador, sempre visível para o
+ * organizador enquanto o grupo estiver sincronizado (gerado automaticamente no backend na
+ * primeira ativação, ver [ensureSpectatorCode][com.bismarck.voleimanager.app.util.CloudSyncManager]
+ * em `volei_manager_backend`). Mostra a contagem de espectadores assistindo ao vivo agora (RTDB,
+ * ver `rtdb-presence-client`), um botão de compartilhar (texto simples: código + link da Play
+ * Store, fase 1 de `spectator-code-client` — sem auto-abrir o app, ver Firebase Dynamic Links
+ * descontinuado), um QR code equivalente, e "Atualizar código" (revoga de verdade o acesso de
+ * quem já entrou, ver [VoleiViewModel.regenerateSpectatorCode]).
+ */
+@Composable
+private fun SpectatorCodeSection(
+    spectatorCode: String?,
+    viewerCount: Int,
+    onRegenerate: ((RegeneratedSpectatorCode?, String?) -> Unit) -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    var showQrDialog by remember { mutableStateOf(false) }
+    var showRegenerateConfirm by remember { mutableStateOf(false) }
+    var regenerating by remember { mutableStateOf(false) }
+    var feedbackMessage by remember { mutableStateOf<String?>(null) }
+
+    if (showRegenerateConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRegenerateConfirm = false },
+            title = { Text(stringResource(R.string.spectator_code_regenerate_confirm_title)) },
+            text = { Text(stringResource(R.string.spectator_code_regenerate_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRegenerateConfirm = false
+                    regenerating = true
+                    onRegenerate { result, error ->
+                        regenerating = false
+                        feedbackMessage = if (result != null) {
+                            context.getString(R.string.spectator_code_regenerated_message, result.revokedCount)
+                        } else {
+                            error ?: context.getString(R.string.spectator_code_regenerate_error)
+                        }
+                    }
+                }) {
+                    Text(stringResource(R.string.spectator_code_regenerate_confirm_action), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRegenerateConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showQrDialog && spectatorCode != null) {
+        QrCodeDialog(text = spectatorCode, onDismiss = { showQrDialog = false })
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.spectator_code_section_title),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            stringResource(R.string.spectator_code_section_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(8.dp))
+
+        if (spectatorCode == null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.spectator_code_loading),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    spectatorCode,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                if (viewerCount > 0) {
+                    Icon(
+                        Icons.Outlined.Visibility,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        stringResource(R.string.spectator_code_live_viewers, viewerCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedButton(onClick = {
+                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(spectatorCode))
+                    feedbackMessage = context.getString(R.string.spectator_code_copied)
+                }) {
+                    Text(stringResource(R.string.spectator_code_copy))
+                }
+                OutlinedButton(onClick = { showQrDialog = true }) {
+                    Text(stringResource(R.string.spectator_code_qr_button))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    val shareText = context.getString(
+                        R.string.spectator_code_share_text,
+                        spectatorCode,
+                        "https://play.google.com/store/apps/details?id=${context.packageName}"
+                    )
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                    context.startActivity(Intent.createChooser(sendIntent, null))
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.spectator_code_share_button))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showRegenerateConfirm = true },
+                enabled = !regenerating,
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                if (regenerating) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(stringResource(R.string.spectator_code_regenerate_button))
+            }
+            feedbackMessage?.let {
+                Spacer(Modifier.height(4.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Diálogo com o QR code equivalente ao código de convite de Espectador — mesma informação do
+ *  botão "Compartilhar código" (fase 1, texto simples), em formato para leitura por câmera. */
+@Composable
+private fun QrCodeDialog(text: String, onDismiss: () -> Unit) {
+    val bitmap = remember(text) { QrCodeGenerator.generate(text) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.spectator_code_qr_title)) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                if (bitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = stringResource(R.string.spectator_code_qr_title),
+                        modifier = Modifier.size(220.dp)
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.spectator_code_qr_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+        }
+    )
+}
+
+/**
+ * `admin-session-transfer`: aviso + botão mostrados quando outro aparelho é quem está publicando
+ * os dados ao vivo deste grupo (ver [VoleiViewModel.isThisDeviceTheActiveAdmin]) — normalmente
+ * porque o organizador restaurou um backup em um novo aparelho. "Assumir sessão" transfere a
+ * publicação para este aparelho, exigindo confirmação explícita por ser uma ação com efeito
+ * colateral em outro dispositivo.
+ */
+@Composable
+private fun AdminSessionTransferSection(onTransfer: () -> Unit) {
+    var showConfirm by remember { mutableStateOf(false) }
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text(stringResource(R.string.admin_session_transfer_confirm_title)) },
+            text = { Text(stringResource(R.string.admin_session_transfer_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirm = false
+                    onTransfer()
+                }) {
+                    Text(stringResource(R.string.admin_session_transfer_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp)
+    ) {
+        Text(
+            stringResource(R.string.admin_session_transfer_warning),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = { showConfirm = true }) {
+            Text(stringResource(R.string.admin_session_transfer_button))
+        }
     }
 }
 
