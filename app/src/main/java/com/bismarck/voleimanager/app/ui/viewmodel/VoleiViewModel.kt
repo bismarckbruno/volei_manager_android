@@ -1147,20 +1147,48 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             effectivePremiumPlanTier.value.name
         )
 
-        // Melhor esforço: também registra no backend (cria/atualiza `cloudGroups/{cloudGroupId}`),
-        // seguindo o mesmo padrão local-first do AuthManager — a UI já foi liberada localmente
-        // acima, então uma falha aqui (ex.: sem assinatura real ainda, `failed-precondition`) só
-        // é logada, nunca bloqueia quem está testando com a simulação de premium em debug.
-        val backendError = CloudFunctionsManager.switchPremiumGroup(target.publicId, groupName)
+        activateCloudGroupBackend(target.publicId, groupName)
+    }
+
+    /**
+     * Registra [groupName] como sincronizado no backend (cria/atualiza `cloudGroups/{cloudGroupId}`,
+     * reivindica a sessão de administrador e sobe o histórico pré-existente) — chamado tanto pela
+     * primeira ativação em [setGroupCloudSynced] quanto por [retryCloudGroupActivation], já que essa
+     * chamada pode falhar de forma transitória (ex.: `linkPurchaseToken` ainda não confirmou a
+     * assinatura no servidor no exato instante em que o grupo foi ativado localmente).
+     *
+     * Diferente da versão anterior (que só logava a falha via `Log.d` e nunca avisava ninguém),
+     * agora mostra uma mensagem amigável ([R.string.cloud_sync_activation_error]) quando o backend
+     * recusa a chamada — é exatamente essa falha silenciosa que fazia o código de convite de
+     * Espectador ([SpectatorCodeSection]) ficar girando pra sempre e os toggles de visibilidade
+     * ([setGroupVisibility]) devolverem `PERMISSION_DENIED` (o documento do grupo nunca chegava a
+     * ganhar o dono/entitlement exigido pelas regras do Firestore).
+     */
+    private suspend fun activateCloudGroupBackend(cloudGroupId: String, groupName: String) {
+        val backendError = CloudFunctionsManager.switchPremiumGroup(cloudGroupId, groupName)
         if (backendError != null) {
             Log.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
+            showMessage(getApplication<Application>().getString(R.string.cloud_sync_activation_error))
         }
 
         // Reivindica este aparelho como administrador ativo (só se ninguém tiver reivindicado
         // antes — ver `admin-session-transfer`) e sobe o histórico/Elo pré-existentes do grupo em
         // segundo plano (só roda uma vez por grupo, ver `history-backfill`).
-        claimAdminSessionIfUnclaimed(target.publicId)
-        backfillGroupHistoryIfNeeded(groupName, target.publicId)
+        claimAdminSessionIfUnclaimed(cloudGroupId)
+        backfillGroupHistoryIfNeeded(groupName, cloudGroupId)
+    }
+
+    /**
+     * Tenta de novo a ativação do grupo em nuvem no backend (ver [activateCloudGroupBackend]) sem
+     * precisar desligar/religar o toggle de sincronização — usado pelo botão "Tentar novamente" que
+     * aparece em [SpectatorCodeSection] quando o código de convite permanente fica tempo demais sem
+     * chegar (sinal de que a primeira chamada falhou silenciosamente, ex.: assinatura ainda não
+     * confirmada pelo servidor no momento em que o grupo foi ativado).
+     */
+    fun retryCloudGroupActivation(groupName: String) = viewModelScope.launch {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        val cloudGroupId = target.cloudGroupId ?: return@launch
+        activateCloudGroupBackend(cloudGroupId, groupName)
     }
 
     /**
@@ -2865,6 +2893,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 val error = CloudFunctionsManager.linkPurchaseToken(event.purchaseToken, event.productId)
                 if (error != null) {
                     Log.d("VoleiViewModel", "linkPurchaseToken (best-effort) falhou: $error")
+                    showMessage(getApplication<Application>().getString(R.string.cloud_sync_purchase_link_error))
                 }
             }
         }

@@ -107,6 +107,8 @@
     <string name="cloud_sync_groups_limit_label">%1$d de %2$d grupo(s) sincronizado(s)</string>
     <string name="cloud_sync_limit_reached">Limite de grupos sincronizados do seu pacote atingido.</string>
     <string name="cloud_sync_switch_cooldown">Você só pode trocar o grupo premium a cada 15 dias. Tente novamente mais tarde.</string>
+    <string name="cloud_sync_activation_error">Não conseguimos concluir a ativação da sincronização deste grupo no servidor. Verifique sua conexão e tente novamente em instantes.</string>
+    <string name="cloud_sync_purchase_link_error">Sua compra foi reconhecida pela Play Store, mas ainda não conseguimos confirmá-la com nosso servidor. Alguns recursos premium podem demorar um pouco para liberar.</string>
     <string name="join_existing_group">+ Adicionar grupo com código</string>
     <string name="join_existing_group_hint">Informe o código de convite compartilhado pelo admin do grupo.</string>
     <string name="join_existing_group_code_label">Código</string>
@@ -139,6 +141,7 @@
     <string name="spectator_code_regenerate_confirm_action">Atualizar</string>
     <string name="spectator_code_regenerated_message">Novo código gerado. %1$d aparelho(s) de espectador foram desconectados.</string>
     <string name="spectator_code_regenerate_error">Não foi possível atualizar o código agora. Tente novamente.</string>
+    <string name="spectator_code_retry_button">Tentar novamente</string>
     <string name="admin_session_transfer_warning">Os dados ao vivo deste grupo estão sendo publicados por outro aparelho no momento. Este aparelho está em modo somente-leitura para a sincronização em nuvem.</string>
     <string name="admin_session_transfer_button">Assumir sessão de administrador neste aparelho</string>
     <string name="admin_session_transfer_confirm_title">Assumir sessão de administrador?</string>

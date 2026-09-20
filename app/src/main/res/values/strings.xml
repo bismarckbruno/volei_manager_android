@@ -107,6 +107,8 @@
     <string name="cloud_sync_groups_limit_label">%1$d of %2$d synced group(s)</string>
     <string name="cloud_sync_limit_reached">You\'ve reached your plan\'s synced group limit.</string>
     <string name="cloud_sync_switch_cooldown">You can only change the premium group once every 15 days. Please try again later.</string>
+    <string name="cloud_sync_activation_error">Couldn\'t finish activating cloud sync for this group on the server. Check your connection and try again in a moment.</string>
+    <string name="cloud_sync_purchase_link_error">Your purchase was recognized by the Play Store, but we couldn\'t confirm it with our server yet. Some premium features may take a moment to unlock.</string>
     <string name="join_existing_group">+ Add group with code</string>
     <string name="join_existing_group_hint">Enter the invite code shared by the group\'s admin.</string>
     <string name="join_existing_group_code_label">Code</string>
@@ -139,6 +141,7 @@
     <string name="spectator_code_regenerate_confirm_action">Reset</string>
     <string name="spectator_code_regenerated_message">New code generated. %1$d observer device(s) were disconnected.</string>
     <string name="spectator_code_regenerate_error">Couldn\'t reset the code now. Please try again.</string>
+    <string name="spectator_code_retry_button">Try again</string>
     <string name="admin_session_transfer_warning">This group\'s live data is currently being published from another device. This device is in read-only mode for cloud sync.</string>
     <string name="admin_session_transfer_button">Take over admin session on this device</string>
     <string name="admin_session_transfer_confirm_title">Take over admin session?</string>

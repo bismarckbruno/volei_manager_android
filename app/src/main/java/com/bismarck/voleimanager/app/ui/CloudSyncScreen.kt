@@ -95,6 +95,7 @@ import com.bismarck.voleimanager.app.util.RegeneratedSpectatorCode
 import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
 import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 
 /**
@@ -517,7 +518,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                         SpectatorCodeSection(
                             spectatorCode = cloudMeta?.spectatorCode,
                             viewerCount = viewerCount,
-                            onRegenerate = { onResult -> viewModel.regenerateSpectatorCode(selectedGroup.groupName, onResult) }
+                            onRegenerate = { onResult -> viewModel.regenerateSpectatorCode(selectedGroup.groupName, onResult) },
+                            onRetry = { viewModel.retryCloudGroupActivation(selectedGroup.groupName) }
                         )
 
                         Spacer(Modifier.height(12.dp))
@@ -565,7 +567,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
 private fun SpectatorCodeSection(
     spectatorCode: String?,
     viewerCount: Int,
-    onRegenerate: ((RegeneratedSpectatorCode?, String?) -> Unit) -> Unit
+    onRegenerate: ((RegeneratedSpectatorCode?, String?) -> Unit) -> Unit,
+    onRetry: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -621,6 +624,14 @@ private fun SpectatorCodeSection(
         Spacer(Modifier.height(8.dp))
 
         if (spectatorCode == null) {
+            var showRetry by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                // Depois de ~8s sem o código chegar, é sinal de que a ativação do grupo falhou
+                // silenciosamente no backend (ver `activateCloudGroupBackend` em VoleiViewModel) —
+                // oferece um jeito de tentar de novo em vez de deixar girando pra sempre.
+                delay(8_000)
+                showRetry = true
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
@@ -629,6 +640,15 @@ private fun SpectatorCodeSection(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (showRetry) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = {
+                    showRetry = false
+                    onRetry()
+                }) {
+                    Text(stringResource(R.string.spectator_code_retry_button))
+                }
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
