@@ -42,7 +42,12 @@ data class AppAuthUser(
     /** `true` só para contas com login por e-mail/senha (permite alterar e-mail/senha pelo app);
      *  contas exclusivamente Google gerenciam e-mail/senha do lado do Google, então essas opções
      *  ficam ocultas na UI para elas. */
-    val hasPasswordProvider: Boolean
+    val hasPasswordProvider: Boolean,
+    /** `true` para a sessão anônima criada por [AuthManager.signInAnonymously] (Espectador que só
+     *  quer acompanhar um grupo por código, sem cadastro). Não conta como "logado de verdade" para
+     *  fins de menu/UI — ver uso em `VoleiManagerApp.AccountMenu` — porque não tem e-mail/perfil
+     *  editável e pode ser substituída a qualquer momento por um login/cadastro real. */
+    val isAnonymous: Boolean
 )
 
 private const val USERS_COLLECTION = "users"
@@ -245,7 +250,8 @@ object AuthManager {
         emailVerified = user.isEmailVerified,
         hasPasswordProvider = user.providerData.any {
             it.providerId == com.google.firebase.auth.EmailAuthProvider.PROVIDER_ID
-        }
+        },
+        isAnonymous = user.isAnonymous
     )
 
     /** Proteção simples e local contra scripts de criação em massa de contas: não substitui uma
@@ -383,6 +389,35 @@ object AuthManager {
             null
         } catch (e: Exception) {
             e.message ?: "Não foi possível entrar. Verifique seu e-mail e senha."
+        }
+    }
+
+    /** Autentica anonimamente (sem e-mail/senha) — usado quando um Espectador quer só acompanhar
+     *  um grupo por código de convite sem passar por cadastro/login algum. O Firestore exige um
+     *  `uid` autenticado para checar a lista de `members/{uid}` do grupo (ver `firestore.rules`);
+     *  a conta anônima supre exatamente essa necessidade sem pedir nada do usuário. Se ele já
+     *  tiver uma conta anônima criada numa sessão anterior (ver [currentUser]), reaproveita a
+     *  mesma sessão em vez de criar uma nova a cada chamada — [FirebaseAuth.signInAnonymously]
+     *  já faz isso sozinho (mantém o mesmo `uid` enquanto o app não for desinstalado/dados
+     *  limpos). Retorna uma mensagem de erro amigável em caso de falha, ou `null` em caso de
+     *  sucesso. */
+    suspend fun signInAnonymously(): String? {
+        val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
+        if (auth.currentUser != null) return null
+        return try {
+            suspendCancellableCoroutine<Result<FirebaseUser?>> { cont ->
+                auth.signInAnonymously()
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            cont.resume(Result.success(task.result?.user))
+                        } else {
+                            cont.resume(Result.failure(task.exception ?: Exception("Falha ao entrar anonimamente")))
+                        }
+                    }
+            }.getOrThrow()
+            null
+        } catch (e: Exception) {
+            e.message ?: "Não foi possível conectar como espectador anônimo."
         }
     }
 

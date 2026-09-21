@@ -2145,6 +2145,7 @@ fun EditProfileDialog(
     initialNickname: String,
     initialBirthDateIso: String?,
     hasPasswordProvider: Boolean,
+    currentEmail: String?,
     onChangeEmailClick: () -> Unit,
     onChangePasswordClick: () -> Unit,
     onDismiss: () -> Unit,
@@ -2198,6 +2199,14 @@ fun EditProfileDialog(
                     Spacer(Modifier.height(16.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(8.dp))
+                    if (!currentEmail.isNullOrBlank()) {
+                        Text(
+                            stringResource(R.string.current_email_label, currentEmail),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
                     TextButton(onClick = onChangeEmailClick) {
                         Text(stringResource(R.string.change_email_menu_item))
                     }

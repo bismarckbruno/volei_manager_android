@@ -48,9 +48,9 @@ import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 
 /**
  * Primeira pergunta do onboarding, perguntada uma única vez (antes de qualquer etapa do
- * onboarding de grupo): qual é o perfil do usuário no app. Organizador e Auxiliar devem, na
- * sequência, ser direcionados ao cadastro/login gratuito (tela de Nuvem); Espectador segue sem
- * essa exigência.
+ * onboarding de grupo): qual é o perfil do usuário no app. Organizador e Auxiliar são direcionados,
+ * na sequência, a uma sugestão pulável de cadastro/login gratuito (tela de Nuvem); Espectador
+ * também recebe uma sugestão pulável equivalente.
  */
 @Composable
 fun UserProfileOnboardingScreen(onProfileSelected: (UserProfileType) -> Unit) {
@@ -169,12 +169,17 @@ private fun UserProfileOptionCard(
 }
 
 /**
- * Passo obrigatório logo após escolher o perfil Organizador/Auxiliar: sem botão de pular, já que
- * uma conta gratuita é exigida antes de prosseguir para o onboarding de grupo (mas a confirmação
- * do e-mail em si não é obrigatória — ver [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.onAuthGatePassed]).
+ * Passo do onboarding logo após escolher o perfil Organizador/Auxiliar: sugere criar conta/login
+ * gratuito (necessário para os recursos de nuvem/Premium), mas pode ser pulado — criar e gerenciar
+ * grupos localmente não depende de conta (ver [com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel.onAuthGatePassed]).
  */
 @Composable
-fun MandatoryAccountGateScreen(onLoginClick: () -> Unit, onSignUpClick: () -> Unit, onBackClick: () -> Unit) {
+fun MandatoryAccountGateScreen(
+    onLoginClick: () -> Unit,
+    onSignUpClick: () -> Unit,
+    onSkip: () -> Unit,
+    onBackClick: () -> Unit
+) {
     ProfileRoutingScreenScaffold(
         titleRes = R.string.onboarding_auth_required_title,
         hintRes = R.string.onboarding_auth_required_hint,
@@ -186,6 +191,10 @@ fun MandatoryAccountGateScreen(onLoginClick: () -> Unit, onSignUpClick: () -> Un
         Spacer(Modifier.height(12.dp))
         OutlinedButton(onClick = onLoginClick, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.login_title))
+        }
+        Spacer(Modifier.height(12.dp))
+        TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.onboarding_skip))
         }
     }
 }

@@ -198,6 +198,7 @@
     <string name="change_password_confirm">Cambiar contraseña</string>
     <string name="new_password_label">Nueva contraseña</string>
     <string name="change_email_menu_item">Cambiar e-mail</string>
+    <string name="current_email_label">E-mail actual: %1$s</string>
     <string name="change_password_menu_item">Cambiar contraseña</string>
     <string name="logout">Cerrar sesión</string>
     <string name="account_avatar_content_description">Cuenta</string>

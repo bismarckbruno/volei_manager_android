@@ -147,9 +147,10 @@ enum class PremiumScreenPersona { ADMIN, ESPECTADOR }
 
 /**
  * Passos intermediários mostrados uma única vez, logo após [VoleiViewModel.setUserProfileType],
- * antes do onboarding normal de criação de grupo. Organizador/Auxiliar são obrigados a criar
- * conta/entrar ([AUTH_REQUIRED]) antes de prosseguir (não precisam confirmar o e-mail ainda,
- * só ter feito login/cadastro). Espectador vê uma sugestão pulável de login
+ * antes do onboarding normal de criação de grupo. Organizador/Auxiliar veem uma sugestão pulável
+ * de criar conta/entrar ([AUTH_REQUIRED], nome mantido por compatibilidade — na prática pode ser
+ * pulada) antes de prosseguir (não precisam confirmar o e-mail ainda, só ter feito login/cadastro,
+ * caso não pulem). Espectador vê uma sugestão pulável de login
  * ([SPECTATOR_AUTH_SUGGESTION]) seguida de uma sugestão pulável de código de grupo
  * ([SPECTATOR_JOIN_SUGGESTION]). É um estado transitório, não persistido: se o app for encerrado
  * no meio do fluxo, o usuário simplesmente cai direto no onboarding normal de grupo na próxima
@@ -1514,6 +1515,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             return@launch
         }
 
+        // Espectador não precisa criar conta/logar para acompanhar um grupo: se ainda não há
+        // ninguém logado, entra anonimamente antes de tentar resgatar o código (o Firestore exige
+        // um uid autenticado para checar a lista de membros do grupo — ver `firestore.rules` e
+        // AuthManager.signInAnonymously). Papel Auxiliar está temporariamente oculto/desativado,
+        // então na prática todo código resgatado por aqui hoje é de Espectador.
+        if (currentUser.value == null) {
+            val anonError = AuthManager.signInAnonymously()
+            if (anonError != null) {
+                onResult(anonError)
+                return@launch
+            }
+        }
+
         val remoteResult = CloudFunctionsManager.redeemJoinCode(trimmed)
         val redeemed = remoteResult.getOrNull()
         if (redeemed != null) {
@@ -2648,8 +2662,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _showUserProfileOnboarding.value = true
     }
 
-    /** Chamado assim que o gate obrigatório de conta (Organizador/Auxiliar) é atendido — login ou
-     *  cadastro concluído —, liberando o onboarding normal de grupo. */
+    /** Chamado assim que o gate de conta (Organizador/Auxiliar) é atendido — login ou cadastro
+     *  concluído — ou pulado manualmente, liberando o onboarding normal de grupo. Pular é permitido
+     *  porque criar/gerenciar grupos localmente não depende de conta; só os recursos de nuvem
+     *  (sincronização Premium) exigem login, e podem ser feitos depois, a qualquer momento. */
     fun onAuthGatePassed() {
         if (_postProfileOnboardingStage.value == PostProfileOnboardingStage.AUTH_REQUIRED) {
             _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE

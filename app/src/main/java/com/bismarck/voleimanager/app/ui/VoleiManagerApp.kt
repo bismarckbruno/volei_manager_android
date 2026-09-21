@@ -185,7 +185,7 @@ private fun DrawerAccountHeader(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 offset = DpOffset(x = 0.dp, y = 4.dp)
             ) {
-                if (currentUser == null) {
+                if (currentUser == null || currentUser.isAnonymous) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.login_title)) }, onClick = onLoginClick)
                     DropdownMenuItem(text = { Text(stringResource(R.string.signup_title)) }, onClick = onSignUpClick)
                 } else {
@@ -226,7 +226,7 @@ private fun DrawerAccountHeader(
                 if (currentUser != null && hasPremiumAccess) {
                     Spacer(Modifier.width(8.dp))
                     Icon(
-                        painter = painterResource(R.drawable.premium_icon),
+                        painter = painterResource(R.drawable.premium_icon3),
                         contentDescription = stringResource(R.string.premium_subscriber_badge),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.headlineMedium.fontSize.toDp() })
@@ -952,6 +952,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         MandatoryAccountGateScreen(
             onLoginClick = { showLoginDialog = true },
             onSignUpClick = { showSignUpDialog = true },
+            onSkip = { viewModel.onAuthGatePassed() },
             onBackClick = { viewModel.returnToProfileSelection() }
         )
         return
@@ -1197,7 +1198,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 onClick = { requestScreenSwitch(Screen.HISTORY) }
                             )
                             FlexibleDrawerItem(
-                                icon = { Icon(painter = painterResource(R.drawable.premium_icon), null) },
+                                icon = { Icon(painter = painterResource(R.drawable.premium_icon3), null) },
                                 label = { Text(stringResource(R.string.cloud_sync)) },
                                 selected = currentScreen == Screen.CLOUD_SYNC,
                                 onClick = { requestScreenSwitch(Screen.CLOUD_SYNC) }
@@ -1389,6 +1390,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             initialNickname = currentUser?.nickname.orEmpty(),
             initialBirthDateIso = currentUser?.birthDate,
             hasPasswordProvider = currentUser?.hasPasswordProvider == true,
+            currentEmail = currentUser?.email,
             onChangeEmailClick = { showEditProfileDialog = false; showChangeEmailDialog = true },
             onChangePasswordClick = { showEditProfileDialog = false; showChangePasswordDialog = true },
             onDismiss = { showEditProfileDialog = false },

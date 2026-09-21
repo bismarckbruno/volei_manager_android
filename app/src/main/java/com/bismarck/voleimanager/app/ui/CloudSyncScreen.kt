@@ -97,6 +97,7 @@ import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
+import androidx.core.net.toUri
 
 /**
  * Tela "Premium": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
@@ -181,7 +182,6 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel, persona: PremiumScree
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Spacer(Modifier.height(0.dp))
         PersonaSegmentedButtonRow(viewModel, persona)
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -326,13 +326,12 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Spacer(Modifier.height(0.dp))
         PersonaSegmentedButtonRow(viewModel, persona)
 
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painter = painterResource(R.drawable.premium_icon),
+                    painter = painterResource(R.drawable.premium_icon3),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -1077,9 +1076,8 @@ internal fun PremiumPlansSection(
                         BillingProductIds.SINGLE_GROUP
                     }
                     OutlinedButton(onClick = {
-                        val uri = Uri.parse(
-                            "https://play.google.com/store/account/subscriptions?sku=$activeProductId&package=${context.packageName}"
-                        )
+                        val uri =
+                            "https://play.google.com/store/account/subscriptions?sku=$activeProductId&package=${context.packageName}".toUri()
                         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                     }) {
                         Text(stringResource(R.string.cloud_sync_cancel_subscription))

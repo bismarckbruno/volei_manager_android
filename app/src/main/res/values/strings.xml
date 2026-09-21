@@ -204,6 +204,7 @@
     <string name="change_password_confirm">Change password</string>
     <string name="new_password_label">New password</string>
     <string name="change_email_menu_item">Change e-mail</string>
+    <string name="current_email_label">Current e-mail: %1$s</string>
     <string name="change_password_menu_item">Change password</string>
     <string name="logout">Log out</string>
     <string name="account_avatar_content_description">Account</string>
