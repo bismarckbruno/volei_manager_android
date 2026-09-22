@@ -104,6 +104,7 @@ private fun getDisplayBalancingModeName(balancingMode: String): String {
     return when (balancingMode) {
         com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name ->
             stringResource(R.string.mode_rest)
+
         else -> stringResource(R.string.mode_rebalance)
     }
 }
@@ -186,8 +187,14 @@ private fun DrawerAccountHeader(
                 offset = DpOffset(x = 0.dp, y = 4.dp)
             ) {
                 if (currentUser == null || currentUser.isAnonymous) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.login_title)) }, onClick = onLoginClick)
-                    DropdownMenuItem(text = { Text(stringResource(R.string.signup_title)) }, onClick = onSignUpClick)
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.login_title)) },
+                        onClick = onLoginClick
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.signup_title)) },
+                        onClick = onSignUpClick
+                    )
                 } else {
                     DropdownMenuItem(
                         text = {
@@ -198,14 +205,20 @@ private fun DrawerAccountHeader(
                         },
                         onClick = onEditPhotoClick
                     )
-                    DropdownMenuItem(text = { Text(stringResource(R.string.edit_profile_title)) }, onClick = onEditProfileClick)
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.edit_profile_title)) },
+                        onClick = onEditProfileClick
+                    )
                     if (currentUser.email != null && !currentUser.emailVerified) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.resend_verification_email)) },
                             onClick = onResendVerificationClick
                         )
                     }
-                    DropdownMenuItem(text = { Text(stringResource(R.string.logout)) }, onClick = onLogoutClick)
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.logout)) },
+                        onClick = onLogoutClick
+                    )
                 }
             }
         }
@@ -235,11 +248,12 @@ private fun DrawerAccountHeader(
             }
             if (userProfileType != null) {
                 val roleLabel = userProfileTypeLabel(userProfileType)
-                val statusText = if (userProfileType == UserProfileType.ESPECTADOR && hasPremiumAccess) {
-                    stringResource(R.string.drawer_status_premium_suffix, roleLabel)
-                } else {
-                    roleLabel
-                }
+                val statusText =
+                    if (userProfileType == UserProfileType.ESPECTADOR && hasPremiumAccess) {
+                        stringResource(R.string.drawer_status_premium_suffix, roleLabel)
+                    } else {
+                        roleLabel
+                    }
                 Text(
                     statusText,
                     style = MaterialTheme.typography.labelMedium,
@@ -366,7 +380,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                val bitmap = withContext(Dispatchers.IO) { loadBitmapForAvatarEditing(context, uri) }
+                val bitmap =
+                    withContext(Dispatchers.IO) { loadBitmapForAvatarEditing(context, uri) }
                 if (bitmap != null) {
                     pendingAvatarCropBitmap = bitmap
                 }
@@ -460,9 +475,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
     LaunchedEffect(currentScreen, pendingDrawerCloseScreen, isGroupDataLoading) {
         val shouldCloseNow = pendingDrawerCloseScreen == currentScreen &&
-            currentScreen != Screen.HISTORY &&
-            !isGroupDataLoading &&
-            drawerState.isOpen
+                currentScreen != Screen.HISTORY &&
+                !isGroupDataLoading &&
+                drawerState.isOpen
         if (shouldCloseNow) {
             drawerState.close()
             pendingDrawerCloseScreen = null
@@ -495,7 +510,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             dismissButton = {
                 TextButton(onClick = {
                     pendingGroupSwitch = null
-                }) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }) {
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         )
     }
@@ -555,69 +575,84 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                     AnimatedVisibility(
                         visible = showExportCsvAdvanced,
-                        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
-                        exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
+                        enter = expandVertically(animationSpec = tween(220)) + fadeIn(
+                            animationSpec = tween(
+                                180
+                            )
+                        ),
+                        exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(
+                            animationSpec = tween(
+                                140
+                            )
+                        )
                     ) {
-                    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        TextButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            onClick = {
-                                viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
-                                showExportDialog = false
-                            }) {
-                            Box(
+                        Column(Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)) {
+                            TextButton(
                                 modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.players_word),
-                                    textAlign = TextAlign.Start
-                                )
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                onClick = {
+                                    viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
+                                    showExportDialog = false
+                                }) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.players_word),
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                onClick = {
+                                    viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
+                                    showExportDialog = false
+                                }) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.history),
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                onClick = {
+                                    viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
+                                    showExportDialog = false
+                                }) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.daily_elo),
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
                             }
                         }
-                        TextButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            onClick = {
-                                viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
-                                showExportDialog = false
-                            }) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.history),
-                                    textAlign = TextAlign.Start
-                                )
-                            }
-                        }
-                        TextButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            onClick = {
-                                viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
-                                showExportDialog = false
-                            }) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.daily_elo),
-                                    textAlign = TextAlign.Start
-                                )
-                            }
-                        }
-                    }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     showExportDialog = false
-                }) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }) {
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         )
     }
@@ -634,7 +669,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             pendingImportType = CsvType.BACKUP_COMPLETO
-                            launcherImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                            launcherImport.launch(
+                                arrayOf(
+                                    "application/json",
+                                    "text/plain",
+                                    "application/octet-stream"
+                                )
+                            )
                             showImportDialog = false
                         }) {
                         Icon(Icons.Default.Add, null)
@@ -673,84 +714,102 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     }
                     AnimatedVisibility(
                         visible = showImportCsvAdvanced,
-                        enter = expandVertically(animationSpec = tween(220)) + fadeIn(animationSpec = tween(180)),
-                        exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140))
+                        enter = expandVertically(animationSpec = tween(220)) + fadeIn(
+                            animationSpec = tween(
+                                180
+                            )
+                        ),
+                        exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(
+                            animationSpec = tween(
+                                140
+                            )
+                        )
                     ) {
-                    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Column(Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(
+                                        horizontal = 16.dp,
+                                        vertical = 4.dp
+                                    ),
+                                    onClick = {
+                                        pendingImportType = CsvType.JOGADORES
+                                        launcherImport.launch(csvImportMimeTypes)
+                                        showImportDialog = false
+                                    }) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.players_word),
+                                            textAlign = TextAlign.Start
+                                        )
+                                    }
+                                }
+                                IconButton(onClick = { viewModel.exportPlayersTemplate(context) }) {
+                                    Icon(
+                                        Icons.Default.Download,
+                                        contentDescription = stringResource(R.string.download_players_template)
+                                    )
+                                }
+                            }
                             TextButton(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = {
-                                pendingImportType = CsvType.JOGADORES
-                                launcherImport.launch(csvImportMimeTypes)
-                                showImportDialog = false
-                            }) {
+                                    pendingImportType = CsvType.HISTORICO
+                                    launcherImport.launch(csvImportMimeTypes)
+                                    showImportDialog = false
+                                }) {
                                 Box(
                                     modifier = Modifier.fillMaxWidth(),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.players_word),
+                                        text = stringResource(R.string.history),
                                         textAlign = TextAlign.Start
                                     )
                                 }
                             }
-                            IconButton(onClick = { viewModel.exportPlayersTemplate(context) }) {
-                                Icon(
-                                    Icons.Default.Download,
-                                    contentDescription = stringResource(R.string.download_players_template)
-                                )
-                            }
-                        }
-                        TextButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            onClick = {
-                                pendingImportType = CsvType.HISTORICO
-                                launcherImport.launch(csvImportMimeTypes)
-                                showImportDialog = false
-                            }) {
-                            Box(
+                            TextButton(
                                 modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.history),
-                                    textAlign = TextAlign.Start
-                                )
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                onClick = {
+                                    pendingImportType = CsvType.ELO_LOGS
+                                    launcherImport.launch(csvImportMimeTypes)
+                                    showImportDialog = false
+                                }) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.daily_elo),
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
                             }
                         }
-                        TextButton(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            onClick = {
-                                pendingImportType = CsvType.ELO_LOGS
-                                launcherImport.launch(csvImportMimeTypes)
-                                showImportDialog = false
-                            }) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.daily_elo),
-                                    textAlign = TextAlign.Start
-                                )
-                            }
-                        }
-                    }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     showImportDialog = false
-                }) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }) {
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         )
     }
@@ -760,7 +819,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         val groupList = pending.overlappingGroups.joinToString(", ")
         val duplicateSummary = if (pending.duplicatePlayerNames.isNotEmpty()) {
             val preview = pending.duplicatePlayerNames.take(8).joinToString(", ")
-            "\n\n${stringResource(R.string.import_duplicate_names_detected, preview)}${if (pending.duplicatePlayerNames.size > 8) "..." else ""}"
+            "\n\n${
+                stringResource(
+                    R.string.import_duplicate_names_detected,
+                    preview
+                )
+            }${if (pending.duplicatePlayerNames.size > 8) "..." else ""}"
         } else ""
         val dialogText = if (groupList.isBlank()) {
             "${stringResource(R.string.import_duplicate_name_dialog_text)}${duplicateSummary}"
@@ -810,7 +874,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelExternalImport() }) {
-                    Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         )
@@ -912,9 +979,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     if (showLoginDialog) LoginDialog(
         inProgress = authInProgress,
         onDismiss = { showLoginDialog = false },
-        onConfirm = { email, password, onResult -> viewModel.signInWithEmail(email, password, onResult) },
+        onConfirm = { email, password, onResult ->
+            viewModel.signInWithEmail(
+                email,
+                password,
+                onResult
+            )
+        },
         onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
-        onForgotPasswordClick = { email, onResult -> viewModel.sendPasswordResetEmail(email, onResult) },
+        onForgotPasswordClick = { email, onResult ->
+            viewModel.sendPasswordResetEmail(
+                email,
+                onResult
+            )
+        },
         onSwitchToSignUp = { showLoginDialog = false; showSignUpDialog = true }
     )
     if (showSignUpDialog) SignUpDialog(
@@ -970,358 +1048,411 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     ModalNavigationDrawer(
-        modifier = Modifier.systemBarsPadding(),
+        //modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
+        modifier = Modifier.windowInsetsPadding(WindowInsets.safeContent),
         drawerContent = {
-            Box(modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(
-                WindowInsetsSides.Vertical))) {
-                ModalDrawerSheet {
-                    Box(
-                        modifier = Modifier
-                            .windowInsetsPadding(WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Start))
+            // Insets completos (não apenas vertical/start) precisam envolver o ModalDrawerSheet
+            // inteiro (não só o conteúdo interno), senão o fundo/superfície do drawer continua
+            // desenhado por baixo da status bar/navigation bar em landscape — em algumas rotações
+            // (ex.: aparelho deitado com o lado direito para baixo) a barra de navegação some para
+            // um dos lados (start/end) ou para baixo, dependendo do modo (gestos vs. 3 botões).
+            Box {
+                ModalDrawerSheet(
+                    windowInsets = DrawerDefaults.windowInsets.only(
+                        WindowInsetsSides.Bottom
+                    )
+                ) {
+                    Column(
+                        Modifier
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Column(
-                            Modifier
-                                .padding(16.dp)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            var accountMenuExpanded by remember { mutableStateOf(false) }
-                            val verificationEmailSentMessage = stringResource(R.string.verification_email_sent)
-                            DrawerAccountHeader(
-                                currentUser = currentUser,
-                                userProfileType = activeGroupRole,
-                                hasPremiumAccess = hasPremiumAccessGlobal,
-                                menuExpanded = accountMenuExpanded,
-                                onAvatarClick = { accountMenuExpanded = true },
-                                onDismissMenu = { accountMenuExpanded = false },
-                                onLoginClick = { accountMenuExpanded = false; showLoginDialog = true },
-                                onSignUpClick = { accountMenuExpanded = false; showSignUpDialog = true },
-                                onLogoutClick = { accountMenuExpanded = false; showLogoutConfirmDialog = true },
-                                onEditPhotoClick = { accountMenuExpanded = false; showEditProfilePhotoDialog = true },
-                                onEditProfileClick = { accountMenuExpanded = false; showEditProfileDialog = true },
-                                onResendVerificationClick = {
-                                    accountMenuExpanded = false
-                                    viewModel.resendVerificationEmail { error ->
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(
-                                                error ?: verificationEmailSentMessage
-                                            )
-                                        }
+                        var accountMenuExpanded by remember { mutableStateOf(false) }
+                        val verificationEmailSentMessage =
+                            stringResource(R.string.verification_email_sent)
+                        DrawerAccountHeader(
+                            currentUser = currentUser,
+                            userProfileType = activeGroupRole,
+                            hasPremiumAccess = hasPremiumAccessGlobal,
+                            menuExpanded = accountMenuExpanded,
+                            onAvatarClick = { accountMenuExpanded = true },
+                            onDismissMenu = { accountMenuExpanded = false },
+                            onLoginClick = {
+                                accountMenuExpanded = false; showLoginDialog = true
+                            },
+                            onSignUpClick = {
+                                accountMenuExpanded = false; showSignUpDialog = true
+                            },
+                            onLogoutClick = {
+                                accountMenuExpanded = false; showLogoutConfirmDialog = true
+                            },
+                            onEditPhotoClick = {
+                                accountMenuExpanded = false; showEditProfilePhotoDialog = true
+                            },
+                            onEditProfileClick = {
+                                accountMenuExpanded = false; showEditProfileDialog = true
+                            },
+                            onResendVerificationClick = {
+                                accountMenuExpanded = false
+                                viewModel.resendVerificationEmail { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            error ?: verificationEmailSentMessage
+                                        )
                                     }
                                 }
-                            )
-                            Spacer(Modifier.height(16.dp))
+                            }
+                        )
+                        Spacer(Modifier.height(16.dp))
 
-                            var groupExpanded by remember { mutableStateOf(false) }
-                            var groupAnchorWidth by remember { mutableStateOf(280.dp) }
-                            val groupConfiguration = LocalConfiguration.current
-                            val groupHeightFraction = if (groupConfiguration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                        var groupExpanded by remember { mutableStateOf(false) }
+                        var groupAnchorWidth by remember { mutableStateOf(280.dp) }
+                        val groupConfiguration = LocalConfiguration.current
+                        val groupHeightFraction =
+                            if (groupConfiguration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
                                 0.27f
                             } else {
                                 0.57f
                             }
-                            val groupContainerHeightDp = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
-                            val groupMaxMenuHeight = groupContainerHeightDp * groupHeightFraction
-                            ExposedDropdownMenuBox(
+                        val groupContainerHeightDp =
+                            with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
+                        val groupMaxMenuHeight = groupContainerHeightDp * groupHeightFraction
+                        ExposedDropdownMenuBox(
+                            expanded = groupExpanded,
+                            onExpandedChange = { groupExpanded = !groupExpanded }) {
+                            OutlinedTextField(
+                                value = selectedGroup?.let { getDisplayGroupName(it) }
+                                    ?: stringResource(R.string.select_word),
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = {
+                                    val rotation by animateFloatAsState(
+                                        targetValue = if (groupExpanded) 180f else 0f,
+                                        animationSpec = tween(durationMillis = 200),
+                                        label = "GroupMenuRotation"
+                                    )
+                                    Icon(
+                                        Icons.Default.KeyboardArrowDown,
+                                        contentDescription = stringResource(R.string.keyboard_arrow_down),
+                                        modifier = Modifier
+                                            .rotate(rotation)
+                                            .size(24.dp)
+                                    )
+                                },
+                                modifier = Modifier
+                                    .menuAnchor(
+                                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                        enabled = true
+                                    )
+                                    .onGloballyPositioned { coordinates ->
+                                        groupAnchorWidth =
+                                            with(density) { coordinates.size.width.toDp() }
+                                    }
+                                    .fillMaxWidth(),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(56.dp)
+                            )
+                            DropdownMenu(
                                 expanded = groupExpanded,
-                                onExpandedChange = { groupExpanded = !groupExpanded }) {
-                                OutlinedTextField(
-                                    value = selectedGroup?.let { getDisplayGroupName(it) } ?: stringResource(R.string.select_word),
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    trailingIcon = {
-                                        val rotation by animateFloatAsState(
-                                            targetValue = if (groupExpanded) 180f else 0f,
-                                            animationSpec = tween(durationMillis = 200),
-                                            label = "GroupMenuRotation"
-                                        )
-                                        Icon(
-                                            Icons.Default.KeyboardArrowDown,
-                                            contentDescription = stringResource(R.string.keyboard_arrow_down),
-                                            modifier = Modifier
-                                                .rotate(rotation)
-                                                .size(24.dp)
-                                        )
-                                    },
-                                    modifier = Modifier
-                                        .menuAnchor(
-                                            type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                                            enabled = true
-                                        )
-                                        .onGloballyPositioned { coordinates ->
-                                            groupAnchorWidth = with(density) { coordinates.size.width.toDp() }
-                                        }
-                                        .fillMaxWidth(),
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(56.dp)
-                                )
-                                DropdownMenu(
-                                    expanded = groupExpanded,
-                                    onDismissRequest = { groupExpanded = false },
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    offset = DpOffset(x = 0.dp, y = 4.dp),
-                                    modifier = Modifier
-                                        .heightIn(max = groupMaxMenuHeight)
-                                        .widthIn(min = groupAnchorWidth)
-                                ) {
-                                    groupsSortedByRecent.forEach { group ->
-                                        val isSelected = selectedGroup == group
-                                        val remoteRole = allGroupConfigsList.firstOrNull { it.groupName == group }?.remoteRole
-                                        val isRemoteGroup = remoteRole != null
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    if (isRemoteGroup) {
-                                                        Icon(
-                                                            Icons.Filled.Podcasts,
-                                                            contentDescription = stringResource(R.string.remote_group_content_description),
-                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                            modifier = Modifier.size(18.dp)
-                                                        )
-                                                        Spacer(Modifier.width(8.dp))
-                                                    }
-                                                    Text(
-                                                        getDisplayGroupName(group),
-                                                        modifier = Modifier.weight(1f),
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                onDismissRequest = { groupExpanded = false },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                offset = DpOffset(x = 0.dp, y = 4.dp),
+                                modifier = Modifier
+                                    .heightIn(max = groupMaxMenuHeight)
+                                    .widthIn(min = groupAnchorWidth)
+                            ) {
+                                groupsSortedByRecent.forEach { group ->
+                                    val isSelected = selectedGroup == group
+                                    val remoteRole =
+                                        allGroupConfigsList.firstOrNull { it.groupName == group }?.remoteRole
+                                    val isRemoteGroup = remoteRole != null
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                if (isRemoteGroup) {
+                                                    Icon(
+                                                        Icons.Filled.Podcasts,
+                                                        contentDescription = stringResource(R.string.remote_group_content_description),
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(18.dp)
                                                     )
-                                                    if (!isRemoteGroup) {
-                                                        IconButton(
-                                                            onClick = {
-                                                                showRenameGroupDialog = group
-                                                                groupExpanded = false
-                                                            },
-                                                            modifier = Modifier.minimumInteractiveComponentSize()
-                                                        ) {
-                                                            Icon(
-                                                                Icons.Default.Edit,
-                                                                contentDescription = stringResource(R.string.rename_group),
-                                                                modifier = Modifier.size(24.dp)
-                                                            )
-                                                        }
-                                                    }
+                                                    Spacer(Modifier.width(8.dp))
+                                                }
+                                                Text(
+                                                    getDisplayGroupName(group),
+                                                    modifier = Modifier.weight(1f),
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (!isRemoteGroup) {
                                                     IconButton(
                                                         onClick = {
-                                                            if (isRemoteGroup) {
-                                                                viewModel.leaveRemoteGroup(group)
-                                                                groupExpanded = false
-                                                            } else {
-                                                                showDeleteGroupDialog = group
-                                                                groupExpanded = false
-                                                            }
+                                                            showRenameGroupDialog = group
+                                                            groupExpanded = false
                                                         },
                                                         modifier = Modifier.minimumInteractiveComponentSize()
                                                     ) {
                                                         Icon(
-                                                            if (isRemoteGroup) Icons.AutoMirrored.Filled.Logout else Icons.Default.Delete,
+                                                            Icons.Default.Edit,
                                                             contentDescription = stringResource(
-                                                                if (isRemoteGroup) R.string.leave_group else R.string.delete
+                                                                R.string.rename_group
                                                             ),
-                                                            tint = MaterialTheme.colorScheme.error,
                                                             modifier = Modifier.size(24.dp)
                                                         )
                                                     }
                                                 }
-                                            },
-                                            onClick = {
-                                                groupExpanded = false
-                                                if (selectedGroup != group) {
-                                                    if (viewModel.isGameInProgress()) pendingGroupSwitch =
-                                                        group
-                                                    else {
-                                                        selectedGroup =
-                                                            group; viewModel.loadGroupConfig(
-                                                            group
-                                                        )
-                                                    }
+                                                IconButton(
+                                                    onClick = {
+                                                        if (isRemoteGroup) {
+                                                            viewModel.leaveRemoteGroup(group)
+                                                            groupExpanded = false
+                                                        } else {
+                                                            showDeleteGroupDialog = group
+                                                            groupExpanded = false
+                                                        }
+                                                    },
+                                                    modifier = Modifier.minimumInteractiveComponentSize()
+                                                ) {
+                                                    Icon(
+                                                        if (isRemoteGroup) Icons.AutoMirrored.Filled.Logout else Icons.Default.Delete,
+                                                        contentDescription = stringResource(
+                                                            if (isRemoteGroup) R.string.leave_group else R.string.delete
+                                                        ),
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
                                                 }
-                                                scope.launch { drawerState.close() }
                                             }
-                                        )
-                                    }
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.create_new_group),
-                                                fontWeight = FontWeight.Bold
-                                            )
                                         },
                                         onClick = {
-                                            showCreateGroupDialog = true; groupExpanded = false
-                                        })
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.join_existing_group),
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        },
-                                        onClick = {
-                                            showJoinGroupDialog = true; groupExpanded = false
-                                        })
-                                }
-                            }
-                            Spacer(Modifier.height(8.dp))
-
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.PlayCircle, null) },
-                                label = {
-                                    Text(
-                                        stringResource(
-                                            if (isSpectatorOfCurrentGroup) {
-                                                R.string.game_word_spectator
-                                            } else {
-                                                R.string.game_word
+                                            groupExpanded = false
+                                            if (selectedGroup != group) {
+                                                if (viewModel.isGameInProgress()) pendingGroupSwitch =
+                                                    group
+                                                else {
+                                                    selectedGroup =
+                                                        group; viewModel.loadGroupConfig(
+                                                        group
+                                                    )
+                                                }
                                             }
-                                        )
-                                    )
-                                },
-                                selected = currentScreen == Screen.GAME,
-                                onClick = { requestScreenSwitch(Screen.GAME) }
-                            )
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.DateRange, null) },
-                                label = { Text(stringResource(R.string.history)) },
-                                selected = currentScreen == Screen.HISTORY,
-                                onClick = { requestScreenSwitch(Screen.HISTORY) }
-                            )
-                            FlexibleDrawerItem(
-                                icon = { Icon(painter = painterResource(R.drawable.premium_icon3), null) },
-                                label = { Text(stringResource(R.string.cloud_sync)) },
-                                selected = currentScreen == Screen.CLOUD_SYNC,
-                                onClick = { requestScreenSwitch(Screen.CLOUD_SYNC) }
-                            )
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
-                                label = { Text(stringResource(R.string.faq)) },
-                                selected = currentScreen == Screen.FAQ,
-                                onClick = { requestScreenSwitch(Screen.FAQ) }
-                            )
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.Info, null) },
-                                label = { Text(stringResource(R.string.about_app)) },
-                                selected = currentScreen == Screen.ABOUT,
-                                onClick = { requestScreenSwitch(Screen.ABOUT) }
-                            )
-
-                            HorizontalDivider(
-                                Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                            )
-                            Text(text = stringResource(R.string.settings), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
-
-                            if (!isSpectatorOfCurrentGroup) {
-                                FlexibleDrawerItem(
-                                    icon = { Icon(Icons.Outlined.Settings, null) },
-                                    label = { Text(stringResource(R.string.group_rules)) },
-                                    selected = false,
-                                    onClick = {
-                                        showConfigDialog = true; scope.launch { drawerState.close() }
-                                    }
-                                )
-                            }
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.Palette, null) },
-                                label = { Text(stringResource(R.string.theme)) },
-                                selected = false,
-                                onClick = {
-                                    showThemeDialog = true; scope.launch { drawerState.close() }
-                                }
-                            )
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Default.WorkspacePremium, null) },
-                                label = { Text(stringResource(R.string.show_elo)) },
-                                selected = false,
-                                badge = { Switch(checked = showElo, onCheckedChange = null) },
-                                tooltipText = stringResource(R.string.show_elo_tooltip),
-                                onClick = {
-                                    if (isSpectatorOfCurrentGroup && !showEloPreference && !groupConfig.showEloToObservers) {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(eloBlockedForSpectatorMessage)
+                                            scope.launch { drawerState.close() }
                                         }
-                                    } else {
-                                        viewModel.setShowElo(!showElo)
-                                    }
+                                    )
                                 }
-                            )
-                            FlexibleDrawerItem(
-                                icon = { Icon(painter = painterResource(R.drawable.volei_manager_icon), null) },
-                                label = { Text(stringResource(R.string.show_lateness)) },
-                                selected = false,
-                                badge = { Switch(checked = showToll, onCheckedChange = null) },
-                                tooltipText = stringResource(R.string.show_lateness_tooltip),
-                                onClick = { viewModel.setShowToll(!showToll) }
-                            )
-                            HorizontalDivider(
-                                Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                            )
-                            Text(text = stringResource(R.string.data), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
-
-                            if (!isSpectatorOfCurrentGroup) {
-                                FlexibleDrawerItem(
-                                    icon = { Icon(Icons.Outlined.FileUpload, null) },
-                                    label = { Text(stringResource(R.string.export)) },
-                                    selected = false,
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            stringResource(R.string.create_new_group),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
                                     onClick = {
-                                        showExportCsvAdvanced = false
-                                        showExportDialog = true; scope.launch { drawerState.close() }
-                                    }
-                                )
-                                FlexibleDrawerItem(
-                                    icon = { Icon(Icons.Outlined.FileDownload, null) },
-                                    label = { Text(stringResource(R.string.import_text)) },
-                                    selected = false,
+                                        showCreateGroupDialog = true; groupExpanded = false
+                                    })
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            stringResource(R.string.join_existing_group),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
                                     onClick = {
-                                        showImportCsvAdvanced = false
-                                        showImportDialog = true; scope.launch { drawerState.close() }
-                                    }
-                                )
+                                        showJoinGroupDialog = true; groupExpanded = false
+                                    })
                             }
+                        }
+                        Spacer(Modifier.height(8.dp))
+
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.PlayCircle, null) },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        if (isSpectatorOfCurrentGroup) {
+                                            R.string.game_word_spectator
+                                        } else {
+                                            R.string.game_word
+                                        }
+                                    )
+                                )
+                            },
+                            selected = currentScreen == Screen.GAME,
+                            onClick = { requestScreenSwitch(Screen.GAME) }
+                        )
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.DateRange, null) },
+                            label = { Text(stringResource(R.string.history)) },
+                            selected = currentScreen == Screen.HISTORY,
+                            onClick = { requestScreenSwitch(Screen.HISTORY) }
+                        )
+                        FlexibleDrawerItem(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.premium_icon3),
+                                    null
+                                )
+                            },
+                            label = { Text(stringResource(R.string.cloud_sync)) },
+                            selected = currentScreen == Screen.CLOUD_SYNC,
+                            onClick = { requestScreenSwitch(Screen.CLOUD_SYNC) }
+                        )
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
+                            label = { Text(stringResource(R.string.faq)) },
+                            selected = currentScreen == Screen.FAQ,
+                            onClick = { requestScreenSwitch(Screen.FAQ) }
+                        )
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.Info, null) },
+                            label = { Text(stringResource(R.string.about_app)) },
+                            selected = currentScreen == Screen.ABOUT,
+                            onClick = { requestScreenSwitch(Screen.ABOUT) }
+                        )
+
+                        HorizontalDivider(
+                            Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        if (!isSpectatorOfCurrentGroup) {
                             FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.Info, null) },
-                                label = { Text(stringResource(R.string.telemetry_consent_menu_item)) },
+                                icon = { Icon(Icons.Outlined.Settings, null) },
+                                label = { Text(stringResource(R.string.group_rules)) },
                                 selected = false,
-                                badge = { Switch(checked = telemetryEnabled, onCheckedChange = null) },
-                                tooltipText = stringResource(R.string.telemetry_consent_menu_tooltip),
                                 onClick = {
-                                    if (telemetryEnabled) {
-                                        viewModel.setTelemetryEnabled(false)
-                                    } else {
-                                        showTelemetryConsentDialog = true
-                                        scope.launch { drawerState.close() }
-                                    }
+                                    showConfigDialog =
+                                        true; scope.launch { drawerState.close() }
                                 }
                             )
-                            HorizontalDivider(
-                                Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                            )
-                            Text(text = stringResource(R.string.privacy), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 4.dp))
-
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.Lock, null) },
-                                label = { Text(stringResource(R.string.privacy_policy)) },
-                                selected = false,
-                                onClick = {
-                                    showPrivacyPolicyDialog = true
-                                    scope.launch { drawerState.close() }
-                                })
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.Description, null) },
-                                label = { Text(stringResource(R.string.terms_of_use)) },
-                                selected = false,
-                                onClick = {
-                                    showTermsOfUseDialog = true
-                                    scope.launch { drawerState.close() }
-                                })
-
-                            Spacer(Modifier.height(16.dp))
                         }
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.Palette, null) },
+                            label = { Text(stringResource(R.string.theme)) },
+                            selected = false,
+                            onClick = {
+                                showThemeDialog = true; scope.launch { drawerState.close() }
+                            }
+                        )
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Default.WorkspacePremium, null) },
+                            label = { Text(stringResource(R.string.show_elo)) },
+                            selected = false,
+                            badge = { Switch(checked = showElo, onCheckedChange = null) },
+                            tooltipText = stringResource(R.string.show_elo_tooltip),
+                            onClick = {
+                                if (isSpectatorOfCurrentGroup && !showEloPreference && !groupConfig.showEloToObservers) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            eloBlockedForSpectatorMessage
+                                        )
+                                    }
+                                } else {
+                                    viewModel.setShowElo(!showElo)
+                                }
+                            }
+                        )
+                        FlexibleDrawerItem(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.volei_manager_icon),
+                                    null
+                                )
+                            },
+                            label = { Text(stringResource(R.string.show_lateness)) },
+                            selected = false,
+                            badge = { Switch(checked = showToll, onCheckedChange = null) },
+                            tooltipText = stringResource(R.string.show_lateness_tooltip),
+                            onClick = { viewModel.setShowToll(!showToll) }
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                        Text(
+                            text = stringResource(R.string.data),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        if (!isSpectatorOfCurrentGroup) {
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.FileUpload, null) },
+                                label = { Text(stringResource(R.string.export)) },
+                                selected = false,
+                                onClick = {
+                                    showExportCsvAdvanced = false
+                                    showExportDialog =
+                                        true; scope.launch { drawerState.close() }
+                                }
+                            )
+                            FlexibleDrawerItem(
+                                icon = { Icon(Icons.Outlined.FileDownload, null) },
+                                label = { Text(stringResource(R.string.import_text)) },
+                                selected = false,
+                                onClick = {
+                                    showImportCsvAdvanced = false
+                                    showImportDialog =
+                                        true; scope.launch { drawerState.close() }
+                                }
+                            )
+                        }
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.Info, null) },
+                            label = { Text(stringResource(R.string.telemetry_consent_menu_item)) },
+                            selected = false,
+                            badge = {
+                                Switch(
+                                    checked = telemetryEnabled,
+                                    onCheckedChange = null
+                                )
+                            },
+                            tooltipText = stringResource(R.string.telemetry_consent_menu_tooltip),
+                            onClick = {
+                                if (telemetryEnabled) {
+                                    viewModel.setTelemetryEnabled(false)
+                                } else {
+                                    showTelemetryConsentDialog = true
+                                    scope.launch { drawerState.close() }
+                                }
+                            }
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                        Text(
+                            text = stringResource(R.string.privacy),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.Lock, null) },
+                            label = { Text(stringResource(R.string.privacy_policy)) },
+                            selected = false,
+                            onClick = {
+                                showPrivacyPolicyDialog = true
+                                scope.launch { drawerState.close() }
+                            })
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.Description, null) },
+                            label = { Text(stringResource(R.string.terms_of_use)) },
+                            selected = false,
+                            onClick = {
+                                showTermsOfUseDialog = true
+                                scope.launch { drawerState.close() }
+                            })
+
+                        Spacer(Modifier.height(16.dp))
                     }
                 }
             }
@@ -1341,7 +1472,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 isGameInProgress = viewModel.isGameInProgress(),
                 onDismiss = { showConfigDialog = false },
                 onConfirm = { size, limit, prior, scoreEn, balancingMode, groupType, guaranteeSetter ->
-                    viewModel.updateConfig(size, limit, prior, scoreEn, balancingMode, groupType, guaranteeSetter)
+                    viewModel.updateConfig(
+                        size,
+                        limit,
+                        prior,
+                        scoreEn,
+                        balancingMode,
+                        groupType,
+                        guaranteeSetter
+                    )
                     showConfigDialog = false
                 }
             )
@@ -1349,7 +1488,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (showCreateGroupDialog) CreateGroupDialog(
             { showCreateGroupDialog = false },
             { newName, groupType ->
-                val normalizedGroupName = newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
+                val normalizedGroupName =
+                    newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
                 selectedGroup = normalizedGroupName
                 viewModel.createGroup(normalizedGroupName, groupType = groupType)
                 showCreateGroupDialog = false
@@ -1383,13 +1523,19 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             initialBirthDateIso = currentUser?.birthDate,
             hasPasswordProvider = currentUser?.hasPasswordProvider == true,
             currentEmail = currentUser?.email,
-            onChangeEmailClick = { showEditProfileDialog = false; showChangeEmailDialog = true },
-            onChangePasswordClick = { showEditProfileDialog = false; showChangePasswordDialog = true },
+            onChangeEmailClick = {
+                showEditProfileDialog = false; showChangeEmailDialog = true
+            },
+            onChangePasswordClick = {
+                showEditProfileDialog = false; showChangePasswordDialog = true
+            },
             onDismiss = { showEditProfileDialog = false },
             onConfirm = { nickname, fullName, birthDate, onResult ->
                 viewModel.updateUserProfile(nickname, fullName, birthDate, onResult)
             },
-            onRequestDeleteAccount = { showEditProfileDialog = false; showDeleteAccountConfirmDialog = true }
+            onRequestDeleteAccount = {
+                showEditProfileDialog = false; showDeleteAccountConfirmDialog = true
+            }
         )
         if (showLogoutConfirmDialog) LogoutConfirmDialog(
             onDismiss = { showLogoutConfirmDialog = false },
@@ -1515,7 +1661,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 teamBColor = groupTeamBColor,
                                 hasPremiumAccess = hasPremiumAccess,
                                 isDarkTheme = isDarkTheme,
-                                onColorsSelected = { a, b -> viewModel.setGroupTeamColors(a, b) },
+                                onColorsSelected = { a, b ->
+                                    viewModel.setGroupTeamColors(
+                                        a,
+                                        b
+                                    )
+                                },
                                 onLockedClick = {
                                     showPremiumNudge(teamColorsLockedMessage)
                                 }
@@ -1649,7 +1800,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 group,
                 { showRenameGroupDialog = null },
                 { newName ->
-                    val normalizedName = newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
+                    val normalizedName =
+                        newName.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
                     scope.launch {
                         viewModel.renameGroup(group, normalizedName)
                         selectedGroup = normalizedName
@@ -1660,7 +1812,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         showDeleteGroupDialog?.let { group ->
             AlertDialog(
                 onDismissRequest = { showDeleteGroupDialog = null },
-                title = { Text(stringResource(R.string.delete_group_title, getDisplayGroupName(group))) },                text = { Text(stringResource(R.string.delete_group_text)) },
+                title = {
+                    Text(
+                        stringResource(
+                            R.string.delete_group_title,
+                            getDisplayGroupName(group)
+                        )
+                    )
+                }, text = { Text(stringResource(R.string.delete_group_text)) },
                 confirmButton = {
                     Button(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -1691,7 +1850,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         val packageName = context.packageName
                         try {
                             context.startActivity(
-                                Intent(Intent.ACTION_VIEW, "market://details?id=$packageName".toUri())
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    "market://details?id=$packageName".toUri()
+                                )
                             )
                         } catch (_: ActivityNotFoundException) {
                             context.startActivity(
@@ -1716,7 +1878,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (showSendQuestionDialog) {
             AlertDialog(
                 onDismissRequest = { showSendQuestionDialog = false },
-                icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = null) },
+                icon = {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.HelpOutline,
+                        contentDescription = null
+                    )
+                },
                 title = { Text(stringResource(R.string.send_question_dialog_title)) },
                 text = { Text(stringResource(R.string.send_question_dialog_text)) },
                 confirmButton = {
@@ -1743,8 +1910,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 val headerTooltipState = rememberTooltipState(isPersistent = true)
                 val headerInfoTooltipState = rememberTooltipState(isPersistent = true)
                 val headerTooltipScope = rememberCoroutineScope()
-                val headerTooltipGameInProgress = headerTooltipTeamA.isNotEmpty() || headerTooltipTeamB.isNotEmpty()
-                LaunchedEffect(currentScreen, groupConfig.groupName, headerTooltipGameInProgress) {
+                val headerTooltipGameInProgress =
+                    headerTooltipTeamA.isNotEmpty() || headerTooltipTeamB.isNotEmpty()
+                LaunchedEffect(
+                    currentScreen,
+                    groupConfig.groupName,
+                    headerTooltipGameInProgress
+                ) {
                     if (currentScreen == Screen.GAME &&
                         groupConfig.groupName.isNotBlank() &&
                         headerTooltipGameInProgress &&
@@ -1783,7 +1955,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     },
                     title = {
                         TooltipBox(
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                TooltipAnchorPosition.Below
+                            ),
                             tooltip = {
                                 PlainTooltip {
                                     Text(
@@ -1796,7 +1970,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             enableUserInput = false
                         ) {
                             TooltipBox(
-                                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+                                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                    TooltipAnchorPosition.Below
+                                ),
                                 tooltip = {
                                     PlainTooltip {
                                         val groupType = groupConfig.type
@@ -1816,7 +1992,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 "${groupConfig.teamSize}x${groupConfig.teamSize}"
                                             )
                                         }
-                                        Text(infoText, style = MaterialTheme.typography.bodySmall)
+                                        Text(
+                                            infoText,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
                                     }
                                 },
                                 state = headerInfoTooltipState,
@@ -1842,8 +2021,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             if (groupType.supportsBalancingMode) {
                                                 Spacer(Modifier.width(8.dp))
                                                 Icon(
-                                                    painter = painterResource(balancingModeIconRes(groupConfig.balancingMode)),
-                                                    contentDescription = getDisplayBalancingModeName(groupConfig.balancingMode),
+                                                    painter = painterResource(
+                                                        balancingModeIconRes(groupConfig.balancingMode)
+                                                    ),
+                                                    contentDescription = getDisplayBalancingModeName(
+                                                        groupConfig.balancingMode
+                                                    ),
                                                     modifier = Modifier.size(14.dp),
                                                     tint = MaterialTheme.colorScheme.onSurface
                                                 )
@@ -1861,11 +2044,15 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }, modifier = Modifier.minimumInteractiveComponentSize()) {
+                        IconButton(
+                            onClick = { scope.launch { drawerState.open() } },
+                            modifier = Modifier.minimumInteractiveComponentSize()
+                        ) {
                             Icon(
                                 Icons.Default.Menu,
                                 stringResource(R.string.side_menu),
-                                modifier = Modifier.size(24.dp))
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     },
                     actions = {
@@ -1873,12 +2060,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             val groupConfig by viewModel.currentGroupConfig.collectAsState()
                             val groupPlayers by viewModel.currentGroupPlayers.collectAsState()
                             val minimumPlayersNeeded = groupConfig.teamSize * 2
-                            val showAddPulse = groupConfig.onboardingStep == ONBOARDING_STEP_MIN_PLAYERS &&
-                                groupPlayers.size < minimumPlayersNeeded
-                            
+                            val showAddPulse =
+                                groupConfig.onboardingStep == ONBOARDING_STEP_MIN_PLAYERS &&
+                                        groupPlayers.size < minimumPlayersNeeded
+
                             val scale by animateFloatAsState(
                                 targetValue = if (showAddPulse) 1.25f else 1f,
-                                animationSpec = if (showAddPulse) 
+                                animationSpec = if (showAddPulse)
                                     infiniteRepeatable(
                                         animation = tween(1000),
                                         repeatMode = RepeatMode.Reverse
@@ -1886,7 +2074,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 else tween(200),
                                 label = "AddButtonPulse"
                             )
-                            
+
                             val iconColor by animateColorAsState(
                                 targetValue = if (showAddPulse) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 animationSpec = if (showAddPulse)
@@ -1907,7 +2095,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 else tween(200),
                                 label = "AddButtonRotation"
                             )
-                            
+
                             if (!isSpectatorOfCurrentGroup) {
                                 IconButton(
                                     onClick = { showAddPlayerDialog = true },
@@ -1919,7 +2107,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         Icons.Default.Add,
                                         stringResource(R.string.add_new_player),
                                         tint = iconColor,
-                                        modifier = Modifier.rotate(iconRotation).size(24.dp)
+                                        modifier = Modifier
+                                            .rotate(iconRotation)
+                                            .size(24.dp)
                                     )
                                 }
                             }
@@ -1941,241 +2131,318 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             } else {
                                 localGroupHistoryForExport
                             }
-                            val groupPlayers = if (isRemoteHistoryGroup) emptyList() else localGroupPlayersForExport
-                            val eloLogs = if (isRemoteHistoryGroup) remoteEloLogsForExport.toPlayerEloLogs(groupConfig.groupName) else localEloLogsForExport
+                            val groupPlayers =
+                                if (isRemoteHistoryGroup) emptyList() else localGroupPlayersForExport
+                            val eloLogs =
+                                if (isRemoteHistoryGroup) remoteEloLogsForExport.toPlayerEloLogs(
+                                    groupConfig.groupName
+                                ) else localEloLogsForExport
 
-                            IconButton(onClick = {
-                                if (historyDate == null) {
-                                    scope.launch { snackbarHostState.showSnackbar(select_specific_date)}
-                                } else {
-                                    Toast.makeText(context, generating_image, Toast.LENGTH_SHORT)
-                                        .show()
-
-                                    if (historySelectedTab == 0) {
-                                        // --- Export matches ---
-                                        val sdf = java.text.SimpleDateFormat(
-                                            "dd/MM/yyyy HH:mm",
-                                            java.util.Locale.getDefault()
-                                        )
-                                        val filteredMatches = groupHistory.filter {
-                                            it.date.startsWith(historyDate!!)
-                                        }
-                                        val matchesToShare = when (historyMatchSortMode) {
-                                            MatchSortMode.NEWEST -> filteredMatches.sortedWith(
-                                                compareByDescending<MatchHistory> {
-                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
-                                                }.thenByDescending { it.id }
-                                            )
-                                            MatchSortMode.OLDEST -> filteredMatches.sortedWith(
-                                                compareBy<MatchHistory> {
-                                                    try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
-                                                }.thenByDescending { it.id }
-                                            )
-                                            MatchSortMode.ELO_DELTA -> filteredMatches.sortedWith(
-                                                compareByDescending<MatchHistory> { it.eloPoints }
-                                                    .thenByDescending { it.id }
-                                            )
-                                            MatchSortMode.SCORE_DIFF -> filteredMatches.sortedWith(
-                                                compareByDescending<MatchHistory> {
-                                                    val sa = it.teamAScore ?: 0
-                                                    val sb = it.teamBScore ?: 0
-                                                    kotlin.math.abs(sa - sb)
-                                                }.thenByDescending { it.id }
+                            IconButton(
+                                onClick = {
+                                    if (historyDate == null) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                select_specific_date
                                             )
                                         }
-
-                                        val mdm = mutableMapOf<Int, Int>()
-                                        matchesToShare.forEach { match ->
-                                            if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
-                                                mdm[match.id] = ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
-                                            }
-                                        }
-
-                                        val avgDurationText = if (mdm.isNotEmpty()) {
-                                            "${mdm.values.average().toInt()}min"
-                                        } else null
-
-                                        viewModel.captureHistoryScreenAsImage(
-                                            context = context,
-                                            view = view,
-                                            matches = matchesToShare,
-                                            matchSortMode = historyMatchSortMode,
-                                            players = null,
-                                            playerSortMode = null,
-                                            date = historyDate!!,
-                                            isDarkTheme = isDarkTheme,
-                                            showElo = showElo,
-                                            showScore = showScore,
-                                            matchDurationsMinutes = mdm,
-                                            averagePlayersEloText = null,
-                                            averageMatchDurationText = avgDurationText
-                                        )
                                     } else {
-                                        // --- Export players ---
-                                        val filteredMatches = groupHistory.filter {
-                                            it.date.startsWith(historyDate!!)
-                                        }
+                                        Toast.makeText(
+                                            context,
+                                            generating_image,
+                                            Toast.LENGTH_SHORT
+                                        )
+                                            .show()
 
-                                        data class PlayerIdentifier(val id: Int?, val name: String)
-                                        val identifiers = mutableSetOf<PlayerIdentifier>()
-                                        filteredMatches.forEach { match ->
-                                            val namesA = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                            val idsA = match.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                            namesA.forEachIndexed { index, name ->
-                                                val id = idsA.getOrNull(index)
-                                                identifiers.add(PlayerIdentifier(id, name))
+                                        if (historySelectedTab == 0) {
+                                            // --- Export matches ---
+                                            val sdf = java.text.SimpleDateFormat(
+                                                "dd/MM/yyyy HH:mm",
+                                                java.util.Locale.getDefault()
+                                            )
+                                            val filteredMatches = groupHistory.filter {
+                                                it.date.startsWith(historyDate!!)
                                             }
-                                            
-                                            val namesB = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                            val idsB = match.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                            namesB.forEachIndexed { index, name ->
-                                                val id = idsB.getOrNull(index)
-                                                identifiers.add(PlayerIdentifier(id, name))
-                                            }
-                                        }
+                                            val matchesToShare = when (historyMatchSortMode) {
+                                                MatchSortMode.NEWEST -> filteredMatches.sortedWith(
+                                                    compareByDescending<MatchHistory> {
+                                                        try {
+                                                            sdf.parse(it.date)?.time ?: 0L
+                                                        } catch (_: Exception) {
+                                                            0L
+                                                        }
+                                                    }.thenByDescending { it.id }
+                                                )
 
-                                        val deduplicated = mutableListOf<PlayerIdentifier>()
-                                        identifiers.forEach { identifier ->
-                                            if (identifier.id != null && deduplicated.any { it.id == identifier.id }) return@forEach
-                                            
-                                            val existingByName = deduplicated.find { it.name == identifier.name }
-                                            if (existingByName != null) {
-                                                if (existingByName.id == null && identifier.id != null) {
-                                                    deduplicated.remove(existingByName)
+                                                MatchSortMode.OLDEST -> filteredMatches.sortedWith(
+                                                    compareBy<MatchHistory> {
+                                                        try {
+                                                            sdf.parse(it.date)?.time ?: 0L
+                                                        } catch (_: Exception) {
+                                                            0L
+                                                        }
+                                                    }.thenByDescending { it.id }
+                                                )
+
+                                                MatchSortMode.ELO_DELTA -> filteredMatches.sortedWith(
+                                                    compareByDescending<MatchHistory> { it.eloPoints }
+                                                        .thenByDescending { it.id }
+                                                )
+
+                                                MatchSortMode.SCORE_DIFF -> filteredMatches.sortedWith(
+                                                    compareByDescending<MatchHistory> {
+                                                        val sa = it.teamAScore ?: 0
+                                                        val sb = it.teamBScore ?: 0
+                                                        kotlin.math.abs(sa - sb)
+                                                    }.thenByDescending { it.id }
+                                                )
+                                            }
+
+                                            val mdm = mutableMapOf<Int, Int>()
+                                            matchesToShare.forEach { match ->
+                                                if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
+                                                    mdm[match.id] =
+                                                        ((match.endTimestamp - match.startTimestamp) / 60000L).toInt()
+                                                            .coerceAtLeast(1)
+                                                }
+                                            }
+
+                                            val avgDurationText = if (mdm.isNotEmpty()) {
+                                                "${mdm.values.average().toInt()}min"
+                                            } else null
+
+                                            viewModel.captureHistoryScreenAsImage(
+                                                context = context,
+                                                view = view,
+                                                matches = matchesToShare,
+                                                matchSortMode = historyMatchSortMode,
+                                                players = null,
+                                                playerSortMode = null,
+                                                date = historyDate!!,
+                                                isDarkTheme = isDarkTheme,
+                                                showElo = showElo,
+                                                showScore = showScore,
+                                                matchDurationsMinutes = mdm,
+                                                averagePlayersEloText = null,
+                                                averageMatchDurationText = avgDurationText
+                                            )
+                                        } else {
+                                            // --- Export players ---
+                                            val filteredMatches = groupHistory.filter {
+                                                it.date.startsWith(historyDate!!)
+                                            }
+
+                                            data class PlayerIdentifier(
+                                                val id: Int?,
+                                                val name: String
+                                            )
+
+                                            val identifiers = mutableSetOf<PlayerIdentifier>()
+                                            filteredMatches.forEach { match ->
+                                                val namesA =
+                                                    match.teamA.split(",").map { it.trim() }
+                                                        .filter { it.isNotEmpty() }
+                                                val idsA = match.teamAIds.split(",")
+                                                    .mapNotNull { it.trim().toIntOrNull() }
+                                                namesA.forEachIndexed { index, name ->
+                                                    val id = idsA.getOrNull(index)
+                                                    identifiers.add(PlayerIdentifier(id, name))
+                                                }
+
+                                                val namesB =
+                                                    match.teamB.split(",").map { it.trim() }
+                                                        .filter { it.isNotEmpty() }
+                                                val idsB = match.teamBIds.split(",")
+                                                    .mapNotNull { it.trim().toIntOrNull() }
+                                                namesB.forEachIndexed { index, name ->
+                                                    val id = idsB.getOrNull(index)
+                                                    identifiers.add(PlayerIdentifier(id, name))
+                                                }
+                                            }
+
+                                            val deduplicated = mutableListOf<PlayerIdentifier>()
+                                            identifiers.forEach { identifier ->
+                                                if (identifier.id != null && deduplicated.any { it.id == identifier.id }) return@forEach
+
+                                                val existingByName =
+                                                    deduplicated.find { it.name == identifier.name }
+                                                if (existingByName != null) {
+                                                    if (existingByName.id == null && identifier.id != null) {
+                                                        deduplicated.remove(existingByName)
+                                                        deduplicated.add(identifier)
+                                                    }
+                                                } else {
                                                     deduplicated.add(identifier)
                                                 }
-                                            } else {
-                                                deduplicated.add(identifier)
                                             }
-                                        }
-                                        val uniquePlayerIdentifiers = deduplicated.toList()
+                                            val uniquePlayerIdentifiers = deduplicated.toList()
 
-                                        // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
-                                        val eloDateStr: String? = try {
-                                            val parts = historyDate!!.split("/")
-                                            if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
-                                        } catch (_: Exception) {
-                                            null
-                                        }
-
-                                        val matchDurationById = filteredMatches.associate { match ->
-                                            val duration = if (
-                                                match.startTimestamp != null &&
-                                                match.endTimestamp != null &&
-                                                match.endTimestamp > match.startTimestamp
-                                            ) {
-                                                ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1)
-                                            } else {
-                                                0
-                                            }
-                                            match.id to duration
-                                        }
-
-                                        fun playerAppearsInMatch(match: MatchHistory, identifier: PlayerIdentifier): Boolean {
-                                            val namesA = match.teamA.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                            val namesB = match.teamB.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                            val idsA = match.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                            val idsB = match.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                            return if (identifier.id != null) {
-                                                idsA.contains(identifier.id) || idsB.contains(identifier.id) ||
-                                                    ((idsA.isEmpty() && idsB.isEmpty()) && (namesA.contains(identifier.name) || namesB.contains(identifier.name)))
-                                            } else {
-                                                namesA.contains(identifier.name) || namesB.contains(identifier.name)
-                                            }
-                                        }
-
-                                        val playerDataList = uniquePlayerIdentifiers.mapNotNull { identifier ->
-                                            val player = groupPlayers.find { 
-                                                if (identifier.id != null) it.id == identifier.id 
-                                                else it.name == identifier.name 
-                                            }
-                                            val logsForPlayer = if (eloDateStr != null) {
-                                                if (player != null) eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
-                                                else eloLogs.filter { it.playerNameSnapshot == identifier.name && it.date == eloDateStr }
-                                            } else {
-                                                if (player != null) eloLogs.filter { it.playerId == player.id }
-                                                else eloLogs.filter { it.playerNameSnapshot == identifier.name }
-                                            }
-                                            
-                                            val games = logsForPlayer.size
-                                            val victories = logsForPlayer.count { it.won == true }
-                                            val eloForDisplay = logsForPlayer.maxByOrNull { it.id }?.elo ?: (player?.elo ?: 1200.0)
-                                            val playedMinutes = filteredMatches.sumOf { match ->
-                                                if (playerAppearsInMatch(match, identifier)) matchDurationById[match.id] ?: 0 else 0
+                                            // Convert historyDate (dd/MM/yyyy) to elo log date format (yyyy-MM-dd)
+                                            val eloDateStr: String? = try {
+                                                val parts = historyDate!!.split("/")
+                                                if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else null
+                                            } catch (_: Exception) {
+                                                null
                                             }
 
-                                            val effectivePlayer = player ?: Player(name = identifier.name, groupName = "", elo = 1200.0)
+                                            val matchDurationById =
+                                                filteredMatches.associate { match ->
+                                                    val duration = if (
+                                                        match.startTimestamp != null &&
+                                                        match.endTimestamp != null &&
+                                                        match.endTimestamp > match.startTimestamp
+                                                    ) {
+                                                        ((match.endTimestamp - match.startTimestamp) / 60000L).toInt()
+                                                            .coerceAtLeast(1)
+                                                    } else {
+                                                        0
+                                                    }
+                                                    match.id to duration
+                                                }
 
-                                            HistoryPlayerInfo(
-                                                effectivePlayer,
-                                                eloForDisplay,
-                                                player?.name ?: identifier.name,
-                                                games,
-                                                victories,
-                                                playedMinutes
+                                            fun playerAppearsInMatch(
+                                                match: MatchHistory,
+                                                identifier: PlayerIdentifier
+                                            ): Boolean {
+                                                val namesA =
+                                                    match.teamA.split(",").map { it.trim() }
+                                                        .filter { it.isNotEmpty() }
+                                                val namesB =
+                                                    match.teamB.split(",").map { it.trim() }
+                                                        .filter { it.isNotEmpty() }
+                                                val idsA = match.teamAIds.split(",")
+                                                    .mapNotNull { it.trim().toIntOrNull() }
+                                                val idsB = match.teamBIds.split(",")
+                                                    .mapNotNull { it.trim().toIntOrNull() }
+                                                return if (identifier.id != null) {
+                                                    idsA.contains(identifier.id) || idsB.contains(
+                                                        identifier.id
+                                                    ) ||
+                                                            ((idsA.isEmpty() && idsB.isEmpty()) && (namesA.contains(
+                                                                identifier.name
+                                                            ) || namesB.contains(identifier.name)))
+                                                } else {
+                                                    namesA.contains(identifier.name) || namesB.contains(
+                                                        identifier.name
+                                                    )
+                                                }
+                                            }
+
+                                            val playerDataList =
+                                                uniquePlayerIdentifiers.mapNotNull { identifier ->
+                                                    val player = groupPlayers.find {
+                                                        if (identifier.id != null) it.id == identifier.id
+                                                        else it.name == identifier.name
+                                                    }
+                                                    val logsForPlayer =
+                                                        if (eloDateStr != null) {
+                                                            if (player != null) eloLogs.filter { it.playerId == player.id && it.date == eloDateStr }
+                                                            else eloLogs.filter { it.playerNameSnapshot == identifier.name && it.date == eloDateStr }
+                                                        } else {
+                                                            if (player != null) eloLogs.filter { it.playerId == player.id }
+                                                            else eloLogs.filter { it.playerNameSnapshot == identifier.name }
+                                                        }
+
+                                                    val games = logsForPlayer.size
+                                                    val victories =
+                                                        logsForPlayer.count { it.won == true }
+                                                    val eloForDisplay =
+                                                        logsForPlayer.maxByOrNull { it.id }?.elo
+                                                            ?: (player?.elo ?: 1200.0)
+                                                    val playedMinutes =
+                                                        filteredMatches.sumOf { match ->
+                                                            if (playerAppearsInMatch(
+                                                                    match,
+                                                                    identifier
+                                                                )
+                                                            ) matchDurationById[match.id]
+                                                                ?: 0 else 0
+                                                        }
+
+                                                    val effectivePlayer = player ?: Player(
+                                                        name = identifier.name,
+                                                        groupName = "",
+                                                        elo = 1200.0
+                                                    )
+
+                                                    HistoryPlayerInfo(
+                                                        effectivePlayer,
+                                                        eloForDisplay,
+                                                        player?.name ?: identifier.name,
+                                                        games,
+                                                        victories,
+                                                        playedMinutes
+                                                    )
+                                                }
+
+                                            fun HistoryPlayerInfo.winRate(): Double =
+                                                if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
+
+                                            val sortedPlayers = when (historyPlayerSortMode) {
+                                                PlayerSortMode.ELO -> playerDataList.sortedWith(
+                                                    compareByDescending<HistoryPlayerInfo> { it.displayElo }
+                                                        .thenByDescending { it.winRate() }
+                                                        .thenByDescending { it.gamesPlayed }
+                                                )
+
+                                                PlayerSortMode.GAMES -> playerDataList.sortedWith(
+                                                    compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
+                                                        .thenByDescending { it.winRate() }
+                                                        .thenByDescending { it.displayElo }
+                                                )
+
+                                                PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
+                                                    compareByDescending<HistoryPlayerInfo> { it.victories }
+                                                        .thenByDescending { it.winRate() }
+                                                        .thenByDescending { it.displayElo }
+                                                )
+
+                                                PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
+                                                    compareByDescending<HistoryPlayerInfo> { it.winRate() }
+                                                        .thenByDescending { it.gamesPlayed }
+                                                        .thenByDescending { it.displayElo }
+                                                )
+
+                                                PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
+                                                    compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
+                                                        .thenByDescending { it.winRate() }
+                                                        .thenByDescending { it.gamesPlayed }
+                                                        .thenByDescending { it.displayElo }
+                                                )
+
+                                                PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
+                                                    compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
+                                                        .thenByDescending { it.winRate() }
+                                                        .thenByDescending { it.gamesPlayed }
+                                                        .thenByDescending { it.displayElo }
+                                                )
+                                            }
+
+                                            val avgText = if (sortedPlayers.isNotEmpty()) {
+                                                val eloAvg = sortedPlayers.map { it.displayElo }
+                                                    .average()
+                                                com.bismarck.voleimanager.app.util.EloCalculator.formatElo(
+                                                    eloAvg
+                                                )
+                                            } else null
+                                            viewModel.captureHistoryScreenAsImage(
+                                                context = context,
+                                                view = view,
+                                                matches = null,
+                                                matchSortMode = null,
+                                                players = sortedPlayers,
+                                                playerSortMode = historyPlayerSortMode,
+                                                date = historyDate!!,
+                                                isDarkTheme = isDarkTheme,
+                                                showElo = showElo,
+                                                showScore = showScore,
+                                                matchDurationsMinutes = null,
+                                                averagePlayersEloText = avgText,
+                                                averageMatchDurationText = null
                                             )
                                         }
-
-                                        fun HistoryPlayerInfo.winRate(): Double =
-                                            if (gamesPlayed > 0) victories.toDouble() / gamesPlayed else 0.0
-
-                                        val sortedPlayers = when (historyPlayerSortMode) {
-                                            PlayerSortMode.ELO -> playerDataList.sortedWith(
-                                                compareByDescending<HistoryPlayerInfo> { it.displayElo }
-                                                    .thenByDescending { it.winRate() }
-                                                    .thenByDescending { it.gamesPlayed }
-                                            )
-                                            PlayerSortMode.GAMES -> playerDataList.sortedWith(
-                                                compareByDescending<HistoryPlayerInfo> { it.gamesPlayed }
-                                                    .thenByDescending { it.winRate() }
-                                                    .thenByDescending { it.displayElo }
-                                            )
-                                            PlayerSortMode.VICTORIES -> playerDataList.sortedWith(
-                                                compareByDescending<HistoryPlayerInfo> { it.victories }
-                                                    .thenByDescending { it.winRate() }
-                                                    .thenByDescending { it.displayElo }
-                                            )
-                                            PlayerSortMode.PERCENTAGE -> playerDataList.sortedWith(
-                                                compareByDescending<HistoryPlayerInfo> { it.winRate() }
-                                                    .thenByDescending { it.gamesPlayed }
-                                                    .thenByDescending { it.displayElo }
-                                            )
-                                            PlayerSortMode.PLAYED_TIME -> playerDataList.sortedWith(
-                                                compareByDescending<HistoryPlayerInfo> { it.playedMinutes }
-                                                    .thenByDescending { it.winRate() }
-                                                    .thenByDescending { it.gamesPlayed }
-                                                    .thenByDescending { it.displayElo }
-                                            )
-                                            PlayerSortMode.ALPHABETICAL -> playerDataList.sortedWith(
-                                                compareBy<HistoryPlayerInfo> { it.player.name.lowercase() }
-                                                    .thenByDescending { it.winRate() }
-                                                    .thenByDescending { it.gamesPlayed }
-                                                    .thenByDescending { it.displayElo }
-                                            )
-                                        }
-
-                                        val avgText = if (sortedPlayers.isNotEmpty()) {
-                                            val eloAvg = sortedPlayers.map { it.displayElo }.average()
-                                            com.bismarck.voleimanager.app.util.EloCalculator.formatElo(eloAvg)
-                                        } else null
-                                        viewModel.captureHistoryScreenAsImage(
-                                            context = context,
-                                            view = view,
-                                            matches = null,
-                                            matchSortMode = null,
-                                            players = sortedPlayers,
-                                            playerSortMode = historyPlayerSortMode,
-                                            date = historyDate!!,
-                                            isDarkTheme = isDarkTheme,
-                                            showElo = showElo,
-                                            showScore = showScore,
-                                            matchDurationsMinutes = null,
-                                            averagePlayersEloText = avgText,
-                                            averageMatchDurationText = null
-                                        )
                                     }
-                                }
-                            }, modifier = Modifier.minimumInteractiveComponentSize()
+                                }, modifier = Modifier.minimumInteractiveComponentSize()
                             ) {
                                 Icon(
                                     Icons.Default.Share,
@@ -2227,25 +2494,26 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         )
 
         { padding ->
-             Box(Modifier
-                 .padding(padding)
-                 .fillMaxSize()
-             ) {
-                 if (isGroupDataLoading || isAwaitingInitialRemoteSync) {
-                     Box(
-                         modifier = Modifier.fillMaxSize(),
-                         contentAlignment = Alignment.Center
-                     ) {
-                         CircularProgressIndicator()
-                     }
-                 } else {
-                     AnimatedContent(
-                         targetState = currentScreen,
-                         transitionSpec = {
-                             EnterTransition.None togetherWith ExitTransition.None
-                         },
-                         label = "ScreenAnim"
-                     ) { screen ->
+            Box(
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+            ) {
+                if (isGroupDataLoading || isAwaitingInitialRemoteSync) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        transitionSpec = {
+                            EnterTransition.None togetherWith ExitTransition.None
+                        },
+                        label = "ScreenAnim"
+                    ) { screen ->
                         when (screen) {
                             Screen.GAME -> GameScreenContent(
                                 viewModel = viewModel,
@@ -2294,15 +2562,17 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     }
                                 }
                             )
+
                             Screen.FAQ -> FAQScreen(
                                 viewModel = viewModel,
                                 onSendQuestionClick = { showSendQuestionDialog = true }
                             )
+
                             Screen.ABOUT -> AboutScreen()
                             Screen.CLOUD_SYNC -> CloudSyncScreen(viewModel = viewModel)
                         }
                     }
-                 }
+                }
             }
         }
     }
@@ -2374,7 +2644,9 @@ private fun FlexibleDrawerItem(
             itemContent()
         } else {
             TooltipBox(
-            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                    TooltipAnchorPosition.Above
+                ),
                 tooltip = {
                     PlainTooltip {
                         Text(tooltipText)

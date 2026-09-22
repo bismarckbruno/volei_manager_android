@@ -107,7 +107,10 @@
     <string name="cloud_sync_groups_selector_label">Grupo</string>
     <string name="cloud_sync_groups_activate_label">Activar sincronización</string>
     <string name="cloud_sync_groups_synced_badge">Sincronizado</string>
-    <string name="cloud_sync_groups_limit_label">%1$d de %2$d grupo(s) sincronizado(s)</string>
+    <plurals name="cloud_sync_groups_limit_label">
+        <item quantity="one">%1$d de %2$d grupo sincronizado</item>
+        <item quantity="other">%1$d de %2$d grupos sincronizados</item>
+    </plurals>
     <string name="cloud_sync_limit_reached">Se alcanzó el límite de grupos sincronizados de tu paquete.</string>
     <string name="cloud_sync_switch_cooldown">Solo puedes cambiar el grupo premium cada 15 días. Inténtalo de nuevo más tarde.</string>
     <string name="cloud_sync_activation_error">No pudimos terminar de activar la sincronización de este grupo en el servidor. Verifica tu conexión e inténtalo de nuevo en unos instantes.</string>

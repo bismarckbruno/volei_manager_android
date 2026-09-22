@@ -29,12 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +45,7 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -78,7 +79,10 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.DpOffset
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
@@ -365,8 +369,9 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
             )
             Text(
                 if (hasPremiumAccess) {
-                    stringResource(
-                        R.string.cloud_sync_groups_limit_label,
+                    pluralStringResource(
+                        R.plurals.cloud_sync_groups_limit_label,
+                        syncedGroupNames.size,
                         syncedGroupNames.size,
                         effectivePlanTier.maxSyncedGroups
                     )
@@ -477,7 +482,12 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(CircleShape)
+                            .clickable(enabled = hasPremiumAccess) {
+                                viewModel.setGroupCloudSynced(selectedGroup.groupName, !selectedGroup.isCloudSynced)
+                            },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -654,26 +664,41 @@ private fun SpectatorCodeSection(
                 }
             }
         } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    spectatorCode,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                if (viewerCount > 0) {
-                    Icon(
-                        Icons.Outlined.Visibility,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        spectatorCode,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text(
-                        stringResource(R.string.spectator_code_live_viewers, viewerCount),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    IconButton(onClick = { showRegenerateConfirm = true }, enabled = !regenerating) {
+                        if (regenerating) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = stringResource(R.string.spectator_code_regenerate_button),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+                if (viewerCount > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Visibility,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            stringResource(R.string.spectator_code_live_viewers, viewerCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -681,13 +706,16 @@ private fun SpectatorCodeSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(onClick = {
-                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(spectatorCode))
-                    feedbackMessage = context.getString(R.string.spectator_code_copied)
-                }) {
+                OutlinedButton(
+                    onClick = {
+                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(spectatorCode))
+                        feedbackMessage = context.getString(R.string.spectator_code_copied)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(stringResource(R.string.spectator_code_copy))
                 }
-                OutlinedButton(onClick = { showQrDialog = true }) {
+                OutlinedButton(onClick = { showQrDialog = true }, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.spectator_code_qr_button))
                 }
             }
@@ -708,18 +736,6 @@ private fun SpectatorCodeSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.spectator_code_share_button))
-            }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { showRegenerateConfirm = true },
-                enabled = !regenerating,
-                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) {
-                if (regenerating) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(stringResource(R.string.spectator_code_regenerate_button))
             }
             feedbackMessage?.let {
                 Spacer(Modifier.height(4.dp))
@@ -826,11 +842,16 @@ private fun GroupVisibilityToggles(
         disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
     )
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 12.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-        )
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .clickable {
+                    val checked = !group.shareHistoryWithObservers
+                    onChange(checked, group.showEloToObservers && checked, group.shareOnlyTodayHistory && checked)
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 stringResource(R.string.cloud_sync_visibility_share_history),
                 style = MaterialTheme.typography.bodyMedium,
@@ -886,7 +907,15 @@ private fun GroupVisibilityToggles(
             }
             Spacer(Modifier.height(8.dp))
         }
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .clickable(enabled = group.shareHistoryWithObservers) {
+                    onChange(group.shareHistoryWithObservers, !group.showEloToObservers, group.shareOnlyTodayHistory)
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 stringResource(R.string.cloud_sync_visibility_show_elo),
                 style = MaterialTheme.typography.bodyMedium,
