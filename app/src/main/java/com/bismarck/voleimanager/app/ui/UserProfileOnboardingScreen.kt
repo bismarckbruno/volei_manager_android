@@ -60,7 +60,7 @@ fun UserProfileOnboardingScreen(onProfileSelected: (UserProfileType) -> Unit) {
     var selected by rememberSaveable { mutableStateOf<UserProfileType?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+        Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(20.dp),
