@@ -47,10 +47,13 @@ import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 
 /**
- * Primeira pergunta do onboarding, perguntada uma única vez (antes de qualquer etapa do
- * onboarding de grupo): qual é o perfil do usuário no app. Organizador e Auxiliar são direcionados,
- * na sequência, a uma sugestão pulável de cadastro/login gratuito (tela de Nuvem); Espectador
- * também recebe uma sugestão pulável equivalente.
+ * Seletor de perfil (Organizador/Auxiliar/Espectador), embutido pela [CloudSyncScreen] quando o
+ * usuário abre a tela "Nuvem" sem ter escolhido um perfil ainda — não existe mais uma etapa
+ * obrigatória no primeiro lançamento do app (ver `remove-mandatory-profile-onboarding`); o app
+ * pode ser usado inteiramente sem nunca responder essa pergunta. A escolha é só uma preferência
+ * de exibição (qual versão da tela Nuvem abre por padrão, e a mensagem de login/conta mostrada em
+ * seguida): quem administra um grupo também pode ser Auxiliar/Espectador de outros, e vice-versa
+ * — dá pra trocar livremente depois pelo segmented button no topo da própria tela Nuvem.
  */
 @Composable
 fun UserProfileOnboardingScreen(onProfileSelected: (UserProfileType) -> Unit) {

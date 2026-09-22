@@ -280,7 +280,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val showToll by viewModel.showToll.collectAsState()
     val telemetryEnabled by viewModel.telemetryEnabled.collectAsState()
     val showTelemetryConsentPrompt by viewModel.showTelemetryConsentPrompt.collectAsState()
-    val showUserProfileOnboarding by viewModel.showUserProfileOnboarding.collectAsState()
     val postProfileOnboardingStage by viewModel.postProfileOnboardingStage.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val hasPremiumAccessGlobal by viewModel.hasPremiumAccess.collectAsState()
@@ -891,13 +890,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 }
             }
         )
-    }
-
-    if (showUserProfileOnboarding) {
-        UserProfileOnboardingScreen(
-            onProfileSelected = { viewModel.setUserProfileType(it) }
-        )
-        return
     }
 
     // Diálogos de conta/entrada em grupo — declarados fora do ModalNavigationDrawer (e antes dos

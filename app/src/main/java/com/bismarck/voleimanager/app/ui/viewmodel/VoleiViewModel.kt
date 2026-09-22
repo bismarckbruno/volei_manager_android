@@ -146,15 +146,16 @@ enum class UserProfileType { ORGANIZADOR, AUXILIAR, ESPECTADOR }
 enum class PremiumScreenPersona { ADMIN, ESPECTADOR }
 
 /**
- * Passos intermediários mostrados uma única vez, logo após [VoleiViewModel.setUserProfileType],
- * antes do onboarding normal de criação de grupo. Organizador/Auxiliar veem uma sugestão pulável
- * de criar conta/entrar ([AUTH_REQUIRED], nome mantido por compatibilidade — na prática pode ser
- * pulada) antes de prosseguir (não precisam confirmar o e-mail ainda, só ter feito login/cadastro,
- * caso não pulem). Espectador vê uma sugestão pulável de login
- * ([SPECTATOR_AUTH_SUGGESTION]) seguida de uma sugestão pulável de código de grupo
- * ([SPECTATOR_JOIN_SUGGESTION]). É um estado transitório, não persistido: se o app for encerrado
- * no meio do fluxo, o usuário simplesmente cai direto no onboarding normal de grupo na próxima
- * abertura (a pergunta de perfil em si já não seria mostrada de novo).
+ * Passos intermediários mostrados logo após [VoleiViewModel.setUserProfileType] — chamado agora
+ * só a partir da tela Nuvem (não há mais uma pergunta de perfil obrigatória no primeiro
+ * lançamento do app; ver [com.bismarck.voleimanager.app.ui.UserProfileOnboardingScreen]).
+ * Organizador/Auxiliar veem uma sugestão pulável de criar conta/entrar ([AUTH_REQUIRED], nome
+ * mantido por compatibilidade — na prática pode ser pulada) antes de prosseguir (não precisam
+ * confirmar o e-mail ainda, só ter feito login/cadastro, caso não pulem). Espectador vê uma
+ * sugestão pulável de login ([SPECTATOR_AUTH_SUGGESTION]) seguida de uma sugestão pulável de
+ * código de grupo ([SPECTATOR_JOIN_SUGGESTION]). É um estado transitório, não persistido: se o
+ * app for encerrado no meio do fluxo, o usuário simplesmente cai direto no restante do app na
+ * próxima abertura.
  */
 enum class PostProfileOnboardingStage { NONE, AUTH_REQUIRED, SPECTATOR_AUTH_SUGGESTION, SPECTATOR_JOIN_SUGGESTION }
 
@@ -864,11 +865,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  livremente pelo usuário depois via segmented button, e essa escolha é persistida. */
     private val _premiumScreenPersona = MutableStateFlow(PremiumScreenPersona.ADMIN)
     val premiumScreenPersona: StateFlow<PremiumScreenPersona> = _premiumScreenPersona.asStateFlow()
-
-    /** True apenas antes do usuário responder à pergunta de perfil pela primeira vez (perguntada
-     *  uma única vez, antes de qualquer outra etapa do onboarding, inclusive o de grupo). */
-    private val _showUserProfileOnboarding = MutableStateFlow(false)
-    val showUserProfileOnboarding: StateFlow<Boolean> = _showUserProfileOnboarding.asStateFlow()
 
     private val _postProfileOnboardingStage = MutableStateFlow(PostProfileOnboardingStage.NONE)
     val postProfileOnboardingStage: StateFlow<PostProfileOnboardingStage> = _postProfileOnboardingStage.asStateFlow()
@@ -2628,13 +2624,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     /**
-     * Registra o perfil do usuário (Organizador/Auxiliar/Espectador), respondido uma única vez
-     * na primeira etapa do onboarding. Organizador e Auxiliar devem ser direcionados, na UI, ao
-     * fluxo de cadastro/login gratuito antes de prosseguir; Espectador segue sem essa exigência.
+     * Registra o perfil do usuário (Organizador/Auxiliar/Espectador) — respondido a qualquer
+     * momento em que o usuário abrir a tela Nuvem sem ter escolhido ainda (ver [CloudSyncScreen],
+     * que embute [UserProfileOnboardingScreen] inline quando [userProfileType] é `null`). Não há
+     * mais uma etapa obrigatória no primeiro lançamento do app: o usuário pode criar/gerenciar
+     * grupos localmente sem nunca responder essa pergunta. Organizador e Auxiliar são então
+     * direcionados, na UI, a uma sugestão pulável de cadastro/login gratuito; Espectador segue
+     * com uma sugestão equivalente.
      */
     fun setUserProfileType(type: UserProfileType) {
         _userProfileType.value = type
-        _showUserProfileOnboarding.value = false
         val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
         prefs.edit().putString("user_profile_type", type.name).apply()
         // A persona inicial da tela de Premium/Nuvem acompanha a resposta do onboarding, mas só
@@ -2654,12 +2653,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     /** Chamado quando o usuário aperta "voltar" numa das etapas intermediárias de roteamento por
      *  perfil (gate de conta obrigatória, ou sugestões puláveis de login/código para o
-     *  Espectador), caso se arrependa da escolha de perfil feita na primeira tela — volta para lá
-     *  para que ele possa escolher de novo (a persistência em SharedPreferences só é
-     *  sobrescrita quando [setUserProfileType] roda de novo). */
+     *  Espectador), caso se arrependa da escolha de perfil feita na tela Nuvem — limpa
+     *  [userProfileType] para que [CloudSyncScreen] volte a mostrar o seletor inline (a
+     *  persistência em SharedPreferences só é sobrescrita quando [setUserProfileType] roda de
+     *  novo, então isso nunca é lido de volta como resposta "definitiva" se o app for reaberto). */
     fun returnToProfileSelection() {
         _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE
-        _showUserProfileOnboarding.value = true
+        _userProfileType.value = null
     }
 
     /** Chamado assim que o gate de conta (Organizador/Auxiliar) é atendido — login ou cadastro
@@ -2937,7 +2937,6 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 null
             }
         }
-        _showUserProfileOnboarding.value = !prefs.contains("user_profile_type")
         _premiumScreenPersona.value = prefs.getString("premium_screen_persona", null)?.let {
             try {
                 PremiumScreenPersona.valueOf(it)

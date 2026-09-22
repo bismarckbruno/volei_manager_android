@@ -72,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import android.app.Activity
 import android.content.Intent
@@ -1198,7 +1199,8 @@ private fun PlanOptionRow(
                 annualPrice,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 8.dp)
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)
             )
             TextButton(onClick = onSubscribeAnnualClick) {
                 Text(stringResource(R.string.cloud_sync_plan_subscribe_annual))

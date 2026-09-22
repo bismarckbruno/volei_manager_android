@@ -465,8 +465,8 @@
     <string name="onboarding_team_size_hint">Você pode alterar essa configuração depois na aba lateral em \"Regras do grupo\".</string>
     <string name="onboarding_team_size_seven_bench_hint">Com 7 por time, um jogador (o líbero ou um central) fica no banco de reserva para substituições.</string>
     <string name="onboarding_add_players_instruction">Adicione no mínimo %1$d pessoas no botão \"+\" ou importe em Dados > Importar</string>
-    <string name="onboarding_profile_question">Qual é o seu perfil neste grupo?</string>
-    <string name="onboarding_profile_hint">Isso nos ajuda a mostrar as próximas etapas certas para você. Você pode revisar isso depois na tela \"Nuvem\".</string>
+    <string name="onboarding_profile_question">Em qual perfil você mais se encaixa?</string>
+    <string name="onboarding_profile_hint">Isso só define o que aparece primeiro aqui na tela Nuvem — você continua vendo todos os seus grupos, e pode trocar de versão quando quiser.</string>
     <string name="onboarding_auth_required_title">Crie sua conta gratuita</string>
     <string name="onboarding_auth_required_hint">Admins de grupo precisam de uma conta gratuita para manter os dados a salvo e, futuramente, sincronizar grupos na nuvem. Você já pode continuar usando o app — não é preciso confirmar o e-mail ainda.</string>
     <string name="onboarding_spectator_auth_title">Quer salvar seu progresso?</string>
