@@ -88,6 +88,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.PremiumScreenPersona
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.util.BillingProductIds
+import com.bismarck.voleimanager.app.util.SubscriptionOffer
 import com.bismarck.voleimanager.app.util.JoinRole
 import com.bismarck.voleimanager.app.util.LiveGameState
 import com.bismarck.voleimanager.app.util.QrCodeGenerator
@@ -98,6 +99,8 @@ import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import androidx.core.net.toUri
+import java.text.NumberFormat
+import java.util.Currency
 
 /**
  * Tela "Premium": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
@@ -1032,28 +1035,40 @@ internal fun PremiumPlansSection(
 
                 PlanOptionRow(
                     title = stringResource(R.string.cloud_sync_plan_single_title),
-                    price = singleMonthlyOffer?.formattedPrice
+                    price = singleMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
                         ?: stringResource(R.string.cloud_sync_plan_single_price),
                     selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
                     onSubscribeClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
                     },
-                    annualPrice = singleAnnualOffer?.formattedPrice,
-                    onSubscribeAnnualClick = activity?.takeIf { singleAnnualOffer != null }?.let { act ->
+                    annualPrice = singleAnnualOffer?.let {
+                        stringResource(
+                            R.string.cloud_sync_plan_annual_price,
+                            it.formattedPrice,
+                            monthlyEquivalentFormatted(it)
+                        )
+                    } ?: stringResource(R.string.cloud_sync_plan_single_annual_price),
+                    onSubscribeAnnualClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
                     }
                 )
                 Spacer(Modifier.height(8.dp))
                 PlanOptionRow(
                     title = stringResource(R.string.cloud_sync_plan_multi_title),
-                    price = multiMonthlyOffer?.formattedPrice
+                    price = multiMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
                         ?: stringResource(R.string.cloud_sync_plan_multi_price),
                     selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
                     onSubscribeClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
                     },
-                    annualPrice = multiAnnualOffer?.formattedPrice,
-                    onSubscribeAnnualClick = activity?.takeIf { multiAnnualOffer != null }?.let { act ->
+                    annualPrice = multiAnnualOffer?.let {
+                        stringResource(
+                            R.string.cloud_sync_plan_annual_price,
+                            it.formattedPrice,
+                            monthlyEquivalentFormatted(it)
+                        )
+                    } ?: stringResource(R.string.cloud_sync_plan_multi_annual_price),
+                    onSubscribeAnnualClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
                     }
                 )
@@ -1127,6 +1142,18 @@ internal fun PremiumPlansSection(
     }
 }
 
+/** Preço anual dividido por 12, formatado na moeda do próprio plano — dá pro usuário perceber, na
+ *  sua própria moeda local (respeitando o preço regional do Play Console), quanto economiza por
+ *  mês ao assinar o plano anual em vez do mensal. Cai para [SubscriptionOffer.formattedPrice] se o
+ *  código de moeda vier inválido/ausente (nunca deveria acontecer com dados reais da Play Store). */
+private fun monthlyEquivalentFormatted(offer: SubscriptionOffer): String = try {
+    val currency = Currency.getInstance(offer.priceCurrencyCode)
+    val format = NumberFormat.getCurrencyInstance().apply { this.currency = currency }
+    format.format(offer.priceAmountMicros / 12.0 / 1_000_000.0)
+} catch (e: IllegalArgumentException) {
+    offer.formattedPrice
+}
+
 @Composable
 private fun PlanOptionRow(
     title: String,
@@ -1168,7 +1195,7 @@ private fun PlanOptionRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                stringResource(R.string.cloud_sync_plan_annual_price, annualPrice),
+                annualPrice,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(end = 8.dp)

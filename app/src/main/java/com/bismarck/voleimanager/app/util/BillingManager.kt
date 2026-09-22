@@ -23,8 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * IDs de produto/plano base das assinaturas premium — precisam bater exatamente com o que for
  * cadastrado no Play Console (Monetizar > Produtos > Assinaturas). Os preços em si (incluindo o
- * ajuste de preço por país, ex.: R$ 4,90/R$ 9,90 no Brasil x um valor em dólar fora dele) ficam
- * inteiramente configurados lá — o app nunca hardcoda valores monetários usados de verdade, só um
+ * ajuste de preço por país, ex.: R$ 9,99/R$ 19,99 por mês no Brasil x ~US$1,89/US$3,89 fora dele)
+ * ficam inteiramente configurados lá — o app nunca hardcoda valores monetários usados de verdade, só um
  * texto de fallback (ver `cloud_sync_plan_*_price` em strings.xml) para quando a Play Store ainda
  * não respondeu com o preço real (offline, sem os produtos cadastrados, etc.).
  */
@@ -44,7 +44,13 @@ data class SubscriptionOffer(
     val offerToken: String,
     val formattedPrice: String,
     /** Período de faturamento ISO-8601 (ex.: "P1M" mensal, "P1Y" anual). */
-    val billingPeriodIso: String
+    val billingPeriodIso: String,
+    /** Preço bruto (micros da unidade monetária, ex.: R$ 1,00 = 1_000_000) e código ISO-4217 da
+     *  moeda — usados só para calcular localmente o "equivalente por mês" do plano anual (preço
+     *  anual / 12) e mostrar a economia real na moeda do próprio usuário, sem o app precisar saber
+     *  taxas de câmbio. [formattedPrice] continua sendo o texto oficial mostrado como preço. */
+    val priceAmountMicros: Long,
+    val priceCurrencyCode: String
 )
 
 /** Compra vista pelo Play Billing neste aparelho (nova ou já conhecida de uma sessão anterior),
@@ -161,7 +167,9 @@ object BillingManager {
                         basePlanId = offer.basePlanId,
                         offerToken = offer.offerToken,
                         formattedPrice = pricingPhase.formattedPrice,
-                        billingPeriodIso = pricingPhase.billingPeriod
+                        billingPeriodIso = pricingPhase.billingPeriod,
+                        priceAmountMicros = pricingPhase.priceAmountMicros,
+                        priceCurrencyCode = pricingPhase.priceCurrencyCode
                     )
                 }
             }

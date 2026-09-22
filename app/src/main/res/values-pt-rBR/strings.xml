@@ -77,11 +77,14 @@
     <string name="cloud_sync_tier_single">1 grupo</string>
     <string name="cloud_sync_tier_multi">Até 5 grupos</string>
     <string name="cloud_sync_plan_single_title">1 grupo sincronizado</string>
-    <string name="cloud_sync_plan_single_price">R$ 4,90/mês (Brasil)</string>
+    <string name="cloud_sync_plan_single_price">R$ 9,99/mês (Brasil) — valor pode variar</string>
     <string name="cloud_sync_plan_multi_title">Até 5 grupos sincronizados</string>
-    <string name="cloud_sync_plan_multi_price">R$ 9,90/mês (Brasil)</string>
+    <string name="cloud_sync_plan_multi_price">R$ 19,99/mês (Brasil) — valor pode variar</string>
+    <string name="cloud_sync_plan_single_annual_price">R$ 89,99/ano (equivalente a R$ 7,50/mês)</string>
+    <string name="cloud_sync_plan_multi_annual_price">R$ 179,99/ano (equivalente a R$ 15,00/mês)</string>
     <string name="cloud_sync_plan_annual_hint">Economize 3 meses assinando no plano anual</string>
-    <string name="cloud_sync_plan_annual_price">ou %1$s/ano</string>
+    <string name="cloud_sync_price_per_month">%1$s/mês</string>
+    <string name="cloud_sync_plan_annual_price">ou %1$s/ano (equivalente a %2$s/mês)</string>
     <string name="cloud_sync_plan_subscribe">Assinar</string>
     <string name="cloud_sync_plan_subscribe_annual">Assinar anual</string>
     <string name="cloud_sync_plan_active_badge">Ativo</string>
