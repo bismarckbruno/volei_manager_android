@@ -85,7 +85,7 @@
     <string name="cloud_sync_plan_annual_hint">Economize 3 meses assinando no plano anual</string>
     <string name="cloud_sync_price_per_month">%1$s/mês</string>
     <string name="cloud_sync_plan_annual_price">ou %1$s/ano (equivalente a %2$s/mês)</string>
-    <string name="cloud_sync_plan_subscribe">Assinar</string>
+    <string name="cloud_sync_plan_subscribe">Assinar mensal</string>
     <string name="cloud_sync_plan_subscribe_annual">Assinar anual</string>
     <string name="cloud_sync_plan_active_badge">Ativo</string>
     <string name="cloud_sync_plan_coming_soon">Pagamento chega em breve</string>
@@ -131,7 +131,7 @@
     <string name="generate_join_code_expiry_hint_espectador">Válido por 30 dias e pode ser usado por até 100 pessoas.</string>
     <string name="generate_join_code_group_not_synced">Sincronize este grupo em nuvem antes de gerar um código de convite.</string>
     <string name="spectator_code_section_title">Código de convite de espectador</string>
-    <string name="spectator_code_section_hint">Qualquer pessoa com este código pode acompanhar este grupo ao vivo como espectador. Ele nunca expira e não tem limite de uso — compartilhe uma vez com todos que devem acompanhar o grupo.</string>
+    <string name="spectator_code_section_hint">Qualquer pessoa com este código pode acompanhar este grupo ao vivo como espectador. Ele não expira e não tem limite de uso — compartilhe com todos que devem acompanhar o grupo.</string>
     <string name="spectator_code_loading">Gerando o código permanente do grupo…</string>
     <string name="spectator_code_live_viewers">%1$d assistindo agora</string>
     <string name="spectator_code_copy">Copiar código</string>
@@ -238,10 +238,9 @@
     <string name="cloud_sync_visibility_share_history">Compartilhar histórico de partidas</string>
     <string name="cloud_sync_visibility_share_history_tooltip">Permite que espectadores que entrarem com o código de convite vejam as partidas já finalizadas deste grupo e seus resultados.</string>
     <string name="cloud_sync_visibility_share_full_history">Histórico completo</string>
-    <string name="cloud_sync_visibility_share_today_history">Só hoje</string>
+    <string name="cloud_sync_visibility_share_today_history">Apenas hoje</string>
     <string name="cloud_sync_visibility_show_elo">Mostrar Elo aos espectadores</string>
     <string name="cloud_sync_visibility_show_elo_tooltip">Permite que espectadores vejam o Elo (pontuação de habilidade) de cada jogador e a média de cada time.</string>
-    <string name="cloud_sync_visibility_show_elo_disabled_tooltip">Ative \"Compartilhar histórico de partidas\" acima primeiro para poder mostrar o Elo aos espectadores.</string>
     <string name="cloud_sync_auxiliar_groups_title">Grupos que você administra como auxiliar</string>
     <string name="live_screen_spectator_title">Ao vivo</string>
     <string name="live_screen_spectator_no_group">Você ainda não entrou em nenhum grupo. Peça ao organizador um código de espectador e adicione pelo menu de grupos.</string>

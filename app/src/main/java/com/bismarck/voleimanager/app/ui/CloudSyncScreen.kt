@@ -676,8 +676,7 @@ private fun SpectatorCodeSection(
                         } else {
                             Icon(
                                 Icons.Default.Refresh,
-                                contentDescription = stringResource(R.string.spectator_code_regenerate_button),
-                                tint = MaterialTheme.colorScheme.error
+                                contentDescription = stringResource(R.string.spectator_code_regenerate_button)
                             )
                         }
                     }
@@ -891,19 +890,16 @@ private fun GroupVisibilityToggles(
                 }
             }
             Spacer(Modifier.height(8.dp))
+            // "Mostrar Elo" só faz sentido (e só fica visível) com o histórico compartilhado
+            // ativo — sem histórico compartilhado não há nada para o espectador ver o Elo junto.
+            CloudSyncToggleRow(
+                label = stringResource(R.string.cloud_sync_visibility_show_elo),
+                tooltip = stringResource(R.string.cloud_sync_visibility_show_elo_tooltip),
+                checked = group.showEloToObservers,
+                onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked, group.shareOnlyTodayHistory) },
+                colors = lockedSwitchColors
+            )
         }
-        CloudSyncToggleRow(
-            label = stringResource(R.string.cloud_sync_visibility_show_elo),
-            tooltip = if (group.shareHistoryWithObservers) {
-                stringResource(R.string.cloud_sync_visibility_show_elo_tooltip)
-            } else {
-                stringResource(R.string.cloud_sync_visibility_show_elo_disabled_tooltip)
-            },
-            checked = group.showEloToObservers,
-            enabled = group.shareHistoryWithObservers,
-            onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked, group.shareOnlyTodayHistory) },
-            colors = lockedSwitchColors
-        )
     }
 }
 
@@ -1123,7 +1119,7 @@ internal fun PremiumPlansSection(
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
                     }
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(16.dp))
                 PlanOptionRow(
                     title = stringResource(R.string.cloud_sync_plan_multi_title),
                     price = multiMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
@@ -1147,7 +1143,7 @@ internal fun PremiumPlansSection(
                     stringResource(R.string.cloud_sync_plan_annual_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 16.dp)
                 )
 
                 // Cancelamento real de assinatura é sempre feito pela própria Play Store (não há
@@ -1155,7 +1151,7 @@ internal fun PremiumPlansSection(
                 // assinaturas do Google Play já filtrada pelo produto ativo. Só faz sentido para
                 // quem tem uma assinatura de verdade (não a simulação de debug).
                 if (hasPremiumAccess && !debugPremiumOverride) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(16.dp))
                     val activeProductId = if (effectivePlanTier == CloudPlanTier.MULTI) {
                         BillingProductIds.MULTI_GROUP
                     } else {
@@ -1172,7 +1168,7 @@ internal fun PremiumPlansSection(
 
                 if (BuildConfig.DEBUG) {
                     HorizontalDivider(
-                        Modifier.padding(vertical = 12.dp),
+                        Modifier.padding(vertical = 16.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     )
                     Text(
@@ -1195,18 +1191,11 @@ internal fun PremiumPlansSection(
                         }
                     }
                     if (debugPremiumOverride) {
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(16.dp))
                         TextButton(onClick = { viewModel.setDebugPremiumOverride(false) }) {
                             Text(stringResource(R.string.cloud_sync_debug_cancel_simulation))
                         }
                     }
-                } else if (!hasPremiumAccess) {
-                    Text(
-                        stringResource(R.string.cloud_sync_plan_coming_soon),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
                 }
             }
         }

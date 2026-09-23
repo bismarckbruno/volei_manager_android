@@ -2173,7 +2173,7 @@ fun EditProfileDialog(
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it.take(MAX_PLAYER_NAME_LENGTH); errorMessage = null },
@@ -2182,7 +2182,7 @@ fun EditProfileDialog(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = birthDateValue,
                     onValueChange = { birthDateValue = autoFormatBirthDate(birthDateValue, it); errorMessage = null },
@@ -2198,7 +2198,7 @@ fun EditProfileDialog(
                 if (hasPasswordProvider) {
                     Spacer(Modifier.height(16.dp))
                     HorizontalDivider()
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(16.dp))
                     if (!currentEmail.isNullOrBlank()) {
                         Text(
                             stringResource(R.string.current_email_label, currentEmail),

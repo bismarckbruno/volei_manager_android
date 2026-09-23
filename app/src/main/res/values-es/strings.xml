@@ -241,7 +241,6 @@
     <string name="cloud_sync_visibility_share_today_history">Solo hoy</string>
     <string name="cloud_sync_visibility_show_elo">Mostrar Elo a los observadores</string>
     <string name="cloud_sync_visibility_show_elo_tooltip">Permite que los espectadores vean el Elo (puntuación de habilidad) de cada jugador y el promedio de cada equipo.</string>
-    <string name="cloud_sync_visibility_show_elo_disabled_tooltip">Activa \"Compartir historial de partidas\" arriba primero para poder mostrar el Elo a los espectadores.</string>
     <string name="cloud_sync_auxiliar_groups_title">Grupos que administras como coadministrador</string>
     <string name="live_screen_spectator_title">En vivo</string>
     <string name="live_screen_spectator_no_group">Todavía no te uniste a ningún grupo. Pide al organizador un código de observador y agrégalo desde el menú de grupos.</string>
