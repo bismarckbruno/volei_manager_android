@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
+import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -49,6 +50,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -1048,31 +1050,38 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     ModalNavigationDrawer(
-        //modifier = Modifier.systemBarsPadding(),
+        modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
-        modifier = Modifier.windowInsetsPadding(WindowInsets.safeContent),
         drawerContent = {
-            // Insets completos (não apenas vertical/start) precisam envolver o ModalDrawerSheet
-            // inteiro (não só o conteúdo interno), senão o fundo/superfície do drawer continua
-            // desenhado por baixo da status bar/navigation bar em landscape — em algumas rotações
-            // (ex.: aparelho deitado com o lado direito para baixo) a barra de navegação some para
-            // um dos lados (start/end) ou para baixo, dependendo do modo (gestos vs. 3 botões).
-            Box {
-                ModalDrawerSheet(
-                    windowInsets = DrawerDefaults.windowInsets.only(
-                        WindowInsetsSides.Bottom
-                    )
+            // Não conseguimos garantir, em todas as rotações/dispositivos, que o offset "fechado"
+            // do M3 (== -largura) deixe o drawer 100% fora da área visível (bug observado em
+            // landscape com o lado direito para baixo: uma tira do container permanece visível
+            // mesmo com o menu fechado). Como workaround, o fundo do drawer fica transparente
+            // enquanto fechado (nada aparece, mesmo que uma tira do container "vaze") e some para
+            // a cor sólida normal assim que o usuário abre o menu.
+            val drawerOpenTarget = drawerState.targetValue == DrawerValue.Open
+            val drawerContainerColor by animateColorAsState(
+                targetValue = if (drawerOpenTarget) DrawerDefaults.modalContainerColor else Color.Transparent,
+                label = "DrawerContainerColor"
+            )
+            val drawerContentAlpha by animateFloatAsState(
+                targetValue = if (drawerOpenTarget) 1f else 0f,
+                label = "DrawerContentAlpha"
+            )
+            ModalDrawerSheet(
+                drawerContainerColor = drawerContainerColor
+            ) {
+                Column(
+                    Modifier
+                        .padding(16.dp)
+                        .alpha(drawerContentAlpha)
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Column(
-                        Modifier
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        var accountMenuExpanded by remember { mutableStateOf(false) }
-                        val verificationEmailSentMessage =
-                            stringResource(R.string.verification_email_sent)
-                        DrawerAccountHeader(
-                            currentUser = currentUser,
+                    var accountMenuExpanded by remember { mutableStateOf(false) }
+                    val verificationEmailSentMessage =
+                        stringResource(R.string.verification_email_sent)
+                    DrawerAccountHeader(
+                        currentUser = currentUser,
                             userProfileType = activeGroupRole,
                             hasPremiumAccess = hasPremiumAccessGlobal,
                             menuExpanded = accountMenuExpanded,
@@ -1452,10 +1461,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 scope.launch { drawerState.close() }
                             })
 
-                        Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(16.dp))
                     }
                 }
-            }
         }
 
     ) {

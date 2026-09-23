@@ -35,7 +35,7 @@
     <string name="theme">Theme</string>
     <string name="show_elo">Show Elo</string>
     <string name="show_elo_tooltip">Shows the skill rating of each player and the team average.</string>
-    <string name="elo_blocked_for_spectator_message">The admin/co-admin has not enabled Elo sharing with spectators for this group yet.</string>
+    <string name="elo_blocked_for_spectator_message">The admin has not enabled Elo sharing with spectators for this group yet.</string>
     <string name="show_lateness">Show matches</string>
     <string name="show_lateness_tooltip">Displays the number of matches for each player. If the player arrived late, the average number of matches the group had already played up to their arrival is added.</string>
     <string name="telemetry_consent_title">Help improve %1$s?</string>
@@ -70,7 +70,7 @@
     <string name="cloud_sync_screen_title">Premium</string>
     <string name="premium_screen_persona_admin">Admin</string>
     <string name="premium_screen_persona_espectador">Spectator</string>
-    <string name="cloud_sync_screen_intro">Share the live scoreboard, teams, and history of this group in real time with your co-admins and players, on any device.</string>
+    <string name="cloud_sync_screen_intro">Share the live scoreboard, teams, and history of this group in real time with players, on any device.</string>
     <string name="cloud_sync_status_title">Subscription</string>
     <string name="cloud_sync_status_active">Premium active — %1$s</string>
     <string name="cloud_sync_status_inactive">No active subscription</string>
@@ -106,6 +106,7 @@
     <string name="cloud_sync_groups_empty">You don\'t have any group yet.</string>
     <string name="cloud_sync_groups_selector_label">Group</string>
     <string name="cloud_sync_groups_activate_label">Enable sync</string>
+    <string name="cloud_sync_groups_activate_tooltip">Syncs this group in real time to the cloud, so spectators can follow the games live with the invite code below.</string>
     <string name="cloud_sync_groups_synced_badge">Synced</string>
     <plurals name="cloud_sync_groups_limit_label">
         <item quantity="one">%1$d of %2$d synced group</item>
@@ -123,7 +124,6 @@
     <string name="join_group_auxiliar_unavailable">The co-admin (Auxiliar) role is temporarily unavailable.</string>
     <string name="generate_join_code_menu_item">Generate invite code…</string>
     <string name="generate_join_code_title">Invite code for %1$s</string>
-    <string name="generate_join_code_hint">Generate a code so someone can join this group as assistant (single use, valid for 30 minutes) or observer (up to 100 uses, valid for 30 days).</string>
     <string name="generate_join_code_role_auxiliar">Assistant</string>
     <string name="generate_join_code_role_espectador">Observer</string>
     <string name="generate_join_code_copy">Copy</string>
@@ -242,9 +242,12 @@
     <string name="transfer_ownership_pending_label">Transfer pending to %1$s</string>
     <string name="transfer_ownership_cancel">Cancel</string>
     <string name="cloud_sync_visibility_share_history">Share match history</string>
+    <string name="cloud_sync_visibility_share_history_tooltip">Lets spectators who join with the invite code see this group\'s completed matches and results.</string>
     <string name="cloud_sync_visibility_share_full_history">Full history</string>
     <string name="cloud_sync_visibility_share_today_history">Today only</string>
     <string name="cloud_sync_visibility_show_elo">Show Elo to observers</string>
+    <string name="cloud_sync_visibility_show_elo_tooltip">Lets spectators see each player\'s Elo rating and each team\'s average.</string>
+    <string name="cloud_sync_visibility_show_elo_disabled_tooltip">Enable \"Share match history\" above first to be able to show Elo to spectators.</string>
     <string name="cloud_sync_auxiliar_groups_title">Groups you manage as assistant</string>
     <string name="live_screen_spectator_title">Live</string>
     <string name="live_screen_spectator_no_group">You haven\'t joined any group yet. Ask the organizer for an observer code and add it from the group menu.</string>

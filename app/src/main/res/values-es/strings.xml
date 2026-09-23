@@ -35,7 +35,7 @@
     <string name="theme">Tema</string>
     <string name="show_elo">Mostrar Elo</string>
     <string name="show_elo_tooltip">Muestra la puntuación de habilidad de cada jugador y el promedio del equipo.</string>
-    <string name="elo_blocked_for_spectator_message">El administrador/coadministrador aún no habilitó compartir el Elo con los espectadores en este grupo.</string>
+    <string name="elo_blocked_for_spectator_message">El administrador aún no habilitó compartir el Elo con los espectadores en este grupo.</string>
     <string name="show_lateness">Mostrar partidos</string>
     <string name="show_lateness_tooltip">Muestra el número de partidos de cada jugador. Si el jugador llegó tarde, se suma el promedio de partidos que el grupo ya había jugado hasta su llegada.</string>
     <string name="telemetry_consent_title">¿Ayudar a mejorar %1$s?</string>
@@ -70,7 +70,7 @@
     <string name="cloud_sync_screen_title">Premium</string>
     <string name="premium_screen_persona_admin">Admin</string>
     <string name="premium_screen_persona_espectador">Espectador</string>
-    <string name="cloud_sync_screen_intro">Comparte el marcador, los equipos y el historial de este grupo en tiempo real con tus co-administradores y jugadores, en cualquier dispositivo.</string>
+    <string name="cloud_sync_screen_intro">Comparte el marcador, los equipos y el historial de este grupo en tiempo real con los jugadores, en cualquier dispositivo.</string>
     <string name="cloud_sync_status_title">Suscripción</string>
     <string name="cloud_sync_status_active">Premium activo — %1$s</string>
     <string name="cloud_sync_status_inactive">Sin suscripción activa</string>
@@ -106,6 +106,7 @@
     <string name="cloud_sync_groups_empty">Todavía no tienes ningún grupo creado.</string>
     <string name="cloud_sync_groups_selector_label">Grupo</string>
     <string name="cloud_sync_groups_activate_label">Activar sincronización</string>
+    <string name="cloud_sync_groups_activate_tooltip">Sincroniza este grupo en tiempo real en la nube, permitiendo que los espectadores sigan los partidos en vivo con el código de invitación de abajo.</string>
     <string name="cloud_sync_groups_synced_badge">Sincronizado</string>
     <plurals name="cloud_sync_groups_limit_label">
         <item quantity="one">%1$d de %2$d grupo sincronizado</item>
@@ -123,7 +124,6 @@
     <string name="join_group_auxiliar_unavailable">El rol de Auxiliar está temporalmente no disponible.</string>
     <string name="generate_join_code_menu_item">Generar código de invitación…</string>
     <string name="generate_join_code_title">Código de invitación de %1$s</string>
-    <string name="generate_join_code_hint">Genera un código para que alguien entre a este grupo como coadministrador (uso único, válido por 30 minutos) u observador (hasta 100 usos, válido por 30 días).</string>
     <string name="generate_join_code_role_auxiliar">Coadministrador</string>
     <string name="generate_join_code_role_espectador">Observador(a)</string>
     <string name="generate_join_code_copy">Copiar</string>
@@ -236,9 +236,12 @@
     <string name="transfer_ownership_pending_label">Transferencia pendiente para %1$s</string>
     <string name="transfer_ownership_cancel">Cancelar</string>
     <string name="cloud_sync_visibility_share_history">Compartir historial de partidas</string>
+    <string name="cloud_sync_visibility_share_history_tooltip">Permite que los espectadores que entren con el código de invitación vean los partidos ya finalizados de este grupo y sus resultados.</string>
     <string name="cloud_sync_visibility_share_full_history">Historial completo</string>
     <string name="cloud_sync_visibility_share_today_history">Solo hoy</string>
     <string name="cloud_sync_visibility_show_elo">Mostrar Elo a los observadores</string>
+    <string name="cloud_sync_visibility_show_elo_tooltip">Permite que los espectadores vean el Elo (puntuación de habilidad) de cada jugador y el promedio de cada equipo.</string>
+    <string name="cloud_sync_visibility_show_elo_disabled_tooltip">Activa \"Compartir historial de partidas\" arriba primero para poder mostrar el Elo a los espectadores.</string>
     <string name="cloud_sync_auxiliar_groups_title">Grupos que administras como coadministrador</string>
     <string name="live_screen_spectator_title">En vivo</string>
     <string name="live_screen_spectator_no_group">Todavía no te uniste a ningún grupo. Pide al organizador un código de observador y agrégalo desde el menú de grupos.</string>

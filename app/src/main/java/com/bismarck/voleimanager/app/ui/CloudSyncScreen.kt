@@ -9,7 +9,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,28 +51,37 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -87,7 +98,6 @@ import androidx.compose.ui.unit.DpOffset
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
-import com.bismarck.voleimanager.app.ui.components.GenerateJoinCodeDialog
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
 import com.bismarck.voleimanager.app.ui.viewmodel.PremiumScreenPersona
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
@@ -103,6 +113,7 @@ import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import androidx.core.net.toUri
 import java.text.NumberFormat
 import java.util.Currency
@@ -309,7 +320,7 @@ internal fun RemoteEloRow(entry: RemoteEloLogEntry) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: PremiumScreenPersona) {
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
@@ -481,36 +492,23 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                 Spacer(Modifier.height(8.dp))
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(CircleShape)
-                            .clickable(enabled = hasPremiumAccess) {
-                                viewModel.setGroupCloudSynced(selectedGroup.groupName, !selectedGroup.isCloudSynced)
-                            },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            stringResource(R.string.cloud_sync_groups_activate_label),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f)
+                    CloudSyncToggleRow(
+                        label = stringResource(R.string.cloud_sync_groups_activate_label),
+                        tooltip = stringResource(R.string.cloud_sync_groups_activate_tooltip),
+                        checked = selectedGroup.isCloudSynced,
+                        enabled = hasPremiumAccess,
+                        onCheckedChange = { checked ->
+                            viewModel.setGroupCloudSynced(selectedGroup.groupName, checked)
+                        },
+                        colors = SwitchDefaults.colors(
+                            disabledCheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            disabledCheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
                         )
-                        Switch(
-                            checked = selectedGroup.isCloudSynced,
-                            enabled = hasPremiumAccess,
-                            onCheckedChange = { checked ->
-                                viewModel.setGroupCloudSynced(selectedGroup.groupName, checked)
-                            },
-                            colors = SwitchDefaults.colors(
-                                disabledCheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                disabledCheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                            )
-                        )
-                    }
+                    )
                     if (selectedGroup.isCloudSynced) {
                         val cloudGroupId = selectedGroup.cloudGroupId
                         val cloudMeta by remember(cloudGroupId) {
@@ -826,6 +824,7 @@ private fun AdminSessionTransferSection(onTransfer: () -> Unit) {
 /** Toggles de `observer-visibility-controls`: compartilhar histórico e ranking de Elo com
  *  espectadores, e o alcance do histórico compartilhado (completo ou só hoje). Mostrar Elo e a
  *  escolha de alcance exigem compartilhar histórico também (ver [VoleiViewModel.setGroupVisibility]). */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun GroupVisibilityToggles(
     group: GroupConfig,
@@ -842,29 +841,15 @@ private fun GroupVisibilityToggles(
         disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
     )
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(CircleShape)
-                .clickable {
-                    val checked = !group.shareHistoryWithObservers
-                    onChange(checked, group.showEloToObservers && checked, group.shareOnlyTodayHistory && checked)
-                },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                stringResource(R.string.cloud_sync_visibility_share_history),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            Switch(
-                checked = group.shareHistoryWithObservers,
-                onCheckedChange = { checked ->
-                    onChange(checked, group.showEloToObservers && checked, group.shareOnlyTodayHistory && checked)
-                },
-                colors = lockedSwitchColors
-            )
-        }
+        CloudSyncToggleRow(
+            label = stringResource(R.string.cloud_sync_visibility_share_history),
+            tooltip = stringResource(R.string.cloud_sync_visibility_share_history_tooltip),
+            checked = group.shareHistoryWithObservers,
+            onCheckedChange = { checked ->
+                onChange(checked, group.showEloToObservers && checked, group.shareOnlyTodayHistory && checked)
+            },
+            colors = lockedSwitchColors
+        )
         if (group.shareHistoryWithObservers) {
             Spacer(Modifier.height(8.dp))
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -907,25 +892,81 @@ private fun GroupVisibilityToggles(
             }
             Spacer(Modifier.height(8.dp))
         }
+        CloudSyncToggleRow(
+            label = stringResource(R.string.cloud_sync_visibility_show_elo),
+            tooltip = if (group.shareHistoryWithObservers) {
+                stringResource(R.string.cloud_sync_visibility_show_elo_tooltip)
+            } else {
+                stringResource(R.string.cloud_sync_visibility_show_elo_disabled_tooltip)
+            },
+            checked = group.showEloToObservers,
+            enabled = group.shareHistoryWithObservers,
+            onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked, group.shareOnlyTodayHistory) },
+            colors = lockedSwitchColors
+        )
+    }
+}
+
+/** Row com Switch reutilizada nos toggles de sincronização/visibilidade desta tela: o texto e o
+ *  switch inteiros são clicáveis (não só o switch) e um toque longo revela um [PlainTooltip]
+ *  explicando o que o toggle faz — quando desabilitado, [tooltip] deve explicar o motivo (ex.:
+ *  "Mostrar Elo" exige "Compartilhar histórico" ativo primeiro). Mesmo padrão do TooltipToggleRow
+ *  em Dialogs.kt, mas com o texto à esquerda ocupando o espaço e o Switch à direita, layout já
+ *  usado nesta tela. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+private fun CloudSyncToggleRow(
+    label: String,
+    tooltip: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    colors: SwitchColors,
+    enabled: Boolean = true
+) {
+    val scope = rememberCoroutineScope()
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val haptic = LocalHapticFeedback.current
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = {
+            PlainTooltip {
+                Text(text = tooltip, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        state = tooltipState
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(CircleShape)
-                .clickable(enabled = group.shareHistoryWithObservers) {
-                    onChange(group.shareHistoryWithObservers, !group.showEloToObservers, group.shareOnlyTodayHistory)
-                },
+                .combinedClickable(
+                    enabled = enabled,
+                    onClick = {
+                        tooltipState.dismiss()
+                        onCheckedChange(!checked)
+                    },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch { tooltipState.show() }
+                    }
+                )
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                stringResource(R.string.cloud_sync_visibility_show_elo),
+                label,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
             Switch(
-                checked = group.showEloToObservers,
-                enabled = group.shareHistoryWithObservers,
-                onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked, group.shareOnlyTodayHistory) },
-                colors = lockedSwitchColors
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = {
+                    tooltipState.dismiss()
+                    onCheckedChange(it)
+                },
+                colors = colors
             )
         }
     }
