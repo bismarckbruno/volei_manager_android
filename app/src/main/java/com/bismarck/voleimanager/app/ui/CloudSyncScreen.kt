@@ -382,7 +382,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                 if (hasPremiumAccess) {
                     pluralStringResource(
                         R.plurals.cloud_sync_groups_limit_label,
-                        syncedGroupNames.size,
+                        effectivePlanTier.maxSyncedGroups,
                         syncedGroupNames.size,
                         effectivePlanTier.maxSyncedGroups
                     )

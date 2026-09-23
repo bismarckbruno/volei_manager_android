@@ -306,6 +306,8 @@
     <string name="faq_kw14">group types, recreational, fixed positions, tournament, group type differences</string>
     <string name="faq_kw15">bulk import, import players, csv, excel, spreadsheet, template, mass import</string>
     <string name="faq_kw16">setter, outside hitter, middle blocker, opposite, libero, what each position does, court roles</string>
+    <string name="faq_kw17">premium, subscription, plan, sync, cloud, spectator, live, team color, benefits, sign in, login, account</string>
+    <string name="faq_kw18">sign in, login, google, account, guest, do I need to log in, offline, local data</string>
     <string name="no_players">No players found.</string>
     <string name="min_priority">Min. 1 priority per team</string>
     <string name="min_priority_tooltip">Enable this if your group needs to spread this priority across both teams.</string>
@@ -461,6 +463,13 @@
     <string name="faq_a3">When activated, it shows each player\'s number of matches. If a player arrives late, the average number of matches the group had already played up to their arrival is added, so latecomers don\'t jump ahead of those who have been waiting since the start. Players who arrive together with the group start with zero extra matches.</string>
     <string name="faq_a1">Elo is a scoring system that evaluates the skill level of each player. You earn points when you win and lose when you are defeated, based on the difficulty of the match. The average Elo is simply the sum of a team\'s points divided by the number of players.</string>
     <string name="faq_q1">What is Elo and Average Elo?</string>
+    <string name="faq_q17">What do I get with a Premium subscription?</string>
+    <string name="faq_a17_intro">A Premium subscription unlocks:</string>
+    <string name="faq_a17_col1">Benefit</string>
+    <string name="faq_a17_col2">What you get</string>
+    <string name="faq_a17_table">Cloud sync|Syncs your group(s) across devices, so an assistant can help manage teams from another phone.\nLive spectator sharing|Share a link with the current score, the match in progress, and match history for people watching from the sidelines.\nTeam colors|Customize each team\'s colors — local for any subscriber, and synced for the whole group if you\'re the organizer.\nSupport the project|Subscribing directly supports the app\'s development.</string>
+    <string name="faq_q18">Do I need to sign in to use the app?</string>
+    <string name="faq_a18">No — you can create groups, add players, and run matches completely offline, without ever signing in. An account is only needed if you want to subscribe to Premium to sync a group across devices, let spectators follow live, or support the project. If you\'re just watching a group as a spectator, you also don\'t need an account: joining with an invite code is enough.</string>
     <string name="matches_date">Matches - %1$s</string>
     <string name="players_date">Players - %1$s</string>
     <string name="add_to_queue">Add to queue</string>

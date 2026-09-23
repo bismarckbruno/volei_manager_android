@@ -1451,7 +1451,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             onClick = {
                                 showPrivacyPolicyDialog = true
                                 scope.launch { drawerState.close() }
-                            })
+                            }
+                        )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.Description, null) },
                             label = { Text(stringResource(R.string.terms_of_use)) },
@@ -1459,9 +1460,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             onClick = {
                                 showTermsOfUseDialog = true
                                 scope.launch { drawerState.close() }
-                            })
-
-                            Spacer(Modifier.height(16.dp))
+                            }
+                        )
                     }
                 }
         }

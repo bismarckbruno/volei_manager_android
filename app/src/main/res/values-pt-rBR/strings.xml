@@ -299,6 +299,8 @@
     <string name="faq_kw14">tipos de grupo, recreativo, posições fixas, campeonato, diferença entre tipos de grupo</string>
     <string name="faq_kw15">importação em lote, importar jogadores, csv, excel, planilha, modelo, cadastro em massa</string>
     <string name="faq_kw16">levantador, ponteiro, central, oposto, líbero, o que cada posição faz, funções em quadra</string>
+    <string name="faq_kw17">premium, assinatura, plano, sincronização, nuvem, espectador, ao vivo, cor do time, benefícios, login, entrar, conta</string>
+    <string name="faq_kw18">login, entrar, google, conta, convidado, preciso fazer login, offline, dados locais</string>
     <string name="no_players">Nenhum jogador encontrado.</string>
     <string name="min_priority">Mín. 1 prioridade por time</string>
     <string name="min_priority_tooltip">Ative se o grupo precisar distribuir essa prioridade entre os dois times.</string>
@@ -455,6 +457,13 @@
     <string name="faq_a3">Quando ativado, mostra o número de partidas de cada jogador. Se um jogador chegar atrasado, é somada a média de partidas que o grupo já tinha jogado até sua chegada, evitando que quem chega no fim passe na frente de quem espera desde o início. Quem chega junto com a turma começa sem acréscimo.</string>
     <string name="faq_a1">O Elo é um sistema de pontuação que avalia o nível de habilidade de cada jogador. Você ganha pontos ao vencer e perde ao ser derrotado, baseado na dificuldade da partida. O Elo médio é simplesmente a soma dos pontos de uma equipe dividida pelo número de jogadores.</string>
     <string name="faq_q1">O que é Elo e Elo Médio?</string>
+    <string name="faq_q17">O que eu ganho ao assinar o Premium?</string>
+    <string name="faq_a17_intro">Uma assinatura Premium libera:</string>
+    <string name="faq_a17_col1">Benefício</string>
+    <string name="faq_a17_col2">O que você ganha</string>
+    <string name="faq_a17_table">Sincronização em nuvem|Sincroniza seu(s) grupo(s) entre aparelhos, para um auxiliar ajudar a administrar de outro celular.\nCompartilhamento ao vivo com espectadores|Compartilhe um link com o placar atual, a partida em andamento e o histórico de partidas, para quem está acompanhando.\nCores dos times|Personalize as cores de cada time — local para qualquer assinante, e sincronizada para o grupo todo se você for o organizador.\nApoio ao projeto|Assinar apoia diretamente o desenvolvimento do app.</string>
+    <string name="faq_q18">Preciso fazer login para usar o app?</string>
+    <string name="faq_a18">Não — você pode criar grupos, cadastrar jogadores e organizar partidas totalmente offline, mesmo sem fazer login. Uma conta só é necessária se você quiser assinar o Premium para sincronizar um grupo entre aparelhos, deixar espectadores acompanharem ao vivo, ou apoiar o projeto. Se você só quer acompanhar um grupo como espectador, também não precisa de conta: basta entrar com um código de convite.</string>
     <string name="matches_date">Partidas - %1$s</string>
     <string name="players_date">Jogadores - %1$s</string>
     <string name="add_to_queue">Adicionar à fila</string>

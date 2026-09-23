@@ -299,6 +299,8 @@
     <string name="faq_kw14">tipos de grupo, recreativo, posiciones fijas, campeonato, diferencia entre tipos de grupo</string>
     <string name="faq_kw15">importación masiva, importar jugadores, csv, excel, planilla, plantilla, carga masiva</string>
     <string name="faq_kw16">armador, punta, central, opuesto, líbero, qué hace cada posición, funciones en la cancha</string>
+    <string name="faq_kw17">premium, suscripción, plan, sincronización, nube, espectador, en vivo, color del equipo, beneficios, iniciar sesión, cuenta</string>
+    <string name="faq_kw18">iniciar sesión, google, cuenta, invitado, necesito iniciar sesión, sin conexión, datos locales</string>
     <string name="no_players">No se encontraron jugadores.</string>
     <string name="min_priority">Mín. 1 prioridad por equipo</string>
     <string name="min_priority_tooltip">Actívalo si el grupo necesita repartir esa prioridad entre ambos equipos.</string>
@@ -454,6 +456,13 @@
     <string name="faq_a3">Cuando está activada, muestra el número de partidos de cada jugador. Si un jugador llega tarde, se suma el promedio de partidos que el grupo ya había jugado hasta su llegada, evitando que quienes llegan al final pasen delante de quienes esperan desde el inicio. Quienes llegan junto al grupo inicial no reciben este ajuste.</string>
     <string name="faq_a1">Elo es un sistema de calificación de habilidad. Ganas puntos por tus victorias y pierdes por tus derrotas, según la dificultad del encuentro. El Elo promedio se obtiene sumando los puntos del equipo e dividiéndolos por el número de integrantes.</string>
     <string name="faq_q1">¿Qué es el Elo y Elo Promedio?</string>
+    <string name="faq_q17">¿Qué obtengo con una suscripción Premium?</string>
+    <string name="faq_a17_intro">Una suscripción Premium desbloquea:</string>
+    <string name="faq_a17_col1">Beneficio</string>
+    <string name="faq_a17_col2">Qué obtienes</string>
+    <string name="faq_a17_table">Sincronización en la nube|Sincroniza tu(s) grupo(s) entre dispositivos, para que un asistente ayude a administrar desde otro celular.\nCompartir en vivo con espectadores|Comparte un enlace con el marcador actual, el partido en curso y el historial de partidos, para quienes están siguiendo desde afuera.\nColores del equipo|Personaliza los colores de cada equipo — local para cualquier suscriptor, y sincronizado para todo el grupo si eres el organizador.\nApoyo al proyecto|Suscribirte apoya directamente el desarrollo de la app.</string>
+    <string name="faq_q18">¿Necesito iniciar sesión para usar la app?</string>
+    <string name="faq_a18">No — puedes crear grupos, agregar jugadores y organizar partidos completamente sin conexión, sin iniciar sesión nunca. Una cuenta solo es necesaria si quieres suscribirte a Premium para sincronizar un grupo entre dispositivos, dejar que los espectadores sigan en vivo, o apoyar el proyecto. Si solo quieres seguir un grupo como espectador, tampoco necesitas cuenta: basta con entrar con un código de invitación.</string>
     <string name="matches_date">Partidos - %1$s</string>
     <string name="players_date">Jugadores - %1$s</string>
     <string name="add_to_queue">Añadir a la cola</string>

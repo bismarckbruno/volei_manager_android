@@ -32,7 +32,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Check
@@ -2732,6 +2734,23 @@ fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit
                     }
                 }
             } else null
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q17),
+            icon = { FaqQuestionIcon(Icons.Default.Cloud) },
+            answer = stringResource(R.string.faq_a17_intro),
+            table = FaqTableData(
+                columnHeaders = stringResource(R.string.faq_a17_col1) to stringResource(R.string.faq_a17_col2),
+                rows = parseFaqTableRows(stringResource(R.string.faq_a17_table)),
+                firstColumnWeight = 0.35f
+            ),
+            keywords = stringResource(R.string.faq_kw17)
+        ),
+        FaqEntry(
+            stringResource(R.string.faq_q18),
+            icon = { FaqQuestionIcon(Icons.AutoMirrored.Filled.Login) },
+            answer = stringResource(R.string.faq_a18),
+            keywords = stringResource(R.string.faq_kw18)
         )
     )
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
