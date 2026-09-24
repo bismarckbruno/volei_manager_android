@@ -1516,9 +1516,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         // um uid autenticado para checar a lista de membros do grupo — ver `firestore.rules` e
         // AuthManager.signInAnonymously). Papel Auxiliar está temporariamente oculto/desativado,
         // então na prática todo código resgatado por aqui hoje é de Espectador.
+        // Em build de debug (inclusive os testes Robolectric, que rodam sobre a variante debug e
+        // nunca têm Firebase configurado — ver AuthManager.isRunningInUnitTest), uma falha aqui não
+        // deve bloquear a tentativa: seguimos adiante para redeemJoinCode/fallback local, já que
+        // sem Firebase real essa chamada sempre "falha" propositalmente nesse ambiente.
         if (currentUser.value == null) {
             val anonError = AuthManager.signInAnonymously()
-            if (anonError != null) {
+            if (anonError != null && !BuildConfig.DEBUG) {
                 onResult(anonError)
                 return@launch
             }
