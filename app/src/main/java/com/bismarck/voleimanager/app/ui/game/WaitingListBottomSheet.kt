@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.ui.game
 
+import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
@@ -69,6 +70,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -500,6 +503,18 @@ fun WaitingListBottomSheet(
             .fillMaxWidth()
             .alpha(contentAlpha)
     ) {
+        // ModalBottomSheet opens in its own Dialog window (separate from the Activity's), so the
+        // Activity's enableEdgeToEdge() config doesn't reach it: the OS still enforces a dark
+        // contrast scrim over the navigation bar there by default. Disable it so the bar shows
+        // this sheet's own surfaceContainerLow background (set via containerColor above) instead.
+        val view = LocalView.current
+        LaunchedEffect(view) {
+            val window = (view.parent as? DialogWindowProvider)?.window
+            if (window != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = false
+                window.isStatusBarContrastEnforced = false
+            }
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()

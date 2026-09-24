@@ -1050,7 +1050,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     ModalNavigationDrawer(
-        modifier = Modifier.systemBarsPadding(),
         drawerState = drawerState,
         drawerContent = {
             // Não conseguimos garantir, em todas as rotações/dispositivos, que o offset "fechado"
@@ -1069,6 +1068,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 label = "DrawerContentAlpha"
             )
             ModalDrawerSheet(
+                modifier = Modifier.systemBarsPadding(),
+                windowInsets = WindowInsets.displayCutout,
                 drawerContainerColor = drawerContainerColor
             ) {
                 Column(
