@@ -155,6 +155,24 @@ object CloudFunctionsManager {
         }
     }
 
+    /** Apaga definitivamente um grupo em nuvem e todos os dados vinculados a ele (jogadores,
+     *  placar ao vivo, histórico, elo, membros e códigos de convite — ver `deleteCloudGroup` em
+     *  `volei_manager_backend`) — atende ao direito de exclusão da LGPD/GDPR quando o organizador
+     *  apaga um grupo sincronizado no app. Só o dono do grupo pode chamar; diferente de desativar
+     *  a sincronização (reversível), isto não pode ser desfeito. Chamada em melhor esforço a
+     *  partir de [VoleiViewModel.deleteGroup]: a exclusão local sempre prossegue mesmo que esta
+     *  chamada falhe (ex.: sem rede), avisando o usuário para não deixar a falha passar em
+     *  silêncio. */
+    suspend fun deleteCloudGroup(cloudGroupId: String): String? {
+        val functions = functionsOrNull() ?: return null
+        return try {
+            call(functions, "deleteCloudGroup", mapOf("cloudGroupId" to cloudGroupId))
+            null
+        } catch (e: Exception) {
+            friendlyMessage(e)
+        }
+    }
+
     /** Chama uma Cloud Function "callable" e devolve seu payload como mapa, seguindo o mesmo
      *  padrão `suspendCancellableCoroutine` + `addOnCompleteListener` usado em [AuthManager] (sem
      *  depender da lib `kotlinx-coroutines-play-services`, ausente deste projeto). */

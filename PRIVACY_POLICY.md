@@ -58,7 +58,7 @@ You control your local data:
 * You can delete players, groups, or match history directly in the app.
 * Uninstalling the app removes all locally stored data from the device.
 
-If the future premium sync feature is used, you may also be able to delete or disconnect your synced account data through the account settings or the cloud sync controls available in the app, subject to the service's account management features.
+If the premium sync feature is used, deleting a synced group in the app also erases that group's cloud data (players, live scoreboard, match history, Elo logs, member/spectator records, and invite codes) from our servers — this cannot be undone. Deleting your account similarly erases your account record and all cloud groups you own, even if the app couldn't confirm the deletion before the account was removed.
 
 ### 9. Children
 The app is not directed to children under 13 and does not knowingly collect children's personal data.

@@ -115,6 +115,7 @@
     <string name="cloud_sync_limit_reached">You\'ve reached your plan\'s synced group limit.</string>
     <string name="cloud_sync_switch_cooldown">You can only change the premium group once every 15 days. Please try again later.</string>
     <string name="cloud_sync_activation_error">Couldn\'t finish activating cloud sync for this group on the server. Check your connection and try again in a moment.</string>
+    <string name="cloud_sync_deletion_error">The group was deleted from this device, but we couldn\'t confirm its cloud data was erased. Check your connection — you can delete it again to retry.</string>
     <string name="cloud_sync_purchase_link_error">Your purchase was recognized by the Play Store, but we couldn\'t confirm it with our server yet. Some premium features may take a moment to unlock.</string>
     <string name="join_existing_group">+ Add group with code</string>
     <string name="join_existing_group_hint">Enter the invite code shared by the group\'s admin.</string>

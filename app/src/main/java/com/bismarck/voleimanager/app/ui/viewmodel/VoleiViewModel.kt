@@ -3223,6 +3223,22 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     fun deleteGroup(name: String) = viewModelScope.launch {
+        // Se este grupo é o próprio grupo em nuvem do organizador (não um grupo remoto entrado
+        // por código — ver `remoteRole`), apaga também os dados na nuvem (jogadores, placar ao
+        // vivo, histórico, elo, membros, códigos de convite) antes de apagar localmente — ver
+        // `deleteCloudGroup` em `volei_manager_backend`, atendendo ao direito de exclusão da
+        // LGPD/GDPR. Melhor esforço: mesmo que essa chamada falhe (ex.: sem rede), a exclusão
+        // local sempre prossegue, só avisando o usuário para não deixar a falha passar em
+        // silêncio (ele pode tentar apagar de novo depois, já que a função é idempotente).
+        val config = repository.getGroupConfig(name)
+        val ownCloudGroupId = config?.cloudGroupId?.takeIf { config.isCloudSynced && config.remoteRole == null }
+        if (ownCloudGroupId != null) {
+            val error = CloudFunctionsManager.deleteCloudGroup(ownCloudGroupId)
+            if (error != null) {
+                showMessage(getApplication<Application>().getString(R.string.cloud_sync_deletion_error))
+            }
+        }
+
         repository.deleteGroup(name)
         if (_currentGroupConfig.value.groupName == name) {
             val fallbackGroup = repository.getAllGroupNames().firstOrNull()

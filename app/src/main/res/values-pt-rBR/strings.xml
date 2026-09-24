@@ -115,6 +115,7 @@
     <string name="cloud_sync_limit_reached">Limite de grupos sincronizados do seu pacote atingido.</string>
     <string name="cloud_sync_switch_cooldown">Você só pode trocar o grupo premium a cada 15 dias. Tente novamente mais tarde.</string>
     <string name="cloud_sync_activation_error">Não conseguimos concluir a ativação da sincronização deste grupo no servidor. Verifique sua conexão e tente novamente em instantes.</string>
+    <string name="cloud_sync_deletion_error">O grupo foi apagado deste aparelho, mas não conseguimos confirmar que os dados na nuvem foram excluídos. Verifique sua conexão — você pode apagá-lo de novo para tentar outra vez.</string>
     <string name="cloud_sync_purchase_link_error">Sua compra foi reconhecida pela Play Store, mas ainda não conseguimos confirmá-la com nosso servidor. Alguns recursos premium podem demorar um pouco para liberar.</string>
     <string name="join_existing_group">+ Adicionar grupo com código</string>
     <string name="join_existing_group_hint">Informe o código de convite compartilhado pelo admin do grupo.</string>
