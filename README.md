@@ -29,12 +29,20 @@
 - **Theme**: Light, Dark, or System.
 - **Optional Display**: Toggle Elo and Late Arrival Toll visibility in UI.
 
+### ☁️ Sign-In, Premium Cloud Sync and Live Spectator Sharing
+- **Optional Sign-In**: E-mail/password or Google Sign-In (via **Firebase Authentication**); spectators can also join a group anonymously with an invite code, with no account required.
+- **Premium Cloud Sync**: Paid subscription (monthly/annual, via **Google Play Billing**) lets an organizer synchronize a group's players, live scoreboard, match history, and Elo logs across devices through **Firebase/Firestore**.
+- **Live Spectator Sharing**: Organizers can generate a permanent invite/join code so viewers follow the live scoreboard in real time, and optionally the match history and player Elo, without needing a full account.
+- **Team Color Customization**: Premium subscribers can personalize each team's colors, either just for themselves or (as the group organizer) for everyone viewing a synced group.
+- **LGPD/GDPR-Aware Deletion**: Deleting a synced group or your account also removes the corresponding cloud data (players, live scoreboard, history, Elo logs, invite codes) from our servers.
+
 ## 🛠 Tech Stack
 - **Language**: Kotlin
 - **UI**: Jetpack Compose (Material Design 3)
 - **Architecture**: MVVM — all business logic in `VoleiViewModel`; manual DI via `ViewModelFactory` (no Hilt/Dagger)
 - **Navigation**: Custom enum-based navigation (`Screen.GAME`, `HISTORY`, `FAQ`, `ABOUT`) with `AnimatedContent`
 - **Local Database**: Room (SQLite) with incremental migrations
+- **Cloud/Backend**: Firebase Authentication (sign-in), Firestore (cloud sync/live spectator data), Cloud Functions, Google Play Billing (subscriptions)
 - **Async**: Coroutines & Flow (`viewModelScope`, `Dispatchers.IO`)
 - **JSON Serialization**: Gson 2.10.1
 - **Annotation Processing**: KSP (Kotlin Symbol Processing)
@@ -54,11 +62,11 @@
 - **Priority Distribution**: Ensures at least one priority player per team in automatic balancing (when available).
 
 ## 🔒 Privacy, Telemetry and Premium Sync
-This project is distributed under the **GNU General Public License v3.0 (GPL-3.0)**. The app is currently designed to keep data local on the device, and no anonymous telemetry is enabled by default.
+This project is distributed under the **GNU General Public License v3.0 (GPL-3.0)**. The core app keeps data local on the device, and no anonymous telemetry is enabled by default.
 
-We may introduce an optional, anonymous telemetry feature in a future version, but only with explicit user consent and a clear opt-in flow. If enabled, it will be limited to aggregated app-health and usage diagnostics, with no personal identifiers, names, group data, or match history included. Users may revoke consent at any time from the app settings, and the telemetry collection will stop once consent is withdrawn.
+An optional, anonymous telemetry feature is available, but only with explicit user consent and a clear opt-in flow. If enabled, it is limited to aggregated app-health and usage diagnostics, with no personal identifiers, names, group data, or match history included. Users may revoke consent at any time from the app settings, and telemetry collection stops once consent is withdrawn.
 
-We also plan, in a future premium tier, to offer cloud synchronization for group data, including players, via a user account system and authentication flow. That feature will use **Firebase/Firestore** for storage and synchronization, and it will require user registration/login. Access to this service will be optional, subject to account consent, authentication, and the terms applicable to the premium sync feature.
+The app also offers an optional premium tier with cloud synchronization for group data (players, live scoreboard, match history, Elo logs), live spectator sharing via invite code, and team color customization, backed by **Firebase/Firestore**, **Firebase Authentication**, and **Google Play Billing** for subscription purchases. Access to these features requires sign-in (or, for spectators, an anonymous join with a code) and, for premium features, an active subscription. Deleting a synced group or account also deletes the corresponding cloud data, in line with LGPD/GDPR data-deletion expectations.
 
 ## 🎯 About the Product
 

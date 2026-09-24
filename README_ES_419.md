@@ -29,12 +29,20 @@
 - **Tema**: Claro, Oscuro o Sistema.
 - **Visualización opcional**: Activa o desactiva Elo y peaje en la interfaz.
 
+### ☁️ Inicio de Sesión, Sincronización Premium en la Nube y Transmisión en Vivo para Espectadores
+- **Inicio de Sesión Opcional**: Correo/contraseña o inicio de sesión con Google (mediante **Firebase Authentication**); los espectadores también pueden unirse a un grupo de forma anónima con un código de invitación, sin necesidad de cuenta.
+- **Sincronización Premium en la Nube**: La suscripción paga (mensual/anual, mediante **Google Play Billing**) permite que el organizador sincronice jugadores, marcador en vivo, historial de partidos y registros de Elo del grupo entre dispositivos, usando **Firebase/Firestore**.
+- **Transmisión en Vivo para Espectadores**: Los organizadores pueden generar un código de invitación/acceso permanente para que los espectadores sigan el marcador en tiempo real y, opcionalmente, el historial de partidos y el Elo de los jugadores, sin necesitar una cuenta completa.
+- **Personalización de Colores de Equipo**: Los suscriptores Premium pueden personalizar los colores de cada equipo, solo para sí mismos o (como organizador del grupo) para todos los que visualicen un grupo sincronizado.
+- **Eliminación Alineada con LGPD/GDPR**: Eliminar un grupo sincronizado o su cuenta también elimina los datos correspondientes en la nube (jugadores, marcador en vivo, historial, registros de Elo, códigos de invitación) de nuestros servidores.
+
 ## 🛠 Tecnologías Utilizadas
 - **Lenguaje**: Kotlin
 - **Interfaz (UI)**: Jetpack Compose (Material Design 3)
 - **Arquitectura**: MVVM — toda la lógica de negocio en `VoleiViewModel`; DI manual vía `ViewModelFactory`, sin Hilt/Dagger
 - **Navegación**: Enum personalizado (`Screen.GAME`, `HISTORY`, `FAQ`, `ABOUT`) con `AnimatedContent`
 - **Base de Datos Local**: Room (SQLite) con migraciones incrementales
+- **Nube/Backend**: Firebase Authentication (inicio de sesión), Firestore (sincronización en la nube/datos de transmisión en vivo), Cloud Functions, Google Play Billing (suscripciones)
 - **Asincronismo**: Coroutines & Flow (`viewModelScope`, `Dispatchers.IO`)
 - **Serialización JSON**: Gson 2.10.1
 - **Procesamiento de Anotaciones**: KSP (Kotlin Symbol Processing)
@@ -54,11 +62,11 @@
 - **Prioridad Activada**: Garantiza al menos un jugador prioritario por equipo en el sorteo automático (si hay disponibilidad).
 
 ## 🔒 Privacidad, Telemetría y Sincronización Premium
-Este proyecto se distribuye bajo la **GNU General Public License v3.0 (GPL-3.0)**. La app está diseñada para guardar los datos de forma local en el dispositivo y, por defecto, no se activa ninguna telemetría anónima.
+Este proyecto se distribuye bajo la **GNU General Public License v3.0 (GPL-3.0)**. La app principal mantiene los datos de forma local en el dispositivo y, por defecto, no hay ninguna telemetría anónima activa.
 
-En versiones futuras podría añadirse una función opcional de telemetría anónima, pero solo con consentimiento explícito del usuario y un flujo de opt-in claro. Si se habilita, la recolección estará limitada a diagnósticos agregados sobre uso y salud de la app, sin incluir nombres, grupos, historial de partidos, identificadores personales ni información sensible. El usuario puede revocar el consentimiento en cualquier momento desde la configuración del app, y la recolección se detendrá cuando se retire el consentimiento.
+Existe una función opcional de telemetría anónima, pero solo con consentimiento explícito del usuario y un flujo de opt-in claro. Cuando se habilita, la recolección se limita a diagnósticos agregados sobre uso y salud de la app, sin incluir nombres, grupos, historial de partidos, identificadores personales ni información sensible. El usuario puede revocar el consentimiento en cualquier momento desde la configuración del app, y la recolección se detiene cuando se retira el consentimiento.
 
-También preveemos, en una capa premium futura, ofrecer sincronización en la nube de los datos del grupo, incluidos los jugadores, mediante registro y autenticación del usuario. Esa funcionalidad usará **Firebase/Firestore** para almacenamiento y sincronización, y requerirá alta/inicio de sesión del usuario, además de consentimiento y aceptación de los términos aplicables a la función premium.
+La app también ofrece una capa premium opcional con sincronización en la nube de los datos del grupo (jugadores, marcador en vivo, historial de partidos, registros de Elo), transmisión en vivo para espectadores mediante código de invitación y personalización de colores de equipo, usando **Firebase/Firestore**, **Firebase Authentication** y **Google Play Billing** para las compras de suscripción. El acceso a estas funciones requiere iniciar sesión (o, para espectadores, unirse de forma anónima con un código) y, para las funciones premium, una suscripción activa. Eliminar un grupo sincronizado o la cuenta también borra los datos correspondientes en la nube, en línea con las expectativas de eliminación de datos de la LGPD/GDPR.
 
 ## 🎯 Sobre el Proyecto
 
