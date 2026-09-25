@@ -327,6 +327,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
     val allGroups by viewModel.allGroupConfigs.collectAsState()
     val syncedGroupNames by viewModel.cloudSyncedGroupNames.collectAsState()
+    val activeGroupName = viewModel.currentGroupConfig.collectAsState().value.groupName
 
     // Transferência de posse do grupo temporariamente oculta (ver `hide-ownership-transfer-temporarily`)
     // — a funcionalidade em si (VoleiViewModel.requestGroupOwnershipTransfer/cancelGroupOwnershipTransfer)
@@ -411,8 +412,12 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                         compareByDescending<GroupConfig> { it.isCloudSynced }.thenBy { it.groupName }
                     )
                 }
+                // Padrão: o grupo já selecionado na gaveta de navegação, quando ele estiver entre
+                // os grupos administrados por este usuário — evita que o organizador precise
+                // reselecionar manualmente o grupo que já estava usando ao entrar nesta tela.
                 var selectedGroupName by rememberSaveable { mutableStateOf<String?>(null) }
                 val selectedGroup = sortedGroups.firstOrNull { it.groupName == selectedGroupName }
+                    ?: sortedGroups.firstOrNull { it.groupName == activeGroupName }
                     ?: sortedGroups.first()
                 LaunchedEffect(selectedGroup.groupName) {
                     selectedGroupName = selectedGroup.groupName
@@ -511,12 +516,29 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                     )
                     if (selectedGroup.isCloudSynced) {
                         val cloudGroupId = selectedGroup.cloudGroupId
-                        val cloudMeta by remember(cloudGroupId) {
+                        // `spectator-code-listener-refresh`: às vezes o listener do Firestore fica
+                        // "parado" sem receber a atualização quando o código permanente é gerado
+                        // pelo backend logo após a ativação (observado em teste real: o código só
+                        // aparecia depois de trocar de grupo no seletor e voltar, o que forçava
+                        // este bloco a sair e voltar à composição, recriando a assinatura do zero).
+                        // Em vez de depender do usuário perceber isso, recria a assinatura sozinho
+                        // a cada poucos segundos enquanto o código ainda não chegou.
+                        var listenerRefreshTick by remember(cloudGroupId) { mutableStateOf(0) }
+                        val cloudMeta by remember(cloudGroupId, listenerRefreshTick) {
                             if (cloudGroupId == null) flowOf(null) else viewModel.observeGroupCloudMeta(cloudGroupId)
                         }.collectAsState(initial = null)
                         val viewerCount by remember(cloudGroupId) {
                             if (cloudGroupId == null) flowOf(0) else viewModel.observeLiveViewerCount(cloudGroupId)
                         }.collectAsState(initial = 0)
+                        val activationInProgressGroups by viewModel.cloudActivationInProgress.collectAsState()
+                        val isActivationInProgress = selectedGroup.groupName in activationInProgressGroups
+
+                        LaunchedEffect(cloudGroupId, cloudMeta?.spectatorCode) {
+                            if (cloudGroupId != null && cloudMeta?.spectatorCode == null) {
+                                delay(4_000)
+                                listenerRefreshTick++
+                            }
+                        }
 
                         if (cloudGroupId != null && !viewModel.isThisDeviceTheActiveAdmin(cloudMeta?.activeAdminDeviceId)) {
                             Spacer(Modifier.height(12.dp))
@@ -529,6 +551,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                         SpectatorCodeSection(
                             spectatorCode = cloudMeta?.spectatorCode,
                             viewerCount = viewerCount,
+                            activationInProgress = isActivationInProgress,
                             onRegenerate = { onResult -> viewModel.regenerateSpectatorCode(selectedGroup.groupName, onResult) },
                             onRetry = { viewModel.retryCloudGroupActivation(selectedGroup.groupName) }
                         )
@@ -578,6 +601,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
 private fun SpectatorCodeSection(
     spectatorCode: String?,
     viewerCount: Int,
+    activationInProgress: Boolean,
     onRegenerate: ((RegeneratedSpectatorCode?, String?) -> Unit) -> Unit,
     onRetry: () -> Unit
 ) {
@@ -636,23 +660,35 @@ private fun SpectatorCodeSection(
 
         if (spectatorCode == null) {
             var showRetry by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
+            LaunchedEffect(activationInProgress) {
                 // Depois de ~8s sem o código chegar, é sinal de que a ativação do grupo falhou
                 // silenciosamente no backend (ver `activateCloudGroupBackend` em VoleiViewModel) —
-                // oferece um jeito de tentar de novo em vez de deixar girando pra sempre.
-                delay(8_000)
-                showRetry = true
+                // oferece um jeito de tentar de novo em vez de deixar girando pra sempre. Mas
+                // enquanto a ativação (chamada ao backend + envio do histórico pré-existente)
+                // ainda está rodando de verdade, não faz sentido oferecer o retry: mostra só a
+                // mensagem de status (ver `retry-vs-inflight-activation`).
+                showRetry = false
+                if (!activationInProgress) {
+                    delay(8_000)
+                    showRetry = true
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    stringResource(R.string.spectator_code_loading),
+                    stringResource(
+                        if (activationInProgress) {
+                            R.string.spectator_code_syncing_history
+                        } else {
+                            R.string.spectator_code_loading
+                        }
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (showRetry) {
+            if (showRetry && !activationInProgress) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = {
                     showRetry = false
@@ -694,6 +730,20 @@ private fun SpectatorCodeSection(
                             stringResource(R.string.spectator_code_live_viewers, viewerCount),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                if (activationInProgress) {
+                    // O código já está disponível para compartilhar mesmo com o histórico antigo
+                    // ainda subindo em segundo plano (ver `history-backfill`) — só avisa que a
+                    // sincronização inicial ainda está rolando, sem bloquear o compartilhamento.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(R.string.spectator_code_syncing_history),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

@@ -134,6 +134,7 @@
     <string name="spectator_code_section_title">Observer invite code</string>
     <string name="spectator_code_section_hint">Anyone with this code can watch this group live as an observer. It never expires and has no usage limit — share it once with everyone who should follow this group.</string>
     <string name="spectator_code_loading">Generating the group\'s permanent code…</string>
+    <string name="spectator_code_syncing_history">Uploading existing match history to the cloud… this may take a while for groups with a lot of history.</string>
     <string name="spectator_code_live_viewers">%1$d watching live now</string>
     <string name="spectator_code_copy">Copy code</string>
     <string name="spectator_code_copied">Code copied.</string>
@@ -487,7 +488,7 @@
     <string name="onboarding_team_size_seven_bench_hint">With 7 per team, one player (the libero or a middle blocker) stays on the bench for substitutions.</string>
     <string name="onboarding_add_players_instruction">Add at least %1$d people with the \"+\" button or import them from Data > Import</string>
     <string name="onboarding_profile_question">Which profile fits you best?</string>
-    <string name="onboarding_profile_hint">This only sets what shows up first here on the Cloud screen — you\'ll still see all your groups, and can switch views anytime.</string>
+    <string name="onboarding_profile_hint">This only sets what shows up first here on the Premium screen — you\'ll still see all your groups, and can switch views anytime.</string>
     <string name="onboarding_auth_required_title">Create your free account</string>
     <string name="onboarding_auth_required_hint">Group admins need a free account to keep their data safe and, later on, to sync groups in the cloud. You can keep using the app right away — you don\'t need to confirm your e-mail yet.</string>
     <string name="onboarding_spectator_auth_title">Want to save your progress?</string>

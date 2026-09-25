@@ -30,7 +30,20 @@ private const val FIELD_TEAM_B_COLOR = "teamBColorName"
 private const val FIELD_SPECTATOR_CODE = "spectatorCode"
 private const val FIELD_ACTIVE_ADMIN_DEVICE_ID = "activeAdminDeviceId"
 private const val FIELD_ACTIVE_ADMIN_SINCE = "activeAdminSince"
-private const val REMOTE_LIST_LIMIT = 100L
+/** `history-remote-list-limit`: antes fixado em 100, o que truncava silenciosamente grupos com
+ *  mais de 100 partidas publicadas (ex.: um grupo com meses de jogo facilmente passa de 300-400
+ *  partidas e milhares de logs de Elo) — Espectador/Auxiliar só enxergavam as ~100 partidas mais
+ *  recentes por `endTimestamp`, dando a falsa impressão de que a sincronização do histórico antigo
+ *  tinha "parado no meio". `eloLogs` cresce ~teamSize vezes mais rápido que `history` (um log por
+ *  jogador por partida), daí o limite bem maior. Ainda são limites, não leitura infinita, para
+ *  colocar algum teto no custo de uma única assinatura do Firestore.
+ */
+private const val REMOTE_HISTORY_LIST_LIMIT = 3000L
+/** O Firestore rejeita a consulta inteira (`INVALID_ARGUMENT: Limit value ... over the maximum
+ *  value of 10000`) se `.limit()` passar de 10 mil — não é só "sem efeito", a query inteira falha
+ *  e o listener nunca entrega nada (nem erro visível na UI), zerando silenciosamente jogos/
+ *  vitórias/aproveitamento de todo mundo. Fica no teto real do Firestore, nunca acima dele. */
+private const val REMOTE_ELO_LOGS_LIST_LIMIT = 10000L
 
 /** Jogador "enxuto" sincronizado em `liveState` — usa [publicId] (estável entre dispositivos) em
  *  vez do id local autoGenerate do Room, que não tem significado fora do aparelho de origem.
@@ -421,6 +434,96 @@ object CloudSyncManager {
         }
     }
 
+    /** Máximo de operações por `WriteBatch` do Firestore (limite real é 500; deixamos folga). */
+    private const val BATCH_CHUNK_SIZE = 450
+
+    /**
+     * `backfill-batched-writes`: publica todo o histórico pré-existente de uma vez só (em lotes de
+     * até [BATCH_CHUNK_SIZE] partidas por `WriteBatch.commit()`), em vez de uma escrita
+     * `.add()` sequencial por partida. Um grupo com algumas centenas/milhares de partidas levava
+     * minutos inteiros no modo sequencial antigo (um round-trip de rede por documento) — tempo
+     * suficiente para o processo ser encerrado pelo Android ou o usuário sair da tela antes do
+     * fim, deixando o histórico "pela metade" sem nenhum aviso (a mesma falha silenciosa que
+     * [history-backfill] tenta evitar). Cada lote é uma chamada de rede só, então algumas
+     * centenas de partidas viram poucas chamadas em vez de centenas. Retorna `true` só se todos
+     * os lotes confirmarem com sucesso — se algum falhar, quem chama sabe que o backfill ficou
+     * incompleto e não deve marcar [com.bismarck.voleimanager.app.data.model.GroupConfig.historyBackfilledAt].
+     */
+    suspend fun pushHistoryEntriesBatched(cloudGroupId: String, entries: List<RemoteHistoryEntry>): Boolean {
+        if (entries.isEmpty()) return true
+        val firestore = firestoreOrNull() ?: return false
+        val collection = groupDoc(firestore, cloudGroupId).collection(HISTORY_COLLECTION)
+        return entries.chunked(BATCH_CHUNK_SIZE).all { chunk ->
+            try {
+                suspendCancellableCoroutine<Boolean> { cont ->
+                    val batch = firestore.batch()
+                    chunk.forEach { entry ->
+                        batch.set(
+                            collection.document(),
+                            mapOf(
+                                "date" to entry.date,
+                                "teamA" to entry.teamA,
+                                "teamB" to entry.teamB,
+                                "winner" to entry.winner,
+                                "teamAScore" to entry.teamAScore,
+                                "teamBScore" to entry.teamBScore,
+                                "endTimestamp" to entry.endTimestamp,
+                                "startTimestamp" to entry.startTimestamp,
+                                "eloPoints" to entry.eloPoints,
+                                "teamAAverageElo" to entry.teamAAverageElo,
+                                "teamBAverageElo" to entry.teamBAverageElo
+                            )
+                        )
+                    }
+                    batch.commit()
+                        .addOnSuccessListener { cont.resume(true) }
+                        .addOnFailureListener { e ->
+                            Log.d(TAG, "Falha ao publicar lote de histórico (backfill): ${e.message}")
+                            cont.resume(false)
+                        }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Falha ao publicar lote de histórico (backfill): ${e.message}")
+                false
+            }
+        }
+    }
+
+    /** Publica todos os logs de Elo pré-existentes em lotes — ver [pushHistoryEntriesBatched]. */
+    suspend fun pushEloLogEntriesBatched(cloudGroupId: String, entries: List<RemoteEloLogEntry>): Boolean {
+        if (entries.isEmpty()) return true
+        val firestore = firestoreOrNull() ?: return false
+        val collection = groupDoc(firestore, cloudGroupId).collection(ELO_LOGS_COLLECTION)
+        return entries.chunked(BATCH_CHUNK_SIZE).all { chunk ->
+            try {
+                suspendCancellableCoroutine<Boolean> { cont ->
+                    val batch = firestore.batch()
+                    chunk.forEach { entry ->
+                        batch.set(
+                            collection.document(),
+                            mapOf(
+                                "playerNameSnapshot" to entry.playerNameSnapshot,
+                                "date" to entry.date,
+                                "elo" to entry.elo,
+                                "won" to entry.won,
+                                "endTimestamp" to entry.endTimestamp
+                            )
+                        )
+                    }
+                    batch.commit()
+                        .addOnSuccessListener { cont.resume(true) }
+                        .addOnFailureListener { e ->
+                            Log.d(TAG, "Falha ao publicar lote de elo (backfill): ${e.message}")
+                            cont.resume(false)
+                        }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Falha ao publicar lote de elo (backfill): ${e.message}")
+                false
+            }
+        }
+    }
+
     /** Observa as últimas partidas publicadas de [cloudGroupId] (mais recentes primeiro). Chamar
      *  apenas quando `visibility.shareHistoryWithObservers` estiver ligado — as security rules já
      *  bloqueiam a leitura do lado do servidor, mas evitamos a assinatura no client também. */
@@ -433,7 +536,7 @@ object CloudSyncManager {
         }
         val registration = groupDoc(firestore, cloudGroupId).collection(HISTORY_COLLECTION)
             .orderBy("endTimestamp", Query.Direction.DESCENDING)
-            .limit(REMOTE_LIST_LIMIT)
+            .limit(REMOTE_HISTORY_LIST_LIMIT)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.d(TAG, "Falha ao observar histórico remoto: ${error.message}")
@@ -472,7 +575,7 @@ object CloudSyncManager {
         }
         val registration = groupDoc(firestore, cloudGroupId).collection(ELO_LOGS_COLLECTION)
             .orderBy("endTimestamp", Query.Direction.DESCENDING)
-            .limit(REMOTE_LIST_LIMIT)
+            .limit(REMOTE_ELO_LOGS_LIST_LIMIT)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.d(TAG, "Falha ao observar elo remoto: ${error.message}")

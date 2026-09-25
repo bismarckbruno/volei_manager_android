@@ -4,16 +4,19 @@
    for details.
 -->
 <data-extraction-rules>
+    <!-- O banco Room (`volei_manager_db*`) guarda estado local ligado a sincronização em nuvem
+         (cloudGroupId, historyBackfilledAt, sessão de admin ativa, etc.) que só faz sentido para
+         ESTE dispositivo. Restaurar esse banco automaticamente ao reinstalar/trocar de aparelho
+         faz o app "voltar" com grupos/estado de sincronização de nuvem obsoletos (ex.: apontando
+         para um cloudGroupId já apagado no Firestore, ou pulando um backfill que precisava rodar
+         de novo), sem nenhum aviso ao usuário. Excluímos o domínio `database` de ambos os fluxos
+         de backup do Android (nuvem e transferência direta entre aparelhos) para sempre começar
+         com o banco local limpo; SharedPreferences (tema, preferências de exibição) continuam
+         sendo restauradas normalmente, pois não têm esse problema. -->
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="database" path="."/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="database" path="."/>
     </device-transfer>
-    -->
 </data-extraction-rules>

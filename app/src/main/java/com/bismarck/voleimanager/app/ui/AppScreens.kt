@@ -301,7 +301,7 @@ internal fun buildUniqueHistoryIdentifiers(allIdentifiers: List<PlayerIdentifier
     return uniquePlayerIdentifiers
 }
 
-private data class HistoryComputationResult(
+internal data class HistoryComputationResult(
     val sortedHistory: List<MatchHistory>,
     val matchDurationsMinutes: Map<Int, Int>,
     val averageMatchDurationMinutes: Int?,
@@ -317,7 +317,7 @@ private data class HistoryFilterIndex(
     val canonicalPlayersByMatchId: Map<Int, Set<String>>
 )
 
-private fun computeHistoryComputation(
+internal fun computeHistoryComputation(
     groupHistory: List<MatchHistory>,
     historyDate: String?,
     historyPlayerFilter: String?,

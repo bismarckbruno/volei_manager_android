@@ -134,6 +134,7 @@
     <string name="spectator_code_section_title">Código de invitación de espectador</string>
     <string name="spectator_code_section_hint">Cualquier persona con este código puede seguir este grupo en vivo como espectador. Nunca expira y no tiene límite de uso — compártelo una vez con todos los que deban seguir el grupo.</string>
     <string name="spectator_code_loading">Generando el código permanente del grupo…</string>
+    <string name="spectator_code_syncing_history">Subiendo el historial de partidas existente a la nube… esto puede tardar un poco en grupos con mucho historial.</string>
     <string name="spectator_code_live_viewers">%1$d viendo ahora</string>
     <string name="spectator_code_copy">Copiar código</string>
     <string name="spectator_code_copied">Código copiado.</string>
@@ -480,7 +481,7 @@
     <string name="onboarding_team_size_seven_bench_hint">Con 7 por equipo, un jugador (el líbero o un central) queda en el banco para las sustituciones.</string>
     <string name="onboarding_add_players_instruction">Agrega al menos %1$d personas con el botón \"+\" o impórtalas desde Datos > Importar</string>
     <string name="onboarding_profile_question">¿Con cuál perfil te identificas más?</string>
-    <string name="onboarding_profile_hint">Esto solo define lo que aparece primero aquí en la pantalla Nube — igual verás todos tus grupos, y puedes cambiar de versión cuando quieras.</string>
+    <string name="onboarding_profile_hint">Esto solo define lo que aparece primero aquí en la pantalla Premium — igual verás todos tus grupos, y puedes cambiar de versión cuando quieras.</string>
     <string name="onboarding_auth_required_title">Crea tu cuenta gratuita</string>
     <string name="onboarding_auth_required_hint">Los admins de grupo necesitan una cuenta gratuita para mantener sus datos a salvo y, más adelante, sincronizar grupos en la nube. Ya puedes seguir usando la app — no es necesario confirmar el correo todavía.</string>
     <string name="onboarding_spectator_auth_title">¿Quieres guardar tu progreso?</string>

@@ -134,6 +134,7 @@
     <string name="spectator_code_section_title">Código de convite de espectador</string>
     <string name="spectator_code_section_hint">Qualquer pessoa com este código pode acompanhar este grupo ao vivo como espectador. Ele não expira e não tem limite de uso — compartilhe com todos que devem acompanhar o grupo.</string>
     <string name="spectator_code_loading">Gerando o código permanente do grupo…</string>
+    <string name="spectator_code_syncing_history">Enviando o histórico de partidas já existente para a nuvem… isso pode demorar um pouco para grupos com muito histórico.</string>
     <string name="spectator_code_live_viewers">%1$d assistindo agora</string>
     <string name="spectator_code_copy">Copiar código</string>
     <string name="spectator_code_copied">Código copiado.</string>
@@ -481,7 +482,7 @@
     <string name="onboarding_team_size_seven_bench_hint">Com 7 por time, um jogador (o líbero ou um central) fica no banco de reserva para substituições.</string>
     <string name="onboarding_add_players_instruction">Adicione no mínimo %1$d pessoas no botão \"+\" ou importe em Dados > Importar</string>
     <string name="onboarding_profile_question">Em qual perfil você mais se encaixa?</string>
-    <string name="onboarding_profile_hint">Isso só define o que aparece primeiro aqui na tela Nuvem — você continua vendo todos os seus grupos, e pode trocar de versão quando quiser.</string>
+    <string name="onboarding_profile_hint">Isso só define o que aparece primeiro aqui na tela de \"Premium\" — você continua vendo todos os seus grupos, e pode trocar de versão quando quiser.</string>
     <string name="onboarding_auth_required_title">Crie sua conta gratuita</string>
     <string name="onboarding_auth_required_hint">Admins de grupo precisam de uma conta gratuita para manter os dados a salvo e, futuramente, sincronizar grupos na nuvem. Você já pode continuar usando o app — não é preciso confirmar o e-mail ainda.</string>
     <string name="onboarding_spectator_auth_title">Quer salvar seu progresso?</string>

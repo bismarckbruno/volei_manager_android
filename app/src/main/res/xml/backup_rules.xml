@@ -6,8 +6,7 @@
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Ver data_extraction_rules.xml (API 31+) — mesma exclusão para dispositivos mais antigos
+         (API 24-30), onde o Android usa este arquivo em vez de data-extraction-rules. -->
+    <exclude domain="database" path="."/>
 </full-backup-content>

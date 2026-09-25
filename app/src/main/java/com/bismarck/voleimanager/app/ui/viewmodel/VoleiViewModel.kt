@@ -968,6 +968,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         .stateIn(viewModelScope, screenDataSharing, emptyList())
 
     /**
+     * `retry-vs-inflight-activation`: nomes de grupo cuja ativação em nuvem (chamada ao backend +
+     * backfill do histórico pré-existente, ver [activateCloudGroupBackend]) ainda está em
+     * andamento — usado por [SpectatorCodeSection][com.bismarck.voleimanager.app.ui.CloudSyncScreen]
+     * para trocar o botão "Tentar novamente" por uma mensagem de status enquanto o envio inicial
+     * ainda está rodando, em vez de deixar o usuário disparar uma segunda chamada concorrente
+     * (que competia com a primeira pelos mesmos documentos do Firestore e podia deixar parte do
+     * histórico antigo sem subir).
+     */
+    private val _cloudActivationInProgress = MutableStateFlow<Set<String>>(emptySet())
+    val cloudActivationInProgress: StateFlow<Set<String>> = _cloudActivationInProgress.asStateFlow()
+
+    /**
      * Pacote real derivado das assinaturas ativas conhecidas pelo Play Billing neste aparelho
      * ([BillingManager.activeProductIds]) — [CloudPlanTier.MULTI] tem prioridade sobre
      * [CloudPlanTier.SINGLE] no caso (não esperado) de ambas aparecerem ativas ao mesmo tempo.
@@ -1162,17 +1174,30 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * ganhar o dono/entitlement exigido pelas regras do Firestore).
      */
     private suspend fun activateCloudGroupBackend(cloudGroupId: String, groupName: String) {
-        val backendError = CloudFunctionsManager.switchPremiumGroup(cloudGroupId, groupName)
-        if (backendError != null) {
-            Log.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
-            showMessage(getApplication<Application>().getString(R.string.cloud_sync_activation_error))
-        }
+        // Evita rodar duas ativações do mesmo grupo em paralelo (ex.: usuário aperta "Tentar
+        // novamente" enquanto a chamada original ainda está em andamento) — ver
+        // `retry-vs-inflight-activation`. Sem essa guarda, uma segunda chamada disparava um
+        // segundo `backfillGroupHistoryIfNeeded` concorrente com o primeiro, competindo pelos
+        // mesmos documentos do Firestore e deixando parte do histórico antigo sem subir.
+        if (groupName in _cloudActivationInProgress.value) return
+        _cloudActivationInProgress.update { it + groupName }
+        try {
+            val backendError = CloudFunctionsManager.switchPremiumGroup(cloudGroupId, groupName)
+            if (backendError != null) {
+                Log.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
+                showMessage(getApplication<Application>().getString(R.string.cloud_sync_activation_error))
+            }
 
-        // Reivindica este aparelho como administrador ativo (só se ninguém tiver reivindicado
-        // antes — ver `admin-session-transfer`) e sobe o histórico/Elo pré-existentes do grupo em
-        // segundo plano (só roda uma vez por grupo, ver `history-backfill`).
-        claimAdminSessionIfUnclaimed(cloudGroupId)
-        backfillGroupHistoryIfNeeded(groupName, cloudGroupId)
+            // Reivindica este aparelho como administrador ativo (só se ninguém tiver reivindicado
+            // antes — ver `admin-session-transfer`) e sobe o histórico/Elo pré-existentes do grupo
+            // (só roda uma vez por grupo, ver `history-backfill`) — aguardado aqui (em vez de
+            // apenas disparado) para que `_cloudActivationInProgress` só seja liberado quando o
+            // backfill de fato terminar.
+            claimAdminSessionIfUnclaimed(cloudGroupId)
+            backfillGroupHistoryIfNeeded(groupName, cloudGroupId).join()
+        } finally {
+            _cloudActivationInProgress.update { it - groupName }
+        }
     }
 
     /**
@@ -1220,14 +1245,21 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     /**
-     * `history-backfill`: na primeira vez que [groupName] é sincronizado, sobe em lote
-     * (sequencialmente, melhor esforço) todo o histórico de partidas e log de Elo que já existiam
-     * ANTES da sincronização — sem isso, um grupo com meses de jogo mostraria só as partidas
-     * futuras a partir de hoje para quem entrar como Espectador. Marca
-     * [GroupConfig.historyBackfilledAt] ao concluir, para nunca repetir o envio em reativações
-     * seguintes do toggle. [PlayerEloLog] não guarda `endTimestamp` (só a data em texto), então os
-     * logs de Elo antigos são publicados sem essa marca — a ordenação "mais recente" cai de volta
-     * pra ordem de chegada nesse caso específico (ver [RemoteEloLogEntry.endTimestamp]).
+     * `history-backfill`: na primeira vez que [groupName] é sincronizado, sobe em lotes (ver
+     * `backfill-batched-writes`, melhor esforço) todo o histórico de partidas e log de Elo que já
+     * existiam ANTES da sincronização — sem isso, um grupo com meses de jogo mostraria só as
+     * partidas futuras a partir de hoje para quem entrar como Espectador. Só marca
+     * [GroupConfig.historyBackfilledAt] quando TODOS os lotes de partidas e de logs confirmam com
+     * sucesso — se algum lote falhar (rede instável, processo encerrado no meio, etc.), o flag
+     * fica em branco de propósito, para uma próxima ativação/retry poder tentar de novo em vez de
+     * deixar o histórico permanentemente incompleto sem nenhum aviso. [PlayerEloLog] não guarda
+     * `endTimestamp` (só a data em texto) — publicá-lo como `null` fazia o Firestore excluir (ou
+     * ordenar de forma indefinida) esses documentos na consulta `orderBy("endTimestamp", ...)` de
+     * [com.bismarck.voleimanager.app.util.CloudSyncManager.observeEloLogs], zerando
+     * jogos/vitórias/aproveitamento (e embaralhando o Elo "mais recente" exibido) para TODO
+     * jogador sincronizado por backfill. [resolveEloLogEndTimestamps] reconstrói uma marca real
+     * casando cada log com a partida do mesmo dia em que o jogador aparece (ver
+     * [RemoteEloLogEntry.endTimestamp]).
      */
     private fun backfillGroupHistoryIfNeeded(groupName: String, cloudGroupId: String) = viewModelScope.launch(Dispatchers.IO) {
         val target = repository.getGroupConfig(groupName) ?: return@launch
@@ -1236,9 +1268,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val historyEntries = repository.getHistoryByGroupSync(groupName)
         val eloEntries = repository.getEloLogsByGroupSync(groupName)
 
-        historyEntries.forEach { match ->
-            CloudSyncManager.pushHistoryEntry(
-                cloudGroupId,
+        val historyOk = CloudSyncManager.pushHistoryEntriesBatched(
+            cloudGroupId,
+            historyEntries.map { match ->
                 RemoteHistoryEntry(
                     date = match.date,
                     teamA = match.teamA,
@@ -1252,19 +1284,24 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     teamAAverageElo = match.teamAAverageElo,
                     teamBAverageElo = match.teamBAverageElo
                 )
-            )
-        }
-        eloEntries.forEach { log ->
-            CloudSyncManager.pushEloLogEntry(
-                cloudGroupId,
+            }
+        )
+        val eloTimestamps = resolveEloLogEndTimestamps(eloEntries, historyEntries)
+        val eloOk = CloudSyncManager.pushEloLogEntriesBatched(
+            cloudGroupId,
+            eloEntries.mapIndexed { index, log ->
                 RemoteEloLogEntry(
                     playerNameSnapshot = log.playerNameSnapshot,
                     date = log.date,
                     elo = log.elo,
                     won = log.won ?: false,
-                    endTimestamp = null
+                    endTimestamp = eloTimestamps[index]
                 )
-            )
+            }
+        )
+        if (!historyOk || !eloOk) {
+            Log.d("VoleiViewModel", "Backfill de histórico incompleto para $groupName (historyOk=$historyOk, eloOk=$eloOk)")
+            return@launch
         }
 
         val now = System.currentTimeMillis()
@@ -4625,6 +4662,118 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         ).names
     }
 
+    /**
+     * `derive-won-from-history`: backups antigos (de antes do app registrar vitória/derrota em
+     * [PlayerEloLog.won]) chegam com `won == null` para cada log — sem essa reconstrução, a tela
+     * de Histórico ([computeHistoryComputation] em `AppScreens.kt`) contava `won == true` para
+     * vitórias, o que tratava silenciosamente todo log antigo sem essa marca como derrota (número
+     * de vitórias/porcentagem de aproveitamento errados, mesmo tendo o dado real disponível em
+     * [MatchHistory.winner]). Reconstrói `won` casando, para cada dia (`groupName` + `date`), os
+     * logs sem marca de um jogador com as partidas daquele dia em que esse jogador aparece em
+     * `teamA`/`teamB` — na mesma ordem relativa em que log e partida foram originalmente criados
+     * (um log é sempre gravado logo após a partida que o gerou, então a ordem de inserção
+     * preservada pelo backup casa 1:1 mesmo quando o mesmo jogador jogou várias partidas no
+     * mesmo dia). Logs que já têm `won` definido (backups mais novos) não são tocados.
+     */
+    private fun deriveMissingWonFromHistory(
+        logs: List<PlayerEloLog>,
+        history: List<MatchHistory>
+    ): List<PlayerEloLog> {
+        if (logs.none { it.won == null }) return logs
+        val matchDateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        val logDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        fun matchDayKey(rawDate: String): String? = try {
+            matchDateFormat.parse(rawDate)?.let { logDateFormat.format(it) }
+        } catch (_: Exception) {
+            null
+        }
+
+        fun teamCanonicalNames(namesCsv: String): Set<String> =
+            namesCsv.split(",").map { canonicalPersonName(it.trim()) }.filter { it.isNotEmpty() }.toSet()
+
+        // Partidas agrupadas por dia+grupo, na ordem original do backup (ordem de criação).
+        val matchesByGroupDay = mutableMapOf<Pair<String, String>, MutableList<MatchHistory>>()
+        history.forEach { match ->
+            val day = matchDayKey(match.date) ?: return@forEach
+            matchesByGroupDay.getOrPut(match.groupName to day) { mutableListOf() }.add(match)
+        }
+
+        // Cursor por (grupo, dia, jogador) para consumir as partidas daquele jogador em ordem.
+        val cursorByGroupDayPlayer = mutableMapOf<Triple<String, String, String>, Int>()
+
+        return logs.map { log ->
+            if (log.won != null) return@map log
+            val canonicalPlayer = canonicalPersonName(log.playerNameSnapshot)
+            val dayMatches = matchesByGroupDay[log.groupName to log.date] ?: return@map log
+            val relevantMatches = dayMatches.filter { match ->
+                canonicalPlayer in teamCanonicalNames(match.teamA) || canonicalPlayer in teamCanonicalNames(match.teamB)
+            }
+            if (relevantMatches.isEmpty()) return@map log
+            val cursorKey = Triple(log.groupName, log.date, canonicalPlayer)
+            val idx = (cursorByGroupDayPlayer[cursorKey] ?: 0).coerceAtMost(relevantMatches.lastIndex)
+            cursorByGroupDayPlayer[cursorKey] = idx + 1
+            val match = relevantMatches[idx]
+            val playedForTeamA = canonicalPlayer in teamCanonicalNames(match.teamA)
+            val won = (playedForTeamA && match.winner == "A") || (!playedForTeamA && match.winner == "B")
+            log.copy(won = won)
+        }
+    }
+
+    /**
+     * `eloLog-endTimestamp-backfill`: [PlayerEloLog] não guarda `endTimestamp` localmente, mas o
+     * documento remoto publicado por [backfillGroupHistoryIfNeeded] precisa de um valor real
+     * nesse campo — publicá-lo como `null` faz [com.bismarck.voleimanager.app.util.CloudSyncManager.observeEloLogs]
+     * (que usa `orderBy("endTimestamp", DESCENDING)`) tratar todos os logs de backfill como
+     * empatados/indefinidos entre si, o que tanto pode excluí-los da consulta quanto embaralhar
+     * qual é "o mais recente" (Elo atual errado, jogos/vitórias/aproveitamento zerados). Casa cada
+     * log com a partida do mesmo dia em que o jogador aparece (mesma lógica de cursor por
+     * `grupo+dia+jogador`, na ordem original, usada em [deriveMissingWonFromHistory]) e usa o
+     * `endTimestamp`/`startTimestamp` real dessa partida. Quando nem a partida casada tem essas
+     * marcas (backups muito antigos) ou não há partida correspondente, cai para a meia-noite do
+     * dia do log somado à posição do log naquele dia — só para garantir um valor não-nulo e
+     * distinto; a ordenação exata dentro do mesmo dia deixa de importar nesse caso extremo.
+     */
+    private fun resolveEloLogEndTimestamps(logs: List<PlayerEloLog>, history: List<MatchHistory>): List<Long> {
+        val matchDateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        val logDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        fun matchDayKey(rawDate: String): String? = try {
+            matchDateFormat.parse(rawDate)?.let { logDateFormat.format(it) }
+        } catch (_: Exception) {
+            null
+        }
+
+        fun teamCanonicalNames(namesCsv: String): Set<String> =
+            namesCsv.split(",").map { canonicalPersonName(it.trim()) }.filter { it.isNotEmpty() }.toSet()
+
+        val matchesByGroupDay = mutableMapOf<Pair<String, String>, MutableList<MatchHistory>>()
+        history.forEach { match ->
+            val day = matchDayKey(match.date) ?: return@forEach
+            matchesByGroupDay.getOrPut(match.groupName to day) { mutableListOf() }.add(match)
+        }
+
+        val cursorByGroupDayPlayer = mutableMapOf<Triple<String, String, String>, Int>()
+        return logs.map { log ->
+            val fallbackBase = try {
+                logDateFormat.parse(log.date)?.time
+            } catch (_: Exception) {
+                null
+            } ?: 0L
+            val canonicalPlayer = canonicalPersonName(log.playerNameSnapshot)
+            val dayMatches = matchesByGroupDay[log.groupName to log.date] ?: return@map fallbackBase
+            val relevantMatches = dayMatches.filter { match ->
+                canonicalPlayer in teamCanonicalNames(match.teamA) || canonicalPlayer in teamCanonicalNames(match.teamB)
+            }
+            if (relevantMatches.isEmpty()) return@map fallbackBase
+            val cursorKey = Triple(log.groupName, log.date, canonicalPlayer)
+            val idx = (cursorByGroupDayPlayer[cursorKey] ?: 0).coerceAtMost(relevantMatches.lastIndex)
+            cursorByGroupDayPlayer[cursorKey] = idx + 1
+            val match = relevantMatches[idx]
+            match.endTimestamp ?: match.startTimestamp ?: (fallbackBase + idx)
+        }
+    }
+
     fun importData(uri: Uri, type: CsvType, context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             if (type == CsvType.BACKUP_COMPLETO) {
@@ -4685,15 +4834,18 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             )
                         }
 
-                        val rawSafeLogs = backup.logs.map { l ->
-                            l.copy(
-                                id = 0,
-                                playerNameSnapshot = normalizePersonName(l.playerNameSnapshot)
-                                    .ifBlank { "Desconhecido" },
-                                date = l.date.take(20),
-                                groupName = normalizeGroupName(l.groupName)
-                            )
-                        }
+                        val rawSafeLogs = deriveMissingWonFromHistory(
+                            logs = backup.logs.map { l ->
+                                l.copy(
+                                    id = 0,
+                                    playerNameSnapshot = normalizePersonName(l.playerNameSnapshot)
+                                        .ifBlank { "Desconhecido" },
+                                    date = l.date.take(20),
+                                    groupName = normalizeGroupName(l.groupName)
+                                )
+                            },
+                            history = rawSafeHistory
+                        )
 
 
                         // Ids/publicIds do backup podem colidir com jogadores já existentes no

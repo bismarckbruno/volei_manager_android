@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SupervisorAccount
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
@@ -121,7 +122,7 @@ private fun UserProfileOptionCard(
         UserProfileType.ORGANIZADOR -> Triple(
             R.string.user_profile_organizer,
             R.string.user_profile_organizer_desc,
-            Icons.Filled.SupervisorAccount
+            Icons.Filled.Person
         )
         UserProfileType.AUXILIAR -> Triple(
             R.string.user_profile_assistant,
