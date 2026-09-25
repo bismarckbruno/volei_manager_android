@@ -1124,7 +1124,7 @@ internal fun PremiumPlansSection(
         ) {
             Column {
                 HorizontalDivider(
-                    Modifier.padding(vertical = 12.dp),
+                    Modifier.padding(vertical = 16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 )
 
@@ -1133,7 +1133,7 @@ internal fun PremiumPlansSection(
                         stringResource(R.string.premium_purchase_gating_banner),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
                 }
 

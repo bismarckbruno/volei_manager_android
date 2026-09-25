@@ -484,7 +484,7 @@
     <string name="onboarding_profile_question">Em qual perfil você mais se encaixa?</string>
     <string name="onboarding_profile_hint">Isso só define o que aparece primeiro aqui na tela de \"Premium\" — você continua vendo todos os seus grupos, e pode trocar de versão quando quiser.</string>
     <string name="onboarding_auth_required_title">Crie sua conta gratuita</string>
-    <string name="onboarding_auth_required_hint">Admins de grupo precisam de uma conta gratuita para manter os dados a salvo e, futuramente, sincronizar grupos na nuvem. Você já pode continuar usando o app — não é preciso confirmar o e-mail ainda.</string>
+    <string name="onboarding_auth_required_hint">Admins de grupo precisam de uma conta caso queiram manter os dados salvos na nuvem via assinatura de algum plano Premium. Caso não queira agora, pude pular esse passo.</string>
     <string name="onboarding_spectator_auth_title">Quer salvar seu progresso?</string>
     <string name="onboarding_spectator_auth_hint">Criar uma conta gratuita permite manter seu perfil se você trocar de celular, e será necessário mais tarde caso decida assinar o Premium. Esta etapa é opcional.</string>
     <string name="onboarding_spectator_join_title">Tem um código de convite de grupo?</string>

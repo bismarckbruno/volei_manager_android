@@ -490,7 +490,7 @@
     <string name="onboarding_profile_question">Which profile fits you best?</string>
     <string name="onboarding_profile_hint">This only sets what shows up first here on the Premium screen — you\'ll still see all your groups, and can switch views anytime.</string>
     <string name="onboarding_auth_required_title">Create your free account</string>
-    <string name="onboarding_auth_required_hint">Group admins need a free account to keep their data safe and, later on, to sync groups in the cloud. You can keep using the app right away — you don\'t need to confirm your e-mail yet.</string>
+    <string name="onboarding_auth_required_hint">Group admins need an account if they want to save their data to the cloud through a Premium plan subscription. If you\'d rather not do this now, you can skip this step.</string>
     <string name="onboarding_spectator_auth_title">Want to save your progress?</string>
     <string name="onboarding_spectator_auth_hint">Creating a free account lets you keep your profile if you switch phones, and is required later if you decide to subscribe to Premium. This step is optional.</string>
     <string name="onboarding_spectator_join_title">Have a group invite code?</string>

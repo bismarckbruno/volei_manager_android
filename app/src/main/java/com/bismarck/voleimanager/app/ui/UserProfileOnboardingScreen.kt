@@ -41,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -136,9 +137,11 @@ private fun UserProfileOptionCard(
         )
     }
 
+    val cardShape = RoundedCornerShape(20.dp)
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(cardShape)
             .combinedClickable(onClick = onSelect),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
@@ -147,7 +150,7 @@ private fun UserProfileOptionCard(
                 MaterialTheme.colorScheme.surfaceVariant
             }
         ),
-        shape = RoundedCornerShape(20.dp)
+        shape = cardShape
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
