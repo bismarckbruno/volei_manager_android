@@ -962,9 +962,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     /** Todos os grupos locais, para a tela de Nuvem listar candidatos à sincronização. */
     val allGroupConfigs: StateFlow<List<GroupConfig>> = _allGroupConfigs
 
-    /** Nomes dos grupos marcados como sincronizados em nuvem neste dispositivo. */
+    /**
+     * Nomes dos grupos **próprios** marcados como sincronizados em nuvem neste dispositivo —
+     * usado pela contagem "N de M grupos sincronizados" na aba Admin da tela Premium. Grupos
+     * remotos entrados via código (`remoteRole != null`, ex.: Espectador) também ficam com
+     * [GroupConfig.isCloudSynced] = true localmente (ver [joinRemoteGroup]), mas contam contra o
+     * limite do pacote de *quem administra* aquele grupo, não deste dispositivo — por isso são
+     * excluídos aqui e só aparecem na contagem de "Acompanhando N grupo(s) como espectador" da
+     * aba Espectador (ver [SpectatorLiveScreen][com.bismarck.voleimanager.app.ui.SpectatorLiveScreen]).
+     */
     val cloudSyncedGroupNames: StateFlow<List<String>> = _allGroupConfigs
-        .map { list -> list.filter { it.isCloudSynced }.map { it.groupName } }
+        .map { list -> list.filter { it.isCloudSynced && it.remoteRole == null }.map { it.groupName } }
         .stateIn(viewModelScope, screenDataSharing, emptyList())
 
     /**

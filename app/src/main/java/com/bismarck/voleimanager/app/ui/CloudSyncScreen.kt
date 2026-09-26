@@ -223,7 +223,11 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel, persona: PremiumScree
                 )
             } else {
                 Text(
-                    stringResource(R.string.live_screen_spectator_groups_count, espectadorGroups.size),
+                    pluralStringResource(
+                        R.plurals.live_screen_spectator_groups_count,
+                        espectadorGroups.size,
+                        espectadorGroups.size
+                    ),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(4.dp))

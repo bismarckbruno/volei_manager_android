@@ -76,9 +76,9 @@
     <string name="cloud_sync_status_inactive">Sem assinatura ativa</string>
     <string name="cloud_sync_tier_single">1 grupo</string>
     <string name="cloud_sync_tier_multi">Até 5 grupos</string>
-    <string name="cloud_sync_plan_single_title">1 grupo sincronizado</string>
+    <string name="cloud_sync_plan_single_title">Premium One: 1 grupo sincronizado</string>
     <string name="cloud_sync_plan_single_price">R$ 9,99/mês (Brasil) — valor pode variar</string>
-    <string name="cloud_sync_plan_multi_title">Até 5 grupos sincronizados</string>
+    <string name="cloud_sync_plan_multi_title">Premium Five: Até 5 grupos sincronizados</string>
     <string name="cloud_sync_plan_multi_price">R$ 19,99/mês (Brasil) — valor pode variar</string>
     <string name="cloud_sync_plan_single_annual_price">R$ 89,99/ano (equivalente a R$ 7,50/mês)</string>
     <string name="cloud_sync_plan_multi_annual_price">R$ 179,99/ano (equivalente a R$ 15,00/mês)</string>
@@ -247,7 +247,10 @@
     <string name="live_screen_spectator_title">Ao vivo</string>
     <string name="live_screen_spectator_no_group">Você ainda não entrou em nenhum grupo. Peça ao organizador um código de espectador e adicione pelo menu de grupos.</string>
     <string name="live_screen_spectator_placeholder">Acompanhando %1$s ao vivo.</string>
-    <string name="live_screen_spectator_groups_count">Acompanhando %1$d grupo(s) como espectador:</string>
+    <plurals name="live_screen_spectator_groups_count">
+        <item quantity="one">Acompanhando %1$d grupo como espectador:</item>
+        <item quantity="other">Acompanhando %1$d grupos como espectador:</item>
+    </plurals>
     <string name="live_screen_team_a_label">Time A</string>
     <string name="live_screen_team_b_label">Time B</string>
     <string name="live_screen_waiting_list_label">Fila de espera</string>
@@ -483,9 +486,9 @@
     <string name="onboarding_add_players_instruction">Adicione no mínimo %1$d pessoas no botão \"+\" ou importe em Dados > Importar</string>
     <string name="onboarding_profile_question">Em qual perfil você mais se encaixa?</string>
     <string name="onboarding_profile_hint">Isso só define o que aparece primeiro aqui na tela de \"Premium\" — você continua vendo todos os seus grupos, e pode trocar de versão quando quiser.</string>
-    <string name="onboarding_auth_required_title">Crie sua conta gratuita</string>
+    <string name="onboarding_auth_required_title">Crie uma conta</string>
     <string name="onboarding_auth_required_hint">Admins de grupo precisam de uma conta caso queiram manter os dados salvos na nuvem via assinatura de algum plano Premium. Caso não queira agora, pude pular esse passo.</string>
-    <string name="onboarding_spectator_auth_title">Quer salvar seu progresso?</string>
+    <string name="onboarding_spectator_auth_title">Crie uma conta</string>
     <string name="onboarding_spectator_auth_hint">Criar uma conta gratuita permite manter seu perfil se você trocar de celular, e será necessário mais tarde caso decida assinar o Premium. Esta etapa é opcional.</string>
     <string name="onboarding_spectator_join_title">Tem um código de convite de grupo?</string>
     <string name="onboarding_spectator_join_hint">Se um admin de grupo compartilhou um código com você, insira-o agora para entrar no grupo dele. Você também pode pular e explorar o app por conta própria.</string>
