@@ -82,14 +82,15 @@
     <string name="cloud_sync_plan_multi_price">R$ 19,99/mês (Brasil) — valor pode variar</string>
     <string name="cloud_sync_plan_single_annual_price">R$ 89,99/ano (equivalente a R$ 7,50/mês)</string>
     <string name="cloud_sync_plan_multi_annual_price">R$ 179,99/ano (equivalente a R$ 15,00/mês)</string>
-    <string name="cloud_sync_plan_annual_hint">Economize 3 meses assinando no plano anual</string>
     <string name="cloud_sync_price_per_month">%1$s/mês</string>
-    <string name="cloud_sync_plan_annual_price">ou %1$s/ano (equivalente a %2$s/mês)</string>
+    <string name="cloud_sync_plan_annual_price">%1$s/ano (equivalente a %2$s/mês)</string>
     <string name="cloud_sync_plan_subscribe">Assinar mensal</string>
     <string name="cloud_sync_plan_subscribe_annual">Assinar anual</string>
     <string name="cloud_sync_plan_active_badge">Ativo</string>
     <string name="cloud_sync_plan_coming_soon">Pagamento chega em breve</string>
     <string name="cloud_sync_cancel_subscription">Cancelar assinatura</string>
+    <string name="cloud_sync_plan_benefits_title">O que você ganha em qualquer plano premium</string>
+    <string name="cloud_sync_plan_benefits">• Sincronização em nuvem dos jogadores, placar ao vivo, histórico de partidas e Elo entre aparelhos\n• Um link ao vivo para espectadores acompanharem o jogo e o histórico sem precisar instalar nada\n• Cores de time personalizadas\n• Apoia diretamente o desenvolvimento e a manutenção contínua do app</string>
     <string name="cloud_sync_plan_offer_unavailable">Não foi possível carregar esse plano agora. Verifique sua conexão e tente novamente em instantes.</string>
     <string name="premium_purchase_gating_login_required">Faça login ou crie uma conta gratuita antes de assinar um plano premium.</string>
     <string name="premium_purchase_gating_verify_required">Confirme seu e-mail antes de assinar um plano premium — veja o link de confirmação na sua caixa de entrada, ou reenvie pelo seu perfil.</string>

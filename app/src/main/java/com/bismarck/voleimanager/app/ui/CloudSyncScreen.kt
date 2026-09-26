@@ -16,7 +16,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -1156,7 +1155,7 @@ internal fun PremiumPlansSection(
 
                 PlanOptionRow(
                     title = stringResource(R.string.cloud_sync_plan_single_title),
-                    price = singleMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
+                    monthlyPrice = singleMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
                         ?: stringResource(R.string.cloud_sync_plan_single_price),
                     selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
                     onSubscribeClick = activity?.let { act ->
@@ -1176,7 +1175,7 @@ internal fun PremiumPlansSection(
                 Spacer(Modifier.height(16.dp))
                 PlanOptionRow(
                     title = stringResource(R.string.cloud_sync_plan_multi_title),
-                    price = multiMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
+                    monthlyPrice = multiMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
                         ?: stringResource(R.string.cloud_sync_plan_multi_price),
                     selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
                     onSubscribeClick = activity?.let { act ->
@@ -1193,11 +1192,19 @@ internal fun PremiumPlansSection(
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
                     }
                 )
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                Spacer(Modifier.height(16.dp))
                 Text(
-                    stringResource(R.string.cloud_sync_plan_annual_hint),
+                    stringResource(R.string.cloud_sync_plan_benefits_title),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    stringResource(R.string.cloud_sync_plan_benefits),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 16.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
 
                 // Cancelamento real de assinatura é sempre feito pela própria Play Store (não há
@@ -1271,51 +1278,66 @@ private fun monthlyEquivalentFormatted(offer: SubscriptionOffer): String = try {
 @Composable
 private fun PlanOptionRow(
     title: String,
-    price: String,
+    monthlyPrice: String,
+    annualPrice: String,
     selected: Boolean,
     onSubscribeClick: (() -> Unit)?,
-    annualPrice: String? = null,
-    onSubscribeAnnualClick: (() -> Unit)? = null
+    onSubscribeAnnualClick: (() -> Unit)?
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-            Text(price, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text(
+            title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
         if (selected) {
             Text(
                 stringResource(R.string.cloud_sync_plan_active_badge),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(end = 8.dp)
+                color = MaterialTheme.colorScheme.primary
             )
         }
+    }
+    Spacer(Modifier.height(4.dp))
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            monthlyPrice,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            annualPrice,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f)
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         if (onSubscribeClick != null) {
             OutlinedButton(
                 onClick = onSubscribeClick,
-                modifier = Modifier.width(IntrinsicSize.Min)
+                modifier = Modifier.weight(1f)
             ) {
                 Text(stringResource(R.string.cloud_sync_plan_subscribe))
             }
         }
-    }
-    if (onSubscribeAnnualClick != null && annualPrice != null) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                annualPrice,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End,
-                modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)
-            )
-            TextButton(onClick = onSubscribeAnnualClick) {
+        if (onSubscribeAnnualClick != null) {
+            // Anual recebe mais destaque (botão preenchido) porque é a opção mais vantajosa por
+            // mês, incentivando quem já decidiu assinar a preferi-la em vez do mensal.
+            Button(
+                onClick = onSubscribeAnnualClick,
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(stringResource(R.string.cloud_sync_plan_subscribe_annual))
             }
         }

@@ -82,14 +82,15 @@
     <string name="cloud_sync_plan_multi_price">Approx. US$3.89/month, taxes not included — final price shown in your currency at checkout</string>
     <string name="cloud_sync_plan_single_annual_price">Approx. US$17.99/year (about US$1.50/month), taxes not included</string>
     <string name="cloud_sync_plan_multi_annual_price">Approx. US$34.99/year (about US$2.92/month), taxes not included</string>
-    <string name="cloud_sync_plan_annual_hint">Save 3 months by subscribing to the annual plan</string>
     <string name="cloud_sync_price_per_month">%1$s/month</string>
-    <string name="cloud_sync_plan_annual_price">or %1$s/year (about %2$s/month)</string>
+    <string name="cloud_sync_plan_annual_price">%1$s/year (about %2$s/month)</string>
     <string name="cloud_sync_plan_subscribe">Subscribe monthly</string>
     <string name="cloud_sync_plan_subscribe_annual">Subscribe annually</string>
     <string name="cloud_sync_plan_active_badge">Active</string>
     <string name="cloud_sync_plan_coming_soon">Payments are coming soon</string>
     <string name="cloud_sync_cancel_subscription">Cancel subscription</string>
+    <string name="cloud_sync_plan_benefits_title">What you get with any premium plan</string>
+    <string name="cloud_sync_plan_benefits">• Cloud sync for players, live scoreboard, match history, and Elo across devices\n• A live link so spectators can follow the game and history without installing anything\n• Custom team colors\n• Directly supports the app\'s ongoing development and maintenance</string>
     <string name="cloud_sync_plan_offer_unavailable">Couldn\'t load this plan right now. Check your connection and try again shortly.</string>
     <string name="premium_purchase_gating_login_required">Log in or create a free account first to subscribe to a premium plan.</string>
     <string name="premium_purchase_gating_verify_required">Confirm your e-mail before subscribing to a premium plan — check your inbox for the confirmation link, or resend it from your profile.</string>
