@@ -1033,6 +1033,33 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .putString("debug_premium_plan_tier", tier.name).apply()
     }
 
+    /**
+     * `premium-active-period`: último período (mensal/anual) selecionado pelo próprio usuário ao
+     * tocar em "Assinar" para cada produto ([BillingProductIds.SINGLE_GROUP]/[MULTI_GROUP]), só
+     * para exibir qual botão específico já foi assinado (ex.: "Premium Five anual ativo") — é um
+     * registro **local e otimista**, gravado no instante em que o fluxo de compra é lançado (ver
+     * [purchasePremiumPlan]), não confirmado pelo Play Billing (que, diferente do produto em si,
+     * não expõe qual plano base foi comprado em [Purchase][com.android.billingclient.api.Purchase]
+     * pelo lado do cliente). Fica desatualizado/ausente se a assinatura vier de uma reinstalação,
+     * troca de aparelho, ou de uma compra feita antes desta versão — nesses casos
+     * [effectivePremiumBasePlanId] simplesmente não sabe o período e a UI cai de volta no texto
+     * genérico sem "mensal"/"anual" (ver [PremiumPlansSection][com.bismarck.voleimanager.app.ui.PremiumPlansSection]).
+     */
+    private val _premiumBasePlanByProduct = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    /** Ver [_premiumBasePlanByProduct]. Período do pacote [effectivePremiumPlanTier] atualmente em
+     *  vigor, ou `null` quando desconhecido/sem assinatura ativa. */
+    val effectivePremiumBasePlanId: StateFlow<String?> = combine(
+        effectivePremiumPlanTier, _premiumBasePlanByProduct
+    ) { tier, basePlanByProduct ->
+        val productId = when (tier) {
+            CloudPlanTier.SINGLE -> BillingProductIds.SINGLE_GROUP
+            CloudPlanTier.MULTI -> BillingProductIds.MULTI_GROUP
+            CloudPlanTier.NONE -> null
+        }
+        productId?.let { basePlanByProduct[it] }
+    }.stateIn(viewModelScope, screenDataSharing, null)
+
     /** Ofertas de assinatura disponíveis na Play Store (preço já formatado/localizado), vindas do
      *  [BillingManager] — vazio até os produtos existirem no Play Console e o billing conectar. */
     val subscriptionOffers: StateFlow<List<SubscriptionOffer>> = BillingManager.offers
@@ -1080,9 +1107,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             return
         }
         val launched = BillingManager.launchPurchaseFlow(activity, offer)
-        if (!launched) {
+        if (launched) {
+            rememberSelectedBasePlan(offer.productId, annual)
+        } else {
             showMessage(app.getString(R.string.cloud_sync_plan_offer_unavailable))
         }
+    }
+
+    /** Ver [_premiumBasePlanByProduct]. */
+    private fun rememberSelectedBasePlan(productId: String, annual: Boolean) {
+        val basePlanId = if (annual) BillingProductIds.BASE_PLAN_ANNUAL else BillingProductIds.BASE_PLAN_MONTHLY
+        _premiumBasePlanByProduct.value = _premiumBasePlanByProduct.value + (productId to basePlanId)
+        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+            .putString("premium_base_plan_$productId", basePlanId).apply()
     }
 
     /** Reconsulta as assinaturas ativas conhecidas pela Play Store (ex.: ao o usuário voltar ao
@@ -2971,6 +3008,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 null
             }
         } ?: CloudPlanTier.SINGLE
+        _premiumBasePlanByProduct.value = listOf(BillingProductIds.SINGLE_GROUP, BillingProductIds.MULTI_GROUP)
+            .mapNotNull { productId -> prefs.getString("premium_base_plan_$productId", null)?.let { productId to it } }
+            .toMap()
         _personalTeamColorOverrideEnabled.value =
             prefs.getBoolean("personal_team_color_override_enabled", false)
         _personalTeamAColor.value =

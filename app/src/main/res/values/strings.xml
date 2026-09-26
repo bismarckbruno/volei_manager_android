@@ -73,9 +73,14 @@
     <string name="cloud_sync_screen_intro">Share the live scoreboard, teams, and history of this group in real time with players, on any device.</string>
     <string name="cloud_sync_status_title">Subscription</string>
     <string name="cloud_sync_status_active">Premium active — %1$s</string>
+    <string name="cloud_sync_status_active_with_period">%1$s %2$s active</string>
     <string name="cloud_sync_status_inactive">No active subscription</string>
     <string name="cloud_sync_tier_single">1 group</string>
     <string name="cloud_sync_tier_multi">Up to 5 groups</string>
+    <string name="cloud_sync_period_monthly">monthly</string>
+    <string name="cloud_sync_period_annual">annual</string>
+    <string name="cloud_sync_plan_single_name">Premium One</string>
+    <string name="cloud_sync_plan_multi_name">Premium Five</string>
     <string name="cloud_sync_plan_single_title">Premium One: 1 synced group</string>
     <string name="cloud_sync_plan_single_price">Approx. US$1.89/month, taxes not included — final price shown in your currency at checkout</string>
     <string name="cloud_sync_plan_multi_title">Premium Five: Up to 5 synced groups</string>
@@ -86,6 +91,7 @@
     <string name="cloud_sync_plan_annual_price">%1$s/year (about %2$s/month)</string>
     <string name="cloud_sync_plan_subscribe">Subscribe monthly</string>
     <string name="cloud_sync_plan_subscribe_annual">Subscribe annually</string>
+    <string name="cloud_sync_plan_subscribed">Subscribed</string>
     <string name="cloud_sync_plan_active_badge">Active</string>
     <string name="cloud_sync_plan_coming_soon">Payments are coming soon</string>
     <string name="cloud_sync_cancel_subscription">Cancel subscription</string>

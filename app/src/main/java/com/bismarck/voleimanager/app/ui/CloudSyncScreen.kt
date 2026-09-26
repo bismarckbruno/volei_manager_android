@@ -1044,6 +1044,7 @@ internal fun PremiumPlansSection(
     val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
     val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
     val effectivePlanTier by viewModel.effectivePremiumPlanTier.collectAsState()
+    val effectiveBasePlanId by viewModel.effectivePremiumBasePlanId.collectAsState()
     val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
     val canPurchasePremium by viewModel.canPurchasePremium.collectAsState()
     val activity = LocalContext.current as? Activity
@@ -1103,14 +1104,38 @@ internal fun PremiumPlansSection(
         }
         Text(
             if (hasPremiumAccess) {
-                val tierLabel = stringResource(
-                    if (effectivePlanTier == CloudPlanTier.MULTI) {
-                        R.string.cloud_sync_tier_multi
-                    } else {
-                        R.string.cloud_sync_tier_single
+                val planNameRes = if (effectivePlanTier == CloudPlanTier.MULTI) {
+                    R.string.cloud_sync_plan_multi_name
+                } else {
+                    R.string.cloud_sync_plan_single_name
+                }
+                when (effectiveBasePlanId) {
+                    // Período (mensal/anual) só é conhecido de forma otimista/local (ver
+                    // VoleiViewModel.effectivePremiumBasePlanId) — sem ele, cai no texto genérico
+                    // "Premium ativo — Até 5 grupos" de antes.
+                    BillingProductIds.BASE_PLAN_ANNUAL, BillingProductIds.BASE_PLAN_MONTHLY -> {
+                        val periodRes = if (effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL) {
+                            R.string.cloud_sync_period_annual
+                        } else {
+                            R.string.cloud_sync_period_monthly
+                        }
+                        stringResource(
+                            R.string.cloud_sync_status_active_with_period,
+                            stringResource(planNameRes),
+                            stringResource(periodRes)
+                        )
                     }
-                )
-                stringResource(R.string.cloud_sync_status_active, tierLabel)
+                    else -> {
+                        val tierLabel = stringResource(
+                            if (effectivePlanTier == CloudPlanTier.MULTI) {
+                                R.string.cloud_sync_tier_multi
+                            } else {
+                                R.string.cloud_sync_tier_single
+                            }
+                        )
+                        stringResource(R.string.cloud_sync_status_active, tierLabel)
+                    }
+                }
             } else {
                 stringResource(R.string.cloud_sync_status_inactive)
             },
@@ -1129,7 +1154,7 @@ internal fun PremiumPlansSection(
         ) {
             Column {
                 HorizontalDivider(
-                    Modifier.padding(vertical = 16.dp),
+                    Modifier.padding(top = 8.dp, bottom = 16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 )
 
@@ -1155,11 +1180,15 @@ internal fun PremiumPlansSection(
                     it.productId == BillingProductIds.MULTI_GROUP && it.basePlanId == BillingProductIds.BASE_PLAN_ANNUAL
                 }
 
+                val singleActive = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE
+                val multiActive = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI
+
                 PlanOptionRow(
                     title = stringResource(R.string.cloud_sync_plan_single_title),
                     monthlyPrice = singleMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
                         ?: stringResource(R.string.cloud_sync_plan_single_price),
-                    selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.SINGLE,
+                    selected = singleActive,
+                    monthlySubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
                     onSubscribeClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
                     },
@@ -1170,6 +1199,7 @@ internal fun PremiumPlansSection(
                             monthlyEquivalentFormatted(it)
                         )
                     } ?: stringResource(R.string.cloud_sync_plan_single_annual_price),
+                    annualSubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
                     onSubscribeAnnualClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
                     }
@@ -1179,7 +1209,8 @@ internal fun PremiumPlansSection(
                     title = stringResource(R.string.cloud_sync_plan_multi_title),
                     monthlyPrice = multiMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
                         ?: stringResource(R.string.cloud_sync_plan_multi_price),
-                    selected = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI,
+                    selected = multiActive,
+                    monthlySubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
                     onSubscribeClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
                     },
@@ -1190,13 +1221,14 @@ internal fun PremiumPlansSection(
                             monthlyEquivalentFormatted(it)
                         )
                     } ?: stringResource(R.string.cloud_sync_plan_multi_annual_price),
+                    annualSubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
                     onSubscribeAnnualClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
                     }
                 )
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
                 Text(
                     stringResource(R.string.cloud_sync_plan_benefits_title),
                     style = MaterialTheme.typography.bodyMedium,
@@ -1279,7 +1311,9 @@ private fun PlanOptionRow(
     monthlyPrice: String,
     annualPrice: String,
     selected: Boolean,
+    monthlySubscribed: Boolean,
     onSubscribeClick: (() -> Unit)?,
+    annualSubscribed: Boolean,
     onSubscribeAnnualClick: (() -> Unit)?
 ) {
     Row(
@@ -1322,11 +1356,20 @@ private fun PlanOptionRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (onSubscribeClick != null) {
+            // Já assinado neste período/produto: desabilita e troca o rótulo para "Assinado" em
+            // vez de deixar o botão convidando a comprar de novo (ver `premium-active-period`).
             OutlinedButton(
                 onClick = onSubscribeClick,
+                enabled = !monthlySubscribed,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(stringResource(R.string.cloud_sync_plan_subscribe))
+                Text(
+                    if (monthlySubscribed) {
+                        stringResource(R.string.cloud_sync_plan_subscribed)
+                    } else {
+                        stringResource(R.string.cloud_sync_plan_subscribe)
+                    }
+                )
             }
         }
         if (onSubscribeAnnualClick != null) {
@@ -1334,9 +1377,16 @@ private fun PlanOptionRow(
             // mês, incentivando quem já decidiu assinar a preferi-la em vez do mensal.
             Button(
                 onClick = onSubscribeAnnualClick,
+                enabled = !annualSubscribed,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(stringResource(R.string.cloud_sync_plan_subscribe_annual))
+                Text(
+                    if (annualSubscribed) {
+                        stringResource(R.string.cloud_sync_plan_subscribed)
+                    } else {
+                        stringResource(R.string.cloud_sync_plan_subscribe_annual)
+                    }
+                )
             }
         }
     }

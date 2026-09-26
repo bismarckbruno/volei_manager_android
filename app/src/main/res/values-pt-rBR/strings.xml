@@ -73,9 +73,14 @@
     <string name="cloud_sync_screen_intro">Compartilhe o placar, times e histórico deste grupo em tempo real com os jogadores, em qualquer dispositivo.</string>
     <string name="cloud_sync_status_title">Assinatura</string>
     <string name="cloud_sync_status_active">Premium ativo — %1$s</string>
+    <string name="cloud_sync_status_active_with_period">%1$s %2$s ativo</string>
     <string name="cloud_sync_status_inactive">Sem assinatura ativa</string>
     <string name="cloud_sync_tier_single">1 grupo</string>
     <string name="cloud_sync_tier_multi">Até 5 grupos</string>
+    <string name="cloud_sync_period_monthly">mensal</string>
+    <string name="cloud_sync_period_annual">anual</string>
+    <string name="cloud_sync_plan_single_name">Premium One</string>
+    <string name="cloud_sync_plan_multi_name">Premium Five</string>
     <string name="cloud_sync_plan_single_title">Premium One: 1 grupo sincronizado</string>
     <string name="cloud_sync_plan_single_price">R$ 9,99/mês (Brasil) — valor pode variar</string>
     <string name="cloud_sync_plan_multi_title">Premium Five: Até 5 grupos sincronizados</string>
@@ -86,6 +91,7 @@
     <string name="cloud_sync_plan_annual_price">%1$s/ano (equivalente a %2$s/mês)</string>
     <string name="cloud_sync_plan_subscribe">Assinar mensal</string>
     <string name="cloud_sync_plan_subscribe_annual">Assinar anual</string>
+    <string name="cloud_sync_plan_subscribed">Assinado</string>
     <string name="cloud_sync_plan_active_badge">Ativo</string>
     <string name="cloud_sync_plan_coming_soon">Pagamento chega em breve</string>
     <string name="cloud_sync_cancel_subscription">Cancelar assinatura</string>
