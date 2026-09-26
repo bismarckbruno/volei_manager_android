@@ -416,7 +416,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         if (isSpectatorOfCurrentGroup) {
             showAddPlayerDialog = false
             showExportDialog = false
-            showImportDialog = false
             showConfigDialog = false
         }
     }
@@ -659,7 +658,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         )
     }
 
-    if (showImportDialog && !isSpectatorOfCurrentGroup) {
+    if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
             title = { Text(stringResource(R.string.import_data)) },
@@ -1404,17 +1403,23 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         true; scope.launch { drawerState.close() }
                                 }
                             )
-                            FlexibleDrawerItem(
-                                icon = { Icon(Icons.Outlined.FileDownload, null) },
-                                label = { Text(stringResource(R.string.import_text)) },
-                                selected = false,
-                                onClick = {
-                                    showImportCsvAdvanced = false
-                                    showImportDialog =
-                                        true; scope.launch { drawerState.close() }
-                                }
-                            )
                         }
+                        // Diferente de Exportar (que opera sobre o grupo remoto atualmente
+                        // selecionado), Importar sempre cria/atualiza um grupo a partir do nome
+                        // gravado no próprio arquivo (.vlz/.xlsx) — nunca o grupo ao vivo que o
+                        // Espectador está acompanhando (ver [VoleiViewModel.importData] e
+                        // `finalizeGroupImport`) — por isso continua disponível mesmo assistindo
+                        // a um grupo como Espectador.
+                        FlexibleDrawerItem(
+                            icon = { Icon(Icons.Outlined.FileDownload, null) },
+                            label = { Text(stringResource(R.string.import_text)) },
+                            selected = false,
+                            onClick = {
+                                showImportCsvAdvanced = false
+                                showImportDialog =
+                                    true; scope.launch { drawerState.close() }
+                            }
+                        )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.Info, null) },
                             label = { Text(stringResource(R.string.telemetry_consent_menu_item)) },

@@ -89,8 +89,11 @@
     <string name="cloud_sync_plan_active_badge">Activo</string>
     <string name="cloud_sync_plan_coming_soon">Los pagos llegarán pronto</string>
     <string name="cloud_sync_cancel_subscription">Cancelar suscripción</string>
-    <string name="cloud_sync_plan_benefits_title">Lo que obtienes con cualquier plan premium</string>
-    <string name="cloud_sync_plan_benefits">• Sincronización en la nube de jugadores, marcador en vivo, historial de partidos y Elo entre dispositivos\n• Un enlace en vivo para que los espectadores sigan el partido y el historial sin instalar nada\n• Colores de equipo personalizados\n• Apoya directamente el desarrollo y mantenimiento continuo de la app</string>
+    <string name="cloud_sync_plan_benefits_title">Lo que obtienes con cualquier plan premium:</string>
+    <string name="cloud_sync_plan_benefit_sync">Sincronización en la nube de jugadores, marcador en vivo, historial de partidos y Elo entre dispositivos;</string>
+    <string name="cloud_sync_plan_benefit_code">Un código permanente para que los espectadores sigan el partido y el historial en vivo directamente en la app;</string>
+    <string name="cloud_sync_plan_benefit_colors">Colores de equipo personalizados;</string>
+    <string name="cloud_sync_plan_benefit_support">Apoya directamente el desarrollo y mantenimiento continuo de la app.</string>
     <string name="cloud_sync_plan_offer_unavailable">No se pudo cargar este plan ahora. Revisa tu conexión e inténtalo de nuevo en un momento.</string>
     <string name="premium_purchase_gating_login_required">Inicia sesión o crea una cuenta gratuita antes de suscribirte a un plan premium.</string>
     <string name="premium_purchase_gating_verify_required">Confirma tu correo antes de suscribirte a un plan premium — revisa el enlace de confirmación en tu bandeja de entrada, o reenvíalo desde tu perfil.</string>

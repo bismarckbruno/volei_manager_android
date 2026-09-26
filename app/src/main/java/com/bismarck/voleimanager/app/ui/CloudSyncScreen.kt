@@ -29,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CloudDone
@@ -75,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -1200,12 +1202,8 @@ internal fun PremiumPlansSection(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    stringResource(R.string.cloud_sync_plan_benefits),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                Spacer(Modifier.height(8.dp))
+                PremiumPlanBenefitsChecklist()
 
                 // Cancelamento real de assinatura é sempre feito pela própria Play Store (não há
                 // API pública de cliente para cancelar do lado do app) — abre a tela de gestão de
@@ -1339,6 +1337,41 @@ private fun PlanOptionRow(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(stringResource(R.string.cloud_sync_plan_subscribe_annual))
+            }
+        }
+    }
+}
+
+/** Lista de benefícios comuns a qualquer plano premium, com o mesmo padrão visual de checkmark
+ *  verde usado em [com.bismarck.voleimanager.app.ui.components.Dialogs.ChangePasswordDialog]'s
+ *  password-requirements checklist — aqui todos os itens já estão sempre "atendidos" (não há
+ *  progresso condicional, é só uma lista de vantagens). */
+@Composable
+private fun PremiumPlanBenefitsChecklist(modifier: Modifier = Modifier) {
+    val benefits = listOf(
+        R.string.cloud_sync_plan_benefit_sync,
+        R.string.cloud_sync_plan_benefit_code,
+        R.string.cloud_sync_plan_benefit_colors,
+        R.string.cloud_sync_plan_benefit_support
+    )
+    Column(modifier = modifier) {
+        benefits.forEach { benefitRes ->
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color(0xFF2E7D32),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(benefitRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
