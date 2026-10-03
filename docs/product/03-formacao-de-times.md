@@ -58,6 +58,8 @@ flowchart TD
     subgraph S27["27 presentes"]
         A27["27 presentes"] --> B27["Time A: 6 · Time B: 6"] --> C27["Fila: 15<br/>(2 times completos + 3 avulsos)"]
     end
+
+    S12 ~~~ S15 ~~~ S18 ~~~ S21 ~~~ S24 ~~~ S27
 ```
 
 > A quantidade de "times completos esperando" (fila dividida por `teamSize`) importa de verdade
