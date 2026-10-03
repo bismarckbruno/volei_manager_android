@@ -388,11 +388,13 @@ object CloudSyncManager {
     // ---------------------------------------------------------------------------------------
 
     /** Publica uma partida finalizada (melhor esforço). Chamado uma vez por partida — pode
-     *  esperar a confirmação sem custo perceptível. */
-    suspend fun pushHistoryEntry(cloudGroupId: String, entry: RemoteHistoryEntry) {
-        val firestore = firestoreOrNull() ?: return
-        try {
-            suspendCancellableCoroutine<Unit> { cont ->
+     *  esperar a confirmação sem custo perceptível. Retorna o id do documento criado (nulo se a
+     *  publicação falhar), guardado temporariamente para permitir apagar o registro remoto caso
+     *  a partida seja desfeita em seguida (`undo-last-match`). */
+    suspend fun pushHistoryEntry(cloudGroupId: String, entry: RemoteHistoryEntry): String? {
+        val firestore = firestoreOrNull() ?: return null
+        return try {
+            suspendCancellableCoroutine { cont ->
                 groupDoc(firestore, cloudGroupId).collection(HISTORY_COLLECTION).add(
                     mapOf(
                         "date" to entry.date,
@@ -407,18 +409,37 @@ object CloudSyncManager {
                         "teamAAverageElo" to entry.teamAAverageElo,
                         "teamBAverageElo" to entry.teamBAverageElo
                     )
-                ).addOnCompleteListener { cont.resume(Unit) }
+                ).addOnCompleteListener { task ->
+                    cont.resume(if (task.isSuccessful) task.result?.id else null)
+                }
             }
         } catch (e: Exception) {
             Log.d(TAG, "Falha ao publicar histórico (best-effort): ${e.message}")
+            null
         }
     }
 
-    /** Publica uma entrada de Elo (melhor esforço), ver [pushHistoryEntry]. */
-    suspend fun pushEloLogEntry(cloudGroupId: String, entry: RemoteEloLogEntry) {
+    /** Apaga uma entrada de histórico publicada anteriormente (melhor esforço;
+     *  `undo-last-match`). */
+    suspend fun deleteHistoryEntry(cloudGroupId: String, docId: String) {
         val firestore = firestoreOrNull() ?: return
         try {
             suspendCancellableCoroutine<Unit> { cont ->
+                groupDoc(firestore, cloudGroupId).collection(HISTORY_COLLECTION).document(docId)
+                    .delete()
+                    .addOnCompleteListener { cont.resume(Unit) }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Falha ao apagar histórico remoto (best-effort): ${e.message}")
+        }
+    }
+
+    /** Publica uma entrada de Elo (melhor esforço), ver [pushHistoryEntry]. Retorna o id do
+     *  documento criado (nulo se a publicação falhar). */
+    suspend fun pushEloLogEntry(cloudGroupId: String, entry: RemoteEloLogEntry): String? {
+        val firestore = firestoreOrNull() ?: return null
+        return try {
+            suspendCancellableCoroutine { cont ->
                 groupDoc(firestore, cloudGroupId).collection(ELO_LOGS_COLLECTION).add(
                     mapOf(
                         "playerNameSnapshot" to entry.playerNameSnapshot,
@@ -427,10 +448,32 @@ object CloudSyncManager {
                         "won" to entry.won,
                         "endTimestamp" to entry.endTimestamp
                     )
-                ).addOnCompleteListener { cont.resume(Unit) }
+                ).addOnCompleteListener { task ->
+                    cont.resume(if (task.isSuccessful) task.result?.id else null)
+                }
             }
         } catch (e: Exception) {
             Log.d(TAG, "Falha ao publicar log de elo (best-effort): ${e.message}")
+            null
+        }
+    }
+
+    /** Apaga, em lote, logs de elo publicados anteriormente (melhor esforço;
+     *  `undo-last-match`). */
+    suspend fun deleteEloLogEntries(cloudGroupId: String, docIds: List<String>) {
+        if (docIds.isEmpty()) return
+        val firestore = firestoreOrNull() ?: return
+        val collection = groupDoc(firestore, cloudGroupId).collection(ELO_LOGS_COLLECTION)
+        try {
+            docIds.chunked(BATCH_CHUNK_SIZE).forEach { chunk ->
+                suspendCancellableCoroutine<Unit> { cont ->
+                    val batch = firestore.batch()
+                    chunk.forEach { docId -> batch.delete(collection.document(docId)) }
+                    batch.commit().addOnCompleteListener { cont.resume(Unit) }
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Falha ao apagar logs de elo remotos (best-effort): ${e.message}")
         }
     }
 

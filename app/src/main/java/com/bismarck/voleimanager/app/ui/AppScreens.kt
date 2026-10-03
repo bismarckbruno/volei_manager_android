@@ -1916,6 +1916,20 @@ fun HistoryPlayerCard(
     }
     val playedTimeText = formatPlayedDuration(playedMinutes)
 
+    // Destaca ícone+valor da estatística correspondente à ordenação ativa com a cor primária
+    // (bom contraste sobre `surfaceVariant`) — nome e porcentagem só trocam de cor (já são
+    // sempre em negrito/semi-negrito), as demais estatísticas também ganham negrito.
+    val neutralStatColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val highlightStatColor = MaterialTheme.colorScheme.primary
+    val nameColor = if (playerSortMode == PlayerSortMode.ALPHABETICAL) highlightStatColor else Color.Unspecified
+    val eloColor = if (playerSortMode == PlayerSortMode.ELO) highlightStatColor else neutralStatColor
+    val eloWeight = if (playerSortMode == PlayerSortMode.ELO) FontWeight.Bold else FontWeight.Normal
+    val playedTimeColor = if (playerSortMode == PlayerSortMode.PLAYED_TIME) highlightStatColor else neutralStatColor
+    val playedTimeWeight = if (playerSortMode == PlayerSortMode.PLAYED_TIME) FontWeight.Bold else FontWeight.Normal
+    val percentageColor = if (playerSortMode == PlayerSortMode.PERCENTAGE) highlightStatColor else neutralStatColor
+    val victoriesHighlighted = playerSortMode == PlayerSortMode.VICTORIES
+    val gamesHighlighted = playerSortMode == PlayerSortMode.GAMES
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2002,7 +2016,8 @@ fun HistoryPlayerCard(
                                     Text(
                                         player.name,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
+                                        color = nameColor
                                     )
                                     if (usesPositions) {
                                         PlayerPositionBadges(
@@ -2021,7 +2036,7 @@ fun HistoryPlayerCard(
                                     }
                                 }
 
-                                VictoriesAndGamesRow(victories, gamesPlayed)
+                                VictoriesAndGamesRow(victories, gamesPlayed, victoriesHighlighted, gamesHighlighted)
                             }
 
                             if (showElo) {
@@ -2030,13 +2045,14 @@ fun HistoryPlayerCard(
                                         Icons.Default.WorkspacePremium,
                                         contentDescription = null,
                                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = eloColor
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
                                         EloCalculator.formatElo(displayElo),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        fontWeight = eloWeight,
+                                        color = eloColor
                                     )
                                 }
                             }
@@ -2048,13 +2064,14 @@ fun HistoryPlayerCard(
                                         Icons.Default.AccessTime,
                                         contentDescription = null,
                                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = playedTimeColor
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
                                         playedTimeText,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        fontWeight = playedTimeWeight,
+                                        color = playedTimeColor
                                     )
                                 }
 
@@ -2063,13 +2080,13 @@ fun HistoryPlayerCard(
                                         "$percentageFormatted",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = percentageColor
                                     )
                                     Icon(
                                         Icons.Default.Percent,
                                         contentDescription = null,
                                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = percentageColor
                                     )
                                 }
                             }
@@ -2083,7 +2100,8 @@ fun HistoryPlayerCard(
                                 Text(
                                     player.name,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    color = nameColor
                                 )
                                 if (usesPositions) {
                                     PlayerPositionBadges(
@@ -2107,13 +2125,14 @@ fun HistoryPlayerCard(
                                         Icons.Default.WorkspacePremium,
                                         contentDescription = null,
                                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = eloColor
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
                                         EloCalculator.formatElo(displayElo),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        fontWeight = eloWeight,
+                                        color = eloColor
                                     )
                                 }
                             }
@@ -2123,30 +2142,31 @@ fun HistoryPlayerCard(
                                     Icons.Default.AccessTime,
                                     contentDescription = null,
                                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = playedTimeColor
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
                                     playedTimeText,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    fontWeight = playedTimeWeight,
+                                    color = playedTimeColor
                                 )
                             }
 
-                            VictoriesAndGamesRow(victories, gamesPlayed)
+                            VictoriesAndGamesRow(victories, gamesPlayed, victoriesHighlighted, gamesHighlighted)
 
                             Row(verticalAlignment = Alignment.CenterVertically){
                                 Text(
                                     "$percentageFormatted",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = percentageColor
                                 )
                                 Icon(
                                     Icons.Default.Percent,
                                     contentDescription = null,
                                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = percentageColor
                                 )
                             }
                         }
@@ -2159,33 +2179,46 @@ fun HistoryPlayerCard(
 }
 
 @Composable
-private fun VictoriesAndGamesRow(victories: Int, gamesPlayed: Int) {
+private fun VictoriesAndGamesRow(
+    victories: Int,
+    gamesPlayed: Int,
+    victoriesHighlighted: Boolean = false,
+    gamesHighlighted: Boolean = false
+) {
     val iconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
+    val neutralColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val highlightColor = MaterialTheme.colorScheme.primary
+    val victoriesColor = if (victoriesHighlighted) highlightColor else neutralColor
+    val victoriesWeight = if (victoriesHighlighted) FontWeight.Bold else FontWeight.Normal
+    val gamesColor = if (gamesHighlighted) highlightColor else neutralColor
+    val gamesWeight = if (gamesHighlighted) FontWeight.Bold else FontWeight.Normal
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painter = painterResource(R.drawable.crown_icon),
             contentDescription = null,
             modifier = Modifier.size(iconSize),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = victoriesColor
         )
         Spacer(Modifier.width(2.dp))
         Text(
             victories.toString(),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontWeight = victoriesWeight,
+            color = victoriesColor
         )
         Spacer(Modifier.width(12.dp))
         Icon(
             painter = painterResource(R.drawable.volei_manager_icon),
             contentDescription = null,
             modifier = Modifier.size(iconSize),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = gamesColor
         )
         Spacer(Modifier.width(2.dp))
         Text(
             gamesPlayed.toString(),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontWeight = gamesWeight,
+            color = gamesColor
         )
     }
 }

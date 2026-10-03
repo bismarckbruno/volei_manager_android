@@ -334,6 +334,7 @@
     <string name="clear_match_title">¿Limpiar partido actual?</string>
     <string name="cancel_match">¿Cancelar partido?</string>
     <string name="clear_match">Limpiar partido actual</string>
+    <string name="undo_last_match">Deshacer última victoria</string>
     <string name="cancel_match_action">Cancelar partido</string>
     <string name="by_percentage">Por porcentaje</string>
     <string name="send_feedback">Enviar comentarios</string>

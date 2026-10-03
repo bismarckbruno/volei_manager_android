@@ -92,12 +92,18 @@ class VoleiRepository(private val voleiDao: com.bismarck.voleimanager.app.data.V
     suspend fun deletePlayer(player: com.bismarck.voleimanager.app.data.model.Player) = voleiDao.deletePlayer(player)
 
     // --- History ---
-    suspend fun insertMatch(match: com.bismarck.voleimanager.app.data.model.MatchHistory) = voleiDao.insertMatch(match)
+    suspend fun insertMatch(match: com.bismarck.voleimanager.app.data.model.MatchHistory): Long = voleiDao.insertMatch(match)
     suspend fun insertHistoryList(history: List<com.bismarck.voleimanager.app.data.model.MatchHistory>) = voleiDao.insertHistoryList(history)
+    suspend fun deleteMatch(match: com.bismarck.voleimanager.app.data.model.MatchHistory) = voleiDao.deleteMatch(match)
+    suspend fun getLastMatchForGroupSync(groupName: String) = voleiDao.getLastMatchForGroupSync(groupName)
 
     // --- Elo Logs (ESTA FUNÇÃO CORRIGE O ERRO 'insertEloLog') ---
     suspend fun insertEloLog(log: com.bismarck.voleimanager.app.data.model.PlayerEloLog) = voleiDao.insertEloLog(log)
     suspend fun insertEloLogs(logs: List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>) = voleiDao.insertEloLogs(logs)
+    suspend fun getEloLogsForMatchSync(matchHistoryId: Int) = voleiDao.getEloLogsForMatchSync(matchHistoryId)
+    suspend fun getPreviousEloLogSync(groupName: String, playerId: Int, beforeId: Int) =
+        voleiDao.getPreviousEloLogSync(groupName, playerId, beforeId)
+    suspend fun deleteEloLogsForMatch(matchHistoryId: Int) = voleiDao.deleteEloLogsForMatch(matchHistoryId)
 
     suspend fun getPlayersByGroupSync(groupName: String) = voleiDao.getPlayersByGroupSync(groupName)
     suspend fun getHistoryByGroupSync(groupName: String) = voleiDao.getHistoryByGroupSync(groupName)

@@ -47,6 +47,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -209,6 +210,7 @@ fun GameScreenContent(
     val waitingList by viewModel.waitingList.collectAsState()
     val presentIdsFromVm by viewModel.presentPlayerIds.collectAsState()
     val hasPrev by viewModel.hasPreviousMatch.collectAsState()
+    val canUndoLastMatch by viewModel.canUndoLastMatch.collectAsState()
     val config by viewModel.currentGroupConfig.collectAsState()
     val isSpectator by viewModel.isSpectatorOfCurrentGroup.collectAsState()
     val isAuxiliarRemote by viewModel.isAuxiliarOfCurrentGroup.collectAsState()
@@ -679,6 +681,8 @@ fun GameScreenContent(
                                                 isDarkTheme,
                                                 onShowSnackbar = onShowSnackbar,
                                                 onClearRecent = { viewModel.clearRecentGameData() },
+                                                canUndoLastMatch = canUndoLastMatch,
+                                                onUndoLastMatch = { viewModel.undoLastMatch() },
                                                 isSpectator = isSpectator
                                             )
                                         }
@@ -4291,6 +4295,8 @@ fun EmptyStateCard(
     isDarkTheme: Boolean = false,
     onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit,
     onClearRecent: () -> Unit,
+    canUndoLastMatch: Boolean = false,
+    onUndoLastMatch: () -> Unit = {},
     isSpectator: Boolean = false
 ) {
     var showClearConfirmation by remember { mutableStateOf(false) }
@@ -4643,6 +4649,24 @@ fun EmptyStateCard(
                                         )
                                     }
                                 )
+
+                                // Opção: Desfazer última vitória (só aparece dentro da janela em
+                                // que a partida ainda pode ser desfeita com segurança)
+                                if (canUndoLastMatch) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.undo_last_match)) },
+                                        onClick = {
+                                            showSecondaryMenu = false
+                                            onUndoLastMatch()
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.AutoMirrored.Filled.Undo,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }

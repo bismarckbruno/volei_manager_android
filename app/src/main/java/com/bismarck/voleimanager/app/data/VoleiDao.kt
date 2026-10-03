@@ -45,13 +45,20 @@ interface VoleiDao {
     fun getHistoryByGroup(groupName: String): Flow<List<com.bismarck.voleimanager.app.data.model.MatchHistory>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMatch(match: com.bismarck.voleimanager.app.data.model.MatchHistory)
+    suspend fun insertMatch(match: com.bismarck.voleimanager.app.data.model.MatchHistory): Long
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertHistoryList(history: List<com.bismarck.voleimanager.app.data.model.MatchHistory>)
 
     @Update
     suspend fun updateMatchHistories(history: List<com.bismarck.voleimanager.app.data.model.MatchHistory>)
+
+    @Delete
+    suspend fun deleteMatch(match: com.bismarck.voleimanager.app.data.model.MatchHistory)
+
+    /** Última partida finalizada do grupo (`undo-last-match`), ou nulo se não houver histórico. */
+    @Query("SELECT * FROM match_history WHERE groupName = :groupName ORDER BY id DESC LIMIT 1")
+    suspend fun getLastMatchForGroupSync(groupName: String): com.bismarck.voleimanager.app.data.model.MatchHistory?
 
     @Query("SELECT * FROM match_history")
     suspend fun getAllHistorySync(): List<com.bismarck.voleimanager.app.data.model.MatchHistory>
@@ -78,6 +85,18 @@ interface VoleiDao {
 
     @Query("SELECT * FROM elo_logs WHERE groupName = :groupName")
     suspend fun getEloLogsByGroupSync(groupName: String): List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>
+
+    /** Logs de elo vinculados a uma partida específica (`undo-last-match`). */
+    @Query("SELECT * FROM elo_logs WHERE matchHistoryId = :matchHistoryId")
+    suspend fun getEloLogsForMatchSync(matchHistoryId: Int): List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>
+
+    /** Log de elo do jogador imediatamente anterior ao informado, para reverter o elo ao valor
+     *  de antes da partida desfeita (`undo-last-match`). */
+    @Query("SELECT * FROM elo_logs WHERE groupName = :groupName AND playerId = :playerId AND id < :beforeId ORDER BY id DESC LIMIT 1")
+    suspend fun getPreviousEloLogSync(groupName: String, playerId: Int, beforeId: Int): com.bismarck.voleimanager.app.data.model.PlayerEloLog?
+
+    @Query("DELETE FROM elo_logs WHERE matchHistoryId = :matchHistoryId")
+    suspend fun deleteEloLogsForMatch(matchHistoryId: Int)
 
     // --- ELO LOGS ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)

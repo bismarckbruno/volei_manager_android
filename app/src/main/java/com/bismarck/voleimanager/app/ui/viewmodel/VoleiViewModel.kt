@@ -61,6 +61,7 @@ import com.bismarck.voleimanager.app.util.TollCalculator
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -89,6 +90,11 @@ private val REVIEW_REQUEST_MILESTONES = listOf(3, 10, 25)
 // Gatilho de fallback do pedido de avaliação (ver registerCompletedMatchForReviewFallback):
 // cobre quem nunca aciona os marcos de "limpeza válida" acima.
 private const val REVIEW_FALLBACK_MIN_DISTINCT_DAYS = 2
+/** Janela em que "Desfazer última vitória" fica disponível após finalizar uma partida
+ *  (`undo-last-match`) — existe para corrigir erros pontuais (ex.: vencedor errado) logo em
+ *  seguida, não para reescrever histórico antigo nem distorcer demais o horário de término
+ *  registrado. */
+const val UNDO_MATCH_WINDOW_MILLIS = 60L * 60L * 1000L
 private const val REVIEW_FALLBACK_MIN_MATCHES_FINISHED = 7
 private const val KEY_MATCHES_FINISHED_COUNT = "matches_finished_count"
 private const val KEY_LAST_MATCH_FINISHED_DATE = "last_match_finished_date"
@@ -223,6 +229,28 @@ data class GameStateSnapshot(
     /** Índice da vaga ocupada por cada jogador dentro do próprio time (0 = topo do card base). */
     val assignedSlotIndices: Map<Int, Int> = emptyMap(),
     val compositionIncomplete: Boolean = false
+)
+
+/**
+ * `undo-last-match`: guardado por até [UNDO_MATCH_WINDOW_MILLIS] após [VoleiViewModel.finishGame]
+ * para permitir desfazer a partida com fidelidade total — tanto o estado local de sequência de
+ * vitórias de antes da partida (que não é persistido em nenhuma outra tabela) quanto os ids dos
+ * documentos remotos criados (para apagá-los junto, se o grupo for sincronizado em nuvem). Só é
+ * válido enquanto [matchId] ainda for o id da última [MatchHistory] do grupo e [expiresAt] não
+ * tiver passado — ver [VoleiViewModel.refreshCanUndoLastMatch] / [VoleiViewModel.undoLastMatch].
+ */
+data class UndoMatchSnapshot(
+    val groupName: String,
+    val matchId: Int,
+    val previousStreak: Int,
+    val previousStreakOwner: String?,
+    val previousLastWinnerIds: List<Int>,
+    val previousLastLoserIds: List<Int>,
+    val previousHasPreviousMatch: Boolean,
+    val cloudGroupId: String? = null,
+    val cloudHistoryDocId: String? = null,
+    val cloudEloLogDocIds: List<String> = emptyList(),
+    val expiresAt: Long
 )
 
 data class ManualStreakAdjustmentLog(
@@ -1913,6 +1941,11 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private val _hasPreviousMatch = MutableStateFlow(false)
     val hasPreviousMatch = _hasPreviousMatch.asStateFlow()
+    /** `true` enquanto a última partida finalizada do grupo ainda puder ser desfeita (ver
+     *  [UndoMatchSnapshot] / [refreshCanUndoLastMatch] / [undoLastMatch]). */
+    private val _canUndoLastMatch = MutableStateFlow(false)
+    val canUndoLastMatch = _canUndoLastMatch.asStateFlow()
+    private var undoExpiryJob: kotlinx.coroutines.Job? = null
     private val _currentStreak = MutableStateFlow(0)
     val currentStreak = _currentStreak.asStateFlow()
     private val _streakOwner = MutableStateFlow<String?>(null)
@@ -2524,6 +2557,73 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .edit().remove("game_state_$groupName").apply()
     }
 
+    // --- `undo-last-match`: snapshot temporário (até UNDO_MATCH_WINDOW_MILLIS) para desfazer a
+    // última partida finalizada com fidelidade total (streak + referências remotas a apagar). ---
+
+    private fun saveUndoSnapshot(snapshot: UndoMatchSnapshot) {
+        val json = Gson().toJson(snapshot)
+        getApplication<Application>()
+            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+            .edit().putString("undo_snapshot_${snapshot.groupName}", json).apply()
+    }
+
+    private fun loadUndoSnapshot(groupName: String): UndoMatchSnapshot? {
+        val json = getApplication<Application>()
+            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+            .getString("undo_snapshot_$groupName", null) ?: return null
+        return try {
+            Gson().fromJson(json, UndoMatchSnapshot::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun clearUndoSnapshot(groupName: String) {
+        getApplication<Application>()
+            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+            .edit().remove("undo_snapshot_$groupName").apply()
+    }
+
+    /**
+     * Reavalia se a última partida finalizada do grupo [groupName] ainda pode ser desfeita:
+     * precisa existir um [UndoMatchSnapshot] salvo, apontando exatamente para a última
+     * [MatchHistory] do grupo (protege contra snapshot obsoleto, ex.: outra partida já foi
+     * jogada depois) e dentro da janela de [UNDO_MATCH_WINDOW_MILLIS]. Também agenda a própria
+     * expiração (via coroutine) para o botão sumir sozinho mesmo com a tela parada ali.
+     */
+    private suspend fun refreshCanUndoLastMatch(groupName: String) {
+        undoExpiryJob?.cancel()
+        undoExpiryJob = null
+        val snapshot = loadUndoSnapshot(groupName)
+        if (snapshot == null) {
+            _canUndoLastMatch.value = false
+            return
+        }
+        val lastMatch = repository.getLastMatchForGroupSync(groupName)
+        val now = System.currentTimeMillis()
+        val valid = lastMatch != null && lastMatch.id == snapshot.matchId && now < snapshot.expiresAt
+        _canUndoLastMatch.value = valid
+        if (!valid) {
+            clearUndoSnapshot(groupName)
+            return
+        }
+        armUndoExpiry(groupName, snapshot.expiresAt)
+    }
+
+    /** Agenda a expiração automática de [_canUndoLastMatch] para `expiresAt` (`undo-last-match`),
+     *  cancelando qualquer agendamento anterior. */
+    private fun armUndoExpiry(groupName: String, expiresAt: Long) {
+        undoExpiryJob?.cancel()
+        val remaining = (expiresAt - System.currentTimeMillis()).coerceAtLeast(0L)
+        undoExpiryJob = viewModelScope.launch {
+            delay(remaining)
+            if (_currentGroupConfig.value.groupName == groupName) {
+                _canUndoLastMatch.value = false
+            }
+            clearUndoSnapshot(groupName)
+        }
+    }
+
     private suspend fun shouldAutoClearCurrentGameByInactivity(groupName: String): Boolean {
         val latestMatchTimestamp = repository.getHistoryByGroupSync(groupName)
             .asSequence()
@@ -3087,6 +3187,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 // Same group, no active game: try to restore (covers process-death scenario)
                 tryRestoreGameState(name)
             }
+            refreshCanUndoLastMatch(name)
             persistenceReady = true
             if (loadToken == groupLoadToken) {
                 _isGroupDataLoading.value = false
@@ -3973,6 +4074,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         registerCompletedMatchForReviewFallback()
 
+        // Capturado antes de mutar o estado atual: é o que `undoLastMatch` vai restaurar se o
+        // usuário desfizer esta partida (ver UndoMatchSnapshot).
+        val groupName = conf.groupName
+        val previousStreak = _currentStreak.value
+        val previousStreakOwner = _streakOwner.value
+        val previousLastWinnerIds = _lastWinners.value.map { it.id }
+        val previousLastLoserIds = lastLosers.map { it.id }
+        val previousHasPreviousMatch = _hasPreviousMatch.value
+
         if (_streakOwner.value == winner) _currentStreak.value++ else {
             _streakOwner.value = winner; _currentStreak.value = 1
         }
@@ -3993,9 +4103,52 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(endTimestamp))
             val startTimestamp = _currentMatchStartTimestamp.value
 
+            // Inserida antes do loop por jogador (`undo-last-match`) para que o id gerado possa
+            // ser gravado em cada PlayerEloLog, permitindo localizar com precisão os logs desta
+            // partida específica depois (mesmo havendo várias partidas no mesmo dia).
+            val teamASnapshot = teamSnapshotFromPlayers(cA)
+            val teamBSnapshot = teamSnapshotFromPlayers(cB)
+            val matchId = repository.insertMatch(
+                MatchHistory(
+                    date = dateDisplay,
+                    teamA = teamASnapshot.names,
+                    teamB = teamBSnapshot.names,
+                    teamAIds = teamASnapshot.ids,
+                    teamBIds = teamBSnapshot.ids,
+                    winner = winner,
+                    eloPoints = delta,
+                    groupName = cA.first().groupName,
+                    teamAAverageElo = avgA,
+                    teamBAverageElo = avgB,
+                    teamAScore = sA,
+                    teamBScore = sB,
+                    startTimestamp = startTimestamp,
+                    endTimestamp = endTimestamp
+                )
+            ).toInt()
+            val cloudHistoryDocId = cloudGroupId?.let {
+                CloudSyncManager.pushHistoryEntry(
+                    it,
+                    RemoteHistoryEntry(
+                        date = dateDisplay,
+                        teamA = teamASnapshot.names,
+                        teamB = teamBSnapshot.names,
+                        winner = winner,
+                        teamAScore = sA,
+                        teamBScore = sB,
+                        endTimestamp = endTimestamp,
+                        startTimestamp = startTimestamp,
+                        eloPoints = delta,
+                        teamAAverageElo = avgA,
+                        teamBAverageElo = avgB
+                    )
+                )
+            }
+
             val updatedPlayers = mutableListOf<Player>()
             val newWinners = mutableListOf<Player>()
             val newLosers = mutableListOf<Player>()
+            val cloudEloLogDocIds = mutableListOf<String>()
 
             suspend fun process(list: List<Player>, won: Boolean, opponentAvgElo: Double) {
                 val deltas = EloCalculator.calculateNormalizedDeltas(list, opponentAvgElo, won, delta)
@@ -4015,14 +4168,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             date = dateLog,
                             elo = newElo,
                             groupName = u.groupName,
-                            won = won
+                            won = won,
+                            matchHistoryId = matchId
                         )
                     )
                     if (cloudGroupId != null) {
                         CloudSyncManager.pushEloLogEntry(
                             cloudGroupId,
                             RemoteEloLogEntry(playerNameSnapshot = nameSnapshot, date = dateLog, elo = newElo, won = won, endTimestamp = endTimestamp)
-                        )
+                        )?.let { cloudEloLogDocIds.add(it) }
                     }
                 }
             }
@@ -4031,44 +4185,26 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
             _lastWinners.value = newWinners; lastLosers = newLosers
             repository.updatePlayers(updatedPlayers)
-            val teamASnapshot = teamSnapshotFromPlayers(cA)
-            val teamBSnapshot = teamSnapshotFromPlayers(cB)
-            repository.insertMatch(
-                MatchHistory(
-                    date = dateDisplay,
-                    teamA = teamASnapshot.names,
-                    teamB = teamBSnapshot.names,
-                    teamAIds = teamASnapshot.ids,
-                    teamBIds = teamBSnapshot.ids,
-                    winner = winner,
-                    eloPoints = delta,
-                    groupName = cA.first().groupName,
-                    teamAAverageElo = avgA,
-                    teamBAverageElo = avgB,
-                    teamAScore = sA,
-                    teamBScore = sB,
-                    startTimestamp = startTimestamp,
-                    endTimestamp = endTimestamp
+
+            val expiresAt = endTimestamp + UNDO_MATCH_WINDOW_MILLIS
+            saveUndoSnapshot(
+                UndoMatchSnapshot(
+                    groupName = groupName,
+                    matchId = matchId,
+                    previousStreak = previousStreak,
+                    previousStreakOwner = previousStreakOwner,
+                    previousLastWinnerIds = previousLastWinnerIds,
+                    previousLastLoserIds = previousLastLoserIds,
+                    previousHasPreviousMatch = previousHasPreviousMatch,
+                    cloudGroupId = cloudGroupId,
+                    cloudHistoryDocId = cloudHistoryDocId,
+                    cloudEloLogDocIds = cloudEloLogDocIds,
+                    expiresAt = expiresAt
                 )
             )
-            if (cloudGroupId != null) {
-                CloudSyncManager.pushHistoryEntry(
-                    cloudGroupId,
-                    RemoteHistoryEntry(
-                        date = dateDisplay,
-                        teamA = teamASnapshot.names,
-                        teamB = teamBSnapshot.names,
-                        winner = winner,
-                        teamAScore = sA,
-                        teamBScore = sB,
-                        endTimestamp = endTimestamp,
-                        startTimestamp = startTimestamp,
-                        eloPoints = delta,
-                        teamAAverageElo = avgA,
-                        teamBAverageElo = avgB
-                    )
-                )
-            }
+            _canUndoLastMatch.value = true
+            armUndoExpiry(groupName, expiresAt)
+
             TelemetryManager.logMatchFinished(
                 getApplication(),
                 groupType = conf.groupType,
@@ -4078,6 +4214,89 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _teamA.value = emptyList(); _teamB.value = emptyList()
             resetScoresAndPointIndicator()
             _currentMatchStartTimestamp.value = null
+        }
+    }
+
+    /**
+     * `undo-last-match`: desfaz a última partida finalizada do grupo atual (ex.: vencedor
+     * marcado errado), restaurando o jogo exatamente como estava antes de [finishGame] — volta
+     * para a tela de jogo em andamento com os mesmos times, placar e horário de início. Só
+     * funciona enquanto [canUndoLastMatch] for `true` (ver [UndoMatchSnapshot] /
+     * [refreshCanUndoLastMatch]): até 1h após o fim da partida e só para partidas finalizadas
+     * depois desta funcionalidade existir (precisam do vínculo matchHistoryId/snapshot).
+     */
+    fun undoLastMatch() {
+        val conf = _currentGroupConfig.value
+        if (conf.remoteRole != null) return
+        if (isGameInProgress()) return
+        if (!_canUndoLastMatch.value) return
+        val groupName = conf.groupName
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val snapshot = loadUndoSnapshot(groupName) ?: return@launch
+            val lastMatch = repository.getLastMatchForGroupSync(groupName) ?: return@launch
+            if (lastMatch.id != snapshot.matchId || System.currentTimeMillis() >= snapshot.expiresAt) {
+                _canUndoLastMatch.value = false
+                clearUndoSnapshot(groupName)
+                return@launch
+            }
+
+            val logs = repository.getEloLogsForMatchSync(lastMatch.id)
+            val allPlayers = repository.getPlayersByGroupSync(groupName)
+            val playersById = allPlayers.associateBy { it.id }
+            val revertedPlayers = mutableListOf<Player>()
+            for (log in logs) {
+                val player = playersById[log.playerId] ?: continue
+                val previousElo = repository.getPreviousEloLogSync(groupName, log.playerId, log.id)?.elo ?: 1200.0
+                revertedPlayers.add(
+                    player.copy(
+                        elo = previousElo,
+                        matchesPlayed = (player.matchesPlayed - 1).coerceAtLeast(0),
+                        victories = if (log.won == true) (player.victories - 1).coerceAtLeast(0) else player.victories
+                    )
+                )
+            }
+            if (revertedPlayers.isNotEmpty()) {
+                repository.updatePlayers(revertedPlayers)
+            }
+            repository.deleteEloLogsForMatch(lastMatch.id)
+            repository.deleteMatch(lastMatch)
+
+            if (snapshot.cloudGroupId != null) {
+                snapshot.cloudHistoryDocId?.let {
+                    CloudSyncManager.deleteHistoryEntry(snapshot.cloudGroupId, it)
+                }
+                if (snapshot.cloudEloLogDocIds.isNotEmpty()) {
+                    CloudSyncManager.deleteEloLogEntries(snapshot.cloudGroupId, snapshot.cloudEloLogDocIds)
+                }
+            }
+
+            val revertedById = revertedPlayers.associateBy { it.id }
+            val freshPlayersById = allPlayers.associate { it.id to (revertedById[it.id] ?: it) }
+            val idsA = lastMatch.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            val idsB = lastMatch.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            val teamAPlayers = idsA.mapNotNull { freshPlayersById[it] }
+            val teamBPlayers = idsB.mapNotNull { freshPlayersById[it] }
+
+            _teamA.value = sortTeamPlayers(teamAPlayers)
+            _teamB.value = sortTeamPlayers(teamBPlayers)
+            _presentPlayerIds.value = _presentPlayerIds.value + idsA + idsB
+            _waitingList.value = _waitingList.value.filterNot { (idsA + idsB).contains(it.id) }
+            _scoreA.value = lastMatch.teamAScore ?: 0
+            _scoreB.value = lastMatch.teamBScore ?: 0
+            _currentMatchStartTimestamp.value = lastMatch.startTimestamp
+            _currentStreak.value = snapshot.previousStreak
+            _streakOwner.value = snapshot.previousStreakOwner
+            _lastWinners.value = snapshot.previousLastWinnerIds.mapNotNull { freshPlayersById[it] }
+            lastLosers = snapshot.previousLastLoserIds.mapNotNull { freshPlayersById[it] }
+            _hasPreviousMatch.value = snapshot.previousHasPreviousMatch
+            refreshPositionAssignments()
+
+            undoExpiryJob?.cancel()
+            undoExpiryJob = null
+            _canUndoLastMatch.value = false
+            clearUndoSnapshot(groupName)
+            saveGameState()
         }
     }
 

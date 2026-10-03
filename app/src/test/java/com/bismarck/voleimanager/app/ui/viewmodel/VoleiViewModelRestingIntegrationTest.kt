@@ -1031,10 +1031,11 @@ internal class FakeVoleiDao : VoleiDao {
     override fun getHistoryByGroup(groupName: String): Flow<List<MatchHistory>> =
         historyFlow.asStateFlow().map { list -> list.filter { it.groupName == groupName } }
 
-    override suspend fun insertMatch(match: MatchHistory) {
+    override suspend fun insertMatch(match: MatchHistory): Long {
         val id = if (match.id == 0) nextMatchId++ else match.id
         history.add(0, match.copy(id = id))
         historyFlow.value = history.toList()
+        return id.toLong()
     }
 
     override suspend fun insertHistoryList(history: List<MatchHistory>) {
@@ -1047,6 +1048,14 @@ internal class FakeVoleiDao : VoleiDao {
         }
         historyFlow.value = this.history.toList()
     }
+
+    override suspend fun deleteMatch(match: MatchHistory) {
+        history.removeAll { it.id == match.id }
+        historyFlow.value = history.toList()
+    }
+
+    override suspend fun getLastMatchForGroupSync(groupName: String): MatchHistory? =
+        history.filter { it.groupName == groupName }.maxByOrNull { it.id }
 
     override suspend fun getAllHistorySync(): List<MatchHistory> = history.toList()
 
@@ -1072,6 +1081,18 @@ internal class FakeVoleiDao : VoleiDao {
 
     override suspend fun getEloLogsByGroupSync(groupName: String): List<PlayerEloLog> =
         eloLogs.filter { it.groupName == groupName }
+
+    override suspend fun getEloLogsForMatchSync(matchHistoryId: Int): List<PlayerEloLog> =
+        eloLogs.filter { it.matchHistoryId == matchHistoryId }
+
+    override suspend fun getPreviousEloLogSync(groupName: String, playerId: Int, beforeId: Int): PlayerEloLog? =
+        eloLogs.filter { it.groupName == groupName && it.playerId == playerId && it.id < beforeId }
+            .maxByOrNull { it.id }
+
+    override suspend fun deleteEloLogsForMatch(matchHistoryId: Int) {
+        eloLogs.removeAll { it.matchHistoryId == matchHistoryId }
+        eloLogsFlow.value = eloLogs.sortedBy { it.date }
+    }
 
     override fun getAllEloLogs(): Flow<List<PlayerEloLog>> = eloLogsFlow.asStateFlow()
     override fun getEloLogsByGroup(groupName: String): Flow<List<PlayerEloLog>> =

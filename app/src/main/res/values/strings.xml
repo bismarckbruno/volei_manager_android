@@ -341,6 +341,7 @@
     <string name="clear_match_title">Clear current match?</string>
     <string name="cancel_match">Cancel match?</string>
     <string name="clear_match">Clear current match</string>
+    <string name="undo_last_match">Undo last victory</string>
     <string name="cancel_match_action">Cancel match</string>
     <string name="by_percentage">By percentage</string>
     <string name="send_feedback">Send feedback</string>
