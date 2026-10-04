@@ -62,13 +62,14 @@ class Migration15To16Test {
                 AppDatabase.MIGRATION_12_13,
                 AppDatabase.MIGRATION_13_14,
                 AppDatabase.MIGRATION_14_15,
-                AppDatabase.MIGRATION_15_16
+                AppDatabase.MIGRATION_15_16,
+                AppDatabase.MIGRATION_16_17
             )
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(16, migratedDb.version)
+            assertEquals(17, migratedDb.version)
 
             migratedDb.query(
                 "SELECT historyBackfilledAt, activeAdminDeviceId, activeAdminSince FROM group_configs WHERE groupName = 'Grupo'"
