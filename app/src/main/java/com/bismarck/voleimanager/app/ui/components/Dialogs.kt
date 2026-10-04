@@ -23,11 +23,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -2121,10 +2126,14 @@ fun EditProfilePhotoDialog(
         text = {
             Column {
                 TextButton(onClick = { onPickPhoto(); onDismiss() }) {
+                    Icon(Icons.Filled.PhotoLibrary, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.profile_photo_choose_from_gallery))
                 }
                 if (hasPhoto) {
                     TextButton(onClick = { onRemovePhoto(); onDismiss() }) {
+                        Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.profile_photo_remove), color = MaterialTheme.colorScheme.error)
                     }
                 }
@@ -2208,9 +2217,13 @@ fun EditProfileDialog(
                         Spacer(Modifier.height(8.dp))
                     }
                     TextButton(onClick = onChangeEmailClick) {
+                        Icon(Icons.Filled.Email, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.change_email_menu_item))
                     }
                     TextButton(onClick = onChangePasswordClick) {
+                        Icon(Icons.Filled.Password, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.change_password_menu_item))
                     }
                 }
@@ -2218,6 +2231,8 @@ fun EditProfileDialog(
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onRequestDeleteAccount) {
+                    Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.delete_account_action), color = MaterialTheme.colorScheme.error)
                 }
             }

@@ -39,6 +39,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -191,10 +192,12 @@ private fun DrawerAccountHeader(
                 if (currentUser == null || currentUser.isAnonymous) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.login_title)) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null) },
                         onClick = onLoginClick
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.signup_title)) },
+                        leadingIcon = { Icon(Icons.Filled.PersonAdd, contentDescription = null) },
                         onClick = onSignUpClick
                     )
                 } else {
@@ -205,20 +208,24 @@ private fun DrawerAccountHeader(
                                 else stringResource(R.string.add_profile_photo_title)
                             )
                         },
+                        leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
                         onClick = onEditPhotoClick
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.edit_profile_title)) },
+                        leadingIcon = { Icon(Icons.Filled.ManageAccounts, contentDescription = null) },
                         onClick = onEditProfileClick
                     )
                     if (currentUser.email != null && !currentUser.emailVerified) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.resend_verification_email)) },
+                            leadingIcon = { Icon(Icons.Filled.MarkEmailUnread, contentDescription = null) },
                             onClick = onResendVerificationClick
                         )
                     }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.logout)) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
                         onClick = onLogoutClick
                     )
                 }
