@@ -2336,6 +2336,11 @@ fun AvatarCropDialog(
     onConfirm: (android.graphics.Bitmap) -> Unit
 ) {
     var rotationSteps by remember { mutableIntStateOf(0) }
+    // Zoom mínimo permitido (ver minAvatarZoom): deixa a foto inteira visível, caso o usuário
+    // queira "afastar" para escolher outro trecho/enquadramento. O padrão, porém, é 1x — a foto já
+    // encaixada ("cobrir") no espaço circular pela menor dimensão e centralizada, igual a qualquer
+    // editor de avatar. O valor não muda com a rotação (a razão entre os lados é a mesma).
+    val minZoom = remember(sourceBitmap) { com.bismarck.voleimanager.app.util.minAvatarZoom(sourceBitmap) }
     var zoom by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -2361,13 +2366,19 @@ fun AvatarCropDialog(
                 )
                 Spacer(Modifier.height(12.dp))
                 Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .size(viewportDp)
                         .clip(CircleShape)
-                        .background(Color.Black)
+                        .background(Color.White)
                         .pointerInput(rotatedBitmap) {
                             detectTransformGestures { _, panDelta, zoomDelta, _ ->
-                                val newZoom = (zoom * zoomDelta).coerceIn(1f, 4f)
+                                // Mínimo abaixo de 1x permite "afastar" o enquadramento padrão
+                                // (que sempre corta a dimensão mais longa da foto) até a imagem
+                                // inteira caber no quadro, para recuperar partes que ficariam fora
+                                // dele — as margens reveladas saem brancas (ver cropAvatarBitmap),
+                                // nunca pretas.
+                                val newZoom = (zoom * zoomDelta).coerceIn(minZoom, 4f)
                                 val maxPan = com.bismarck.voleimanager.app.util.maxAvatarPan(rotatedBitmap, newZoom, viewportPx)
                                 val newPan = androidx.compose.ui.geometry.Offset(
                                     (pan.x + panDelta.x).coerceIn(-maxPan.x, maxPan.x),
@@ -2378,15 +2389,23 @@ fun AvatarCropDialog(
                             }
                         }
                 ) {
+                    // `ContentScale.Fit` garante que o layout do Image nunca ultrapasse o tamanho
+                    // do Box (o Compose "clampa" filhos maiores que o pai durante a medição, então
+                    // pedir o tamanho nativo do bitmap aqui não funcionava — ficava sempre
+                    // encolhido para caber inteiro). A ampliação até cobrir o quadro (e o zoom do
+                    // usuário) é feita só no desenho, via graphicsLayer, que não sofre esse
+                    // clamping — reproduzindo o mesmo cálculo usado no recorte final
+                    // (cropAvatarBitmap): escala total relativa ao bitmap = avatarCoverScale*zoom.
+                    val extraScale = zoom / minZoom
                     androidx.compose.foundation.Image(
                         bitmap = rotatedBitmap.asImageBitmap(),
                         contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                scaleX = zoom
-                                scaleY = zoom
+                                scaleX = extraScale
+                                scaleY = extraScale
                                 translationX = pan.x
                                 translationY = pan.y
                             }

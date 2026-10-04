@@ -1058,7 +1058,7 @@ fun ActiveGameView(
             }
         }
 
-        return "$timeLabel â€¢ $ownerLabel (${log.oldStreak} â†’ ${log.newStreak})"
+        return "$timeLabel • $ownerLabel (${log.oldStreak} → ${log.newStreak})"
     }
 
     fun substitutionLocationLabel(location: String): String = when (location) {
@@ -1093,7 +1093,7 @@ fun ActiveGameView(
                 log.playerOutName
             )
         }
-        return "$timeLabel â€¢ $description"
+        return "$timeLabel • $description"
     }
 
     data class RecentActivityEntry(
