@@ -2221,9 +2221,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
                                             val mdm = mutableMapOf<Int, Int>()
                                             matchesToShare.forEach { match ->
-                                                if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
+                                                val start = match.startTimestamp
+                                                val end = match.endTimestamp
+                                                if (start != null && end != null && end > start) {
                                                     mdm[match.id] =
-                                                        ((match.endTimestamp - match.startTimestamp) / 60000L).toInt()
+                                                        ((end - start) / 60000L).toInt()
                                                             .coerceAtLeast(1)
                                                 }
                                             }
@@ -2308,12 +2310,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
                                             val matchDurationById =
                                                 filteredMatches.associate { match ->
+                                                    val start = match.startTimestamp
+                                                    val end = match.endTimestamp
                                                     val duration = if (
-                                                        match.startTimestamp != null &&
-                                                        match.endTimestamp != null &&
-                                                        match.endTimestamp > match.startTimestamp
+                                                        start != null && end != null && end > start
                                                     ) {
-                                                        ((match.endTimestamp - match.startTimestamp) / 60000L).toInt()
+                                                        ((end - start) / 60000L).toInt()
                                                             .coerceAtLeast(1)
                                                     } else {
                                                         0

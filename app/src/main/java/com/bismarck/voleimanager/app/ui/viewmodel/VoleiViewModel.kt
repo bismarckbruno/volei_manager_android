@@ -2148,7 +2148,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         assignedSlotIndicesByPublicId = lastKnownRemoteAssignedSlotIndices
                         compositionIncompleteValue = lastKnownRemoteCompositionIncomplete
                     }
-                    config.cloudGroupId to LiveGameState(
+                    config.cloudGroupId!! to LiveGameState(
                         groupName = config.groupName,
                         teamA = partial.teamA.map { it.toRemoteSnapshot() },
                         teamB = partial.teamB.map { it.toRemoteSnapshot() },

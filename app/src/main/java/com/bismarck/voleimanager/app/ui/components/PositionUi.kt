@@ -83,7 +83,8 @@ fun positionShortLabel(position: PlayerPosition): String = stringResource(
  */
 @Composable
 fun slotLabel(slot: TeamSlot): String {
-    if (slot.position == null) {
+    val position = slot.position
+    if (position == null) {
         return stringResource(
             when (slot.role) {
                 PositionRole.PLAYMAKER -> R.string.position_role_playmaker
@@ -92,7 +93,6 @@ fun slotLabel(slot: TeamSlot): String {
             }
         )
     }
-    val position = slot.position
     return positionLabel(position)
 }
 

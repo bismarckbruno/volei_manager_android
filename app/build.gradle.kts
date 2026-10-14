@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)
 }
 
 // Carrega as credenciais do keystore de release a partir de keystore.properties (nunca commitado
@@ -114,6 +113,9 @@ kotlin {
 }
 
 dependencies {
+    // Código multiplataforma (modelos, lógica de domínio) compartilhado com o app iOS.
+    implementation(project(":shared"))
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -137,7 +139,6 @@ dependencies {
     // Room Database
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
 
     // Navegação
     implementation(libs.androidx.navigation.compose)

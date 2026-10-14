@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Volei Manager"
 include(":app")
+include(":shared")

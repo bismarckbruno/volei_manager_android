@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.bismarck.voleimanager.app.data.model.GroupTypeTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-13T20:14:18.813Z" hostname="NITRO-5-BIS" time="0.212">
+  <properties/>
+  <testcase name="onlyModesWithoutPositionsSupportPriority" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.025"/>
+  <testcase name="coerceTeamSizeClampsToModeRange" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.015"/>
+  <testcase name="onlyRecreationalAndFixedPositionsAreSelectable" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.023"/>
+  <testcase name="tournamentsHaveNoBalancingMode" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.001"/>
+  <testcase name="teamSizeRangesMatchEachMode" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.007"/>
+  <testcase name="onlyNonTournamentTypesCanBeConverted" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.001"/>
+  <testcase name="fromStoredValueFallsBackToRecreational" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

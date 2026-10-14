@@ -28,6 +28,16 @@ Screen switching is handled inside `VoleiManagerApp.kt` via `AnimatedContent`.
 
 ## Key Source Layout
 
+**Multiplatform migration (in progress, iOS via Compose Multiplatform):** pure domain code lives in
+the KMP module `:shared` (`shared/src/commonMain/kotlin`, same `com.bismarck.voleimanager.app.*`
+packages), the Android app stays in `:app` and depends on it. Currently in `:shared`: all
+`data/model/` entities and `util/` `EloCalculator`, `TeamBalancer`, `TollCalculator`,
+`PositionAssigner`, `AuthValidation`, `TextSearch`, `FaqSearch`. Code in `commonMain` must not use
+`java.*`/`android.*` — use `expect`/`actual` (e.g. `util/TextFormatting.kt` with `androidMain` /
+`iosMain` actuals) or `kotlin.uuid.Uuid` for `publicId`. Tests for that code go in
+`shared/src/commonTest` using `kotlin.test`. Paths below are relative to the package root of
+whichever module holds them.
+
 | Path | Purpose |
 |------|---------|
 | `data/model/` | Room entities: `Player`, `MatchHistory`, `GroupConfig`, `PlayerEloLog`, `TournamentTeam`, `TournamentTeamMember`, `TournamentMatch`, `GroupLog` |
@@ -149,6 +159,9 @@ drawer menu — same `Switch` pattern as `show_elo`/`show_toll`).
 ## Build & Run
 
 - **Build system**: Gradle KTS + Version Catalog at `gradle/libs.versions.toml`
+- **Shared module tests**: `.\gradlew.bat :shared:testAndroidHostTest` (commonTest on the JVM). iOS
+  targets (`iosArm64`, `iosSimulatorArm64`) only compile on macOS; they are skipped on Windows and
+  checked by `.github/workflows/ios.yml` (`:shared:iosSimulatorArm64Test`).
 - **Annotation processing**: KSP (not kapt) — Room compiler is `ksp(libs.androidx.room.compiler)`
 - **Run**: Open in Android Studio → Sync Gradle → Run on emulator or device (Android 7.0+)
 - **No CI scripts** or test commands beyond the default `./gradlew test` / `./gradlew connectedAndroidTest`

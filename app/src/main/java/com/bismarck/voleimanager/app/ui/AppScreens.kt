@@ -358,8 +358,10 @@ internal fun computeHistoryComputation(
 
     val matchDurationsMinutes = buildMap {
         sortedHistory.forEach { match ->
-            if (match.startTimestamp != null && match.endTimestamp != null && match.endTimestamp > match.startTimestamp) {
-                put(match.id, ((match.endTimestamp - match.startTimestamp) / 60000L).toInt().coerceAtLeast(1))
+            val start = match.startTimestamp
+            val end = match.endTimestamp
+            if (start != null && end != null && end > start) {
+                put(match.id, ((end - start) / 60000L).toInt().coerceAtLeast(1))
             }
         }
     }
@@ -2492,7 +2494,7 @@ fun HistoryItem(
                                 tint = contentColor.copy(alpha = 0.8f)
                             )
                             Text(
-                                EloCalculator.formatElo(match.teamAAverageElo),
+                                EloCalculator.formatElo(match.teamAAverageElo!!),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = contentColor.copy(alpha = 0.8f)
@@ -2549,7 +2551,7 @@ fun HistoryItem(
                                 tint = contentColor.copy(alpha = 0.8f)
                             )
                             Text(
-                                EloCalculator.formatElo(match.teamBAverageElo),
+                                EloCalculator.formatElo(match.teamBAverageElo!!),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = contentColor.copy(alpha = 0.8f)
