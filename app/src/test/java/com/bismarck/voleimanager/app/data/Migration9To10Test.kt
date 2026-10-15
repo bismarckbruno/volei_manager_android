@@ -49,11 +49,11 @@ class Migration9To10Test {
             "INSERT INTO group_configs (groupName, teamSize, victoryLimit, priorityEnabled, scoreEnabled, balancingMode, onboardingStep) " +
                 "VALUES ('Outro Grupo', 6, 3, 1, 1, 'REBALANCE', 5)"
         )
-        AppDatabase.MIGRATION_6_7.migrate(legacyDb)
-        AppDatabase.MIGRATION_7_8.migrate(legacyDb)
-        AppDatabase.MIGRATION_8_9.migrate(legacyDb)
+        AppDatabase.MIGRATION_6_7.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_7_8.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_8_9.migrate(legacyDb.asConnection())
 
-        AppDatabase.MIGRATION_9_10.migrate(legacyDb)
+        AppDatabase.MIGRATION_9_10.migrate(legacyDb.asConnection())
         legacyDb.version = 10
         legacyDb.close()
 

@@ -17,7 +17,7 @@ import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.data.model.TournamentMatch
 import com.bismarck.voleimanager.app.data.model.TournamentTeam
 import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
-import com.google.gson.Gson
+import com.bismarck.voleimanager.app.util.AppJson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -788,7 +788,7 @@ class VoleiViewModelRestingIntegrationTest {
             lastLosers = listOf(player(302, "B1"))
         )
         prefs.edit()
-            .putString("game_state_$DEFAULT_GROUP_NAME", Gson().toJson(savedSnapshot))
+            .putString("game_state_$DEFAULT_GROUP_NAME", AppJson.encodeToString(GameStateSnapshot.serializer(), savedSnapshot))
             .apply()
 
         val vm = VoleiViewModel(app, repo)
@@ -843,7 +843,7 @@ class VoleiViewModelRestingIntegrationTest {
             lastLosers = listOf(player(402, "B1"))
         )
         prefs.edit()
-            .putString("game_state_$DEFAULT_GROUP_NAME", Gson().toJson(savedSnapshot))
+            .putString("game_state_$DEFAULT_GROUP_NAME", AppJson.encodeToString(GameStateSnapshot.serializer(), savedSnapshot))
             .apply()
 
         val vm = VoleiViewModel(app, repo)

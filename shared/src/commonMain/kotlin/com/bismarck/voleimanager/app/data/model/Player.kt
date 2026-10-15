@@ -1,9 +1,11 @@
 package com.bismarck.voleimanager.app.data.model
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Serializable
 @Entity(
     tableName = "players",
     indices = [

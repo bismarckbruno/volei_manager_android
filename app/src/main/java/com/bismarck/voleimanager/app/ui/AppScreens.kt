@@ -99,6 +99,7 @@ import com.bismarck.voleimanager.app.ui.theme.ColorFamily
 import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
+import com.bismarck.voleimanager.app.util.AppDateTime
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.FaqSearch
 import com.bismarck.voleimanager.app.util.containsIgnoreDiacritics
@@ -108,7 +109,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
 import java.util.Locale
 
 /** Converte uma entrada "enxuta" de histórico remoto ([RemoteHistoryEntry], vinda do Firestore)
@@ -327,7 +327,6 @@ internal fun computeHistoryComputation(
     eloLogs: List<com.bismarck.voleimanager.app.data.model.PlayerEloLog>,
     playerSortMode: PlayerSortMode
 ): HistoryComputationResult {
-    val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
     val restrictedHistory = if (restrictToDates == null) {
         groupHistory
     } else {
@@ -338,12 +337,12 @@ internal fun computeHistoryComputation(
     val sortedHistory = when (matchSortMode) {
         MatchSortMode.NEWEST -> filteredHistory.sortedWith(
             compareByDescending<MatchHistory> {
-                try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
+                AppDateTime.parseMatchDateTime(it.date) ?: 0L
             }.thenByDescending { it.id }
         )
         MatchSortMode.OLDEST -> filteredHistory.sortedWith(
             compareBy<MatchHistory> {
-                try { sdf.parse(it.date)?.time ?: 0L } catch (_: Exception) { 0L }
+                AppDateTime.parseMatchDateTime(it.date) ?: 0L
             }.thenBy { it.id }
         )
         MatchSortMode.ELO_DELTA -> filteredHistory.sortedWith(
@@ -496,26 +495,8 @@ internal fun computeHistoryComputation(
     )
 }
 
-fun formatLocalizedDate(internalDate: String): String {
-    val language = Locale.getDefault().language
-    if (language != "en") return internalDate
-
-    return try {
-        if (internalDate.contains(":")) {
-            val parser = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.ROOT)
-            val date = parser.parse(internalDate)
-            val formatter = SimpleDateFormat("MMMM d, yyyy 'at' h:mm a", Locale.getDefault())
-            date?.let { formatter.format(it) } ?: internalDate
-        } else {
-            val parser = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT)
-            val date = parser.parse(internalDate)
-            val formatter = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
-            date?.let { formatter.format(it) } ?: internalDate
-        }
-    } catch (e: Exception) {
-        internalDate
-    }
-}
+fun formatLocalizedDate(internalDate: String): String =
+    AppDateTime.formatLocalizedDate(internalDate, Locale.getDefault().language)
 
 @Composable
 private fun currentLocale(): Locale {
@@ -578,14 +559,7 @@ fun HistoryScreen(
     val groupPlayers = if (isRemoteGroup) remoteAllPlayersState else localGroupPlayers
     val historyDate by viewModel.historyDateFilter.collectAsState()
     val availableDates = remember(groupHistory) {
-        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        groupHistory.map { it.date.split(" ")[0] }.distinct().sortedWith { d1, d2 ->
-            try {
-                sdf.parse(d1)?.compareTo(sdf.parse(d2)) ?: 0
-            } catch (e: Exception) {
-                0
-            }
-        }.reversed()
+        AppDateTime.sortHistoryDatesNewestFirst(groupHistory.map { it.date.split(" ")[0] }.distinct())
     }
     val usesPositions = groupConfig.type.usesPositions
     val teamAAccentColor by viewModel.effectiveTeamAColor.collectAsState()

@@ -80,6 +80,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.Screen
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 import com.bismarck.voleimanager.app.ui.viewmodel.PostProfileOnboardingStage
+import com.bismarck.voleimanager.app.util.AppDateTime
 import com.bismarck.voleimanager.app.util.AppAuthUser
 import com.bismarck.voleimanager.app.util.decodeAvatarBase64
 import com.bismarck.voleimanager.app.util.loadBitmapForAvatarEditing
@@ -2177,31 +2178,19 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
                                         if (historySelectedTab == 0) {
                                             // --- Export matches ---
-                                            val sdf = java.text.SimpleDateFormat(
-                                                "dd/MM/yyyy HH:mm",
-                                                java.util.Locale.getDefault()
-                                            )
                                             val filteredMatches = groupHistory.filter {
                                                 it.date.startsWith(historyDate!!)
                                             }
                                             val matchesToShare = when (historyMatchSortMode) {
                                                 MatchSortMode.NEWEST -> filteredMatches.sortedWith(
                                                     compareByDescending<MatchHistory> {
-                                                        try {
-                                                            sdf.parse(it.date)?.time ?: 0L
-                                                        } catch (_: Exception) {
-                                                            0L
-                                                        }
+                                                        AppDateTime.parseMatchDateTime(it.date) ?: 0L
                                                     }.thenByDescending { it.id }
                                                 )
 
                                                 MatchSortMode.OLDEST -> filteredMatches.sortedWith(
                                                     compareBy<MatchHistory> {
-                                                        try {
-                                                            sdf.parse(it.date)?.time ?: 0L
-                                                        } catch (_: Exception) {
-                                                            0L
-                                                        }
+                                                        AppDateTime.parseMatchDateTime(it.date) ?: 0L
                                                     }.thenByDescending { it.id }
                                                 )
 

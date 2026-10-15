@@ -143,9 +143,6 @@ dependencies {
     // Navegação
     implementation(libs.androidx.navigation.compose)
 
-    // Gson
-    implementation(libs.google.gson)
-
     // Play In-App Review
     implementation(libs.play.review.ktx)
 

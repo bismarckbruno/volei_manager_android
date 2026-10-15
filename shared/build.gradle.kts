@@ -11,9 +11,15 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
+    compilerOptions {
+        // AppDatabaseConstructor (Room) é um `expect object` com `actual` gerado pelo KSP.
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     android {
         namespace = "com.bismarck.voleimanager.shared"
         compileSdk = 37
@@ -35,11 +41,15 @@ kotlin {
     sourceSets {
         all {
             languageSettings.optIn("kotlin.uuid.ExperimentalUuidApi")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
         }
         commonMain.dependencies {
             implementation(libs.jetbrains.compose.runtime)
             // Anotações do Room (@Entity, @PrimaryKey...) nas entidades compartilhadas.
             api(libs.androidx.room.runtime)
+            // Backup .vlz e estado do jogo salvo (substitui o Gson, que é só JVM).
+            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.datetime)
         }
         iosMain.dependencies {
             // SQLite embarcado para o Room no iOS (no Android usa o SQLite do framework).

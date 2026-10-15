@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.ksp) apply false
     // Kotlin/Compose Multiplatform - módulo :shared (código comum Android + iOS)
     alias(libs.plugins.kotlin.multiplatform) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.compose.multiplatform) apply false
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     // Aplicados condicionalmente em app/build.gradle.kts, somente quando google-services.json

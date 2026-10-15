@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.data.model
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -24,6 +25,7 @@ enum class GroupLogType {
  * Usado principalmente pelos tipos de campeonato, onde substituições e trocas entre times podem
  * ocorrer a qualquer momento e precisam ficar auditáveis.
  */
+@Serializable
 @Entity(
     tableName = "group_logs",
     indices = [Index(value = ["groupName", "timestamp"])]

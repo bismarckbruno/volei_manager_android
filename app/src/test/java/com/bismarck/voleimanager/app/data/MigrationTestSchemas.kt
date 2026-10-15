@@ -4,6 +4,14 @@ import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import androidx.sqlite.driver.SupportSQLiteConnection
+
+/**
+ * As migrações agora são multiplataforma ([androidx.sqlite.SQLiteConnection]); nos testes, que
+ * montam o banco legado com SupportSQLite, a conexão é adaptada com o mesmo wrapper que o Room usa
+ * no Android quando nenhum driver é configurado.
+ */
+internal fun SupportSQLiteDatabase.asConnection() = SupportSQLiteConnection(this)
 
 /**
  * Esquema legado da versão 6 do banco, compartilhado pelos testes de migração.

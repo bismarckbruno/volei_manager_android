@@ -86,8 +86,10 @@ When adding a new entity, always pass `groupName` explicitly. Renaming/deleting 
 
 ## Database Migrations
 
-DB version is currently **10** (`AppDatabase.kt`). `exportSchema = false`.  
-When adding columns, add a `Migration(old, new)` object and register it in `addMigrations(...)`.  
+DB version is currently **17** (`shared/src/commonMain/.../data/AppDatabase.kt`, Room KMP). `exportSchema = false`.  
+When adding columns, add a `Migration(old, new)` object overriding `migrate(connection: SQLiteConnection)`
+(use `connection.execSQL` / `prepare`+`step`, never `SupportSQLiteDatabase`) and add it to `ALL_MIGRATIONS`.
+In tests, run a migration on a legacy `SupportSQLiteDatabase` via the `asConnection()` helper in `MigrationTestSchemas.kt`.  
 `fallbackToDestructiveMigration()` is enabled as a safety net — avoid relying on it for release.  
 Each migration should have a matching `MigrationXToYTest.kt` in `app/src/test/.../data/`, following
 the existing pattern: build up to the previous version via the real migration chain (starting from
@@ -95,7 +97,7 @@ the existing pattern: build up to the previous version via the real migration ch
 at the new version to catch schema mismatches.
 
 **Stable public IDs (`publicId`)**: `Player` and `GroupConfig` each have a `publicId: String` field
-(UUID v4, generated once via `java.util.UUID.randomUUID().toString()` as the constructor default,
+(UUID v4, generated once via `kotlin.uuid.Uuid.random().toString()` as the constructor default,
 backed by a unique index). This is separate from the local PK (`Player.id` autoGenerate int,
 `GroupConfig.groupName` — a user-editable string) and exists specifically to prepare for a future
 cloud-sync feature (e.g. "live" group tracking) that needs an identity stable across renames,
@@ -183,6 +185,8 @@ drawer menu — same `Switch` pattern as `show_elo`/`show_toll`).
 - Dialog visibility is managed by local `var show* by remember { mutableStateOf(false) }` in `VoleiManagerApp`.
 - Export/import uses `FileProvider` (`${context.packageName}.fileprovider`) — see `AndroidManifest.xml` for the provider declaration.
 - CSV parsing uses the custom `smartSplit()` function (handles quoted commas); don't use `.split(",")` on raw CSV lines.
+- Dates/times go through `AppDateTime` (`shared/.../util/AppDateTime.kt`, kotlinx-datetime, local time zone) — never `SimpleDateFormat`/`Date`/`Calendar`/`System.currentTimeMillis()` in code meant to be multiplatform. Persisted formats are fixed: `yyyy-MM-dd` (`PlayerEloLog.date`, `tollDate`) and `dd/MM/yyyy HH:mm` (`MatchHistory.date`).
+- JSON (backup `.vlz`, saved game state, undo snapshot) uses kotlinx-serialization via `AppJson` (`shared/.../util/AppJson.kt`), never Gson. Its config (`encodeDefaults=true`, `explicitNulls=false`, `ignoreUnknownKeys`) keeps the format compatible with the legacy Gson output — covered by `AppJsonCompatibilityTest`. From `:app`, always pass `X.serializer()` explicitly (the serialization plugin is only applied in `:shared`).
 - `CreateGroupDialog` asks for **name + group type**; the balancing mode is chosen later, in the onboarding flow (`ONBOARDING_STEP_GROUP_TYPE` → `ONBOARDING_STEP_BALANCING_MODE` → team size → ...).
 - `GroupConfigDialog` field order is: group type → balancing mode → players per team → victory limit → min one priority (**only when the type supports priority**) → scoreboard. Destructive type changes (team size clamp or match in progress) require an explicit confirmation and cancel the running match.
 - Position labels/badges live in `ui/components/PositionUi.kt` (`positionLabel`, `positionShortLabel`, `PositionBadge`, `TeamCompositionIndicator`) — reuse them instead of formatting enum names inline.

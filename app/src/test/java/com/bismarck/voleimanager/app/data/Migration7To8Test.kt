@@ -34,18 +34,18 @@ class Migration7To8Test {
             "INSERT INTO group_configs (groupName, teamSize, victoryLimit, priorityEnabled, scoreEnabled, balancingMode, onboardingStep) " +
                 "VALUES ('Grupo', 6, 3, 1, 1, 'REBALANCE', 3)"
         )
-        AppDatabase.MIGRATION_6_7.migrate(legacyDb)
+        AppDatabase.MIGRATION_6_7.migrate(legacyDb.asConnection())
         legacyDb.execSQL("UPDATE group_configs SET groupType = 'FIXED_POSITIONS' WHERE groupName = 'Grupo'")
 
-        AppDatabase.MIGRATION_7_8.migrate(legacyDb)
+        AppDatabase.MIGRATION_7_8.migrate(legacyDb.asConnection())
         // A migração seguinte é aplicada para que o Room possa abrir o banco na versão atual.
-        AppDatabase.MIGRATION_8_9.migrate(legacyDb)
-        AppDatabase.MIGRATION_9_10.migrate(legacyDb)
-        AppDatabase.MIGRATION_10_11.migrate(legacyDb)
-        AppDatabase.MIGRATION_11_12.migrate(legacyDb)
-        AppDatabase.MIGRATION_12_13.migrate(legacyDb)
-        AppDatabase.MIGRATION_13_14.migrate(legacyDb)
-        AppDatabase.MIGRATION_14_15.migrate(legacyDb)
+        AppDatabase.MIGRATION_8_9.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_9_10.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_10_11.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_11_12.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_12_13.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_13_14.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_14_15.migrate(legacyDb.asConnection())
         legacyDb.version = 15
         legacyDb.close()
 

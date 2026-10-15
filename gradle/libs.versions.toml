@@ -10,7 +10,6 @@ kotlin = "2.2.21"
 composeBom = "2025.10.00"
 room = "2.8.4"
 navigation = "2.7.7"
-gson = "2.10.1"
 ksp = "2.3.2"
 playReview = "2.0.2"
 appUpdate = "2.1.0"
@@ -24,6 +23,8 @@ billing = "9.1.0"
 zxing = "3.5.3"
 composeMultiplatform = "1.9.3"
 sqlite = "2.6.2"
+kotlinxSerialization = "1.9.0"
+kotlinxDatetime = "0.7.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,8 +52,9 @@ androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", 
 # Navigation
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
 
-# Gson
-google-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+# JSON (backup .vlz, estado do jogo salvo) - multiplataforma
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 
 # Play In-App Review
 play-review-ktx = { group = "com.google.android.play", name = "review-ktx", version.ref = "playReview" }
@@ -88,6 +90,7 @@ billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", versi
 jetbrains-compose-runtime = { group = "org.jetbrains.compose.runtime", name = "runtime", version.ref = "composeMultiplatform" }
 
 [plugins]
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }

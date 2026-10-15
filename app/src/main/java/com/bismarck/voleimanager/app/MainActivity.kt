@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.lifecycle.ViewModelProvider
 import com.bismarck.voleimanager.app.data.AppDatabase
+import com.bismarck.voleimanager.app.data.getDatabase
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.ui.VoleiManagerApp
 import com.bismarck.voleimanager.app.ui.theme.AppTheme

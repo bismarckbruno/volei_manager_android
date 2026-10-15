@@ -58,7 +58,16 @@ import com.bismarck.voleimanager.app.util.SubscriptionOffer
 import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TelemetryManager
 import com.bismarck.voleimanager.app.util.TollCalculator
-import com.google.gson.Gson
+import com.bismarck.voleimanager.app.util.AppDateTime
+import com.bismarck.voleimanager.app.util.AppJson
+import com.bismarck.voleimanager.app.util.formatTwoDecimals
+import com.bismarck.voleimanager.app.util.normalizeForSearch
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -70,11 +79,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
-import java.text.Normalizer
-import java.text.ParseException
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -177,20 +181,6 @@ enum class PostProfileOnboardingStage { NONE, AUTH_REQUIRED, SPECTATOR_AUTH_SUGG
  */
 enum class CloudPlanTier(val maxSyncedGroups: Int) { NONE(0), SINGLE(1), MULTI(5) }
 
-data class BackupData(
-    val version: Int = 1,
-    val date: String,
-    val players: List<Player>,
-    val history: List<MatchHistory>,
-    val logs: List<PlayerEloLog>,
-    /** Configuração do grupo exportado (inclui o tipo de grupo). Nulo em backups antigos. */
-    val groupConfig: GroupConfig? = null,
-    val tournamentTeams: List<TournamentTeam>? = null,
-    val tournamentTeamMembers: List<TournamentTeamMember>? = null,
-    val tournamentMatches: List<TournamentMatch>? = null,
-    val groupLogs: List<GroupLog>? = null
-)
-
 data class PendingMergeImportData(
     val players: List<Player>,
     val history: List<MatchHistory>,
@@ -201,56 +191,6 @@ data class PendingMergeImportData(
     /** Configuração do grupo do backup importado (só presente em importações de .vlz), usada para
      *  salvar a config de um grupo novo e para trocar automaticamente para ele após a importação. */
     val groupConfig: GroupConfig? = null
-)
-
-data class GameStateSnapshot(
-    val groupName: String,
-    val teamA: List<Player>,
-    val teamB: List<Player>,
-    val waitingList: List<Player>,
-    val presentPlayerIds: List<Int>,
-    val scoreA: Int,
-    val scoreB: Int,
-    val currentStreak: Int,
-    val streakOwner: String?,
-    val hasPreviousMatch: Boolean,
-    val lastWinners: List<Player>,
-    val lastLosers: List<Player>,
-    val currentMatchStartTimestamp: Long? = null,
-    val roundCounter: Int = 0,
-    val restingPlayers: Map<Int, Int> = emptyMap(),
-    val rebalancedPlayerIds: List<Int> = emptyList(),
-    val autoSelectedLoserPlayerIds: List<Int> = emptyList(),
-    val guaranteedNextMatchPlayerIds: List<Int> = emptyList(),
-    val lastScoringTeam: String? = null,
-    val rotationRequiredForTeam: String? = null,
-    /** Posição ocupada por cada jogador na partida (Modo Posições Fixas). playerId -> nome do enum. */
-    val assignedPositions: Map<Int, String> = emptyMap(),
-    /** Índice da vaga ocupada por cada jogador dentro do próprio time (0 = topo do card base). */
-    val assignedSlotIndices: Map<Int, Int> = emptyMap(),
-    val compositionIncomplete: Boolean = false
-)
-
-/**
- * `undo-last-match`: guardado por até [UNDO_MATCH_WINDOW_MILLIS] após [VoleiViewModel.finishGame]
- * para permitir desfazer a partida com fidelidade total — tanto o estado local de sequência de
- * vitórias de antes da partida (que não é persistido em nenhuma outra tabela) quanto os ids dos
- * documentos remotos criados (para apagá-los junto, se o grupo for sincronizado em nuvem). Só é
- * válido enquanto [matchId] ainda for o id da última [MatchHistory] do grupo e [expiresAt] não
- * tiver passado — ver [VoleiViewModel.refreshCanUndoLastMatch] / [VoleiViewModel.undoLastMatch].
- */
-data class UndoMatchSnapshot(
-    val groupName: String,
-    val matchId: Int,
-    val previousStreak: Int,
-    val previousStreakOwner: String?,
-    val previousLastWinnerIds: List<Int>,
-    val previousLastLoserIds: List<Int>,
-    val previousHasPreviousMatch: Boolean,
-    val cloudGroupId: String? = null,
-    val cloudHistoryDocId: String? = null,
-    val cloudEloLogDocIds: List<String> = emptyList(),
-    val expiresAt: Long
 )
 
 data class ManualStreakAdjustmentLog(
@@ -347,7 +287,7 @@ internal fun normalizeTeamSnapshotWithIds(
             if (normalizedName.isBlank()) return@mapIndexedNotNull null
             TeamSnapshotEntry(name = normalizedName, id = idsByIndex.getOrNull(index))
         }
-        .sortedBy { it.name.lowercase(Locale.ROOT) }
+        .sortedBy { it.name.lowercase() }
 
     val names = entries.joinToString(", ") { it.name }
     val ids = if (entries.none { it.id != null }) {
@@ -436,9 +376,7 @@ internal fun remapCollidingPlayerIdentities(
 
 internal fun canonicalizePersonNameCompat(name: String): String {
     val normalized = name.trim().replace(Regex("\\s+"), " ")
-    val noAccents = Normalizer.normalize(normalized, Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "")
-    return noAccents.lowercase(Locale.ROOT)
+    return normalizeForSearch(normalized)
 }
 
 internal fun collectDuplicatePlayerNames(players: List<Player>): List<String> {
@@ -784,17 +722,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _allGroupConfigs
     ) { history, allPlayers, allEloLogs, allConfigs ->
         val groupsWithDates = mutableMapOf<String, Long>()
-        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
         history.forEach { match ->
-            try {
-                val matchTime = sdf.parse(match.date)?.time ?: 0L
-                val currentMax = groupsWithDates[match.groupName] ?: 0L
-                if (matchTime > currentMax) {
-                    groupsWithDates[match.groupName] = matchTime
-                }
-            } catch (e: Exception) {
-                // Ignore parse errors
+            val matchTime = AppDateTime.parseMatchDateTime(match.date) ?: 0L
+            val currentMax = groupsWithDates[match.groupName] ?: 0L
+            if (matchTime > currentMax) {
+                groupsWithDates[match.groupName] = matchTime
             }
         }
 
@@ -810,7 +743,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         val groupsWithoutHistory = allGroups
             .filterNot { groupsWithDates.containsKey(it) }
-            .sortedBy { it.lowercase(Locale.getDefault()) }
+            .sortedBy { it.lowercase() }
 
         orderedByHistory + groupsWithoutHistory
     }.stateIn(viewModelScope, screenDataSharing, emptyList())
@@ -819,24 +752,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     val historyDateFilter = _historyDateFilter.asStateFlow()
 
     val availableHistoryDates = currentGroupHistory.map { list ->
-        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        list.map { it.date.split(" ")[0] }.distinct().sortedWith { d1, d2 ->
-            try {
-                sdf.parse(d1)?.compareTo(sdf.parse(d2)) ?: 0
-            } catch (e: Exception) {
-                0
-            }
-        }.reversed()
+        AppDateTime.sortHistoryDatesNewestFirst(list.map { it.date.split(" ")[0] }.distinct())
     }.stateIn(viewModelScope, screenDataSharing, emptyList())
 
     val targetDate = combine(currentGroupEloLogs, availableHistoryDates) { logs, _dates ->
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val hasToday = logs.any { it.date == today }
         if (hasToday) today else logs.map { it.date }.maxOrNull() ?: today
     }.stateIn(
         viewModelScope,
         screenDataSharing,
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        AppDateTime.todayIsoDate()
     )
 
     val gamesPlayedTodayMap = combine(currentGroupEloLogs, targetDate) { logs, tDate ->
@@ -846,7 +772,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     // Usado na tela de jogo em andamento: conta apenas os jogos do dia real (sem cair
     // para o último dia com histórico), zerando para o primeiro jogo do dia de cada jogador.
     val gamesPlayedStrictTodayMap = currentGroupEloLogs.map { logs ->
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         logs.filter { it.date == today }.groupingBy { it.playerId }.eachCount()
     }.stateIn(viewModelScope, screenDataSharing, emptyMap())
 
@@ -1200,12 +1126,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             // já zera seu `isCloudSynced` sem apagar `lastPremiumSwitchAt`, então o cooldown
             // precisa olhar a última troca registrada em qualquer grupo, não só nos ainda ativos.
             val lastSwitchAt = configs.mapNotNull { it.lastPremiumSwitchAt }.maxOrNull()
-            if (lastSwitchAt != null && System.currentTimeMillis() - lastSwitchAt < PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS) {
+            if (lastSwitchAt != null && AppDateTime.nowMillis() - lastSwitchAt < PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS) {
                 showMessage(getApplication<Application>().getString(R.string.cloud_sync_switch_cooldown))
                 return@launch
             }
         }
-        val now = System.currentTimeMillis()
+        val now = AppDateTime.nowMillis()
 
         val updated = target.copy(
             isCloudSynced = true,
@@ -1309,7 +1235,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun transferAdminSession(groupName: String) = viewModelScope.launch(Dispatchers.IO) {
         val target = repository.getGroupConfig(groupName) ?: return@launch
         val cloudGroupId = target.cloudGroupId ?: target.publicId
-        val now = System.currentTimeMillis()
+        val now = AppDateTime.nowMillis()
         CloudSyncManager.setActiveAdminDevice(cloudGroupId, localDeviceId, now)
         repository.saveGroupConfig(target.copy(activeAdminDeviceId = localDeviceId, activeAdminSince = now))
         if (_currentGroupConfig.value.groupName == groupName) {
@@ -1377,7 +1303,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             return@launch
         }
 
-        val now = System.currentTimeMillis()
+        val now = AppDateTime.nowMillis()
         val latest = repository.getGroupConfig(groupName) ?: return@launch
         repository.saveGroupConfig(latest.copy(historyBackfilledAt = now))
         if (_currentGroupConfig.value.groupName == groupName) {
@@ -1663,7 +1589,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
 
         if (BuildConfig.DEBUG) {
-            val upper = trimmed.uppercase(Locale.getDefault())
+            val upper = trimmed.uppercase()
             val debugRole = when {
                 upper.startsWith("AUX") -> UserProfileType.AUXILIAR
                 upper.startsWith("ESP") -> UserProfileType.ESPECTADOR
@@ -1893,7 +1819,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _currentStreak.value = 0
             _streakOwner.value = null
         }
-        _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
 
         refreshPositionAssignments()
         return true
@@ -2157,7 +2083,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         scoreB = partial.scoreB,
                         currentStreak = streak,
                         streakOwner = owner,
-                        updatedAt = System.currentTimeMillis(),
+                        updatedAt = AppDateTime.nowMillis(),
                         presentPlayers = presentSnapshots,
                         allPlayers = allPlayerSnapshots,
                         matchStartTimestamp = extra.matchStartTimestamp,
@@ -2414,18 +2340,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  `date` já vem nesse formato, ver `dateLog` em [finishGame]) quando
      *  [GroupConfig.shareOnlyTodayHistory] estiver ligado. */
     private fun todayDateString(): String =
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        AppDateTime.todayIsoDate()
 
     /** Início do dia de hoje (00:00, fuso local) em epoch millis — usado para filtrar
      *  [RemoteHistoryEntry] por [RemoteHistoryEntry.endTimestamp], já que o campo `date` dessas
      *  entradas é uma string de exibição (`dd/MM/yyyy HH:mm`, ver `dateDisplay` em [finishGame])
      *  e não pode ser comparada diretamente com [todayDateString]. */
-    private fun startOfTodayMillis(): Long = java.util.Calendar.getInstance().apply {
-        set(java.util.Calendar.HOUR_OF_DAY, 0)
-        set(java.util.Calendar.MINUTE, 0)
-        set(java.util.Calendar.SECOND, 0)
-        set(java.util.Calendar.MILLISECOND, 0)
-    }.timeInMillis
+    private fun startOfTodayMillis(): Long = AppDateTime.startOfTodayMillis()
 
     /** Histórico de partidas do grupo remoto ativo. Auxiliar sempre vê tudo (regras do Firestore já
      *  concedem acesso total a `canManageGroupContent`); Espectador só vê quando o organizador/
@@ -2545,7 +2466,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             clearSavedGameState(snapshot.groupName)
             return
         }
-        val json = Gson().toJson(snapshot)
+        val json = AppJson.encodeToString(GameStateSnapshot.serializer(), snapshot)
         getApplication<Application>()
             .getSharedPreferences("volei", Context.MODE_PRIVATE)
             .edit().putString("game_state_${snapshot.groupName}", json).apply()
@@ -2561,7 +2482,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     // última partida finalizada com fidelidade total (streak + referências remotas a apagar). ---
 
     private fun saveUndoSnapshot(snapshot: UndoMatchSnapshot) {
-        val json = Gson().toJson(snapshot)
+        val json = AppJson.encodeToString(UndoMatchSnapshot.serializer(), snapshot)
         getApplication<Application>()
             .getSharedPreferences("volei", Context.MODE_PRIVATE)
             .edit().putString("undo_snapshot_${snapshot.groupName}", json).apply()
@@ -2572,7 +2493,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .getSharedPreferences("volei", Context.MODE_PRIVATE)
             .getString("undo_snapshot_$groupName", null) ?: return null
         return try {
-            Gson().fromJson(json, UndoMatchSnapshot::class.java)
+            AppJson.decodeFromString(UndoMatchSnapshot.serializer(), json)
         } catch (e: Exception) {
             null
         }
@@ -2600,7 +2521,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             return
         }
         val lastMatch = repository.getLastMatchForGroupSync(groupName)
-        val now = System.currentTimeMillis()
+        val now = AppDateTime.nowMillis()
         val valid = lastMatch != null && lastMatch.id == snapshot.matchId && now < snapshot.expiresAt
         _canUndoLastMatch.value = valid
         if (!valid) {
@@ -2614,7 +2535,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  cancelando qualquer agendamento anterior. */
     private fun armUndoExpiry(groupName: String, expiresAt: Long) {
         undoExpiryJob?.cancel()
-        val remaining = (expiresAt - System.currentTimeMillis()).coerceAtLeast(0L)
+        val remaining = (expiresAt - AppDateTime.nowMillis()).coerceAtLeast(0L)
         undoExpiryJob = viewModelScope.launch {
             delay(remaining)
             if (_currentGroupConfig.value.groupName == groupName) {
@@ -2632,37 +2553,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             }
             .maxOrNull()
             ?: return false
-        return (System.currentTimeMillis() - latestMatchTimestamp) >= AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS
+        return (AppDateTime.nowMillis() - latestMatchTimestamp) >= AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS
     }
 
-    private fun parseLegacyMatchDate(rawDate: String): Long? {
-        val text = rawDate.trim()
-        if (text.isBlank()) return null
-        val patterns = listOf(
-            "dd/MM/yyyy HH:mm",
-            "dd/MM/yyyy",
-            "yyyy-MM-dd HH:mm",
-            "yyyy-MM-dd"
-        )
-        for (pattern in patterns) {
-            try {
-                val parsed = SimpleDateFormat(pattern, Locale.getDefault()).apply {
-                    isLenient = false
-                }.parse(text)
-                if (parsed != null) return parsed.time
-            } catch (_: ParseException) {
-                // Ignore and try the next legacy format.
-            }
-        }
-        return null
-    }
+    private fun parseLegacyMatchDate(rawDate: String): Long? = AppDateTime.parseLegacyMatchDate(rawDate)
 
     private fun tryRestoreGameState(groupName: String): Boolean {
         val json = getApplication<Application>()
             .getSharedPreferences("volei", Context.MODE_PRIVATE)
             .getString("game_state_$groupName", null) ?: return false
         return try {
-            val snapshot = Gson().fromJson(json, GameStateSnapshot::class.java)
+            val snapshot = AppJson.decodeFromString(GameStateSnapshot.serializer(), json)
             if (snapshot == null || snapshot.groupName != groupName) return false
             _teamA.value = snapshot.teamA
             _teamB.value = snapshot.teamB
@@ -2915,7 +2816,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      */
     private fun registerCompletedMatchForReviewFallback() {
         val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val lastMatchDay = prefs.getString(KEY_LAST_MATCH_FINISHED_DATE, null)
         var distinctDaysCount = prefs.getInt(KEY_DISTINCT_MATCH_DAYS_COUNT, 0)
         if (lastMatchDay != today) {
@@ -3023,7 +2924,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         if (oldOwner == newOwner && oldStreak == newStreak) return null
 
         val log = ManualStreakAdjustmentLog(
-            timestamp = System.currentTimeMillis(),
+            timestamp = AppDateTime.nowMillis(),
             groupName = _currentGroupConfig.value.groupName,
             team = team,
             oldOwner = oldOwner,
@@ -3478,7 +3379,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     private fun sortTeamPlayers(team: List<Player>): List<Player> {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val usageMap = getUsageCountMap(today)
         return team.shuffled().sortedBy { p ->
             TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
@@ -3492,7 +3393,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 if (normalizedName.isBlank()) return@mapNotNull null
                 TeamSnapshotEntry(name = normalizedName, id = player.id)
             }
-            .sortedBy { it.name.lowercase(Locale.ROOT) }
+            .sortedBy { it.name.lowercase() }
         return TeamSnapshotWithIds(
             names = entries.joinToString(", ") { it.name },
             ids = entries.joinToString(",") { it.id?.toString() ?: "" }
@@ -3500,7 +3401,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     private fun calculateTollForNewPlayer(excludePlayerId: Int? = null): Int {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val usageMap = getUsageCountMap(today)
         val presentPlayers = _presentPlayerIds.value.mapNotNull { id ->
             currentGroupPlayers.value.find { it.id == id }
@@ -3509,7 +3410,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     private fun applyTollIfNecessary(player: Player): Player {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val usageMap = getUsageCountMap(today)
         val presentPlayers = _presentPlayerIds.value.mapNotNull { id ->
             currentGroupPlayers.value.find { it.id == id }
@@ -3777,7 +3678,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val availableWithTollApplied = available.map { applyTollIfNecessary(it) }
 
         val config = _currentGroupConfig.value
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val usageMap = getUsageCountMap(today)
 
         fun getEffectiveGames(p: Player): Int =
@@ -3838,7 +3739,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             sortTeamPlayers(finalB); _waitingList.value = pool
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
         _guaranteedNextMatchPlayerIds.value = emptyList()
         refreshPositionAssignments()
     }
@@ -3931,7 +3832,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             sortTeamPlayers(tBWithToll); _waitingList.value = remWithToll
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
         _guaranteedNextMatchPlayerIds.value = emptyList()
         refreshPositionAssignments()
     }
@@ -3979,7 +3880,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 _assignedSlotIndices.value = slots
             }
             substitutionLog = ManualSubstitutionLog(
-                timestamp = System.currentTimeMillis(),
+                timestamp = AppDateTime.nowMillis(),
                 groupName = _currentGroupConfig.value.groupName,
                 playerOutName = out.name,
                 playerInName = inWithToll.name,
@@ -3998,7 +3899,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             if (idxInWait != -1) {
                 wait[idxInWait] = out
                 substitutionLog = ManualSubstitutionLog(
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = AppDateTime.nowMillis(),
                     groupName = _currentGroupConfig.value.groupName,
                     playerOutName = out.name,
                     playerInName = inWithToll.name,
@@ -4008,7 +3909,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } else if (idxInB != -1) {
                 nB[idxInB] = out
                 substitutionLog = ManualSubstitutionLog(
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = AppDateTime.nowMillis(),
                     groupName = _currentGroupConfig.value.groupName,
                     playerOutName = out.name,
                     playerInName = inWithToll.name,
@@ -4026,7 +3927,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             if (idxInWait != -1) {
                 wait[idxInWait] = out
                 substitutionLog = ManualSubstitutionLog(
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = AppDateTime.nowMillis(),
                     groupName = _currentGroupConfig.value.groupName,
                     playerOutName = out.name,
                     playerInName = inWithToll.name,
@@ -4036,7 +3937,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } else if (idxInA != -1) {
                 nA[idxInA] = out
                 substitutionLog = ManualSubstitutionLog(
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = AppDateTime.nowMillis(),
                     groupName = _currentGroupConfig.value.groupName,
                     playerOutName = out.name,
                     playerInName = inWithToll.name,
@@ -4097,10 +3998,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             val delta =
                 if (winner == "A") EloCalculator.calculateEloChange(avgA, avgB)
                 else EloCalculator.calculateEloChange(avgB, avgA)
-            val dateLog = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val endTimestamp = System.currentTimeMillis()
+            val dateLog = AppDateTime.todayIsoDate()
+            val endTimestamp = AppDateTime.nowMillis()
             val dateDisplay =
-                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(endTimestamp))
+                AppDateTime.formatMatchDateTime(endTimestamp)
             val startTimestamp = _currentMatchStartTimestamp.value
 
             // Inserida antes do loop por jogador (`undo-last-match`) para que o id gerado possa
@@ -4235,7 +4136,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         viewModelScope.launch(Dispatchers.IO) {
             val snapshot = loadUndoSnapshot(groupName) ?: return@launch
             val lastMatch = repository.getLastMatchForGroupSync(groupName) ?: return@launch
-            if (lastMatch.id != snapshot.matchId || System.currentTimeMillis() >= snapshot.expiresAt) {
+            if (lastMatch.id != snapshot.matchId || AppDateTime.nowMillis() >= snapshot.expiresAt) {
                 _canUndoLastMatch.value = false
                 clearUndoSnapshot(groupName)
                 return@launch
@@ -4262,12 +4163,13 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             repository.deleteEloLogsForMatch(lastMatch.id)
             repository.deleteMatch(lastMatch)
 
-            if (snapshot.cloudGroupId != null) {
+            val snapshotCloudGroupId = snapshot.cloudGroupId
+            if (snapshotCloudGroupId != null) {
                 snapshot.cloudHistoryDocId?.let {
-                    CloudSyncManager.deleteHistoryEntry(snapshot.cloudGroupId, it)
+                    CloudSyncManager.deleteHistoryEntry(snapshotCloudGroupId, it)
                 }
                 if (snapshot.cloudEloLogDocIds.isNotEmpty()) {
-                    CloudSyncManager.deleteEloLogEntries(snapshot.cloudGroupId, snapshot.cloudEloLogDocIds)
+                    CloudSyncManager.deleteEloLogEntries(snapshotCloudGroupId, snapshot.cloudEloLogDocIds)
                 }
             }
 
@@ -4333,7 +4235,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             scoreB = _scoreB.value,
             currentStreak = _currentStreak.value,
             streakOwner = _streakOwner.value,
-            updatedAt = System.currentTimeMillis(),
+            updatedAt = AppDateTime.nowMillis(),
             pendingFinishWinner = winner,
             pendingFinishRequestId = requestId,
             presentPlayers = lastKnownRemotePresentPlayers,
@@ -4375,7 +4277,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             scoreB = _scoreB.value,
             currentStreak = _currentStreak.value,
             streakOwner = _streakOwner.value,
-            updatedAt = System.currentTimeMillis(),
+            updatedAt = AppDateTime.nowMillis(),
             presentPlayers = lastKnownRemotePresentPlayers,
             allPlayers = lastKnownRemoteAllPlayers,
             matchStartTimestamp = _currentMatchStartTimestamp.value,
@@ -4436,7 +4338,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         val waitlist =
             _waitingList.value.filter { p -> !activeWinnerIds.contains(p.id) && !loserIds.contains(p.id) } + newPlayersWithToll
 
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val usageMap = getUsageCountMap(today)
         fun getEffectiveGames(p: Player): Int =
             TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
@@ -4670,7 +4572,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
         refreshPositionAssignments()
     }
 
@@ -4705,7 +4607,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             .toSet()
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
     }
 
     private fun startNextRoundRest(conf: GroupConfig) {
@@ -4735,7 +4637,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 newPlayersWithToll
             ).distinctBy { it.id }
 
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = AppDateTime.todayIsoDate()
         val usageMap = getUsageCountMap(today)
         fun getEffectiveGames(p: Player): Int =
             TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
@@ -4898,12 +4800,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = System.currentTimeMillis()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
         refreshPositionAssignments()
     }
 
 
-    private fun formatElo(elo: Double): String = String.format(Locale.US, "%.2f", elo)
+    private fun formatElo(elo: Double): String = formatTwoDecimals(elo)
 
     private fun normalizePersonName(name: String): String {
         return name.trim().replace(Regex("\\s+"), " ").take(MAX_PLAYER_NAME_LENGTH)
@@ -4947,14 +4849,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         history: List<MatchHistory>
     ): List<PlayerEloLog> {
         if (logs.none { it.won == null }) return logs
-        val matchDateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        val logDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-        fun matchDayKey(rawDate: String): String? = try {
-            matchDateFormat.parse(rawDate)?.let { logDateFormat.format(it) }
-        } catch (_: Exception) {
-            null
-        }
+        fun matchDayKey(rawDate: String): String? = AppDateTime.matchDateToIsoDay(rawDate)
 
         fun teamCanonicalNames(namesCsv: String): Set<String> =
             namesCsv.split(",").map { canonicalPersonName(it.trim()) }.filter { it.isNotEmpty() }.toSet()
@@ -5002,14 +4898,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * distinto; a ordenação exata dentro do mesmo dia deixa de importar nesse caso extremo.
      */
     private fun resolveEloLogEndTimestamps(logs: List<PlayerEloLog>, history: List<MatchHistory>): List<Long> {
-        val matchDateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-        val logDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-        fun matchDayKey(rawDate: String): String? = try {
-            matchDateFormat.parse(rawDate)?.let { logDateFormat.format(it) }
-        } catch (_: Exception) {
-            null
-        }
+        fun matchDayKey(rawDate: String): String? = AppDateTime.matchDateToIsoDay(rawDate)
 
         fun teamCanonicalNames(namesCsv: String): Set<String> =
             namesCsv.split(",").map { canonicalPersonName(it.trim()) }.filter { it.isNotEmpty() }.toSet()
@@ -5022,11 +4911,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         val cursorByGroupDayPlayer = mutableMapOf<Triple<String, String, String>, Int>()
         return logs.map { log ->
-            val fallbackBase = try {
-                logDateFormat.parse(log.date)?.time
-            } catch (_: Exception) {
-                null
-            } ?: 0L
+            val fallbackBase = AppDateTime.parseIsoDate(log.date) ?: 0L
             val canonicalPlayer = canonicalPersonName(log.playerNameSnapshot)
             val dayMatches = matchesByGroupDay[log.groupName to log.date] ?: return@map fallbackBase
             val relevantMatches = dayMatches.filter { match ->
@@ -5053,7 +4938,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 if (type == CsvType.BACKUP_COMPLETO) {
                     val json =
                         BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).use { it.readText() }
-                    val backup = Gson().fromJson(json, BackupData::class.java)
+                    val backup = AppJson.decodeFromString(BackupData.serializer(), json)
 
                     if (backup != null) {
                         val rawSafePlayers = backup.players.map { p ->
@@ -5066,15 +4951,15 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                 // every keystroke until the name was saved once and got truncated.
                                 groupName = normalizeGroupName(p.groupName),
                                 // Backups antigos (anteriores ao publicId) não têm esse campo no
-                                // JSON: o Gson ignora o valor padrão do Kotlin e deixa null, o que
-                                // quebra a constraint NOT NULL da coluna ao inserir. Gera um novo.
-                                publicId = (p.publicId ?: "").ifBlank { java.util.UUID.randomUUID().toString() }
+                                // JSON e backups gerados pelo Gson podem tê-lo vazio: garante um
+                                // UUID válido para a constraint NOT NULL/UNIQUE da coluna.
+                                publicId = p.publicId.ifBlank { java.util.UUID.randomUUID().toString() }
                             )
                         }
                         val safeGroupConfig = backup.groupConfig?.let { gc ->
                             gc.copy(
                                 groupName = normalizeGroupName(gc.groupName),
-                                publicId = (gc.publicId ?: "").ifBlank { java.util.UUID.randomUUID().toString() }
+                                publicId = gc.publicId.ifBlank { java.util.UUID.randomUUID().toString() }
                             )
                         }
 
@@ -5240,10 +5125,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                         MatchHistory(
                                             id = 0,
                                             date = cols[0].takeIf { it.isNotBlank() }?.take(20)
-                                                ?: SimpleDateFormat(
-                                                    "dd/MM/yyyy HH:mm",
-                                                    Locale.getDefault()
-                                                ).format(Date()),
+                                                ?: AppDateTime.formatMatchDateTime(),
                                             teamA = normalizeTeamNamesSnapshot(cols[1]),
                                             teamB = normalizeTeamNamesSnapshot(cols[2]),
                                             winner = cols[3].take(50),
@@ -5298,10 +5180,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                                             playerNameSnapshot = normalizePersonName(cols[2])
                                                 .ifBlank { "Desconhecido" },
                                             date = cols[3].takeIf { it.isNotBlank() }?.take(20)
-                                                ?: SimpleDateFormat(
-                                                    "yyyy-MM-dd",
-                                                    Locale.getDefault()
-                                                ).format(Date()),
+                                                ?: AppDateTime.todayIsoDate(),
                                             elo = cols[4].toDoubleOrNull() ?: 1200.0,
                                             groupName = cols[5].takeIf { it.isNotBlank() }
                                                 ?.let(::normalizeGroupName)
@@ -5477,7 +5356,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             if (type == CsvType.BACKUP_COMPLETO) {
                 val groupName = _currentGroupConfig.value.groupName
                 val backup = BackupData(
-                    date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date()),
+                    date = AppDateTime.formatMatchDateTime(),
                     players = currentGroupPlayers.value,
                     history = currentGroupHistory.value,
                     logs = currentGroupEloLogs.value,
@@ -5487,7 +5366,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                     tournamentMatches = repository.getTournamentMatchesByGroupSync(groupName).takeIf { it.isNotEmpty() },
                     groupLogs = repository.getGroupLogsByGroupSync(groupName).takeIf { it.isNotEmpty() }
                 )
-                val json = Gson().toJson(backup)
+                val json = AppJson.encodeToString(BackupData.serializer(), backup)
                 shareFile(context, finalName, json, "application/octet-stream")
             } else {
                 val (headers, rows) = when (type) {
@@ -5879,61 +5758,58 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private class UnsupportedXlsException : Exception("Formato .xls (binário antigo) não suportado")
 
     fun standardizeJsonBackupData(jsonString: String): String {
-        val gson = Gson()
-        val data = gson.fromJson(jsonString, com.google.gson.JsonObject::class.java)
-        data.addProperty("version", 1)
-        val historyArray = data.getAsJsonArray("history")
-        if (historyArray != null) {
-            for (element in historyArray) {
-                val match = element.asJsonObject
-                if (!match.has("teamAIds")) match.addProperty("teamAIds", "")
-                if (!match.has("teamBIds")) match.addProperty("teamBIds", "")
+        val data = AppJson.parseToJsonElement(jsonString).jsonObject.toMutableMap()
+        fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+        data["version"] = JsonPrimitive(1)
+        (data["history"] as? JsonArray)?.let { historyArray ->
+            data["history"] = JsonArray(historyArray.map { element ->
+                val match = element.jsonObject.toMutableMap()
+                val original = element.jsonObject
                 val teamASnapshot = normalizeTeamSnapshotWithIds(
-                    rawNames = match.get("teamA")?.asString ?: "",
-                    rawIds = match.get("teamAIds")?.asString ?: "",
+                    rawNames = original.string("teamA") ?: "",
+                    rawIds = original.string("teamAIds") ?: "",
                     normalizeName = ::normalizePersonName
                 )
                 val teamBSnapshot = normalizeTeamSnapshotWithIds(
-                    rawNames = match.get("teamB")?.asString ?: "",
-                    rawIds = match.get("teamBIds")?.asString ?: "",
+                    rawNames = original.string("teamB") ?: "",
+                    rawIds = original.string("teamBIds") ?: "",
                     normalizeName = ::normalizePersonName
                 )
-                match.addProperty("teamA", teamASnapshot.names)
-                match.addProperty("teamB", teamBSnapshot.names)
-                match.addProperty("teamAIds", teamASnapshot.ids)
-                match.addProperty("teamBIds", teamBSnapshot.ids)
-                if (!match.has("teamAScore")) match.addProperty("teamAScore", 0)
-                if (!match.has("teamBScore")) match.addProperty("teamBScore", 0)
-                if (!match.has("teamAAverageElo")) match.addProperty("teamAAverageElo", 0.0)
-                if (!match.has("teamBAverageElo")) match.addProperty("teamBAverageElo", 0.0)
-                if (!match.has("startTimestamp")) match.addProperty("startTimestamp", 0L)
-                if (!match.has("endTimestamp")) match.addProperty("endTimestamp", 0L)
-            }
+                match["teamA"] = JsonPrimitive(teamASnapshot.names)
+                match["teamB"] = JsonPrimitive(teamBSnapshot.names)
+                match["teamAIds"] = JsonPrimitive(teamASnapshot.ids)
+                match["teamBIds"] = JsonPrimitive(teamBSnapshot.ids)
+                match.putIfAbsent("teamAScore", JsonPrimitive(0))
+                match.putIfAbsent("teamBScore", JsonPrimitive(0))
+                match.putIfAbsent("teamAAverageElo", JsonPrimitive(0.0))
+                match.putIfAbsent("teamBAverageElo", JsonPrimitive(0.0))
+                match.putIfAbsent("startTimestamp", JsonPrimitive(0L))
+                match.putIfAbsent("endTimestamp", JsonPrimitive(0L))
+                JsonObject(match)
+            })
         }
-        val playersArray = data.getAsJsonArray("players")
-        if (playersArray != null) {
-            var nextId = (playersArray.mapNotNull { it.asJsonObject.get("id")?.asInt }.maxOrNull() ?: 0) + 1
-            for (element in playersArray) {
-                val p = element.asJsonObject
-                if (!p.has("id") || p.get("id").asInt <= 0) p.addProperty("id", nextId++)
-                if (p.has("name")) {
-                    val normalized = normalizePersonName(p.get("name").asString).ifBlank { "Desconhecido" }
-                    p.addProperty("name", normalized)
+        (data["players"] as? JsonArray)?.let { playersArray ->
+            var nextId = (playersArray.mapNotNull { (it.jsonObject["id"] as? JsonPrimitive)?.intOrNull }.maxOrNull() ?: 0) + 1
+            data["players"] = JsonArray(playersArray.map { element ->
+                val p = element.jsonObject.toMutableMap()
+                val id = (p["id"] as? JsonPrimitive)?.intOrNull
+                if (id == null || id <= 0) p["id"] = JsonPrimitive(nextId++)
+                element.jsonObject.string("name")?.let { name ->
+                    p["name"] = JsonPrimitive(normalizePersonName(name).ifBlank { "Desconhecido" })
                 }
-            }
+                JsonObject(p)
+            })
         }
-        val logsArray = data.getAsJsonArray("logs")
-        if (logsArray != null) {
-            for (element in logsArray) {
-                val log = element.asJsonObject
-                if (log.has("playerNameSnapshot")) {
-                    val normalized = normalizePersonName(log.get("playerNameSnapshot").asString)
-                        .ifBlank { "Desconhecido" }
-                    log.addProperty("playerNameSnapshot", normalized)
+        (data["logs"] as? JsonArray)?.let { logsArray ->
+            data["logs"] = JsonArray(logsArray.map { element ->
+                val log = element.jsonObject.toMutableMap()
+                element.jsonObject.string("playerNameSnapshot")?.let { snapshot ->
+                    log["playerNameSnapshot"] = JsonPrimitive(normalizePersonName(snapshot).ifBlank { "Desconhecido" })
                 }
-            }
+                JsonObject(log)
+            })
         }
-        return gson.toJson(data)
+        return AppJson.encodeToString(JsonObject.serializer(), JsonObject(data))
     }
 
     fun captureHistoryScreenAsImage(

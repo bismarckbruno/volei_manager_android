@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.data.model
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -36,6 +37,7 @@ enum class TournamentMatchStatus {
  * de grupos. [homeSourceMatchId] e [awaySourceMatchId] ligam a partida ao confronto anterior cujo
  * vencedor a alimenta, permitindo montar o chaveamento antes de os times serem conhecidos.
  */
+@Serializable
 @Entity(
     tableName = "tournament_matches",
     indices = [Index(value = ["groupName", "phase", "roundIndex", "orderInRound"])]

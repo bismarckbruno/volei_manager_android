@@ -37,17 +37,17 @@ class Migration15To16Test {
             "INSERT INTO group_configs (groupName, teamSize, victoryLimit, priorityEnabled, scoreEnabled, balancingMode, onboardingStep) " +
                 "VALUES ('Grupo', 6, 3, 1, 1, 'REBALANCE', 5)"
         )
-        AppDatabase.MIGRATION_6_7.migrate(legacyDb)
-        AppDatabase.MIGRATION_7_8.migrate(legacyDb)
-        AppDatabase.MIGRATION_8_9.migrate(legacyDb)
-        AppDatabase.MIGRATION_9_10.migrate(legacyDb)
-        AppDatabase.MIGRATION_10_11.migrate(legacyDb)
-        AppDatabase.MIGRATION_11_12.migrate(legacyDb)
-        AppDatabase.MIGRATION_12_13.migrate(legacyDb)
-        AppDatabase.MIGRATION_13_14.migrate(legacyDb)
-        AppDatabase.MIGRATION_14_15.migrate(legacyDb)
+        AppDatabase.MIGRATION_6_7.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_7_8.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_8_9.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_9_10.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_10_11.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_11_12.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_12_13.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_13_14.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_14_15.migrate(legacyDb.asConnection())
 
-        AppDatabase.MIGRATION_15_16.migrate(legacyDb)
+        AppDatabase.MIGRATION_15_16.migrate(legacyDb.asConnection())
         legacyDb.version = 16
         legacyDb.close()
 

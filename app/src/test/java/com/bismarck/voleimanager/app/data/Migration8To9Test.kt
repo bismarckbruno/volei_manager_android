@@ -40,7 +40,7 @@ class Migration8To9Test {
             "INSERT INTO match_history (date, teamA, teamB, teamAIds, teamBIds, winner, eloPoints, groupName, teamAScore, teamBScore) " +
                 "VALUES ('2024-01-01', 'Ana, Bia', 'Caio, Dani', '1,2', '3,4', 'Ana, Bia', 16.0, 'Grupo', 25, 20)"
         )
-        AppDatabase.MIGRATION_6_7.migrate(legacyDb)
+        AppDatabase.MIGRATION_6_7.migrate(legacyDb.asConnection())
         legacyDb.execSQL(
             "INSERT INTO tournament_teams (groupName, teamKey, isActive, createdAt) VALUES ('Grupo', 'A', 1, 0)"
         )
@@ -48,15 +48,15 @@ class Migration8To9Test {
             "INSERT INTO tournament_matches (groupName, phase, roundIndex, orderInRound, status) " +
                 "VALUES ('Grupo', 'KNOCKOUT', 0, 0, 'PENDING')"
         )
-        AppDatabase.MIGRATION_7_8.migrate(legacyDb)
+        AppDatabase.MIGRATION_7_8.migrate(legacyDb.asConnection())
 
-        AppDatabase.MIGRATION_8_9.migrate(legacyDb)
-        AppDatabase.MIGRATION_9_10.migrate(legacyDb)
-        AppDatabase.MIGRATION_10_11.migrate(legacyDb)
-        AppDatabase.MIGRATION_11_12.migrate(legacyDb)
-        AppDatabase.MIGRATION_12_13.migrate(legacyDb)
-        AppDatabase.MIGRATION_13_14.migrate(legacyDb)
-        AppDatabase.MIGRATION_14_15.migrate(legacyDb)
+        AppDatabase.MIGRATION_8_9.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_9_10.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_10_11.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_11_12.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_12_13.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_13_14.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_14_15.migrate(legacyDb.asConnection())
         legacyDb.version = 15
         legacyDb.close()
 

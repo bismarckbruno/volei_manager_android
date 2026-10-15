@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.data.model
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -51,6 +52,7 @@ const val ONBOARDING_STEP_TEAM_SIZE = 3
 const val ONBOARDING_STEP_MIN_PLAYERS = 4
 const val ONBOARDING_STEP_COMPLETE = 5
 
+@Serializable
 @Entity(
     tableName = "group_configs",
     indices = [Index(value = ["publicId"], unique = true)]

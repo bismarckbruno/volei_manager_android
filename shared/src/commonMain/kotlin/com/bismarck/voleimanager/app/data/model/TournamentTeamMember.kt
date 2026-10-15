@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.data.model
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -9,6 +10,7 @@ import androidx.room.PrimaryKey
  *
  * Substituições preservam o histórico: o vínculo antigo recebe [isActive] falso e [leftAt].
  */
+@Serializable
 @Entity(
     tableName = "tournament_team_members",
     indices = [

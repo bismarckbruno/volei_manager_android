@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.data.model
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -10,6 +11,7 @@ import androidx.room.PrimaryKey
  * [teamKey] guarda apenas o sufixo gerado em ordem alfabética ("A", "B", "C"...), sem a palavra
  * "Time". [customName] sobrepõe o nome padrão quando o usuário personaliza o time.
  */
+@Serializable
 @Entity(
     tableName = "tournament_teams",
     indices = [Index(value = ["groupName", "teamKey"], unique = true)]

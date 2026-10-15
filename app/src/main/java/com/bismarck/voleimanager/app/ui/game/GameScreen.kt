@@ -146,6 +146,7 @@ import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualStreakAdjustmentLog
 import com.bismarck.voleimanager.app.ui.viewmodel.ManualSubstitutionLog
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
+import com.bismarck.voleimanager.app.util.AppDateTime
 import com.bismarck.voleimanager.app.util.EloCalculator
 import com.bismarck.voleimanager.app.util.containsIgnoreDiacritics
 import kotlinx.coroutines.coroutineScope
@@ -153,8 +154,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.roundToInt
@@ -925,7 +924,7 @@ fun ActiveGameView(
     val rotationRequiredForTeamId by viewModel.rotationRequiredForTeam.collectAsState()
     val restingMap by viewModel.restingPlayers.collectAsState()
     val targetDate = remember(locale) {
-        SimpleDateFormat("yyyy-MM-dd", locale).format(Date())
+        AppDateTime.todayIsoDate()
     }
     var streakDialogTeam by remember { mutableStateOf<String?>(null) }
     var streakDraftValue by remember { mutableIntStateOf(0) }
@@ -1020,7 +1019,7 @@ fun ActiveGameView(
 
     @Composable
     fun buildStreakHistoryLine(log: ManualStreakAdjustmentLog): String {
-        val timeLabel = SimpleDateFormat("HH:mm", locale).format(Date(log.timestamp))
+        val timeLabel = AppDateTime.formatTime(log.timestamp)
         val teamLabel = when (log.team) {
             "A" -> stringResource(R.string.team_a)
             "B" -> stringResource(R.string.team_b)
@@ -1069,7 +1068,7 @@ fun ActiveGameView(
     }
 
     fun buildSubstitutionHistoryLine(log: ManualSubstitutionLog): String {
-        val timeLabel = SimpleDateFormat("HH:mm", locale).format(Date(log.timestamp))
+        val timeLabel = AppDateTime.formatTime(log.timestamp)
         val targetTeamLabel = substitutionLocationLabel(log.targetTeam)
         val sourceLabel = substitutionLocationLabel(log.incomingSource)
         val description = when (log.incomingSource) {
@@ -4832,10 +4831,7 @@ fun PlayerCard(
                 Column(horizontalAlignment = Alignment.End) {
                     val actualGames = gamesPlayed ?: 0
                     val today = remember(locale) {
-                        SimpleDateFormat(
-                            "yyyy-MM-dd",
-                            locale
-                        ).format(Date())
+                        AppDateTime.todayIsoDate()
                     }
                     val hasToll =
                         player.dailyToll > 0 && (player.tollDate == targetDate || player.tollDate == today)
