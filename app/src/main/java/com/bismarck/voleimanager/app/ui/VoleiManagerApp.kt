@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.bismarck.voleimanager.app.platform.FileRef
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.BuildConfig
 import androidx.compose.ui.res.stringResource
@@ -380,7 +381,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val launcherImport =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let {
-                viewModel.importData(it, pendingImportType, context)
+                viewModel.importData(FileRef(it.toString()), pendingImportType, context)
                 Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
             }
         }

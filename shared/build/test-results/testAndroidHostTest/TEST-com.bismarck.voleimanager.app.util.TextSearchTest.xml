@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.bismarck.voleimanager.app.util.TextSearchTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-14T20:16:04.971Z" hostname="NITRO-5-BIS" time="0.021">
+<testsuite name="com.bismarck.voleimanager.app.util.TextSearchTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-16T20:08:25.142Z" hostname="NITRO-5-BIS" time="0.346">
   <properties/>
-  <testcase name="publicId_isRandomUuidV4" classname="com.bismarck.voleimanager.app.util.TextSearchTest" time="0.002"/>
-  <testcase name="normalizeForSearch_removesAccentsAndLowercases" classname="com.bismarck.voleimanager.app.util.TextSearchTest" time="0.015"/>
-  <testcase name="faqNormalize_removesAccents" classname="com.bismarck.voleimanager.app.util.TextSearchTest" time="0.003"/>
+  <testcase name="publicId_isRandomUuidV4" classname="com.bismarck.voleimanager.app.util.TextSearchTest" time="0.057"/>
+  <testcase name="normalizeForSearch_removesAccentsAndLowercases" classname="com.bismarck.voleimanager.app.util.TextSearchTest" time="0.247"/>
+  <testcase name="faqNormalize_removesAccents" classname="com.bismarck.voleimanager.app.util.TextSearchTest" time="0.034"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

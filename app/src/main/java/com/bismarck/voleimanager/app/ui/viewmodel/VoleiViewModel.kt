@@ -5,7 +5,6 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -58,6 +57,14 @@ import com.bismarck.voleimanager.app.util.SubscriptionOffer
 import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TelemetryManager
 import com.bismarck.voleimanager.app.util.TollCalculator
+import com.bismarck.voleimanager.app.platform.AppLog
+import com.bismarck.voleimanager.app.platform.FileRef
+import com.bismarck.voleimanager.app.platform.FileService
+import com.bismarck.voleimanager.app.platform.PreferencesStore
+import com.bismarck.voleimanager.app.platform.SharedPreferencesStore
+import com.bismarck.voleimanager.app.platform.Telemetry
+import com.bismarck.voleimanager.app.util.AndroidFileService
+import com.bismarck.voleimanager.app.util.FirebaseTelemetry
 import com.bismarck.voleimanager.app.util.AppDateTime
 import com.bismarck.voleimanager.app.util.AppJson
 import com.bismarck.voleimanager.app.util.formatTwoDecimals
@@ -492,7 +499,13 @@ internal fun resolveReturningPlayers(
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class VoleiViewModel(application: Application, private val repository: VoleiRepository) :
+class VoleiViewModel(
+    application: Application,
+    private val repository: VoleiRepository,
+    private val preferences: PreferencesStore = SharedPreferencesStore.create(application),
+    private val telemetry: Telemetry = FirebaseTelemetry(application),
+    private val fileService: FileService = AndroidFileService(application)
+) :
     AndroidViewModel(application) {
     private val screenDataSharing = SharingStarted.Eagerly
 
@@ -506,12 +519,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * Uri de um backup (.vlz/.json) aberto fora do app (gerenciador de arquivos, e-mail, etc.),
      * aguardando confirmação do usuário antes de importar. Ver [onExternalFileOpened].
      */
-    private val _pendingExternalImportUri = MutableStateFlow<Uri?>(null)
-    val pendingExternalImportUri: StateFlow<Uri?> = _pendingExternalImportUri.asStateFlow()
+    private val _pendingExternalImportUri = MutableStateFlow<FileRef?>(null)
+    val pendingExternalImportUri: StateFlow<FileRef?> = _pendingExternalImportUri.asStateFlow()
 
     /** Chamado pela MainActivity quando o app é aberto via ACTION_VIEW (ex.: toque em um .vlz). */
-    fun onExternalFileOpened(uri: Uri) {
-        _pendingExternalImportUri.value = uri
+    fun onExternalFileOpened(file: FileRef) {
+        _pendingExternalImportUri.value = file
     }
 
     fun cancelExternalImport() {
@@ -983,7 +996,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun setDebugPremiumPlanTier(tier: CloudPlanTier) {
         if (!BuildConfig.DEBUG || tier == CloudPlanTier.NONE) return
         _debugPremiumPlanTier.value = tier
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putString("debug_premium_plan_tier", tier.name).apply()
     }
 
@@ -1072,7 +1085,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun rememberSelectedBasePlan(productId: String, annual: Boolean) {
         val basePlanId = if (annual) BillingProductIds.BASE_PLAN_ANNUAL else BillingProductIds.BASE_PLAN_MONTHLY
         _premiumBasePlanByProduct.value = _premiumBasePlanByProduct.value + (productId to basePlanId)
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putString("premium_base_plan_$productId", basePlanId).apply()
     }
 
@@ -1149,9 +1162,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 lastPremiumSwitchAt = now
             )
         }
-        TelemetryManager.logGroupCloudSynced(
-            getApplication(),
-            target.groupType,
+        telemetry.logGroupCloudSynced(target.groupType,
             effectivePremiumPlanTier.value.name
         )
 
@@ -1183,7 +1194,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         try {
             val backendError = CloudFunctionsManager.switchPremiumGroup(cloudGroupId, groupName)
             if (backendError != null) {
-                Log.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
+                AppLog.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
                 showMessage(getApplication<Application>().getString(R.string.cloud_sync_activation_error))
             }
 
@@ -1299,7 +1310,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             }
         )
         if (!historyOk || !eloOk) {
-            Log.d("VoleiViewModel", "Backfill de histórico incompleto para $groupName (historyOk=$historyOk, eloOk=$eloOk)")
+            AppLog.d("VoleiViewModel", "Backfill de histórico incompleto para $groupName (historyOk=$historyOk, eloOk=$eloOk)")
             return@launch
         }
 
@@ -1642,7 +1653,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         )
         repository.saveGroupConfig(cfg)
         loadGroupConfig(groupName)
-        TelemetryManager.logMemberJoinedViaCode(getApplication(), role.name)
+        telemetry.logMemberJoinedViaCode(role.name)
         onResult(null)
     }
 
@@ -2467,14 +2478,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             return
         }
         val json = AppJson.encodeToString(GameStateSnapshot.serializer(), snapshot)
-        getApplication<Application>()
-            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+        preferences
             .edit().putString("game_state_${snapshot.groupName}", json).apply()
     }
 
     private fun clearSavedGameState(groupName: String = _currentGroupConfig.value.groupName) {
-        getApplication<Application>()
-            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+        preferences
             .edit().remove("game_state_$groupName").apply()
     }
 
@@ -2483,14 +2492,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun saveUndoSnapshot(snapshot: UndoMatchSnapshot) {
         val json = AppJson.encodeToString(UndoMatchSnapshot.serializer(), snapshot)
-        getApplication<Application>()
-            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+        preferences
             .edit().putString("undo_snapshot_${snapshot.groupName}", json).apply()
     }
 
     private fun loadUndoSnapshot(groupName: String): UndoMatchSnapshot? {
-        val json = getApplication<Application>()
-            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+        val json = preferences
             .getString("undo_snapshot_$groupName", null) ?: return null
         return try {
             AppJson.decodeFromString(UndoMatchSnapshot.serializer(), json)
@@ -2500,8 +2507,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     }
 
     private fun clearUndoSnapshot(groupName: String) {
-        getApplication<Application>()
-            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+        preferences
             .edit().remove("undo_snapshot_$groupName").apply()
     }
 
@@ -2559,8 +2565,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     private fun parseLegacyMatchDate(rawDate: String): Long? = AppDateTime.parseLegacyMatchDate(rawDate)
 
     private fun tryRestoreGameState(groupName: String): Boolean {
-        val json = getApplication<Application>()
-            .getSharedPreferences("volei", Context.MODE_PRIVATE)
+        val json = preferences
             .getString("game_state_$groupName", null) ?: return false
         return try {
             val snapshot = AppJson.decodeFromString(GameStateSnapshot.serializer(), json)
@@ -2591,10 +2596,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                 .toMap()
             _assignedSlotIndices.value = snapshot.assignedSlotIndices ?: emptyMap()
             _compositionIncomplete.value = snapshot.compositionIncomplete
-            Log.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
+            AppLog.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
             true
         } catch (e: Exception) {
-            Log.e("GameState", "Erro ao restaurar estado do jogo: ${e.message}")
+            AppLog.e("GameState", "Erro ao restaurar estado do jogo: ${e.message}")
             false
         }
     }
@@ -2605,19 +2610,19 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     fun setThemeMode(m: ThemeMode) {
         _themeMode.value = m
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putString("theme", m.name).apply()
     }
 
     fun setShowElo(show: Boolean) {
         _showElo.value = show
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putBoolean("show_elo", show).apply()
     }
 
     fun setShowToll(show: Boolean) {
         _showToll.value = show
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putBoolean("show_toll", show).apply()
     }
 
@@ -2629,9 +2634,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun setTelemetryEnabled(enabled: Boolean) {
         _telemetryEnabled.value = enabled
         _showTelemetryConsentPrompt.value = false
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
-            .putBoolean(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED, enabled).apply()
-        TelemetryManager.applyConsent(getApplication(), enabled)
+        preferences.edit()
+            .putBoolean(Telemetry.PREF_KEY_TELEMETRY_ENABLED, enabled).apply()
+        telemetry.applyConsent(enabled)
     }
 
     /**
@@ -2670,7 +2675,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         _personalTeamColorOverrideEnabled.value = true
         _personalTeamAColor.value = teamA
         _personalTeamBColor.value = teamB
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putBoolean("personal_team_color_override_enabled", true)
             .putString("personal_team_color_a", teamA.name)
             .putString("personal_team_color_b", teamB.name)
@@ -2680,7 +2685,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     /** Desativa a sobreposição pessoal, voltando a exibir as cores oficiais do grupo atual. */
     fun clearPersonalTeamColorOverride() {
         _personalTeamColorOverrideEnabled.value = false
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putBoolean("personal_team_color_override_enabled", false).apply()
     }
 
@@ -2695,7 +2700,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun setDebugPremiumOverride(enabled: Boolean) {
         if (!BuildConfig.DEBUG) return
         _debugPremiumOverride.value = enabled
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putBoolean("debug_premium_override", enabled).apply()
         if (!enabled && !_realPremiumEntitlement.value) {
             clearPersonalTeamColorOverride()
@@ -2706,7 +2711,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      *  tela de Premium/Nuvem — persiste a escolha para as próximas aberturas do app. */
     fun setPremiumScreenPersona(persona: PremiumScreenPersona) {
         _premiumScreenPersona.value = persona
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putString("premium_screen_persona", persona.name).apply()
     }
 
@@ -2721,7 +2726,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      */
     fun setUserProfileType(type: UserProfileType) {
         _userProfileType.value = type
-        val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        val prefs = preferences
         prefs.edit().putString("user_profile_type", type.name).apply()
         // A persona inicial da tela de Premium/Nuvem acompanha a resposta do onboarding, mas só
         // na primeira vez — se o usuário já tiver trocado manualmente antes (ver
@@ -2777,12 +2782,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     /** Usado pela dica de rolagem do cabeçalho (rotação/duplo toque), exibida uma vez por grupo. */
     fun hasSeenHeaderScrollTooltip(groupName: String): Boolean {
-        return getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        return preferences
             .getBoolean("seen_header_scroll_tooltip_$groupName", false)
     }
 
     fun markHeaderScrollTooltipSeen(groupName: String) {
-        getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE).edit()
+        preferences.edit()
             .putBoolean("seen_header_scroll_tooltip_$groupName", true).apply()
     }
 
@@ -2793,7 +2798,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * internamente, com sua própria cota, se o diálogo será de fato exibido ao usuário.
      */
     private fun registerQualifyingGameClear() {
-        val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        val prefs = preferences
         val newCount = prefs.getInt("clear_match_valid_count", 0) + 1
         prefs.edit().putInt("clear_match_valid_count", newCount).apply()
 
@@ -2815,7 +2820,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * limpeza válida já tenha disparado o pedido (nesse caso o fluxo de marcos já cuida disso).
      */
     private fun registerCompletedMatchForReviewFallback() {
-        val prefs = getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+        val prefs = preferences
         val today = AppDateTime.todayIsoDate()
         val lastMatchDay = prefs.getString(KEY_LAST_MATCH_FINISHED_DATE, null)
         var distinctDaysCount = prefs.getInt(KEY_DISTINCT_MATCH_DAYS_COUNT, 0)
@@ -2978,7 +2983,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun loadPreferences() {
         val prefs =
-            getApplication<Application>().getSharedPreferences("volei", Context.MODE_PRIVATE)
+            preferences
         _themeMode.value = try {
             ThemeMode.valueOf(prefs.getString("theme", "SYSTEM")!!)
         } catch (e: Exception) {
@@ -2986,16 +2991,16 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
         _showElo.value = prefs.getBoolean("show_elo", false)
         _showToll.value = prefs.getBoolean("show_toll", false)
-        _telemetryEnabled.value = prefs.getBoolean(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED, false)
-        _showTelemetryConsentPrompt.value = !prefs.contains(TelemetryManager.PREF_KEY_TELEMETRY_ENABLED)
-        TelemetryManager.init(getApplication(), _telemetryEnabled.value)
+        _telemetryEnabled.value = prefs.getBoolean(Telemetry.PREF_KEY_TELEMETRY_ENABLED, false)
+        _showTelemetryConsentPrompt.value = !prefs.contains(Telemetry.PREF_KEY_TELEMETRY_ENABLED)
+        telemetry.init(_telemetryEnabled.value)
         AuthManager.init(getApplication())
         BillingManager.init(getApplication())
         viewModelScope.launch {
             BillingManager.purchaseEvents.collect { event ->
                 val error = CloudFunctionsManager.linkPurchaseToken(event.purchaseToken, event.productId)
                 if (error != null) {
-                    Log.d("VoleiViewModel", "linkPurchaseToken (best-effort) falhou: $error")
+                    AppLog.d("VoleiViewModel", "linkPurchaseToken (best-effort) falhou: $error")
                     showMessage(getApplication<Application>().getString(R.string.cloud_sync_purchase_link_error))
                 }
             }
@@ -3368,7 +3373,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         repository.saveGroupConfig(cfg)
         // Garantir que o load use o cfg salvo (faz reset e tentativa de restauração)
         loadGroupConfig(normalizedName)
-        TelemetryManager.logGroupCreated(getApplication(), cfg.groupType, cfg.balancingMode)
+        telemetry.logGroupCreated(cfg.groupType, cfg.balancingMode)
     }
 
     private fun getUsageCountMap(date: String): Map<Int, Int> {
@@ -4106,9 +4111,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             _canUndoLastMatch.value = true
             armUndoExpiry(groupName, expiresAt)
 
-            TelemetryManager.logMatchFinished(
-                getApplication(),
-                groupType = conf.groupType,
+            telemetry.logMatchFinished(groupType = conf.groupType,
                 teamSize = conf.teamSize,
                 streakBroken = conf.victoryLimit > 0 && _currentStreak.value >= conf.victoryLimit
             )
@@ -4317,7 +4320,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun startNextRoundRebalance(conf: GroupConfig) {
         if (conf.teamSize <= 0) return
-        TelemetryManager.logTeamsRebalanced(getApplication(), conf.groupType, conf.balancingMode)
+        telemetry.logTeamsRebalanced(conf.groupType, conf.balancingMode)
         _rebalancedPlayerIds.value = emptySet()
         _autoSelectedLoserPlayerIds.value = emptySet()
         val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
@@ -4351,7 +4354,7 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
         if (_currentStreak.value >= conf.victoryLimit) {
             _currentStreak.value = 0; _streakOwner.value = null
-            TelemetryManager.logStreakBreakRebalance(getApplication(), conf.groupType)
+            telemetry.logStreakBreakRebalance(conf.groupType)
 
             val sortedWinners = TeamBalancer.groupAndInterleave(activeWinners) { getEffectiveGames(it) }
             val winnersToKeep = sortedWinners.take(conf.teamSize * 2)
@@ -4926,18 +4929,17 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
         }
     }
 
-    fun importData(uri: Uri, type: CsvType, context: Context) {
+    fun importData(file: FileRef, type: CsvType, context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             if (type == CsvType.BACKUP_COMPLETO) {
-                TelemetryManager.logBackupImported(context)
+                telemetry.logBackupImported()
             } else {
-                TelemetryManager.logCsvImported(context, type.name)
+                telemetry.logCsvImported(type.name)
             }
             try {
-                val contentResolver = context.contentResolver
                 if (type == CsvType.BACKUP_COMPLETO) {
                     val json =
-                        BufferedReader(InputStreamReader(contentResolver.openInputStream(uri))).use { it.readText() }
+                        (fileService.readBytes(file) ?: throw IllegalStateException("Arquivo ileg?vel")).decodeToString()
                     val backup = AppJson.decodeFromString(BackupData.serializer(), json)
 
                     if (backup != null) {
@@ -5046,10 +5048,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                             )
                         }
                     } else {
-                        Log.e("Import", context.getString(R.string.invalid_backup_format))
+                        AppLog.e("Import", context.getString(R.string.invalid_backup_format))
                     }
                 } else {
-                    val rows = readTabularRows(context, uri)
+                    val rows = readTabularRows(file)
                     if (rows.isEmpty()) {
                         _uiMessage.value = context.getString(R.string.import_error_empty_or_unreadable)
                         return@launch
@@ -5219,9 +5221,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             } catch (e: UnsupportedXlsException) {
                 _uiMessage.value = context.getString(R.string.import_error_xls_unsupported)
             } catch (e: Exception) {
-                Log.e("Import", "Erro: ${e.message}")
+                AppLog.e("Import", "Erro: ${e.message}")
                 _uiMessage.value = context.getString(R.string.import_error_generic)
-                TelemetryManager.recordException(e)
+                telemetry.recordException(e)
             }
         }
     }
@@ -5269,9 +5271,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
                         ?: data.logs.firstOrNull()?.groupName
                 )
             } catch (e: Exception) {
-                Log.e("Import", "Erro ao mesclar importação: ${e.message}")
+                AppLog.e("Import", "Erro ao mesclar importação: ${e.message}")
                 _uiMessage.value = getApplication<Application>().getString(R.string.import_error_generic)
-                TelemetryManager.recordException(e)
+                telemetry.recordException(e)
             }
             _pendingMergeImport.value = null
         }
@@ -5344,9 +5346,9 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
     fun exportData(context: Context, type: CsvType, fileName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             if (type == CsvType.BACKUP_COMPLETO) {
-                TelemetryManager.logBackupExported(context)
+                telemetry.logBackupExported()
             } else {
-                TelemetryManager.logCsvExported(context, type.name)
+                telemetry.logCsvExported(type.name)
             }
             val safeFileName = fileName.replace(Regex("[^a-zA-Z0-9_\\-\\.]"), "")
             val extension = if (type == CsvType.BACKUP_COMPLETO) "vlz" else "xlsx"
@@ -5473,21 +5475,10 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
 
     private fun shareBytes(context: Context, name: String, bytes: ByteArray, mimeType: String) {
         try {
-            val file = File(context.cacheDir, name)
-            FileOutputStream(file).use { it.write(bytes) }
-            val uri =
-                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = mimeType
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            val chooser = Intent.createChooser(intent, context.getString(R.string.save_file, name))
-                .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-            context.startActivity(chooser)
+            fileService.shareFile(name, bytes, mimeType, context.getString(R.string.save_file, name))
         } catch (e: Exception) {
-            Log.e("Export", context.getString(R.string.error, e.message))
-            TelemetryManager.recordException(e)
+            AppLog.e("Export", context.getString(R.string.error, e.message))
+            telemetry.recordException(e)
         }
     }
 
@@ -5577,23 +5568,12 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
             try {
                 val safeDate = date.replace(Regex("[^a-zA-Z0-9]"), "_")
                 val fileName = "history_$safeDate.png"
-                val file = File(context.cacheDir, fileName)
-                FileOutputStream(file).use { out ->
-                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-                    out.flush()
-                }
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "image/png"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                val chooser = Intent.createChooser(intent, "Share history").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(chooser)
+                val pngBytes = ByteArrayOutputStream().also {
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                }.toByteArray()
+                fileService.shareFile(fileName, pngBytes, "image/png", "Share history")
             } catch (e: Exception) {
-                Log.e("Share", "Erro ao compartilhar imagem: ${e.message}")
+                AppLog.e("Share", "Erro ao compartilhar imagem: ${e.message}")
             }
         }
     }
@@ -5624,9 +5604,8 @@ class VoleiViewModel(application: Application, private val repository: VoleiRepo
      * Arquivos .xls (formato binário antigo do Excel) são detectados e sinalizados via
      * [UnsupportedXlsException], pois exigiriam um parser binário próprio (fora de escopo).
      */
-    private fun readTabularRows(context: Context, uri: Uri): List<List<String>> {
-        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: return emptyList()
+    private fun readTabularRows(file: FileRef): List<List<String>> {
+        val bytes = fileService.readBytes(file) ?: return emptyList()
         return when {
             isZipFormat(bytes) -> readXlsxRows(bytes)
             isLegacyXlsFormat(bytes) -> throw UnsupportedXlsException()

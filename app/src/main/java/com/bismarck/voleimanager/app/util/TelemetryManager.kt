@@ -2,6 +2,7 @@ package com.bismarck.voleimanager.app.util
 
 import android.content.Context
 import android.util.Log
+import com.bismarck.voleimanager.app.platform.Telemetry
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
@@ -28,7 +29,7 @@ import com.google.firebase.crashlytics.crashlytics
 object TelemetryManager {
 
     private const val TAG = "TelemetryManager"
-    const val PREF_KEY_TELEMETRY_ENABLED = "telemetry_enabled"
+    const val PREF_KEY_TELEMETRY_ENABLED = Telemetry.PREF_KEY_TELEMETRY_ENABLED
 
     private var consentGranted = false
 

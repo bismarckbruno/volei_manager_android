@@ -3,6 +3,7 @@ package com.bismarck.voleimanager.app.ui.viewmodel
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.bismarck.voleimanager.app.platform.FileRef
 import com.bismarck.voleimanager.app.data.VoleiDao
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.BalancingMode
@@ -554,7 +555,7 @@ class VoleiViewModelRestingIntegrationTest {
         val uri = android.net.Uri.fromFile(file)
         val context = ApplicationProvider.getApplicationContext<Application>()
 
-        env.vm.importData(uri, CsvType.JOGADORES, context)
+        env.vm.importData(FileRef(uri.toString()), CsvType.JOGADORES, context)
 
         val imported = withTimeout(5_000) {
             var players: List<Player> = emptyList()

@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.lifecycle.ViewModelProvider
+import com.bismarck.voleimanager.app.platform.FileRef
 import com.bismarck.voleimanager.app.data.AppDatabase
 import com.bismarck.voleimanager.app.data.getDatabase
 import com.bismarck.voleimanager.app.data.VoleiRepository
@@ -163,7 +164,7 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_SEND -> intent.getStreamExtraUri()
             else -> null
         }
-        uri?.let { viewModel.onExternalFileOpened(it) }
+        uri?.let { viewModel.onExternalFileOpened(FileRef(it.toString())) }
     }
 
     @Suppress("DEPRECATION")
