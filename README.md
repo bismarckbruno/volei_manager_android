@@ -38,13 +38,13 @@
 
 ## 🛠 Tech Stack
 - **Language**: Kotlin
-- **UI**: Jetpack Compose (Material Design 3)
+- **UI**: Compose Multiplatform (Material Design 3), shared between Android and iOS (`:shared` module)
 - **Architecture**: MVVM — all business logic in `VoleiViewModel`; manual DI via `ViewModelFactory` (no Hilt/Dagger)
 - **Navigation**: Custom enum-based navigation (`Screen.GAME`, `HISTORY`, `FAQ`, `ABOUT`) with `AnimatedContent`
 - **Local Database**: Room (SQLite) with incremental migrations
 - **Cloud/Backend**: Firebase Authentication (sign-in), Firestore (cloud sync/live spectator data), Cloud Functions, Google Play Billing (subscriptions)
 - **Async**: Coroutines & Flow (`viewModelScope`, `Dispatchers.IO`)
-- **JSON Serialization**: Gson 2.10.1
+- **JSON Serialization**: kotlinx-serialization
 - **Annotation Processing**: KSP (Kotlin Symbol Processing)
 
 ## 🚀 Running the Project
@@ -55,6 +55,7 @@
 2. Open the project in **Android Studio**.
 3. Sync Gradle and run the app on an emulator or physical device (Android 7.0+ / API 24+).
 4. Current Play-targeted SDK levels: **compileSdk 36** and **targetSdk 36** (Android 16).
+5. **iOS (in progress, offline-only first release)**: the Xcode project is generated with [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen && cd iosApp && xcodegen generate`) and requires macOS + Xcode. Cloud sync, sign-in and subscriptions are not available on iOS yet. CI builds it in `.github/workflows/ios.yml`.
 
 ## ⚙️ Group-Level Rules
 - **Team Size**: From 2 to 6 players per side.

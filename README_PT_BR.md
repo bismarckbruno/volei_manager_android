@@ -38,13 +38,13 @@
 
 ## 🛠 Tecnologias Utilizadas
 - **Linguagem**: Kotlin
-- **Interface (UI)**: Jetpack Compose (Material Design 3)
+- **Interface (UI)**: Compose Multiplatform (Material Design 3), compartilhada entre Android e iOS (módulo `:shared`)
 - **Arquitetura**: MVVM — toda a lógica de negócio está em `VoleiViewModel`; DI manual via `ViewModelFactory`, sem Hilt/Dagger
 - **Navegação**: Enum-based customizado (`Screen.GAME`, `HISTORY`, `FAQ`, `ABOUT`) com `AnimatedContent`
 - **Banco de Dados Local**: Room (SQLite) com migrações incrementais
 - **Nuvem/Backend**: Firebase Authentication (login), Firestore (sincronização em nuvem/dados de transmissão ao vivo), Cloud Functions, Google Play Billing (assinaturas)
 - **Assincronismo**: Coroutines & Flow (`viewModelScope`, `Dispatchers.IO`)
-- **Serialização JSON**: Gson 2.10.1 (backup completo)
+- **Serialização JSON**: kotlinx-serialization (backup completo)
 - **Processamento de Anotações**: KSP (Kotlin Symbol Processing)
 
 ## 🚀 Como Rodar o Projeto
@@ -55,6 +55,7 @@
 2. Abra o projeto no **Android Studio**.
 3. Sincronize o Gradle e execute o app em um emulador ou dispositivo físico (Android 7.0+ / API 24+).
 4. Níveis de SDK atuais para publicação na Play Store: **compileSdk 36** e **targetSdk 36** (Android 16).
+5. **iOS (em andamento, 1ª versão somente offline)**: o projeto Xcode é gerado com o [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen && cd iosApp && xcodegen generate`) e exige macOS + Xcode. Sincronização em nuvem, login e assinaturas ainda não estão disponíveis no iOS. O CI compila em `.github/workflows/ios.yml`.
 
 ## ⚙️ Regras Configuráveis por Grupo
 - **Tamanho do Time**: De 2 a 6 jogadores por lado.

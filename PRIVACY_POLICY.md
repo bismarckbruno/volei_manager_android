@@ -55,7 +55,7 @@ If you use cloud sync or live spectator sharing, the corresponding group data (p
 The app uses **Firebase Authentication**, **Firebase Firestore**, and **Firebase Cloud Functions** (Google) to provide sign-in, premium cloud sync, and live spectator sharing, and **Google Play Billing** (Google) to process subscription purchases. If you opt in to the anonymous telemetry feature described in Section 2, the app also uses **Firebase Analytics** and **Firebase Crashlytics**. The app does not use any other analytics, ad networks, or behavioral tracking services.
 
 ### 8. Permissions
-The app requests the INTERNET permission, used to sync data with Firebase when you use the optional sign-in, premium cloud sync, or live spectator features, and to send the anonymous telemetry described in Section 2 when you opt in (no network request is made for these purposes if you don't use them). The app does not request other special device permissions such as camera, microphone, or location.
+The app requests the INTERNET permission, used to sync data with Firebase when you use the optional sign-in, premium cloud sync, or live spectator features, and to send the anonymous telemetry described in Section 2 when you opt in (no network request is made for these purposes if you don't use them). The app does not request other special device permissions such as camera, microphone, or location. On iOS, the app only accesses your photo library through the system picker when you choose to set a player avatar, and the initial iOS release does not use sign-in, cloud sync, or telemetry.
 
 ### 9. Data Deletion
 You control your local data:
