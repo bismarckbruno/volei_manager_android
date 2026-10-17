@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app.ui.components
 
+import org.jetbrains.compose.resources.DrawableResource
+import com.bismarck.voleimanager.app.resources.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -38,9 +40,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.bismarck.voleimanager.app.R
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,7 +61,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Scoreboard
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -152,11 +153,11 @@ fun TeamColorPickerSection(
     isDarkTheme: Boolean,
     onColorsSelected: (TeamAccentColor, TeamAccentColor) -> Unit,
     onLockedClick: () -> Unit,
-    title: String? = stringResource(R.string.team_colors_title),
+    title: String? = stringResource(Res.string.team_colors_title),
     hint: String? = if (hasPremiumAccess) {
-        stringResource(R.string.team_colors_hint)
+        stringResource(Res.string.team_colors_hint)
     } else {
-        stringResource(R.string.team_colors_locked_hint)
+        stringResource(Res.string.team_colors_locked_hint)
     }
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -182,7 +183,7 @@ fun TeamColorPickerSection(
                 modifier = Modifier.padding(bottom = 8.dp, top = 2.dp)
             )
         }
-        Text(stringResource(R.string.team_a), style = MaterialTheme.typography.labelMedium)
+        Text(stringResource(Res.string.team_a), style = MaterialTheme.typography.labelMedium)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -207,7 +208,7 @@ fun TeamColorPickerSection(
             }
         }
         Text(
-            stringResource(R.string.team_b),
+            stringResource(Res.string.team_b),
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(top = 8.dp)
         )
@@ -274,18 +275,18 @@ private fun ColorSwatch(
 fun TelemetryConsentDialog(onAllow: () -> Unit, onDeny: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDeny,
-        title = { Text(stringResource(R.string.telemetry_consent_title, stringResource(R.string.app_name))) },
+        title = { Text(stringResource(Res.string.telemetry_consent_title, stringResource(Res.string.app_name))) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text(stringResource(R.string.telemetry_consent_body))
+                Text(stringResource(Res.string.telemetry_consent_body))
             }
         },
         confirmButton = {
-            Button(onClick = onAllow) { Text(stringResource(R.string.telemetry_consent_allow)) }
+            Button(onClick = onAllow) { Text(stringResource(Res.string.telemetry_consent_allow)) }
         },
         dismissButton = {
             TextButton(onClick = onDeny) {
-                Text(stringResource(R.string.telemetry_consent_deny), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.telemetry_consent_deny), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -300,13 +301,13 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.rename_group)) },
+        title = { Text(stringResource(Res.string.rename_group)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it.take(MAX_GROUP_NAME_LENGTH) },
-                    label = { Text(stringResource(R.string.new_name)) },
+                    label = { Text(stringResource(Res.string.new_name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
@@ -315,10 +316,10 @@ fun RenameGroupDialog(oldName: String, onDismiss: () -> Unit, onConfirm: (String
         },
         confirmButton = {
             Button(onClick = { if (newName.isNotBlank()) onConfirm(newName) }) {
-                Text(stringResource(R.string.save))
+                Text(stringResource(Res.string.save))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -335,10 +336,10 @@ fun SubstitutionDialog(
     onDismiss: () -> Unit,
     onConfirm: (Player) -> Unit
 ) {
-    val waiting_parentheses = stringResource(R.string.waiting_parentheses)
-    val team_a_parentheses = stringResource(R.string.team_a_parentheses)
-    val team_b_parentheses = stringResource(R.string.team_b_parentheses)
-    val team_bench_parentheses = stringResource(R.string.team_bench_parentheses)
+    val waiting_parentheses = stringResource(Res.string.waiting_parentheses)
+    val team_a_parentheses = stringResource(Res.string.team_a_parentheses)
+    val team_b_parentheses = stringResource(Res.string.team_b_parentheses)
+    val team_bench_parentheses = stringResource(Res.string.team_bench_parentheses)
     val allOptions = remember(waitingList, teamA, teamB, playerOut, usesPositions, teamSize, assignedPositions, assignedSlotIndices) {
         // rank: 0 = topo do diálogo, maior = mais abaixo na lista.
         val list = mutableListOf<Triple<Player, String, Int>>()
@@ -400,10 +401,10 @@ fun SubstitutionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.replace_player, playerOut.name)) },
+        title = { Text(stringResource(Res.string.replace_player, playerOut.name)) },
         text = {
             if (allOptions.isEmpty()) {
-                Text(stringResource(R.string.no_players_swap))
+                Text(stringResource(Res.string.no_players_swap))
             } else {
                 val listState = rememberLazyListState()
                 val itemShape = RoundedCornerShape(12.dp)
@@ -411,11 +412,11 @@ fun SubstitutionDialog(
                     Text(
                         text = selectedOption?.let {
                             stringResource(
-                                R.string.substitution_preview,
+                                Res.string.substitution_preview,
                                 playerOut.name,
                                 it.first.name
                             )
-                        } ?: stringResource(R.string.substitution_select_hint),
+                        } ?: stringResource(Res.string.substitution_select_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -497,14 +498,14 @@ fun SubstitutionDialog(
                 },
                 enabled = selectedOption != null
             ) {
-                Text(stringResource(R.string.confirm))
+                Text(stringResource(Res.string.confirm))
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.padding(end = 8.dp)
-            ) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            ) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     )
 }
@@ -524,13 +525,13 @@ fun EditPlayerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.edit_registration)) },
+        title = { Text(stringResource(Res.string.edit_registration)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it.take(MAX_PLAYER_NAME_LENGTH) },
-                    label = { Text(stringResource(R.string.name)) },
+                    label = { Text(stringResource(Res.string.name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
                 )
@@ -557,7 +558,7 @@ fun EditPlayerDialog(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.priority))
+                        Text(stringResource(Res.string.priority))
                     }
                 }
             }
@@ -570,9 +571,9 @@ fun EditPlayerDialog(
                     preferredPosition?.name,
                     secondaryPosition?.name
                 )
-            }) { Text(stringResource(R.string.save)) }
+            }) { Text(stringResource(Res.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -586,14 +587,14 @@ private fun PositionPreferenceSection(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         PositionDropdown(
-            label = stringResource(R.string.preferred_position),
+            label = stringResource(Res.string.preferred_position),
             selected = preferredPosition,
             options = PlayerPosition.entries,
             onSelect = onPreferredChange
         )
         Spacer(Modifier.height(16.dp))
         PositionDropdown(
-            label = stringResource(R.string.secondary_position),
+            label = stringResource(Res.string.secondary_position),
             selected = secondaryPosition,
             // A segunda posição nunca repete a primeira.
             options = PlayerPosition.entries.filter { it != preferredPosition },
@@ -602,7 +603,7 @@ private fun PositionPreferenceSection(
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = stringResource(R.string.wildcard_hint),
+            text = stringResource(Res.string.wildcard_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -619,7 +620,7 @@ private fun PositionDropdown(
     enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val noneLabel = stringResource(R.string.position_none)
+    val noneLabel = stringResource(Res.string.position_none)
     val selectedLabel = selected?.let { positionLabel(it) } ?: noneLabel
 
     ExposedDropdownMenuBox(
@@ -640,7 +641,7 @@ private fun PositionDropdown(
                 )
                 Icon(
                     Icons.Default.KeyboardArrowDown,
-                    contentDescription = stringResource(R.string.keyboard_arrow_down),
+                    contentDescription = stringResource(Res.string.keyboard_arrow_down),
                     modifier = Modifier
                         .rotate(rotation)
                         .size(24.dp)
@@ -693,7 +694,7 @@ fun AddPlayerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.new_registration)) },
+        title = { Text(stringResource(Res.string.new_registration)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(scrollState)
@@ -701,7 +702,7 @@ fun AddPlayerDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(MAX_PLAYER_NAME_LENGTH) },
-                    label = { Text(stringResource(R.string.name)) },
+                    label = { Text(stringResource(Res.string.name)) },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
@@ -719,7 +720,7 @@ fun AddPlayerDialog(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = stringResource(R.string.initial_elo),
+                        text = stringResource(Res.string.initial_elo),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium
                     )
@@ -734,11 +735,11 @@ fun AddPlayerDialog(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     eloLevels.forEachIndexed { index, elo ->
                         val descriptionRes = when (elo) {
-                            1100 -> R.string.elo_level_1100_desc
-                            1150 -> R.string.elo_level_1150_desc
-                            1200 -> R.string.elo_level_1200_desc
-                            1250 -> R.string.elo_level_1250_desc
-                            else -> R.string.elo_level_1300_desc
+                            1100 -> Res.string.elo_level_1100_desc
+                            1150 -> Res.string.elo_level_1150_desc
+                            1200 -> Res.string.elo_level_1200_desc
+                            1250 -> Res.string.elo_level_1250_desc
+                            else -> Res.string.elo_level_1300_desc
                         }
                         Column(
                             modifier = Modifier.weight(1f),
@@ -800,7 +801,7 @@ fun AddPlayerDialog(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = stringResource(R.string.set_priority),
+                            text = stringResource(Res.string.set_priority),
                             color = priorityColor,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Medium
@@ -824,11 +825,11 @@ fun AddPlayerDialog(
                     }
                 },
                 enabled = normalizedName.isNotBlank()
-            ) { Text(stringResource(R.string.add)) }
+            ) { Text(stringResource(Res.string.add)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -886,17 +887,17 @@ fun GroupConfigDialog(
     if (showTypeChangeConfirmation) {
         AlertDialog(
             onDismissRequest = { showTypeChangeConfirmation = false },
-            title = { Text(stringResource(R.string.group_type_change_confirm_title)) },
-            text = { Text(stringResource(R.string.group_type_change_confirm_message)) },
+            title = { Text(stringResource(Res.string.group_type_change_confirm_title)) },
+            text = { Text(stringResource(Res.string.group_type_change_confirm_message)) },
             confirmButton = {
                 Button(onClick = {
                     showTypeChangeConfirmation = false
                     save()
-                }) { Text(stringResource(R.string.save)) }
+                }) { Text(stringResource(Res.string.save)) }
             },
             dismissButton = {
                 TextButton(onClick = { showTypeChangeConfirmation = false }) {
-                    Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -905,10 +906,10 @@ fun GroupConfigDialog(
 
     // Bloco esquerdo: tipo de grupo + modo de balanceamento (mesma ordem de sempre).
     val groupTypeAndBalancingContent: @Composable ColumnScope.() -> Unit = {
-        Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
+        Text(stringResource(Res.string.group_type_title), fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(4.dp))
         Text(
-            text = stringResource(R.string.group_type_long_press_hint),
+            text = stringResource(Res.string.group_type_long_press_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -937,17 +938,17 @@ fun GroupConfigDialog(
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
         )
 
-        Text(stringResource(R.string.balance_mode_title), fontWeight = FontWeight.Medium)
+        Text(stringResource(Res.string.balance_mode_title), fontWeight = FontWeight.Medium)
         val modes = listOf(
             Triple(
                 BalancingMode.REBALANCE.name,
-                stringResource(R.string.mode_rebalance),
-                stringResource(R.string.mode_rebalance_tooltip)
+                stringResource(Res.string.mode_rebalance),
+                stringResource(Res.string.mode_rebalance_tooltip)
             ),
             Triple(
                 BalancingMode.REST.name,
-                stringResource(R.string.mode_rest),
-                stringResource(R.string.mode_rest_tooltip)
+                stringResource(Res.string.mode_rest),
+                stringResource(Res.string.mode_rest_tooltip)
             )
         )
 
@@ -959,9 +960,9 @@ fun GroupConfigDialog(
                 selected = balancingMode == value,
                 onSelect = { balancingMode = value },
                 iconRes = if (value == BalancingMode.REBALANCE.name) {
-                    R.drawable.arrowsbothsides
+                    Res.drawable.arrowsbothsides
                 } else {
-                    R.drawable.zzz_rest
+                    Res.drawable.zzz_rest
                 }
             )
         }
@@ -970,8 +971,8 @@ fun GroupConfigDialog(
     // Bloco direito: tamanhos/limites (sliders) + interruptores.
     val teamSizeAndTogglesContent: @Composable ColumnScope.() -> Unit = {
         TooltipLabelRow(
-            label = stringResource(R.string.players_per_team, teamSize.roundToInt()),
-            tooltip = stringResource(R.string.players_per_team_tooltip),
+            label = stringResource(Res.string.players_per_team, teamSize.roundToInt()),
+            tooltip = stringResource(Res.string.players_per_team_tooltip),
             icon = {
                 Icon(
                     imageVector = Icons.Default.Groups,
@@ -992,11 +993,11 @@ fun GroupConfigDialog(
         Spacer(Modifier.height(16.dp))
 
         TooltipLabelRow(
-            label = stringResource(R.string.victory_limit, victoryLimit.roundToInt()),
-            tooltip = stringResource(R.string.victory_limit_tooltip),
+            label = stringResource(Res.string.victory_limit, victoryLimit.roundToInt()),
+            tooltip = stringResource(Res.string.victory_limit_tooltip),
             icon = {
                 Icon(
-                    painter = painterResource(R.drawable.crown_icon),
+                    painter = painterResource(Res.drawable.crown_icon),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
@@ -1017,8 +1018,8 @@ fun GroupConfigDialog(
 
         if (groupType.supportsPriority) {
             TooltipToggleRow(
-                label = stringResource(R.string.min_priority),
-                tooltip = stringResource(R.string.min_priority_tooltip),
+                label = stringResource(Res.string.min_priority),
+                tooltip = stringResource(Res.string.min_priority_tooltip),
                 checked = priorityEnabled,
                 onCheckedChange = { priorityEnabled = it },
                 icon = {
@@ -1033,11 +1034,11 @@ fun GroupConfigDialog(
             Spacer(Modifier.height(8.dp))
         } else if (groupType.usesPositions) {
             TooltipToggleRow(
-                label = stringResource(R.string.guarantee_setter),
+                label = stringResource(Res.string.guarantee_setter),
                 tooltip = if (forcesGuaranteeSetter) {
-                    stringResource(R.string.guarantee_setter_locked_tooltip)
+                    stringResource(Res.string.guarantee_setter_locked_tooltip)
                 } else {
-                    stringResource(R.string.guarantee_setter_tooltip)
+                    stringResource(Res.string.guarantee_setter_tooltip)
                 },
                 icon = {
                     Icon(
@@ -1054,8 +1055,8 @@ fun GroupConfigDialog(
             Spacer(Modifier.height(8.dp))
         }
         TooltipToggleRow(
-            label = stringResource(R.string.use_score),
-            tooltip = stringResource(R.string.use_score_tooltip),
+            label = stringResource(Res.string.use_score),
+            tooltip = stringResource(Res.string.use_score_tooltip),
             checked = scoreEnabled,
             onCheckedChange = { scoreEnabled = it },
             icon = {
@@ -1077,7 +1078,7 @@ fun GroupConfigDialog(
         } else {
             DialogProperties()
         },
-        title = { Text(stringResource(R.string.group_rules, groupName)) },
+        title = { Text(stringResource(Res.string.group_rules, groupName)) },
         text = {
             if (isLandscape) {
                 // Tela horizontal: duas colunas lado a lado para aproveitar o espaço lateral extra.
@@ -1110,9 +1111,9 @@ fun GroupConfigDialog(
         confirmButton = {
             Button(onClick = {
                 if (changeIsLossy) showTypeChangeConfirmation = true else save()
-            }) { Text(stringResource(R.string.save)) }
+            }) { Text(stringResource(Res.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1123,7 +1124,7 @@ private fun BalancingModeOptionRow(
     tooltip: String,
     selected: Boolean,
     onSelect: () -> Unit,
-    iconRes: Int,
+    iconRes: DrawableResource,
     iconSize: Dp = 20.dp
 ) {
     val scope = rememberCoroutineScope()
@@ -1321,22 +1322,22 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.create_new_group)) },
+        title = { Text(stringResource(Res.string.create_new_group)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it.take(MAX_GROUP_NAME_LENGTH) },
-                    label = { Text(stringResource(R.string.group_name)) },
+                    label = { Text(stringResource(Res.string.group_name)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
                 )
                 Spacer(Modifier.height(24.dp))
-                Text(stringResource(R.string.group_type_title), fontWeight = FontWeight.Medium)
+                Text(stringResource(Res.string.group_type_title), fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = stringResource(R.string.group_type_long_press_hint),
+                    text = stringResource(Res.string.group_type_long_press_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1354,9 +1355,9 @@ fun CreateGroupDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
             Button(
                 onClick = { if (text.isNotBlank()) onConfirm(text, groupType) },
                 enabled = text.isNotBlank()
-            ) { Text(stringResource(R.string.create)) }
+            ) { Text(stringResource(Res.string.create)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1449,11 +1450,11 @@ fun JoinExistingGroupDialog(
 
     AlertDialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
-        title = { Text(stringResource(R.string.join_existing_group)) },
+        title = { Text(stringResource(Res.string.join_existing_group)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    stringResource(R.string.join_existing_group_hint),
+                    stringResource(Res.string.join_existing_group_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1461,7 +1462,7 @@ fun JoinExistingGroupDialog(
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.take(MAX_JOIN_CODE_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.join_existing_group_code_label)) },
+                    label = { Text(stringResource(Res.string.join_existing_group_code_label)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                     singleLine = true,
                     isError = errorMessage != null,
@@ -1492,13 +1493,13 @@ fun JoinExistingGroupDialog(
                         color = LocalContentColor.current
                     )
                 } else {
-                    Text(stringResource(R.string.join_existing_group_confirm))
+                    Text(stringResource(Res.string.join_existing_group_confirm))
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !isSubmitting) {
-                Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -1534,7 +1535,7 @@ fun LoginDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.login_title)) },
+        title = { Text(stringResource(Res.string.login_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedButton(
@@ -1543,12 +1544,12 @@ fun LoginDialog(
                     },
                     enabled = !inProgress,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.continue_with_google)) }
+                ) { Text(stringResource(Res.string.continue_with_google)) }
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     HorizontalDivider(modifier = Modifier.weight(1f))
                     Text(
-                        stringResource(R.string.auth_or_divider),
+                        stringResource(Res.string.auth_or_divider),
                         modifier = Modifier.padding(horizontal = 8.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1559,7 +1560,7 @@ fun LoginDialog(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it.take(MAX_EMAIL_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.email_label)) },
+                    label = { Text(stringResource(Res.string.email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
@@ -1568,7 +1569,7 @@ fun LoginDialog(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.password_label)) },
+                    label = { Text(stringResource(Res.string.password_label)) },
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1577,7 +1578,7 @@ fun LoginDialog(
                             Icon(
                                 if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = stringResource(
-                                    if (showPassword) R.string.hide_password else R.string.show_password
+                                    if (showPassword) Res.string.hide_password else Res.string.show_password
                                 )
                             )
                         }
@@ -1589,15 +1590,15 @@ fun LoginDialog(
                 }
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = { showForgotPassword = true }) {
-                    Text(stringResource(R.string.forgot_password))
+                    Text(stringResource(Res.string.forgot_password))
                 }
                 TextButton(onClick = onSwitchToSignUp) {
-                    Text(stringResource(R.string.login_switch_to_signup))
+                    Text(stringResource(Res.string.login_switch_to_signup))
                 }
             }
         },
         confirmButton = {
-            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
+            val invalidEmailMessage = stringResource(Res.string.auth_invalid_email)
             Button(
                 onClick = {
                     if (!isValidEmail(email)) {
@@ -1607,9 +1608,9 @@ fun LoginDialog(
                     onConfirm(email, password) { error -> if (error == null) onDismiss() else errorMessage = error }
                 },
                 enabled = !inProgress && email.isNotBlank() && password.isNotBlank()
-            ) { Text(stringResource(R.string.login_confirm)) }
+            ) { Text(stringResource(Res.string.login_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1628,11 +1629,11 @@ fun ForgotPasswordDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.forgot_password)) },
+        title = { Text(stringResource(Res.string.forgot_password)) },
         text = {
             Column {
                 Text(
-                    stringResource(R.string.forgot_password_hint),
+                    stringResource(Res.string.forgot_password_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1640,7 +1641,7 @@ fun ForgotPasswordDialog(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it.take(MAX_EMAIL_LENGTH); errorMessage = null; sent = false },
-                    label = { Text(stringResource(R.string.email_label)) },
+                    label = { Text(stringResource(Res.string.email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     enabled = !sent
@@ -1652,7 +1653,7 @@ fun ForgotPasswordDialog(
                 if (sent) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        stringResource(R.string.password_reset_email_sent),
+                        stringResource(Res.string.password_reset_email_sent),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -1660,9 +1661,9 @@ fun ForgotPasswordDialog(
             }
         },
         confirmButton = {
-            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
+            val invalidEmailMessage = stringResource(Res.string.auth_invalid_email)
             if (sent) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.ok)) }
             } else {
                 Button(
                     onClick = {
@@ -1675,12 +1676,12 @@ fun ForgotPasswordDialog(
                         }
                     },
                     enabled = !inProgress && email.isNotBlank()
-                ) { Text(stringResource(R.string.forgot_password_send)) }
+                ) { Text(stringResource(Res.string.forgot_password_send)) }
             }
         },
         dismissButton = {
             if (!sent) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
     )
@@ -1703,13 +1704,13 @@ fun ChangeEmailDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.change_email_title)) },
+        title = { Text(stringResource(Res.string.change_email_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = currentPassword,
                     onValueChange = { currentPassword = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.current_password_label)) },
+                    label = { Text(stringResource(Res.string.current_password_label)) },
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1719,7 +1720,7 @@ fun ChangeEmailDialog(
                             Icon(
                                 if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = stringResource(
-                                    if (showPassword) R.string.hide_password else R.string.show_password
+                                    if (showPassword) Res.string.hide_password else Res.string.show_password
                                 )
                             )
                         }
@@ -1729,7 +1730,7 @@ fun ChangeEmailDialog(
                 OutlinedTextField(
                     value = newEmail,
                     onValueChange = { newEmail = it.take(MAX_EMAIL_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.new_email_label)) },
+                    label = { Text(stringResource(Res.string.new_email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     enabled = !sent
@@ -1741,7 +1742,7 @@ fun ChangeEmailDialog(
                 if (sent) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        stringResource(R.string.change_email_confirmation_sent),
+                        stringResource(Res.string.change_email_confirmation_sent),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -1749,9 +1750,9 @@ fun ChangeEmailDialog(
             }
         },
         confirmButton = {
-            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
+            val invalidEmailMessage = stringResource(Res.string.auth_invalid_email)
             if (sent) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.ok)) }
             } else {
                 Button(
                     onClick = {
@@ -1764,12 +1765,12 @@ fun ChangeEmailDialog(
                         }
                     },
                     enabled = !inProgress && currentPassword.isNotBlank() && newEmail.isNotBlank()
-                ) { Text(stringResource(R.string.change_email_confirm)) }
+                ) { Text(stringResource(Res.string.change_email_confirm)) }
             }
         },
         dismissButton = {
             if (!sent) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
     )
@@ -1781,15 +1782,15 @@ fun ChangeEmailDialog(
 @Composable
 private fun PasswordRequirementsChecklist(password: String, modifier: Modifier = Modifier) {
     val requirements = listOf(
-        stringResource(R.string.password_requirement_length, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH) to
+        stringResource(Res.string.password_requirement_length, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH) to
             passwordHasValidLength(password),
-        stringResource(R.string.password_requirement_uppercase) to passwordHasUppercase(password),
-        stringResource(R.string.password_requirement_lowercase) to passwordHasLowercase(password),
-        stringResource(R.string.password_requirement_digit) to passwordHasDigit(password),
-        stringResource(R.string.password_requirement_special) to passwordHasSpecialChar(password)
+        stringResource(Res.string.password_requirement_uppercase) to passwordHasUppercase(password),
+        stringResource(Res.string.password_requirement_lowercase) to passwordHasLowercase(password),
+        stringResource(Res.string.password_requirement_digit) to passwordHasDigit(password),
+        stringResource(Res.string.password_requirement_special) to passwordHasSpecialChar(password)
     )
-    val metDescription = stringResource(R.string.password_requirement_met)
-    val notMetDescription = stringResource(R.string.password_requirement_not_met)
+    val metDescription = stringResource(Res.string.password_requirement_met)
+    val notMetDescription = stringResource(Res.string.password_requirement_not_met)
     Column(modifier = modifier) {
         requirements.forEach { (label, met) ->
             Row(
@@ -1829,13 +1830,13 @@ fun ChangePasswordDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.change_password_title)) },
+        title = { Text(stringResource(Res.string.change_password_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = currentPassword,
                     onValueChange = { currentPassword = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.current_password_label)) },
+                    label = { Text(stringResource(Res.string.current_password_label)) },
                     visualTransformation = if (showCurrentPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1844,7 +1845,7 @@ fun ChangePasswordDialog(
                             Icon(
                                 if (showCurrentPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = stringResource(
-                                    if (showCurrentPassword) R.string.hide_password else R.string.show_password
+                                    if (showCurrentPassword) Res.string.hide_password else Res.string.show_password
                                 )
                             )
                         }
@@ -1854,7 +1855,7 @@ fun ChangePasswordDialog(
                 OutlinedTextField(
                     value = newPassword,
                     onValueChange = { newPassword = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.new_password_label)) },
+                    label = { Text(stringResource(Res.string.new_password_label)) },
                     visualTransformation = if (showNewPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1863,7 +1864,7 @@ fun ChangePasswordDialog(
                             Icon(
                                 if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = stringResource(
-                                    if (showNewPassword) R.string.hide_password else R.string.show_password
+                                    if (showNewPassword) Res.string.hide_password else Res.string.show_password
                                 )
                             )
                         }
@@ -1881,7 +1882,7 @@ fun ChangePasswordDialog(
         },
         confirmButton = {
             val invalidPasswordMessage = stringResource(
-                R.string.auth_invalid_password, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
+                Res.string.auth_invalid_password, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
             )
             Button(
                 onClick = {
@@ -1894,9 +1895,9 @@ fun ChangePasswordDialog(
                     }
                 },
                 enabled = !inProgress && currentPassword.isNotBlank() && newPassword.isNotBlank()
-            ) { Text(stringResource(R.string.change_password_confirm)) }
+            ) { Text(stringResource(Res.string.change_password_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -1983,7 +1984,7 @@ fun SignUpDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.signup_title)) },
+        title = { Text(stringResource(Res.string.signup_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedButton(
@@ -1992,12 +1993,12 @@ fun SignUpDialog(
                     },
                     enabled = !inProgress,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.continue_with_google)) }
+                ) { Text(stringResource(Res.string.continue_with_google)) }
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     HorizontalDivider(modifier = Modifier.weight(1f))
                     Text(
-                        stringResource(R.string.auth_or_divider),
+                        stringResource(Res.string.auth_or_divider),
                         modifier = Modifier.padding(horizontal = 8.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2008,7 +2009,7 @@ fun SignUpDialog(
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it.take(MAX_FULL_NAME_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.full_name_label)) },
+                    label = { Text(stringResource(Res.string.full_name_label)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
@@ -2017,8 +2018,8 @@ fun SignUpDialog(
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it.take(MAX_PLAYER_NAME_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.nickname_label)) },
-                    supportingText = { Text(stringResource(R.string.nickname_hint)) },
+                    label = { Text(stringResource(Res.string.nickname_label)) },
+                    supportingText = { Text(stringResource(Res.string.nickname_hint)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
                 )
@@ -2026,8 +2027,8 @@ fun SignUpDialog(
                 OutlinedTextField(
                     value = birthDateValue,
                     onValueChange = { birthDateValue = autoFormatBirthDate(birthDateValue, it); errorMessage = null },
-                    label = { Text(stringResource(R.string.birth_date_label)) },
-                    placeholder = { Text(stringResource(R.string.birth_date_placeholder)) },
+                    label = { Text(stringResource(Res.string.birth_date_label)) },
+                    placeholder = { Text(stringResource(Res.string.birth_date_placeholder)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
@@ -2035,7 +2036,7 @@ fun SignUpDialog(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it.take(MAX_EMAIL_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.email_label)) },
+                    label = { Text(stringResource(Res.string.email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true
                 )
@@ -2043,7 +2044,7 @@ fun SignUpDialog(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it.take(MAX_PASSWORD_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.password_label)) },
+                    label = { Text(stringResource(Res.string.password_label)) },
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -2052,7 +2053,7 @@ fun SignUpDialog(
                             Icon(
                                 if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = stringResource(
-                                    if (showPassword) R.string.hide_password else R.string.show_password
+                                    if (showPassword) Res.string.hide_password else Res.string.show_password
                                 )
                             )
                         }
@@ -2068,15 +2069,15 @@ fun SignUpDialog(
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onSwitchToLogin) {
-                    Text(stringResource(R.string.signup_switch_to_login))
+                    Text(stringResource(Res.string.signup_switch_to_login))
                 }
             }
         },
         confirmButton = {
-            val birthDateHelp = stringResource(R.string.birth_date_invalid)
-            val invalidEmailMessage = stringResource(R.string.auth_invalid_email)
+            val birthDateHelp = stringResource(Res.string.birth_date_invalid)
+            val invalidEmailMessage = stringResource(Res.string.auth_invalid_email)
             val invalidPasswordMessage = stringResource(
-                R.string.auth_invalid_password, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
+                Res.string.auth_invalid_password, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
             )
             Button(
                 onClick = {
@@ -2099,9 +2100,9 @@ fun SignUpDialog(
                 },
                 enabled = !inProgress && email.isNotBlank() && password.isNotBlank() &&
                     fullName.isNotBlank() && nickname.isNotBlank() && birthDateValue.text.isNotBlank()
-            ) { Text(stringResource(R.string.signup_confirm)) }
+            ) { Text(stringResource(Res.string.signup_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -2119,8 +2120,8 @@ fun EditProfilePhotoDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                if (hasPhoto) stringResource(R.string.edit_profile_photo_title)
-                else stringResource(R.string.add_profile_photo_title)
+                if (hasPhoto) stringResource(Res.string.edit_profile_photo_title)
+                else stringResource(Res.string.add_profile_photo_title)
             )
         },
         text = {
@@ -2128,19 +2129,19 @@ fun EditProfilePhotoDialog(
                 TextButton(onClick = { onPickPhoto(); onDismiss() }) {
                     Icon(Icons.Filled.PhotoLibrary, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.profile_photo_choose_from_gallery))
+                    Text(stringResource(Res.string.profile_photo_choose_from_gallery))
                 }
                 if (hasPhoto) {
                     TextButton(onClick = { onRemovePhoto(); onDismiss() }) {
                         Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.profile_photo_remove), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(Res.string.profile_photo_remove), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -2171,13 +2172,13 @@ fun EditProfileDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.edit_profile_title)) },
+        title = { Text(stringResource(Res.string.edit_profile_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it.take(MAX_FULL_NAME_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.full_name_label)) },
+                    label = { Text(stringResource(Res.string.full_name_label)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
@@ -2186,8 +2187,8 @@ fun EditProfileDialog(
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it.take(MAX_PLAYER_NAME_LENGTH); errorMessage = null },
-                    label = { Text(stringResource(R.string.nickname_label)) },
-                    supportingText = { Text(stringResource(R.string.nickname_hint)) },
+                    label = { Text(stringResource(Res.string.nickname_label)) },
+                    supportingText = { Text(stringResource(Res.string.nickname_hint)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     singleLine = true
                 )
@@ -2195,8 +2196,8 @@ fun EditProfileDialog(
                 OutlinedTextField(
                     value = birthDateValue,
                     onValueChange = { birthDateValue = autoFormatBirthDate(birthDateValue, it); errorMessage = null },
-                    label = { Text(stringResource(R.string.birth_date_label)) },
-                    placeholder = { Text(stringResource(R.string.birth_date_placeholder)) },
+                    label = { Text(stringResource(Res.string.birth_date_label)) },
+                    placeholder = { Text(stringResource(Res.string.birth_date_placeholder)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
@@ -2210,7 +2211,7 @@ fun EditProfileDialog(
                     Spacer(Modifier.height(16.dp))
                     if (!currentEmail.isNullOrBlank()) {
                         Text(
-                            stringResource(R.string.current_email_label, currentEmail),
+                            stringResource(Res.string.current_email_label, currentEmail),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -2219,12 +2220,12 @@ fun EditProfileDialog(
                     TextButton(onClick = onChangeEmailClick) {
                         Icon(Icons.Filled.Email, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.change_email_menu_item))
+                        Text(stringResource(Res.string.change_email_menu_item))
                     }
                     TextButton(onClick = onChangePasswordClick) {
                         Icon(Icons.Filled.Password, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.change_password_menu_item))
+                        Text(stringResource(Res.string.change_password_menu_item))
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -2233,12 +2234,12 @@ fun EditProfileDialog(
                 TextButton(onClick = onRequestDeleteAccount) {
                     Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.delete_account_action), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(Res.string.delete_account_action), color = MaterialTheme.colorScheme.error)
                 }
             }
         },
         confirmButton = {
-            val birthDateHelp = stringResource(R.string.birth_date_invalid)
+            val birthDateHelp = stringResource(Res.string.birth_date_invalid)
             Button(
                 onClick = {
                     val birthIso = parseBirthDateToIso(birthDateValue.text)
@@ -2249,9 +2250,9 @@ fun EditProfileDialog(
                     onConfirm(nickname, fullName, birthIso) { error -> if (error == null) onDismiss() else errorMessage = error }
                 },
                 enabled = !inProgress && fullName.isNotBlank() && nickname.isNotBlank() && birthDateValue.text.isNotBlank()
-            ) { Text(stringResource(R.string.edit_profile_confirm)) }
+            ) { Text(stringResource(Res.string.edit_profile_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -2265,16 +2266,16 @@ fun DeleteAccountConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.delete_account_title)) },
-        text = { Text(stringResource(R.string.delete_account_warning)) },
+        title = { Text(stringResource(Res.string.delete_account_title)) },
+        text = { Text(stringResource(Res.string.delete_account_warning)) },
         confirmButton = {
             Button(
                 onClick = onConfirm,
                 enabled = !inProgress,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) { Text(stringResource(R.string.delete_account_confirm)) }
+            ) { Text(stringResource(Res.string.delete_account_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -2287,12 +2288,12 @@ fun LogoutConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.logout_confirm_title)) },
-        text = { Text(stringResource(R.string.logout_confirm_text)) },
+        title = { Text(stringResource(Res.string.logout_confirm_title)) },
+        text = { Text(stringResource(Res.string.logout_confirm_text)) },
         confirmButton = {
-            Button(onClick = onConfirm) { Text(stringResource(R.string.logout)) }
+            Button(onClick = onConfirm) { Text(stringResource(Res.string.logout)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -2311,11 +2312,11 @@ fun TransferGroupOwnershipDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.transfer_ownership_title, groupName)) },
+        title = { Text(stringResource(Res.string.transfer_ownership_title, groupName)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    stringResource(R.string.transfer_ownership_hint),
+                    stringResource(Res.string.transfer_ownership_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2323,7 +2324,7 @@ fun TransferGroupOwnershipDialog(
                 OutlinedTextField(
                     value = targetEmail,
                     onValueChange = { targetEmail = it.take(MAX_EMAIL_LENGTH) },
-                    label = { Text(stringResource(R.string.transfer_ownership_email_label)) },
+                    label = { Text(stringResource(Res.string.transfer_ownership_email_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     modifier = Modifier.focusRequester(focusRequester)
@@ -2334,9 +2335,9 @@ fun TransferGroupOwnershipDialog(
             Button(
                 onClick = { if (targetEmail.isNotBlank()) onConfirm(targetEmail) },
                 enabled = targetEmail.isNotBlank()
-            ) { Text(stringResource(R.string.transfer_ownership_confirm)) }
+            ) { Text(stringResource(Res.string.transfer_ownership_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 
@@ -2368,14 +2369,14 @@ fun AvatarCropDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.avatar_crop_title)) },
+        title = { Text(stringResource(Res.string.avatar_crop_title)) },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    stringResource(R.string.avatar_crop_hint),
+                    stringResource(Res.string.avatar_crop_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2434,7 +2435,7 @@ fun AvatarCropDialog(
                 }) {
                     Icon(
                         Icons.AutoMirrored.Filled.RotateRight,
-                        contentDescription = stringResource(R.string.avatar_crop_rotate)
+                        contentDescription = stringResource(Res.string.avatar_crop_rotate)
                     )
                 }
             }
@@ -2443,9 +2444,9 @@ fun AvatarCropDialog(
             Button(onClick = {
                 val result = com.bismarck.voleimanager.app.util.cropAvatarBitmap(rotatedBitmap, zoom, pan, viewportPx)
                 onConfirm(result)
-            }) { Text(stringResource(R.string.avatar_crop_confirm)) }
+            }) { Text(stringResource(Res.string.avatar_crop_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     )
 }
 

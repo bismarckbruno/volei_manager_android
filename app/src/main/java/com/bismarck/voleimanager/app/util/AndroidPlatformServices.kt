@@ -1,4 +1,4 @@
-﻿package com.bismarck.voleimanager.app.util
+package com.bismarck.voleimanager.app.util
 
 import android.app.Activity
 import android.content.Context

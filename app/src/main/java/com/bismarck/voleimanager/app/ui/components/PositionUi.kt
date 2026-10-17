@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app.ui.components
 
+import org.jetbrains.compose.resources.DrawableResource
+import com.bismarck.voleimanager.app.resources.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,7 +37,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.SubcomposeLayout
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,7 +45,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
@@ -57,11 +58,11 @@ import java.util.Locale
 @Composable
 fun positionLabel(position: PlayerPosition): String = stringResource(
     when (position) {
-        PlayerPosition.SETTER -> R.string.position_setter
-        PlayerPosition.OUTSIDE_HITTER -> R.string.position_outside_hitter
-        PlayerPosition.MIDDLE_BLOCKER -> R.string.position_middle_blocker
-        PlayerPosition.OPPOSITE -> R.string.position_opposite
-        PlayerPosition.LIBERO -> R.string.position_libero
+        PlayerPosition.SETTER -> Res.string.position_setter
+        PlayerPosition.OUTSIDE_HITTER -> Res.string.position_outside_hitter
+        PlayerPosition.MIDDLE_BLOCKER -> Res.string.position_middle_blocker
+        PlayerPosition.OPPOSITE -> Res.string.position_opposite
+        PlayerPosition.LIBERO -> Res.string.position_libero
     }
 )
 
@@ -69,11 +70,11 @@ fun positionLabel(position: PlayerPosition): String = stringResource(
 @Composable
 fun positionShortLabel(position: PlayerPosition): String = stringResource(
     when (position) {
-        PlayerPosition.SETTER -> R.string.position_short_setter
-        PlayerPosition.OUTSIDE_HITTER -> R.string.position_short_outside_hitter
-        PlayerPosition.MIDDLE_BLOCKER -> R.string.position_short_middle_blocker
-        PlayerPosition.OPPOSITE -> R.string.position_short_opposite
-        PlayerPosition.LIBERO -> R.string.position_short_libero
+        PlayerPosition.SETTER -> Res.string.position_short_setter
+        PlayerPosition.OUTSIDE_HITTER -> Res.string.position_short_outside_hitter
+        PlayerPosition.MIDDLE_BLOCKER -> Res.string.position_short_middle_blocker
+        PlayerPosition.OPPOSITE -> Res.string.position_short_opposite
+        PlayerPosition.LIBERO -> Res.string.position_short_libero
     }
 )
 
@@ -87,9 +88,9 @@ fun slotLabel(slot: TeamSlot): String {
     if (position == null) {
         return stringResource(
             when (slot.role) {
-                PositionRole.PLAYMAKER -> R.string.position_role_playmaker
-                PositionRole.ATTACK -> R.string.position_role_attack
-                PositionRole.DEFENSE -> R.string.position_role_defense
+                PositionRole.PLAYMAKER -> Res.string.position_role_playmaker
+                PositionRole.ATTACK -> Res.string.position_role_attack
+                PositionRole.DEFENSE -> Res.string.position_role_defense
             }
         )
     }
@@ -100,9 +101,9 @@ fun slotLabel(slot: TeamSlot): String {
 @Composable
 fun groupTypeLabel(type: GroupType): String = stringResource(
     when (type) {
-        GroupType.RECREATIONAL -> R.string.group_type_recreational
-        GroupType.FIXED_POSITIONS -> R.string.group_type_fixed_positions
-        GroupType.TOURNAMENT_RECREATIONAL, GroupType.TOURNAMENT_PRO -> R.string.group_type_fixed_positions
+        GroupType.RECREATIONAL -> Res.string.group_type_recreational
+        GroupType.FIXED_POSITIONS -> Res.string.group_type_fixed_positions
+        GroupType.TOURNAMENT_RECREATIONAL, GroupType.TOURNAMENT_PRO -> Res.string.group_type_fixed_positions
     }
 )
 
@@ -110,9 +111,9 @@ fun groupTypeLabel(type: GroupType): String = stringResource(
 @Composable
 fun groupTypeDescription(type: GroupType): String = stringResource(
     when (type) {
-        GroupType.RECREATIONAL -> R.string.group_type_recreational_desc
-        GroupType.FIXED_POSITIONS -> R.string.group_type_fixed_positions_desc
-        GroupType.TOURNAMENT_RECREATIONAL, GroupType.TOURNAMENT_PRO -> R.string.group_type_fixed_positions_desc
+        GroupType.RECREATIONAL -> Res.string.group_type_recreational_desc
+        GroupType.FIXED_POSITIONS -> Res.string.group_type_fixed_positions_desc
+        GroupType.TOURNAMENT_RECREATIONAL, GroupType.TOURNAMENT_PRO -> Res.string.group_type_fixed_positions_desc
     }
 )
 
@@ -129,10 +130,10 @@ fun groupTypeIcon(type: GroupType): ImageVector = when (type) {
  * na língua do idioma ativo no aparelho: retorna a variante em pt, es ou en (padrão) conforme o
  * idioma do [Locale] atual.
  */
-fun setterIconRes(): Int = when (Locale.getDefault().language) {
-    "pt" -> R.drawable.setter_icon_pt
-    "es" -> R.drawable.setter_icon_es
-    else -> R.drawable.setter_icon_en
+fun setterIconRes(): DrawableResource = when (Locale.getDefault().language) {
+    "pt" -> Res.drawable.setter_icon_pt
+    "es" -> Res.drawable.setter_icon_es
+    else -> Res.drawable.setter_icon_en
 }
 
 /** Ênfase visual do selo: a segunda posição preferida aparece esmaecida. */
@@ -289,7 +290,7 @@ fun PlayerNameWithPositionBadges(
                 if (showPriorityStar) {
                     Icon(
                         Icons.Default.Star,
-                        contentDescription = stringResource(R.string.priority),
+                        contentDescription = stringResource(Res.string.priority),
                         modifier = Modifier.size(priorityIconSize),
                         tint = priorityTint
                     )
@@ -373,7 +374,7 @@ fun assignedPositionTooltip(player: Player, assigned: PlayerPosition, teamSize: 
     when (assignedPositionBorder(player, assigned, teamSize)) {
         BadgeBorder.NONE -> null
         BadgeBorder.DASHED -> stringResource(
-            R.string.position_badge_secondary_tooltip,
+            Res.string.position_badge_secondary_tooltip,
             positionLabel(assigned)
         )
         BadgeBorder.SOLID -> {
@@ -383,15 +384,15 @@ fun assignedPositionTooltip(player: Player, assigned: PlayerPosition, teamSize: 
             ).distinct()
             val chosenLabels = chosenPositions.map { positionLabel(it).lowercase(Locale.getDefault()) }
             if (chosenLabels.isEmpty()) {
-                stringResource(R.string.position_badge_no_preference_tooltip, positionLabel(assigned))
+                stringResource(Res.string.position_badge_no_preference_tooltip, positionLabel(assigned))
             } else {
                 val chosenText = if (chosenLabels.size == 1) {
                     chosenLabels.first()
                 } else {
-                    stringResource(R.string.position_list_two_items, chosenLabels[0], chosenLabels[1])
+                    stringResource(Res.string.position_list_two_items, chosenLabels[0], chosenLabels[1])
                 }
                 stringResource(
-                    R.string.position_badge_improvised_tooltip_with_choices,
+                    Res.string.position_badge_improvised_tooltip_with_choices,
                     positionLabel(assigned),
                     chosenText
                 )
@@ -429,7 +430,7 @@ fun TeamCompositionIndicator(
     if (slots.isEmpty()) return
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(R.string.composition_title),
+            text = stringResource(Res.string.composition_title),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -456,7 +457,7 @@ fun TeamCompositionIndicator(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = filled.player?.name ?: stringResource(R.string.composition_slot_empty),
+                    text = filled.player?.name ?: stringResource(Res.string.composition_slot_empty),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = if (isMissing) FontWeight.Normal else FontWeight.Medium,
                     color = color

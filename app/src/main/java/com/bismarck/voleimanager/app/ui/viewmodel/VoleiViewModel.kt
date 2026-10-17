@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.ui.viewmodel
 
+import com.bismarck.voleimanager.app.resources.*
 import android.app.Application
 import android.content.Context
 import android.net.Uri
@@ -8,7 +9,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.bismarck.voleimanager.app.BuildConfig
-import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.data.model.GroupLog
@@ -502,6 +502,7 @@ class VoleiViewModel(
     private val deviceInfo: DeviceInfo = AndroidDeviceInfo(application),
     private val googleSignIn: GoogleSignInService = AndroidGoogleSignInService(),
     private val purchaseLauncher: PurchaseLauncher = BillingPurchaseLauncher(),
+    private val strings: com.bismarck.voleimanager.app.platform.StringProvider = com.bismarck.voleimanager.app.platform.AppStrings,
     private val onPlatformInit: () -> Unit = {
         AuthManager.init(application)
         BillingManager.init(application)
@@ -1053,23 +1054,23 @@ class VoleiViewModel(
         val user = currentUser.value
         val app = getApplication<Application>()
         if (user == null) {
-            showMessage(app.getString(R.string.premium_purchase_gating_login_required))
+            showMessage(strings.get(Res.string.premium_purchase_gating_login_required))
             return
         }
         if (!user.emailVerified) {
-            showMessage(app.getString(R.string.premium_purchase_gating_verify_required))
+            showMessage(strings.get(Res.string.premium_purchase_gating_verify_required))
             return
         }
         val offer = findSubscriptionOffer(tier, annual)
         if (offer == null) {
-            showMessage(app.getString(R.string.cloud_sync_plan_offer_unavailable))
+            showMessage(strings.get(Res.string.cloud_sync_plan_offer_unavailable))
             return
         }
         val launched = purchaseLauncher.launch(host, offer)
         if (launched) {
             rememberSelectedBasePlan(offer.productId, annual)
         } else {
-            showMessage(app.getString(R.string.cloud_sync_plan_offer_unavailable))
+            showMessage(strings.get(Res.string.cloud_sync_plan_offer_unavailable))
         }
     }
 
@@ -1118,7 +1119,7 @@ class VoleiViewModel(
         val currentlySynced = configs.filter { it.isCloudSynced }
         val maxAllowed = effectivePremiumPlanTier.value.maxSyncedGroups
         if (currentlySynced.size >= maxAllowed) {
-            showMessage(getApplication<Application>().getString(R.string.cloud_sync_limit_reached))
+            showMessage(strings.get(Res.string.cloud_sync_limit_reached))
             return@launch
         }
         // O intervalo de 15 dias só existe para impedir trocar QUAL grupo ocupa a vaga única do
@@ -1132,7 +1133,7 @@ class VoleiViewModel(
             // precisa olhar a última troca registrada em qualquer grupo, não só nos ainda ativos.
             val lastSwitchAt = configs.mapNotNull { it.lastPremiumSwitchAt }.maxOrNull()
             if (lastSwitchAt != null && AppDateTime.nowMillis() - lastSwitchAt < PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS) {
-                showMessage(getApplication<Application>().getString(R.string.cloud_sync_switch_cooldown))
+                showMessage(strings.get(Res.string.cloud_sync_switch_cooldown))
                 return@launch
             }
         }
@@ -1169,7 +1170,7 @@ class VoleiViewModel(
      * assinatura no servidor no exato instante em que o grupo foi ativado localmente).
      *
      * Diferente da versão anterior (que só logava a falha via `Log.d` e nunca avisava ninguém),
-     * agora mostra uma mensagem amigável ([R.string.cloud_sync_activation_error]) quando o backend
+     * agora mostra uma mensagem amigável ([Res.string.cloud_sync_activation_error]) quando o backend
      * recusa a chamada — é exatamente essa falha silenciosa que fazia o código de convite de
      * Espectador ([SpectatorCodeSection]) ficar girando pra sempre e os toggles de visibilidade
      * ([setGroupVisibility]) devolverem `PERMISSION_DENIED` (o documento do grupo nunca chegava a
@@ -1187,7 +1188,7 @@ class VoleiViewModel(
             val backendError = CloudFunctionsManager.switchPremiumGroup(cloudGroupId, groupName)
             if (backendError != null) {
                 AppLog.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
-                showMessage(getApplication<Application>().getString(R.string.cloud_sync_activation_error))
+                showMessage(strings.get(Res.string.cloud_sync_activation_error))
             }
 
             // Reivindica este aparelho como administrador ativo (só se ninguém tiver reivindicado
@@ -1326,7 +1327,7 @@ class VoleiViewModel(
             val target = repository.getGroupConfig(groupName)
             val cloudGroupId = target?.cloudGroupId
             if (cloudGroupId == null) {
-                onResult(null, getApplication<Application>().getString(R.string.generate_join_code_group_not_synced))
+                onResult(null, strings.get(Res.string.generate_join_code_group_not_synced))
                 return@launch
             }
             val result = CloudFunctionsManager.createJoinCode(cloudGroupId, role)
@@ -1345,7 +1346,7 @@ class VoleiViewModel(
             val target = repository.getGroupConfig(groupName)
             val cloudGroupId = target?.cloudGroupId
             if (cloudGroupId == null) {
-                onResult(null, getApplication<Application>().getString(R.string.generate_join_code_group_not_synced))
+                onResult(null, strings.get(Res.string.generate_join_code_group_not_synced))
                 return@launch
             }
             val result = CloudFunctionsManager.regenerateSpectatorCode(cloudGroupId)
@@ -1429,7 +1430,7 @@ class VoleiViewModel(
         viewModelScope.launch {
             val error = googleSignIn.getIdToken(host).fold(
                 onSuccess = { idToken -> AuthManager.signInWithGoogleIdToken(idToken) },
-                onFailure = { e -> e.message ?: getApplication<Application>().getString(R.string.google_sign_in_error) }
+                onFailure = { e -> e.message ?: strings.get(Res.string.google_sign_in_error) }
             )
             _authInProgress.value = false
             onResult(error)
@@ -1545,7 +1546,7 @@ class VoleiViewModel(
     fun joinGroupWithCode(code: String, onResult: (String?) -> Unit) = viewModelScope.launch(Dispatchers.IO) {
         val trimmed = code.trim()
         if (trimmed.isBlank()) {
-            onResult(getApplication<Application>().getString(R.string.join_group_invalid_code))
+            onResult(strings.get(Res.string.join_group_invalid_code))
             return@launch
         }
 
@@ -1573,7 +1574,7 @@ class VoleiViewModel(
             // a sincronização Admin<->Auxiliar ainda não está estável para o lançamento, então um
             // código de Auxiliar (novo ou antigo, já gerado antes desta mudança) não é aceito.
             if (redeemed.role == JoinRole.AUXILIAR) {
-                onResult(getApplication<Application>().getString(R.string.join_group_auxiliar_unavailable))
+                onResult(strings.get(Res.string.join_group_auxiliar_unavailable))
                 return@launch
             }
             val remoteRole = when (redeemed.role) {
@@ -1598,7 +1599,7 @@ class VoleiViewModel(
                 else -> null
             }
             if (debugRole == UserProfileType.AUXILIAR) {
-                onResult(getApplication<Application>().getString(R.string.join_group_auxiliar_unavailable))
+                onResult(strings.get(Res.string.join_group_auxiliar_unavailable))
                 return@launch
             }
             if (debugRole != null) {
@@ -1607,7 +1608,7 @@ class VoleiViewModel(
             }
         }
 
-        onResult(remoteResult.exceptionOrNull()?.message ?: getApplication<Application>().getString(R.string.join_group_invalid_code))
+        onResult(remoteResult.exceptionOrNull()?.message ?: strings.get(Res.string.join_group_invalid_code))
     }
 
     private suspend fun joinRemoteGroup(
@@ -1619,7 +1620,7 @@ class VoleiViewModel(
     ) {
         val baseName = normalizeGroupName(
             remoteGroupName?.takeIf { it.isNotBlank() }
-                ?: getApplication<Application>().getString(R.string.join_group_remote_group_name, displayCode)
+                ?: strings.get(Res.string.join_group_remote_group_name, displayCode)
         )
         // Se já existir um grupo local com o mesmo nome (ex.: dois grupos remotos com nomes
         // iguais, ou colisão com um grupo próprio), acrescenta um sufixo numérico até achar um
@@ -1631,7 +1632,7 @@ class VoleiViewModel(
             groupName = normalizeGroupName(candidate)
             suffix++
             if (suffix > 50) {
-                onResult(getApplication<Application>().getString(R.string.join_group_already_joined))
+                onResult(strings.get(Res.string.join_group_already_joined))
                 return
             }
         }
@@ -1663,7 +1664,7 @@ class VoleiViewModel(
     fun requestGroupOwnershipTransfer(groupName: String, targetEmail: String) = viewModelScope.launch(Dispatchers.IO) {
         val target = repository.getGroupConfig(groupName) ?: return@launch
         if (target.remoteRole != null || !target.isCloudSynced) {
-            showMessage(getApplication<Application>().getString(R.string.ownership_transfer_requires_own_premium_group))
+            showMessage(strings.get(Res.string.ownership_transfer_requires_own_premium_group))
             return@launch
         }
         val normalizedEmail = targetEmail.trim()
@@ -1672,7 +1673,7 @@ class VoleiViewModel(
         if (_currentGroupConfig.value.groupName == groupName) {
             _currentGroupConfig.value = _currentGroupConfig.value.copy(pendingOwnershipTransferTo = normalizedEmail)
         }
-        showMessage(getApplication<Application>().getString(R.string.ownership_transfer_requested))
+        showMessage(strings.get(Res.string.ownership_transfer_requested))
     }
 
     fun cancelGroupOwnershipTransfer(groupName: String) = viewModelScope.launch(Dispatchers.IO) {
@@ -2291,7 +2292,7 @@ class VoleiViewModel(
                     // vez de deixar a tela travada tentando reconectar para sempre.
                     if (visibility.accessRevoked && current.remoteRole == UserProfileType.ESPECTADOR.name) {
                         val groupName = current.groupName
-                        showMessage(getApplication<Application>().getString(R.string.spectator_access_revoked_message))
+                        showMessage(strings.get(Res.string.spectator_access_revoked_message))
                         leaveRemoteGroup(groupName)
                         return@collect
                     }
@@ -2991,7 +2992,7 @@ class VoleiViewModel(
                 val error = CloudFunctionsManager.linkPurchaseToken(event.purchaseToken, event.productId)
                 if (error != null) {
                     AppLog.d("VoleiViewModel", "linkPurchaseToken (best-effort) falhou: $error")
-                    showMessage(getApplication<Application>().getString(R.string.cloud_sync_purchase_link_error))
+                    showMessage(strings.get(Res.string.cloud_sync_purchase_link_error))
                 }
             }
         }
@@ -3317,7 +3318,7 @@ class VoleiViewModel(
         if (ownCloudGroupId != null) {
             val error = CloudFunctionsManager.deleteCloudGroup(ownCloudGroupId)
             if (error != null) {
-                showMessage(getApplication<Application>().getString(R.string.cloud_sync_deletion_error))
+                showMessage(strings.get(Res.string.cloud_sync_deletion_error))
             }
         }
 
@@ -3434,7 +3435,7 @@ class VoleiViewModel(
         }
 
         if (nameAlreadyExists) {
-            _uiMessage.value = getApplication<Application>().getString(R.string.players_name_already_exists)
+            _uiMessage.value = strings.get(Res.string.players_name_already_exists)
             // 2. Usamos return@launch para sair da corrotina sem quebrar o viewModelScope
             return@launch
         }
@@ -3488,7 +3489,7 @@ class VoleiViewModel(
                 it.id != p.id && areSameCanonicalName(it.name, normalizedName)
             }
             if (nameAlreadyExists) {
-                _uiMessage.value = getApplication<Application>().getString(R.string.players_name_already_exists)
+                _uiMessage.value = strings.get(Res.string.players_name_already_exists)
                 return@launch
             }
         }
@@ -3552,8 +3553,8 @@ class VoleiViewModel(
         }
 
         if (current.size >= maxPlayersInCourt) {
-            _uiMessage.value = getApplication<Application>().getString(
-                R.string.max_guaranteed_next_match_players,
+            _uiMessage.value = strings.get(
+                Res.string.max_guaranteed_next_match_players,
                 maxPlayersInCourt
             )
             return
@@ -5038,12 +5039,12 @@ class VoleiViewModel(
                             )
                         }
                     } else {
-                        AppLog.e("Import", context.getString(R.string.invalid_backup_format))
+                        AppLog.e("Import", strings.get(Res.string.invalid_backup_format))
                     }
                 } else {
                     val rows = readTabularRows(file)
                     if (rows.isEmpty()) {
-                        _uiMessage.value = context.getString(R.string.import_error_empty_or_unreadable)
+                        _uiMessage.value = strings.get(Res.string.import_error_empty_or_unreadable)
                         return@launch
                     }
                     val dataLines = rows.drop(1)
@@ -5106,7 +5107,7 @@ class VoleiViewModel(
                                     )
                                 }
                             } else {
-                                _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
+                                _uiMessage.value = strings.get(Res.string.import_error_no_valid_rows)
                             }
                         }
 
@@ -5158,7 +5159,7 @@ class VoleiViewModel(
                                     )
                                 }
                             } else {
-                                _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
+                                _uiMessage.value = strings.get(Res.string.import_error_no_valid_rows)
                             }
                         }
 
@@ -5201,7 +5202,7 @@ class VoleiViewModel(
                                     )
                                 }
                             } else {
-                                _uiMessage.value = context.getString(R.string.import_error_no_valid_rows)
+                                _uiMessage.value = strings.get(Res.string.import_error_no_valid_rows)
                             }
                         }
 
@@ -5209,10 +5210,10 @@ class VoleiViewModel(
                     }
                 }
             } catch (e: UnsupportedXlsException) {
-                _uiMessage.value = context.getString(R.string.import_error_xls_unsupported)
+                _uiMessage.value = strings.get(Res.string.import_error_xls_unsupported)
             } catch (e: Exception) {
                 AppLog.e("Import", "Erro: ${e.message}")
-                _uiMessage.value = context.getString(R.string.import_error_generic)
+                _uiMessage.value = strings.get(Res.string.import_error_generic)
                 telemetry.recordException(e)
             }
         }
@@ -5262,7 +5263,7 @@ class VoleiViewModel(
                 )
             } catch (e: Exception) {
                 AppLog.e("Import", "Erro ao mesclar importação: ${e.message}")
-                _uiMessage.value = getApplication<Application>().getString(R.string.import_error_generic)
+                _uiMessage.value = strings.get(Res.string.import_error_generic)
                 telemetry.recordException(e)
             }
             _pendingMergeImport.value = null
@@ -5443,7 +5444,7 @@ class VoleiViewModel(
             val headers = PLAYERS_CSV_HEADER.split(",")
             val exampleRow = listOf(
                 "0",
-                context.getString(R.string.template_example_name),
+                strings.get(Res.string.template_example_name),
                 "1200.00",
                 "0",
                 "0",
@@ -5451,8 +5452,8 @@ class VoleiViewModel(
                 "false",
                 "0",
                 "",
-                context.getString(R.string.template_position_hint),
-                context.getString(R.string.template_secondary_position_hint)
+                strings.get(Res.string.template_position_hint),
+                strings.get(Res.string.template_secondary_position_hint)
             )
             val bytes = buildXlsxBytes(headers, listOf(exampleRow))
             shareBytes(context, "modelo_jogadores.xlsx", bytes, XLSX_MIME_TYPE)
@@ -5465,9 +5466,9 @@ class VoleiViewModel(
 
     private fun shareBytes(context: Context, name: String, bytes: ByteArray, mimeType: String) {
         try {
-            fileService.shareFile(name, bytes, mimeType, context.getString(R.string.save_file, name))
+            fileService.shareFile(name, bytes, mimeType, strings.get(Res.string.save_file, name))
         } catch (e: Exception) {
-            AppLog.e("Export", context.getString(R.string.error, e.message))
+            AppLog.e("Export", strings.get(Res.string.error, e.message ?: "null"))
             telemetry.recordException(e)
         }
     }

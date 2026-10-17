@@ -1,5 +1,8 @@
 package com.bismarck.voleimanager.app.ui
 
+import org.jetbrains.compose.resources.DrawableResource
+import com.bismarck.voleimanager.app.platform.AppStrings
+import com.bismarck.voleimanager.app.resources.*
 import android.widget.Toast
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -46,9 +49,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.bismarck.voleimanager.app.util.AndroidPlatformHost
 import com.bismarck.voleimanager.app.platform.FileRef
-import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.BuildConfig
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,29 +99,29 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun getDisplayGroupName(groupName: String?): String {
-    return groupName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.general)
+    return groupName?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.general)
 }
 
 @Composable
 private fun getDisplayBalancingModeName(balancingMode: String): String {
     return when (balancingMode) {
         com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name ->
-            stringResource(R.string.mode_rest)
+            stringResource(Res.string.mode_rest)
 
-        else -> stringResource(R.string.mode_rebalance)
+        else -> stringResource(Res.string.mode_rebalance)
     }
 }
 
 @Composable
 private fun userProfileTypeLabel(type: UserProfileType): String = when (type) {
-    UserProfileType.ORGANIZADOR -> stringResource(R.string.user_profile_organizer)
-    UserProfileType.AUXILIAR -> stringResource(R.string.user_profile_assistant)
-    UserProfileType.ESPECTADOR -> stringResource(R.string.user_profile_viewer)
+    UserProfileType.ORGANIZADOR -> stringResource(Res.string.user_profile_organizer)
+    UserProfileType.AUXILIAR -> stringResource(Res.string.user_profile_assistant)
+    UserProfileType.ESPECTADOR -> stringResource(Res.string.user_profile_viewer)
 }
 
 /**
@@ -175,13 +177,13 @@ private fun DrawerAccountHeader(
                 if (avatarBitmap != null) {
                     Image(
                         bitmap = avatarBitmap.asImageBitmap(),
-                        contentDescription = stringResource(R.string.account_avatar_content_description),
+                        contentDescription = stringResource(Res.string.account_avatar_content_description),
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Icon(
                         Icons.Filled.Person,
-                        contentDescription = stringResource(R.string.account_avatar_content_description),
+                        contentDescription = stringResource(Res.string.account_avatar_content_description),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -194,12 +196,12 @@ private fun DrawerAccountHeader(
             ) {
                 if (currentUser == null || currentUser.isAnonymous) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.login_title)) },
+                        text = { Text(stringResource(Res.string.login_title)) },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null) },
                         onClick = onLoginClick
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.signup_title)) },
+                        text = { Text(stringResource(Res.string.signup_title)) },
                         leadingIcon = { Icon(Icons.Filled.PersonAdd, contentDescription = null) },
                         onClick = onSignUpClick
                     )
@@ -207,27 +209,27 @@ private fun DrawerAccountHeader(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                if (currentUser.photoBase64 != null) stringResource(R.string.edit_profile_photo_title)
-                                else stringResource(R.string.add_profile_photo_title)
+                                if (currentUser.photoBase64 != null) stringResource(Res.string.edit_profile_photo_title)
+                                else stringResource(Res.string.add_profile_photo_title)
                             )
                         },
                         leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
                         onClick = onEditPhotoClick
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.edit_profile_title)) },
+                        text = { Text(stringResource(Res.string.edit_profile_title)) },
                         leadingIcon = { Icon(Icons.Filled.ManageAccounts, contentDescription = null) },
                         onClick = onEditProfileClick
                     )
                     if (currentUser.email != null && !currentUser.emailVerified) {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.resend_verification_email)) },
+                            text = { Text(stringResource(Res.string.resend_verification_email)) },
                             leadingIcon = { Icon(Icons.Filled.MarkEmailUnread, contentDescription = null) },
                             onClick = onResendVerificationClick
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.logout)) },
+                        text = { Text(stringResource(Res.string.logout)) },
                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
                         onClick = onLogoutClick
                     )
@@ -240,7 +242,7 @@ private fun DrawerAccountHeader(
                 Text(
                     currentUser?.nickname?.takeIf { it.isNotBlank() }
                         ?: currentUser?.email
-                        ?: stringResource(R.string.app_name),
+                        ?: stringResource(Res.string.app_name),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -251,8 +253,8 @@ private fun DrawerAccountHeader(
                 if (currentUser != null && hasPremiumAccess) {
                     Spacer(Modifier.width(8.dp))
                     Icon(
-                        painter = painterResource(R.drawable.premium_icon3),
-                        contentDescription = stringResource(R.string.premium_subscriber_badge),
+                        painter = painterResource(Res.drawable.premium_icon3),
+                        contentDescription = stringResource(Res.string.premium_subscriber_badge),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.headlineMedium.fontSize.toDp() })
                     )
@@ -262,7 +264,7 @@ private fun DrawerAccountHeader(
                 val roleLabel = userProfileTypeLabel(userProfileType)
                 val statusText =
                     if (userProfileType == UserProfileType.ESPECTADOR && hasPremiumAccess) {
-                        stringResource(R.string.drawer_status_premium_suffix, roleLabel)
+                        stringResource(Res.string.drawer_status_premium_suffix, roleLabel)
                     } else {
                         roleLabel
                     }
@@ -277,11 +279,11 @@ private fun DrawerAccountHeader(
 }
 
 /** Ícone que representa o modo de balanceamento no cabeçalho, no lugar do nome por extenso. */
-private fun balancingModeIconRes(balancingMode: String): Int =
+private fun balancingModeIconRes(balancingMode: String): DrawableResource =
     if (balancingMode == com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name) {
-        R.drawable.zzz_rest
+        Res.drawable.zzz_rest
     } else {
-        R.drawable.arrowsbothsides
+        Res.drawable.arrowsbothsides
     }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -292,9 +294,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val select_specific_date = stringResource(R.string.select_specific_date)
-    val generating_image = stringResource(R.string.generating_image)
-    val importing = stringResource(R.string.importing)
+    val select_specific_date = stringResource(Res.string.select_specific_date)
+    val generating_image = stringResource(Res.string.generating_image)
+    val importing = stringResource(Res.string.importing)
 
     val uiMessage by viewModel.uiMessage.collectAsState()
 
@@ -321,7 +323,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         showEloPreference
     }
     val showScore = groupConfig.scoreEnabled
-    val eloBlockedForSpectatorMessage = stringResource(R.string.elo_blocked_for_spectator_message)
+    val eloBlockedForSpectatorMessage = stringResource(Res.string.elo_blocked_for_spectator_message)
     // Papel deste dispositivo no grupo ativo (não a resposta global do onboarding) — ver
     // activeGroupProfileType. null enquanto nenhum grupo foi criado/carregado ainda.
     val activeGroupRole = if (groupConfig.groupName.isNotBlank()) {
@@ -508,22 +510,22 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     if (pendingGroupSwitch != null) {
         AlertDialog(
             onDismissRequest = { pendingGroupSwitch = null },
-            title = { Text(stringResource(R.string.change_group_title)) },
-            text = { Text(stringResource(R.string.change_group_text)) },
+            title = { Text(stringResource(Res.string.change_group_title)) },
+            text = { Text(stringResource(Res.string.change_group_text)) },
             confirmButton = {
                 Button(onClick = {
                     selectedGroup = pendingGroupSwitch
                     viewModel.loadGroupConfig(pendingGroupSwitch!!)
                     pendingGroupSwitch = null
                     scope.launch { drawerState.close() }
-                }) { Text(stringResource(R.string.change_anyway)) }
+                }) { Text(stringResource(Res.string.change_anyway)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     pendingGroupSwitch = null
                 }) {
                     Text(
-                        stringResource(R.string.cancel),
+                        stringResource(Res.string.cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -534,7 +536,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     if (showExportDialog && !isSpectatorOfCurrentGroup) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text(stringResource(R.string.export_data)) },
+            title = { Text(stringResource(Res.string.export_data)) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState())
@@ -542,7 +544,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     OutlinedTextField(
                         value = exportFileName,
                         onValueChange = { exportFileName = it.take(MAX_EXPORT_FILE_NAME_LENGTH) },
-                        label = { Text(stringResource(R.string.file_name)) })
+                        label = { Text(stringResource(Res.string.file_name)) })
                     Spacer(Modifier.height(16.dp))
                     Button(
                         modifier = Modifier.fillMaxWidth(),
@@ -552,7 +554,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         }) {
                         Icon(Icons.Default.Share, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.full_backup))
+                        Text(stringResource(Res.string.full_backup))
                     }
                     HorizontalDivider(Modifier.padding(vertical = 16.dp))
                     val exportAdvancedRotation by animateFloatAsState(
@@ -571,7 +573,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = stringResource(R.string.export_csv),
+                            text = stringResource(Res.string.export_csv),
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier
                                 .weight(1f)
@@ -612,7 +614,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.players_word),
+                                        text = stringResource(Res.string.players_word),
                                         textAlign = TextAlign.Start
                                     )
                                 }
@@ -629,7 +631,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.history),
+                                        text = stringResource(Res.string.history),
                                         textAlign = TextAlign.Start
                                     )
                                 }
@@ -646,7 +648,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.daily_elo),
+                                        text = stringResource(Res.string.daily_elo),
                                         textAlign = TextAlign.Start
                                     )
                                 }
@@ -660,7 +662,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     showExportDialog = false
                 }) {
                     Text(
-                        stringResource(R.string.cancel),
+                        stringResource(Res.string.cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -671,7 +673,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
-            title = { Text(stringResource(R.string.import_data)) },
+            title = { Text(stringResource(Res.string.import_data)) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState())
@@ -691,7 +693,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         }) {
                         Icon(Icons.Default.Add, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.restore_backup))
+                        Text(stringResource(Res.string.restore_backup))
                     }
                     HorizontalDivider(Modifier.padding(vertical = 16.dp))
                     val importAdvancedRotation by animateFloatAsState(
@@ -710,7 +712,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = stringResource(R.string.import_csv),
+                            text = stringResource(Res.string.import_csv),
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier
                                 .weight(1f)
@@ -760,7 +762,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         contentAlignment = Alignment.CenterStart
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.players_word),
+                                            text = stringResource(Res.string.players_word),
                                             textAlign = TextAlign.Start
                                         )
                                     }
@@ -768,7 +770,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 IconButton(onClick = { viewModel.exportPlayersTemplate(context) }) {
                                     Icon(
                                         Icons.Default.Download,
-                                        contentDescription = stringResource(R.string.download_players_template)
+                                        contentDescription = stringResource(Res.string.download_players_template)
                                     )
                                 }
                             }
@@ -785,7 +787,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.history),
+                                        text = stringResource(Res.string.history),
                                         textAlign = TextAlign.Start
                                     )
                                 }
@@ -803,7 +805,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.daily_elo),
+                                        text = stringResource(Res.string.daily_elo),
                                         textAlign = TextAlign.Start
                                     )
                                 }
@@ -817,7 +819,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     showImportDialog = false
                 }) {
                     Text(
-                        stringResource(R.string.cancel),
+                        stringResource(Res.string.cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -832,36 +834,36 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             val preview = pending.duplicatePlayerNames.take(8).joinToString(", ")
             "\n\n${
                 stringResource(
-                    R.string.import_duplicate_names_detected,
+                    Res.string.import_duplicate_names_detected,
                     preview
                 )
             }${if (pending.duplicatePlayerNames.size > 8) "..." else ""}"
         } else ""
         val dialogText = if (groupList.isBlank()) {
-            "${stringResource(R.string.import_duplicate_name_dialog_text)}${duplicateSummary}"
+            "${stringResource(Res.string.import_duplicate_name_dialog_text)}${duplicateSummary}"
         } else {
-            "${stringResource(R.string.import_merge_text, groupList)}${duplicateSummary}"
+            "${stringResource(Res.string.import_merge_text, groupList)}${duplicateSummary}"
         }
         AlertDialog(
             onDismissRequest = { viewModel.cancelMergeImport() },
-            title = { Text(stringResource(R.string.import_merge_title)) },
+            title = { Text(stringResource(Res.string.import_merge_title)) },
             text = { Text(dialogText) },
             confirmButton = {
                 Column(Modifier.fillMaxWidth()) {
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { viewModel.confirmMergeImport(false) }
-                    ) { Text(stringResource(R.string.import_keep_first_and_skip)) }
+                    ) { Text(stringResource(Res.string.import_keep_first_and_skip)) }
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { viewModel.confirmMergeImport(true) }
-                    ) { Text(stringResource(R.string.import_rename_duplicates)) }
+                    ) { Text(stringResource(Res.string.import_rename_duplicates)) }
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { viewModel.cancelMergeImport() }
                     ) {
                         Text(
-                            stringResource(R.string.cancel),
+                            stringResource(Res.string.cancel),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -874,19 +876,19 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     pendingExternalImportUri?.let { uri ->
         AlertDialog(
             onDismissRequest = { viewModel.cancelExternalImport() },
-            title = { Text(stringResource(R.string.external_import_title)) },
-            text = { Text(stringResource(R.string.external_import_text)) },
+            title = { Text(stringResource(Res.string.external_import_title)) },
+            text = { Text(stringResource(Res.string.external_import_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.importData(uri, CsvType.BACKUP_COMPLETO, context)
                     Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
                     viewModel.cancelExternalImport()
-                }) { Text(stringResource(R.string.import_word)) }
+                }) { Text(stringResource(Res.string.import_word)) }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelExternalImport() }) {
                     Text(
-                        stringResource(R.string.cancel),
+                        stringResource(Res.string.cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -895,12 +897,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     if (showPrivacyPolicyDialog) {
-        val privacyPolicyUrl = stringResource(R.string.privacy_policy_url)
+        val privacyPolicyUrl = stringResource(Res.string.privacy_policy_url)
         AlertDialog(
             onDismissRequest = { showPrivacyPolicyDialog = false },
             title = {
                 Text(
-                    stringResource(R.string.privacy_policy),
+                    stringResource(Res.string.privacy_policy),
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -910,12 +912,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(stringResource(R.string.privacy_policy_text))
+                    Text(stringResource(Res.string.privacy_policy_text))
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showPrivacyPolicyDialog = false }) {
-                    Text(stringResource(R.string.close))
+                    Text(stringResource(Res.string.close))
                 }
             },
             dismissButton = {
@@ -926,19 +928,19 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     )
                     context.startActivity(intent)
                 }) {
-                    Text(stringResource(R.string.view_in_browser))
+                    Text(stringResource(Res.string.view_in_browser))
                 }
             }
         )
     }
 
     if (showTermsOfUseDialog) {
-        val termsOfUseUrl = stringResource(R.string.terms_of_use_url)
+        val termsOfUseUrl = stringResource(Res.string.terms_of_use_url)
         AlertDialog(
             onDismissRequest = { showTermsOfUseDialog = false },
             title = {
                 Text(
-                    stringResource(R.string.terms_of_use),
+                    stringResource(Res.string.terms_of_use),
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -948,12 +950,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(stringResource(R.string.terms_of_use_text))
+                    Text(stringResource(Res.string.terms_of_use_text))
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showTermsOfUseDialog = false }) {
-                    Text(stringResource(R.string.close))
+                    Text(stringResource(Res.string.close))
                 }
             },
             dismissButton = {
@@ -964,7 +966,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     )
                     context.startActivity(intent)
                 }) {
-                    Text(stringResource(R.string.view_in_browser))
+                    Text(stringResource(Res.string.view_in_browser))
                 }
             }
         )
@@ -1089,7 +1091,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 ) {
                     var accountMenuExpanded by remember { mutableStateOf(false) }
                     val verificationEmailSentMessage =
-                        stringResource(R.string.verification_email_sent)
+                        stringResource(Res.string.verification_email_sent)
                     DrawerAccountHeader(
                         currentUser = currentUser,
                             userProfileType = activeGroupRole,
@@ -1142,7 +1144,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             onExpandedChange = { groupExpanded = !groupExpanded }) {
                             OutlinedTextField(
                                 value = selectedGroup?.let { getDisplayGroupName(it) }
-                                    ?: stringResource(R.string.select_word),
+                                    ?: stringResource(Res.string.select_word),
                                 onValueChange = {},
                                 readOnly = true,
                                 trailingIcon = {
@@ -1153,7 +1155,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     )
                                     Icon(
                                         Icons.Default.KeyboardArrowDown,
-                                        contentDescription = stringResource(R.string.keyboard_arrow_down),
+                                        contentDescription = stringResource(Res.string.keyboard_arrow_down),
                                         modifier = Modifier
                                             .rotate(rotation)
                                             .size(24.dp)
@@ -1194,7 +1196,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 if (isRemoteGroup) {
                                                     Icon(
                                                         Icons.Filled.Podcasts,
-                                                        contentDescription = stringResource(R.string.remote_group_content_description),
+                                                        contentDescription = stringResource(Res.string.remote_group_content_description),
                                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         modifier = Modifier.size(18.dp)
                                                     )
@@ -1217,7 +1219,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                         Icon(
                                                             Icons.Default.Edit,
                                                             contentDescription = stringResource(
-                                                                R.string.rename_group
+                                                                Res.string.rename_group
                                                             ),
                                                             modifier = Modifier.size(24.dp)
                                                         )
@@ -1238,7 +1240,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                     Icon(
                                                         if (isRemoteGroup) Icons.AutoMirrored.Filled.Logout else Icons.Default.Delete,
                                                         contentDescription = stringResource(
-                                                            if (isRemoteGroup) R.string.leave_group else R.string.delete
+                                                            if (isRemoteGroup) Res.string.leave_group else Res.string.delete
                                                         ),
                                                         tint = MaterialTheme.colorScheme.error,
                                                         modifier = Modifier.size(24.dp)
@@ -1265,7 +1267,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            stringResource(R.string.create_new_group),
+                                            stringResource(Res.string.create_new_group),
                                             fontWeight = FontWeight.Bold
                                         )
                                     },
@@ -1275,7 +1277,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            stringResource(R.string.join_existing_group),
+                                            stringResource(Res.string.join_existing_group),
                                             fontWeight = FontWeight.Bold
                                         )
                                     },
@@ -1292,9 +1294,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 Text(
                                     stringResource(
                                         if (isSpectatorOfCurrentGroup) {
-                                            R.string.game_word_spectator
+                                            Res.string.game_word_spectator
                                         } else {
-                                            R.string.game_word
+                                            Res.string.game_word
                                         }
                                     )
                                 )
@@ -1304,30 +1306,30 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.DateRange, null) },
-                            label = { Text(stringResource(R.string.history)) },
+                            label = { Text(stringResource(Res.string.history)) },
                             selected = currentScreen == Screen.HISTORY,
                             onClick = { requestScreenSwitch(Screen.HISTORY) }
                         )
                         FlexibleDrawerItem(
                             icon = {
                                 Icon(
-                                    painter = painterResource(R.drawable.premium_icon3),
+                                    painter = painterResource(Res.drawable.premium_icon3),
                                     null
                                 )
                             },
-                            label = { Text(stringResource(R.string.cloud_sync)) },
+                            label = { Text(stringResource(Res.string.cloud_sync)) },
                             selected = currentScreen == Screen.CLOUD_SYNC,
                             onClick = { requestScreenSwitch(Screen.CLOUD_SYNC) }
                         )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
-                            label = { Text(stringResource(R.string.faq)) },
+                            label = { Text(stringResource(Res.string.faq)) },
                             selected = currentScreen == Screen.FAQ,
                             onClick = { requestScreenSwitch(Screen.FAQ) }
                         )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.Info, null) },
-                            label = { Text(stringResource(R.string.about_app)) },
+                            label = { Text(stringResource(Res.string.about_app)) },
                             selected = currentScreen == Screen.ABOUT,
                             onClick = { requestScreenSwitch(Screen.ABOUT) }
                         )
@@ -1337,7 +1339,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                         Text(
-                            text = stringResource(R.string.settings),
+                            text = stringResource(Res.string.settings),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
@@ -1345,7 +1347,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         if (!isSpectatorOfCurrentGroup) {
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.Settings, null) },
-                                label = { Text(stringResource(R.string.group_rules)) },
+                                label = { Text(stringResource(Res.string.group_rules)) },
                                 selected = false,
                                 onClick = {
                                     showConfigDialog =
@@ -1355,7 +1357,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         }
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.Palette, null) },
-                            label = { Text(stringResource(R.string.theme)) },
+                            label = { Text(stringResource(Res.string.theme)) },
                             selected = false,
                             onClick = {
                                 showThemeDialog = true; scope.launch { drawerState.close() }
@@ -1363,10 +1365,10 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Default.WorkspacePremium, null) },
-                            label = { Text(stringResource(R.string.show_elo)) },
+                            label = { Text(stringResource(Res.string.show_elo)) },
                             selected = false,
                             badge = { Switch(checked = showElo, onCheckedChange = null) },
-                            tooltipText = stringResource(R.string.show_elo_tooltip),
+                            tooltipText = stringResource(Res.string.show_elo_tooltip),
                             onClick = {
                                 if (isSpectatorOfCurrentGroup && !showEloPreference && !groupConfig.showEloToObservers) {
                                     scope.launch {
@@ -1382,14 +1384,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         FlexibleDrawerItem(
                             icon = {
                                 Icon(
-                                    painter = painterResource(R.drawable.volei_manager_icon),
+                                    painter = painterResource(Res.drawable.volei_manager_icon),
                                     null
                                 )
                             },
-                            label = { Text(stringResource(R.string.show_lateness)) },
+                            label = { Text(stringResource(Res.string.show_lateness)) },
                             selected = false,
                             badge = { Switch(checked = showToll, onCheckedChange = null) },
-                            tooltipText = stringResource(R.string.show_lateness_tooltip),
+                            tooltipText = stringResource(Res.string.show_lateness_tooltip),
                             onClick = { viewModel.setShowToll(!showToll) }
                         )
                         HorizontalDivider(
@@ -1397,7 +1399,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                         Text(
-                            text = stringResource(R.string.data),
+                            text = stringResource(Res.string.data),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
@@ -1405,7 +1407,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         if (!isSpectatorOfCurrentGroup) {
                             FlexibleDrawerItem(
                                 icon = { Icon(Icons.Outlined.FileUpload, null) },
-                                label = { Text(stringResource(R.string.export)) },
+                                label = { Text(stringResource(Res.string.export)) },
                                 selected = false,
                                 onClick = {
                                     showExportCsvAdvanced = false
@@ -1422,7 +1424,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         // a um grupo como Espectador.
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.FileDownload, null) },
-                            label = { Text(stringResource(R.string.import_text)) },
+                            label = { Text(stringResource(Res.string.import_text)) },
                             selected = false,
                             onClick = {
                                 showImportCsvAdvanced = false
@@ -1432,7 +1434,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.Info, null) },
-                            label = { Text(stringResource(R.string.telemetry_consent_menu_item)) },
+                            label = { Text(stringResource(Res.string.telemetry_consent_menu_item)) },
                             selected = false,
                             badge = {
                                 Switch(
@@ -1440,7 +1442,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     onCheckedChange = null
                                 )
                             },
-                            tooltipText = stringResource(R.string.telemetry_consent_menu_tooltip),
+                            tooltipText = stringResource(Res.string.telemetry_consent_menu_tooltip),
                             onClick = {
                                 if (telemetryEnabled) {
                                     viewModel.setTelemetryEnabled(false)
@@ -1455,14 +1457,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                         )
                         Text(
-                            text = stringResource(R.string.privacy),
+                            text = stringResource(Res.string.privacy),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.Lock, null) },
-                            label = { Text(stringResource(R.string.privacy_policy)) },
+                            label = { Text(stringResource(Res.string.privacy_policy)) },
                             selected = false,
                             onClick = {
                                 showPrivacyPolicyDialog = true
@@ -1471,7 +1473,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         )
                         FlexibleDrawerItem(
                             icon = { Icon(Icons.Outlined.Description, null) },
-                            label = { Text(stringResource(R.string.terms_of_use)) },
+                            label = { Text(stringResource(Res.string.terms_of_use)) },
                             selected = false,
                             onClick = {
                                 showTermsOfUseDialog = true
@@ -1614,8 +1616,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             val personalTeamBColor by viewModel.personalTeamBColor.collectAsState()
             val hasPremiumAccess by viewModel.hasPremiumAccess.collectAsState()
             val debugPremiumOverride by viewModel.debugPremiumOverride.collectAsState()
-            val teamColorsLockedMessage = stringResource(R.string.team_colors_locked_hint)
-            val premiumNudgeActionLabel = stringResource(R.string.premium_nudge_action)
+            val teamColorsLockedMessage = stringResource(Res.string.team_colors_locked_hint)
+            val premiumNudgeActionLabel = stringResource(Res.string.premium_nudge_action)
             // Nudge de upsell: ao tocar numa cor de time bloqueada, mostra um snackbar (não um
             // Toast) com botão que leva direto à tela Premium — só neste ponto específico, para
             // não exagerar na quantidade de dicas (ver todo `premium-upsell-nudges`).
@@ -1635,13 +1637,13 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             }
             AlertDialog(
                 onDismissRequest = { showThemeDialog = false },
-                title = { Text(stringResource(R.string.theme)) },
+                title = { Text(stringResource(Res.string.theme)) },
                 text = {
                     Column(
                         modifier = Modifier.verticalScroll(rememberScrollState())
                     ) {
                         ThemeOption(
-                            stringResource(R.string.theme_system),
+                            stringResource(Res.string.theme_system),
                             mode == ThemeMode.SYSTEM
                         ) {
                             viewModel.setThemeMode(
@@ -1649,7 +1651,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                         }
                         ThemeOption(
-                            stringResource(R.string.theme_light),
+                            stringResource(Res.string.theme_light),
                             mode == ThemeMode.LIGHT
                         ) {
                             viewModel.setThemeMode(
@@ -1657,7 +1659,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                         }
                         ThemeOption(
-                            stringResource(R.string.theme_dark),
+                            stringResource(Res.string.theme_dark),
                             mode == ThemeMode.DARK
                         ) {
                             viewModel.setThemeMode(
@@ -1675,11 +1677,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                             )
                             TeamColorPickerSection(
-                                title = stringResource(R.string.team_colors_group_title),
+                                title = stringResource(Res.string.team_colors_group_title),
                                 hint = if (hasPremiumAccess) {
-                                    stringResource(R.string.team_colors_group_hint)
+                                    stringResource(Res.string.team_colors_group_hint)
                                 } else {
-                                    stringResource(R.string.team_colors_locked_hint)
+                                    stringResource(Res.string.team_colors_locked_hint)
                                 },
                                 teamAColor = groupTeamAColor,
                                 teamBColor = groupTeamBColor,
@@ -1706,11 +1708,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    stringResource(R.string.team_colors_personal_override_title),
+                                    stringResource(Res.string.team_colors_personal_override_title),
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 Text(
-                                    stringResource(R.string.team_colors_personal_override_hint),
+                                    stringResource(Res.string.team_colors_personal_override_hint),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1759,11 +1761,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        stringResource(R.string.debug_simulate_premium),
+                                        stringResource(Res.string.debug_simulate_premium),
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                     Text(
-                                        stringResource(R.string.debug_simulate_premium_hint),
+                                        stringResource(Res.string.debug_simulate_premium_hint),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1779,7 +1781,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 confirmButton = {
                     TextButton(onClick = { showThemeDialog = false }) {
                         Text(
-                            stringResource(R.string.close),
+                            stringResource(Res.string.close),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1800,19 +1802,19 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         playerToDelete?.let { player ->
             AlertDialog(
                 onDismissRequest = { playerToDelete = null },
-                title = { Text(stringResource(R.string.delete_player_title, player.name)) },
-                text = { Text(stringResource(R.string.delete_player_text)) },
+                title = { Text(stringResource(Res.string.delete_player_title, player.name)) },
+                text = { Text(stringResource(Res.string.delete_player_text)) },
                 confirmButton = {
                     Button(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                         onClick = { viewModel.deletePlayer(player); playerToDelete = null }) {
-                        Text(stringResource(R.string.delete))
+                        Text(stringResource(Res.string.delete))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { playerToDelete = null }) {
                         Text(
-                            stringResource(R.string.cancel),
+                            stringResource(Res.string.cancel),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1839,23 +1841,23 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 title = {
                     Text(
                         stringResource(
-                            R.string.delete_group_title,
+                            Res.string.delete_group_title,
                             getDisplayGroupName(group)
                         )
                     )
-                }, text = { Text(stringResource(R.string.delete_group_text)) },
+                }, text = { Text(stringResource(Res.string.delete_group_text)) },
                 confirmButton = {
                     Button(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                         onClick = {
                             viewModel.deleteGroup(group); selectedGroup = null
                             showDeleteGroupDialog = null
-                        }) { Text(stringResource(R.string.delete)) }
+                        }) { Text(stringResource(Res.string.delete)) }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteGroupDialog = null }) {
                         Text(
-                            stringResource(R.string.cancel),
+                            stringResource(Res.string.cancel),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1866,8 +1868,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             AlertDialog(
                 onDismissRequest = { showRateAppDialog = false },
                 icon = { Icon(Icons.Default.Storefront, contentDescription = null) },
-                title = { Text(stringResource(R.string.rate_app_dialog_title)) },
-                text = { Text(stringResource(R.string.rate_app_dialog_text)) },
+                title = { Text(stringResource(Res.string.rate_app_dialog_title)) },
+                text = { Text(stringResource(Res.string.rate_app_dialog_text)) },
                 confirmButton = {
                     Button(onClick = {
                         showRateAppDialog = false
@@ -1887,12 +1889,12 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 )
                             )
                         }
-                    }) { Text(stringResource(R.string.rate_app_dialog_confirm)) }
+                    }) { Text(stringResource(Res.string.rate_app_dialog_confirm)) }
                 },
                 dismissButton = {
                     TextButton(onClick = { showRateAppDialog = false }) {
                         Text(
-                            stringResource(R.string.rate_app_dialog_dismiss),
+                            stringResource(Res.string.rate_app_dialog_dismiss),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1908,20 +1910,20 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         contentDescription = null
                     )
                 },
-                title = { Text(stringResource(R.string.send_question_dialog_title)) },
-                text = { Text(stringResource(R.string.send_question_dialog_text)) },
+                title = { Text(stringResource(Res.string.send_question_dialog_title)) },
+                text = { Text(stringResource(Res.string.send_question_dialog_text)) },
                 confirmButton = {
                     Button(onClick = {
                         showSendQuestionDialog = false
-                        val feedbackFormUrl = context.getString(R.string.feedback_form_url)
+                        val feedbackFormUrl = AppStrings.get(Res.string.feedback_form_url)
                         val intent = Intent(Intent.ACTION_VIEW, feedbackFormUrl.toUri())
                         context.startActivity(intent)
-                    }) { Text(stringResource(R.string.send_question_dialog_confirm)) }
+                    }) { Text(stringResource(Res.string.send_question_dialog_confirm)) }
                 },
                 dismissButton = {
                     TextButton(onClick = { showSendQuestionDialog = false }) {
                         Text(
-                            stringResource(R.string.rate_app_dialog_dismiss),
+                            stringResource(Res.string.rate_app_dialog_dismiss),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1985,7 +1987,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             tooltip = {
                                 PlainTooltip {
                                     Text(
-                                        stringResource(R.string.header_scroll_tooltip),
+                                        stringResource(Res.string.header_scroll_tooltip),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -2002,7 +2004,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         val groupType = groupConfig.type
                                         val infoText = if (groupType.supportsBalancingMode) {
                                             stringResource(
-                                                R.string.header_info_tooltip,
+                                                Res.string.header_info_tooltip,
                                                 getDisplayGroupName(groupConfig.groupName),
                                                 groupTypeLabel(groupType),
                                                 getDisplayBalancingModeName(groupConfig.balancingMode),
@@ -2010,7 +2012,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             )
                                         } else {
                                             stringResource(
-                                                R.string.header_info_tooltip_no_mode,
+                                                Res.string.header_info_tooltip_no_mode,
                                                 getDisplayGroupName(groupConfig.groupName),
                                                 groupTypeLabel(groupType),
                                                 "${groupConfig.teamSize}x${groupConfig.teamSize}"
@@ -2026,7 +2028,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 enableUserInput = false
                             ) {
                                 Column {
-                                    Text(stringResource(R.string.app_name))
+                                    Text(stringResource(Res.string.app_name))
                                     selectedGroup?.let {
                                         val groupType = groupConfig.type
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2074,7 +2076,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         ) {
                             Icon(
                                 Icons.Default.Menu,
-                                stringResource(R.string.side_menu),
+                                stringResource(Res.string.side_menu),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -2129,7 +2131,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 ) {
                                     Icon(
                                         Icons.Default.Add,
-                                        stringResource(R.string.add_new_player),
+                                        stringResource(Res.string.add_new_player),
                                         tint = iconColor,
                                         modifier = Modifier
                                             .rotate(iconRotation)
@@ -2462,7 +2464,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             ) {
                                 Icon(
                                     Icons.Default.Share,
-                                    stringResource(R.string.share_history),
+                                    stringResource(Res.string.share_history),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -2474,7 +2476,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             ) {
                                 Icon(
                                     Icons.Default.Storefront,
-                                    stringResource(R.string.rate_app),
+                                    stringResource(Res.string.rate_app),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -2486,7 +2488,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             ) {
                                 Icon(
                                     Icons.AutoMirrored.Outlined.HelpOutline,
-                                    stringResource(R.string.send_question),
+                                    stringResource(Res.string.send_question),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -2498,7 +2500,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             ) {
                                 Icon(
                                     Icons.Default.Groups,
-                                    stringResource(R.string.join_existing_group),
+                                    stringResource(Res.string.join_existing_group),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )

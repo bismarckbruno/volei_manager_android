@@ -1,5 +1,8 @@
-﻿package com.bismarck.voleimanager.app.ui.game
+package com.bismarck.voleimanager.app.ui.game
 
+import org.jetbrains.compose.resources.DrawableResource
+import com.bismarck.voleimanager.app.platform.AppStrings
+import com.bismarck.voleimanager.app.resources.*
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
@@ -99,9 +102,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.vectorResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -118,7 +121,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
@@ -196,7 +198,7 @@ fun GameScreenContent(
 ) {
     val resources = LocalResources.current
     val focusManager = LocalFocusManager.current
-    val undoLabel = stringResource(R.string.undo)
+    val undoLabel = stringResource(Res.string.undo)
     val sortedPlayersFromRoom by viewModel.sortedPlayersForPresence.collectAsState()
     val remoteSelectedPlayers by viewModel.remoteSelectedPlayers.collectAsState()
     val remoteAllPlayers by viewModel.remoteAllPlayers.collectAsState()
@@ -293,20 +295,20 @@ fun GameScreenContent(
 
     if (showCancel) AlertDialog(
         onDismissRequest = { showCancel = false },
-        title = { Text(stringResource(R.string.cancel_match)) },
-        text = { Text(stringResource(R.string.progress_lost)) },
+        title = { Text(stringResource(Res.string.cancel_match)) },
+        text = { Text(stringResource(Res.string.progress_lost)) },
         confirmButton = {
             Button(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 onClick = {
                     viewModel.cancelGame()
                     showCancel = false
-                }) { Text(stringResource(R.string.yes)) }
+                }) { Text(stringResource(Res.string.yes)) }
         },
         dismissButton = {
             TextButton(onClick = { showCancel = false }) {
                 Text(
-                    stringResource(R.string.no),
+                    stringResource(Res.string.no),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -326,7 +328,7 @@ fun GameScreenContent(
             { replacement ->
                 viewModel.substitutePlayer(p, replacement)
                 subOut = null
-                val message = resources.getString(R.string.substitution_snackbar, p.name, replacement.name)
+                val message = AppStrings.get(Res.string.substitution_snackbar, p.name, replacement.name)
                 onShowSnackbar(
                     message,
                     undoLabel
@@ -354,7 +356,7 @@ fun GameScreenContent(
         }.ifBlank { "-" }
         AlertDialog(
             onDismissRequest = { confirmWinTeam = null },
-            title = { Text(stringResource(R.string.victorious_team, team)) },
+            title = { Text(stringResource(Res.string.victorious_team, team)) },
             text = {
                 Text(
                     text = "$selectedTeamNames.",
@@ -368,12 +370,12 @@ fun GameScreenContent(
                         viewModel.finishGame(team)
                         confirmWinTeam = null
                     }
-                ) { Text(stringResource(R.string.confirm)) }
+                ) { Text(stringResource(Res.string.confirm)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmWinTeam = null }) {
                     Text(
-                        stringResource(R.string.cancel),
+                        stringResource(Res.string.cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -598,7 +600,7 @@ fun GameScreenContent(
                                         if (sortedPlayers.isNotEmpty()) {
                                             item {
                                                 PlayerListHeader(
-                                                    title = stringResource(R.string.players_word),
+                                                    title = stringResource(Res.string.players_word),
                                                     allPlayersSelected = visiblePlayers.isNotEmpty() && visiblePlayers.all { presentIds.contains(it.id) },
                                                     visiblePlayerCount = visiblePlayers.size,
                                                     onToggleAll = { checked -> viewModel.setAllPlayersPresence(visiblePlayers, checked) },
@@ -629,7 +631,7 @@ fun GameScreenContent(
                                             if (visiblePlayers.isEmpty()) {
                                                 item {
                                                     Text(
-                                                        text = stringResource(R.string.no_players),
+                                                        text = stringResource(Res.string.no_players),
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         textAlign = TextAlign.Center,
@@ -690,7 +692,7 @@ fun GameScreenContent(
                                             if (!isSpectator) {
                                                 item {
                                                     Text(
-                                                        text = stringResource(R.string.to_start_add_players),
+                                                        text = stringResource(Res.string.to_start_add_players),
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         textAlign = TextAlign.Center,
@@ -704,7 +706,7 @@ fun GameScreenContent(
                                             item {
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 PlayerListHeader(
-                                                    title = stringResource(R.string.players_word),
+                                                    title = stringResource(Res.string.players_word),
                                                     allPlayersSelected = visiblePlayers.isNotEmpty() && visiblePlayers.all { presentIds.contains(it.id) },
                                                     visiblePlayerCount = visiblePlayers.size,
                                                     onToggleAll = { checked -> viewModel.setAllPlayersPresence(visiblePlayers, checked) },
@@ -735,7 +737,7 @@ fun GameScreenContent(
                                             if (visiblePlayers.isEmpty()) {
                                                 item {
                                                     Text(
-                                                        text = stringResource(R.string.no_players),
+                                                        text = stringResource(Res.string.no_players),
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         textAlign = TextAlign.Center,
@@ -770,7 +772,7 @@ fun GameScreenContent(
                                     val totalCount = if (isSpectator) remoteAllPlayers.size else sortedPlayers.size
                                     if (totalCount == 0) {
                                         Text(
-                                            text = stringResource(R.string.no_entries),
+                                            text = stringResource(Res.string.no_entries),
                                             modifier = Modifier.padding(16.dp),
                                             textAlign = TextAlign.Center,
                                             style = MaterialTheme.typography.bodyMedium,
@@ -860,7 +862,7 @@ fun ActiveGameView(
     val usesPositions = groupConfig.type.usesPositions
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val undoLabel = stringResource(R.string.undo)
+    val undoLabel = stringResource(Res.string.undo)
     val waitingSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showWaitingListSheet by remember { mutableStateOf(false) }
     var waitingPreviewDragProgress by remember { mutableFloatStateOf(0f) }
@@ -957,9 +959,9 @@ fun ActiveGameView(
     }
 
     fun teamName(teamId: String?): String = when (teamId) {
-        "A" -> resources.getString(R.string.team_a)
-        "B" -> resources.getString(R.string.team_b)
-        else -> resources.getString(R.string.winner)
+        "A" -> AppStrings.get(Res.string.team_a)
+        "B" -> AppStrings.get(Res.string.team_b)
+        else -> AppStrings.get(Res.string.winner)
     }
 
     fun buildStreakAdjustmentMessage(
@@ -970,8 +972,8 @@ fun ActiveGameView(
     ): String {
         return when {
             oldOwner != null && newOwner != null && oldOwner != newOwner -> {
-                resources.getString(
-                    R.string.streak_transferred_snackbar,
+                AppStrings.get(
+                    Res.string.streak_transferred_snackbar,
                     teamName(oldOwner),
                     teamName(newOwner),
                     oldStreak,
@@ -980,8 +982,8 @@ fun ActiveGameView(
             }
 
             newOwner != null && oldOwner == newOwner -> {
-                resources.getString(
-                    R.string.streak_adjusted_same_team_snackbar,
+                AppStrings.get(
+                    Res.string.streak_adjusted_same_team_snackbar,
                     teamName(newOwner),
                     oldStreak,
                     newStreak
@@ -989,8 +991,8 @@ fun ActiveGameView(
             }
 
             oldOwner == null && newOwner != null -> {
-                resources.getString(
-                    R.string.streak_started_snackbar,
+                AppStrings.get(
+                    Res.string.streak_started_snackbar,
                     teamName(newOwner),
                     oldStreak,
                     newStreak
@@ -998,8 +1000,8 @@ fun ActiveGameView(
             }
 
             oldOwner != null && newOwner == null -> {
-                resources.getString(
-                    R.string.streak_cleared_snackbar,
+                AppStrings.get(
+                    Res.string.streak_cleared_snackbar,
                     teamName(oldOwner),
                     oldStreak,
                     newStreak
@@ -1007,8 +1009,8 @@ fun ActiveGameView(
             }
 
             else -> {
-                resources.getString(
-                    R.string.streak_adjusted_same_team_snackbar,
+                AppStrings.get(
+                    Res.string.streak_adjusted_same_team_snackbar,
                     teamName(newOwner),
                     oldStreak,
                     newStreak
@@ -1021,39 +1023,39 @@ fun ActiveGameView(
     fun buildStreakHistoryLine(log: ManualStreakAdjustmentLog): String {
         val timeLabel = AppDateTime.formatTime(log.timestamp)
         val teamLabel = when (log.team) {
-            "A" -> stringResource(R.string.team_a)
-            "B" -> stringResource(R.string.team_b)
-            else -> stringResource(R.string.winner)
+            "A" -> stringResource(Res.string.team_a)
+            "B" -> stringResource(Res.string.team_b)
+            else -> stringResource(Res.string.winner)
         }
         val ownerLabel: String = when {
             log.oldOwner != null && log.newOwner != null && log.oldOwner != log.newOwner -> {
                 val fromLabel = when (log.oldOwner) {
-                    "A" -> stringResource(R.string.team_a)
-                    "B" -> stringResource(R.string.team_b)
-                    else -> stringResource(R.string.winner)
+                    "A" -> stringResource(Res.string.team_a)
+                    "B" -> stringResource(Res.string.team_b)
+                    else -> stringResource(Res.string.winner)
                 }
                 val toLabel = when (log.newOwner) {
-                    "A" -> stringResource(R.string.team_a)
-                    "B" -> stringResource(R.string.team_b)
-                    else -> stringResource(R.string.winner)
+                    "A" -> stringResource(Res.string.team_a)
+                    "B" -> stringResource(Res.string.team_b)
+                    else -> stringResource(Res.string.winner)
                 }
-                stringResource(R.string.streak_history_transferred, fromLabel, toLabel)
+                stringResource(Res.string.streak_history_transferred, fromLabel, toLabel)
             }
 
             log.newOwner != null && log.oldOwner == log.newOwner -> {
-                stringResource(R.string.streak_history_same_team, teamLabel)
+                stringResource(Res.string.streak_history_same_team, teamLabel)
             }
 
             log.oldOwner == null && log.newOwner != null -> {
-                stringResource(R.string.streak_history_started, teamLabel)
+                stringResource(Res.string.streak_history_started, teamLabel)
             }
 
             log.oldOwner != null && log.newOwner == null -> {
-                stringResource(R.string.streak_history_cleared, teamLabel)
+                stringResource(Res.string.streak_history_cleared, teamLabel)
             }
 
             else -> {
-                stringResource(R.string.streak_history_same_team, teamLabel)
+                stringResource(Res.string.streak_history_same_team, teamLabel)
             }
         }
 
@@ -1061,10 +1063,10 @@ fun ActiveGameView(
     }
 
     fun substitutionLocationLabel(location: String): String = when (location) {
-        "A" -> resources.getString(R.string.team_a)
-        "B" -> resources.getString(R.string.team_b)
-        "WAIT" -> resources.getString(R.string.waiting_list_label)
-        else -> resources.getString(R.string.waiting_list_label)
+        "A" -> AppStrings.get(Res.string.team_a)
+        "B" -> AppStrings.get(Res.string.team_b)
+        "WAIT" -> AppStrings.get(Res.string.waiting_list_label)
+        else -> AppStrings.get(Res.string.waiting_list_label)
     }
 
     fun buildSubstitutionHistoryLine(log: ManualSubstitutionLog): String {
@@ -1072,20 +1074,20 @@ fun ActiveGameView(
         val targetTeamLabel = substitutionLocationLabel(log.targetTeam)
         val sourceLabel = substitutionLocationLabel(log.incomingSource)
         val description = when (log.incomingSource) {
-            "WAIT" -> resources.getString(
-                R.string.substitution_history_from_waiting,
+            "WAIT" -> AppStrings.get(
+                Res.string.substitution_history_from_waiting,
                 log.playerInName,
                 targetTeamLabel,
                 log.playerOutName
             )
-            "BENCH" -> resources.getString(
-                R.string.substitution_history_from_team_bench,
+            "BENCH" -> AppStrings.get(
+                Res.string.substitution_history_from_team_bench,
                 log.playerInName,
                 targetTeamLabel,
                 log.playerOutName
             )
-            else -> resources.getString(
-                R.string.substitution_history_team_swap,
+            else -> AppStrings.get(
+                Res.string.substitution_history_team_swap,
                 log.playerInName,
                 targetTeamLabel,
                 sourceLabel,
@@ -1127,7 +1129,7 @@ fun ActiveGameView(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(R.string.recent_activity_title),
+                        text = stringResource(Res.string.recent_activity_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1186,7 +1188,7 @@ fun ActiveGameView(
 
         scope.launch {
             snackbarHostState.showSnackbar(
-                message = resources.getString(R.string.winner_score_validation_snackbar),
+                message = AppStrings.get(Res.string.winner_score_validation_snackbar),
                 duration = SnackbarDuration.Short
             )
         }
@@ -1199,14 +1201,14 @@ fun ActiveGameView(
     }
 
     streakDialogTeam?.let { teamId ->
-        val teamName = if (teamId == "A") stringResource(R.string.team_a) else stringResource(R.string.team_b)
+        val teamName = if (teamId == "A") stringResource(Res.string.team_a) else stringResource(Res.string.team_b)
         AlertDialog(
             onDismissRequest = { streakDialogTeam = null },
-            title = { Text(stringResource(R.string.edit_streak_title, teamName)) },
+            title = { Text(stringResource(Res.string.edit_streak_title, teamName)) },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = stringResource(R.string.edit_streak_description),
+                        text = stringResource(Res.string.edit_streak_description),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -1228,7 +1230,7 @@ fun ActiveGameView(
                             ) {
                                 Icon(
                                     Icons.Default.Remove,
-                                    contentDescription = stringResource(R.string.decrease_score),
+                                    contentDescription = stringResource(Res.string.decrease_score),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
@@ -1253,7 +1255,7 @@ fun ActiveGameView(
                             ) {
                                 Icon(
                                     Icons.Default.Add,
-                                    contentDescription = stringResource(R.string.increase_score),
+                                    contentDescription = stringResource(Res.string.increase_score),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
@@ -1288,7 +1290,7 @@ fun ActiveGameView(
                                     val undone = viewModel.undoLastManualStreakAdjustment()
                                     if (!undone) {
                                         snackbarHostState.showSnackbar(
-                                            message = resources.getString(R.string.streak_undo_unavailable),
+                                            message = AppStrings.get(Res.string.streak_undo_unavailable),
                                             duration = SnackbarDuration.Short
                                         )
                                     }
@@ -1296,12 +1298,12 @@ fun ActiveGameView(
                             }
                         }
                     }
-                ) { Text(stringResource(R.string.save)) }
+                ) { Text(stringResource(Res.string.save)) }
             },
             dismissButton = {
                 TextButton(onClick = { streakDialogTeam = null }) {
                     Text(
-                        stringResource(R.string.cancel),
+                        stringResource(Res.string.cancel),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1339,7 +1341,7 @@ fun ActiveGameView(
     val firstTeamId = if (teamsSwapped) "B" else "A"
     val secondTeamId = if (teamsSwapped) "A" else "B"
     val firstName =
-        if (teamsSwapped) stringResource(R.string.team_b) else stringResource(R.string.team_a)
+        if (teamsSwapped) stringResource(Res.string.team_b) else stringResource(Res.string.team_a)
     val firstPlayers = if (teamsSwapped) teamB else teamA
     val firstCardColor = if (teamsSwapped) cardColorB else cardColorA
     val firstBtnColor = if (teamsSwapped) btnColorB else btnColorA
@@ -1365,7 +1367,7 @@ fun ActiveGameView(
     val firstStreakTeamId = firstTeamId
 
     val secondName =
-        if (teamsSwapped) stringResource(R.string.team_a) else stringResource(R.string.team_b)
+        if (teamsSwapped) stringResource(Res.string.team_a) else stringResource(Res.string.team_b)
     val secondPlayers = if (teamsSwapped) teamA else teamB
     val secondCardColor = if (teamsSwapped) cardColorA else cardColorB
     val secondBtnColor = if (teamsSwapped) btnColorA else btnColorB
@@ -1394,16 +1396,16 @@ fun ActiveGameView(
     val firstShowRotationIndicator = showScore && rotationRequiredForTeamId == firstTeamId
     val firstShowLatestPointBorder = showScore && !firstShowRotationIndicator && lastScoringTeamId == firstTeamId
     val firstScoreTooltip = when {
-        firstShowRotationIndicator -> stringResource(R.string.score_rotation_tooltip, firstName)
-        firstShowLatestPointBorder -> stringResource(R.string.score_latest_point_tooltip, firstName)
+        firstShowRotationIndicator -> stringResource(Res.string.score_rotation_tooltip, firstName)
+        firstShowLatestPointBorder -> stringResource(Res.string.score_latest_point_tooltip, firstName)
         else -> null
     }
 
     val secondShowRotationIndicator = showScore && rotationRequiredForTeamId == secondTeamId
     val secondShowLatestPointBorder = showScore && !secondShowRotationIndicator && lastScoringTeamId == secondTeamId
     val secondScoreTooltip = when {
-        secondShowRotationIndicator -> stringResource(R.string.score_rotation_tooltip, secondName)
-        secondShowLatestPointBorder -> stringResource(R.string.score_latest_point_tooltip, secondName)
+        secondShowRotationIndicator -> stringResource(Res.string.score_rotation_tooltip, secondName)
+        secondShowLatestPointBorder -> stringResource(Res.string.score_latest_point_tooltip, secondName)
         else -> null
     }
     val useCompactTeamCards = !showScore && firstPlayers.size <= 2 && secondPlayers.size <= 2
@@ -1707,7 +1709,7 @@ fun ActiveGameView(
                                     contentPadding = PaddingValues(horizontal = 16.dp)
                                 ) {
                                     Text(
-                                        stringResource(R.string.cancel_match_action),
+                                        stringResource(Res.string.cancel_match_action),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.titleSmall,
                                         textDecoration = TextDecoration.Underline
@@ -1724,7 +1726,7 @@ fun ActiveGameView(
                                 .fillMaxHeight()
                         ) {
                             Text(
-                                text = stringResource(R.string.waiting_list, waitingList.size),
+                                text = stringResource(Res.string.waiting_list, waitingList.size),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -1890,7 +1892,7 @@ fun ActiveGameView(
                                 .fillMaxWidth()
                         ) {
                             Text(
-                                stringResource(R.string.cancel_match_action),
+                                stringResource(Res.string.cancel_match_action),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.titleSmall,
                                 textDecoration = TextDecoration.Underline
@@ -1940,7 +1942,7 @@ fun ActiveGameView(
                                         onClick = ::openWaitingSheet
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.no_player_waiting),
+                                            text = stringResource(Res.string.no_player_waiting),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             textAlign = TextAlign.Center,
@@ -1987,7 +1989,7 @@ fun ActiveGameView(
                 ) {
                     BottomSheetDefaults.DragHandle()
                     Text(
-                        text = stringResource(R.string.waiting_list, waitingList.size),
+                        text = stringResource(Res.string.waiting_list, waitingList.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -2070,7 +2072,7 @@ private fun PlayerListHeader(
                 RoundedSearchTextField(
                     value = searchQuery,
                     onValueChange = { onSearchQueryChange(it.take(MAX_PLAYER_NAME_LENGTH)) },
-                    placeholder = { Text(stringResource(R.string.search_player), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    placeholder = { Text(stringResource(Res.string.search_player), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = null)
                     },
@@ -2080,7 +2082,7 @@ private fun PlayerListHeader(
                             onSearchExpandedChange(false)
                             focusManager.clearFocus()
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                            Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.cancel))
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -2106,7 +2108,7 @@ private fun PlayerListHeader(
                 ) {
                     Icon(
                         Icons.Default.Search,
-                        contentDescription = stringResource(R.string.search_player),
+                        contentDescription = stringResource(Res.string.search_player),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -2132,7 +2134,7 @@ private fun PlayerListHeader(
                 enabled = visiblePlayerCount > 0
             ) {
                 Text(
-                    "${if (allPlayersSelected) stringResource(R.string.uncheck_all) else stringResource(R.string.check_all)} ($visiblePlayerCount)",
+                    "${if (allPlayersSelected) stringResource(Res.string.uncheck_all) else stringResource(Res.string.check_all)} ($visiblePlayerCount)",
                     maxLines = 1
                 )
             }
@@ -2159,7 +2161,7 @@ private fun VsSwapButton(
     val arrowColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f)
     val vsColor = MaterialTheme.colorScheme.onSurface
 
-    val switchTeamsLabel = stringResource(R.string.switch_teams)
+    val switchTeamsLabel = stringResource(Res.string.switch_teams)
 
     Box(
         modifier = modifier
@@ -2173,8 +2175,8 @@ private fun VsSwapButton(
     ) {
         Icon(
             painter = painterResource(
-                if (isLandscape) R.drawable.yin_yang_horizontal
-                else R.drawable.yin_yang_vertical
+                if (isLandscape) Res.drawable.yin_yang_horizontal
+                else Res.drawable.yin_yang_vertical
             ),
             contentDescription = null,
             modifier = Modifier
@@ -2183,7 +2185,7 @@ private fun VsSwapButton(
             tint = arrowColor
         )
         Icon(
-            painter = painterResource(R.drawable.vs_text),
+            painter = painterResource(Res.drawable.vs_text),
             contentDescription = "versus",
             modifier = Modifier.size(48.dp),
             tint = vsColor
@@ -2208,14 +2210,14 @@ private fun BigScoreboardToggleButton(
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
     val tooltipText = if (isBack) {
-        stringResource(R.string.big_scoreboard_back_tooltip)
+        stringResource(Res.string.big_scoreboard_back_tooltip)
     } else {
-        stringResource(R.string.big_scoreboard_tooltip)
+        stringResource(Res.string.big_scoreboard_tooltip)
     }
     val contentDescription = if (isBack) {
-        stringResource(R.string.big_scoreboard_back_cd)
+        stringResource(Res.string.big_scoreboard_back_cd)
     } else {
-        stringResource(R.string.big_scoreboard_cd)
+        stringResource(Res.string.big_scoreboard_cd)
     }
     val tint = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -2277,9 +2279,9 @@ private fun PointIndicatorIcon(
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
     val drawableRes = if (showRotationIndicator) {
-        R.drawable.point_and_rotation_icon
+        Res.drawable.point_and_rotation_icon
     } else {
-        R.drawable.point_icon
+        Res.drawable.point_icon
     }
 
     val iconContent: @Composable () -> Unit = {
@@ -2473,7 +2475,7 @@ private fun BigScoreCard(
     modifier: Modifier = Modifier
 ) {
     val contentColor = if (cardColor.luminance() < 0.5f) Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.8f)
-    val victoryLabel = stringResource(R.string.victory_short)
+    val victoryLabel = stringResource(Res.string.victory_short)
 
     Card(
         modifier = modifier.clip(RoundedCornerShape(32.dp)),
@@ -2652,7 +2654,7 @@ private fun BigScoreCard(
                     )
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.crown_icon),
+                        painter = painterResource(Res.drawable.crown_icon),
                         contentDescription = victoryLabel,
                         modifier = Modifier.size(24.dp)
                     )
@@ -2747,7 +2749,7 @@ private fun StreakIndicator(
         ) {
             Icon(
                 imageVector = Icons.Default.LocalFireDepartment,
-                contentDescription = stringResource(R.string.edit_streak_cd),
+                contentDescription = stringResource(Res.string.edit_streak_cd),
                 tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleMedium.fontSize.toDp() })
             )
@@ -2829,7 +2831,7 @@ private fun WaitingListPreviewHeader(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = stringResource(R.string.waiting_list, waitingCount),
+            text = stringResource(Res.string.waiting_list, waitingCount),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -2882,8 +2884,8 @@ fun ActiveTeamCard(
     val haptic = LocalHapticFeedback.current
     val avgEloTooltipState = rememberTooltipState(isPersistent = true)
     val avgEloTooltipScope = rememberCoroutineScope()
-    val avgEloTooltipText = stringResource(R.string.average_elo_indicator_tooltip)
-    val avgEloIndicatorCd = stringResource(R.string.average_elo_indicator_cd)
+    val avgEloTooltipText = stringResource(Res.string.average_elo_indicator_tooltip)
+    val avgEloIndicatorCd = stringResource(Res.string.average_elo_indicator_cd)
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -2972,7 +2974,7 @@ fun ActiveTeamCard(
                         Spacer(Modifier.width(2.dp))
                         Icon(
                             imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = stringResource(R.string.edit_streak_cd),
+                            contentDescription = stringResource(Res.string.edit_streak_cd),
                             tint = if (streak > 0) streakColor else contentColor.copy(alpha = 0.5f),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyLarge.fontSize.toDp() })
                         )
@@ -3099,7 +3101,7 @@ fun ActiveTeamCard(
             ) {
                 Icon(
                     Icons.Default.Remove,
-                    contentDescription = stringResource(R.string.decrease_score),
+                    contentDescription = stringResource(Res.string.decrease_score),
                     tint = buttonColor
                 )
             }
@@ -3112,7 +3114,7 @@ fun ActiveTeamCard(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = stringResource(R.string.increase_score),
+                    contentDescription = stringResource(Res.string.increase_score),
                     tint = buttonColor
                 )
             }
@@ -3155,7 +3157,7 @@ fun ActiveTeamCard(
                     val assignedPosition = assignedPositions[p.id]
                     val isBenchLibero = usesPositions && positionTeamSize == 7 && assignedPosition == PlayerPosition.LIBERO
                     val positionTooltip = listOfNotNull(
-                        if (isBenchLibero) stringResource(R.string.team_bench_libero_tooltip) else null,
+                        if (isBenchLibero) stringResource(Res.string.team_bench_libero_tooltip) else null,
                         assignedPosition?.let { assignedPositionTooltip(p, it, positionTeamSize) }
                     ).joinToString("\n\n").ifBlank { null }
                     val statusTooltip = playerStatusTooltipText(isRebalancedPlayer, isAutoSelectedLoser)
@@ -3260,7 +3262,7 @@ fun ActiveTeamCard(
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.volei_manager_icon),
+                                        painter = painterResource(Res.drawable.volei_manager_icon),
                                         contentDescription = null,
                                         tint = contentColor.copy(alpha = 0.7f),
                                         modifier = Modifier.size(
@@ -3434,7 +3436,7 @@ fun ActiveTeamCard(
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Text(
-                                stringResource(R.string.victory),
+                                stringResource(Res.string.victory),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 color = buttonTextColor
@@ -3471,7 +3473,7 @@ fun ActiveTeamCard(
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.victory_short),
+                                        text = stringResource(Res.string.victory_short),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
@@ -3514,7 +3516,7 @@ fun ActiveTeamCard(
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.victory_short),
+                                        text = stringResource(Res.string.victory_short),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
@@ -3542,9 +3544,9 @@ private fun playerStatusTooltipText(
     isAutoSelectedLoser: Boolean
 ): String? = when {
     isRebalancedPlayer && isAutoSelectedLoser ->
-        stringResource(R.string.rebalanced_and_auto_selected_loser_player_tooltip)
-    isRebalancedPlayer -> stringResource(R.string.rebalanced_player_tooltip)
-    isAutoSelectedLoser -> stringResource(R.string.auto_selected_loser_player_tooltip)
+        stringResource(Res.string.rebalanced_and_auto_selected_loser_player_tooltip)
+    isRebalancedPlayer -> stringResource(Res.string.rebalanced_player_tooltip)
+    isAutoSelectedLoser -> stringResource(Res.string.auto_selected_loser_player_tooltip)
     else -> null
 }
 
@@ -3557,13 +3559,13 @@ private fun PlayerStatusIcons(
     modifier: Modifier = Modifier
 ) {
     val inlineIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
-    val rebalancedIconCd = stringResource(R.string.rebalanced_player_icon_cd)
-    val autoSelectedLoserIconCd = stringResource(R.string.auto_selected_loser_player_icon_cd)
+    val rebalancedIconCd = stringResource(Res.string.rebalanced_player_icon_cd)
+    val autoSelectedLoserIconCd = stringResource(Res.string.auto_selected_loser_player_icon_cd)
 
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         if (isRebalancedPlayer) {
             Icon(
-                painter = painterResource(R.drawable.arrowsbothsides),
+                painter = painterResource(Res.drawable.arrowsbothsides),
                 contentDescription = rebalancedIconCd,
                 tint = contentColor.copy(alpha = 0.7f),
                 modifier = Modifier.size(inlineIconSize)
@@ -3572,7 +3574,7 @@ private fun PlayerStatusIcons(
         }
         if (isAutoSelectedLoser) {
             Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.arrowdown),
+                imageVector = vectorResource(Res.drawable.arrowdown),
                 contentDescription = autoSelectedLoserIconCd,
                 tint = contentColor.copy(alpha = 0.7f),
                 modifier = Modifier.size(inlineIconSize)
@@ -3592,7 +3594,7 @@ private fun PlayerIdentityInlineRow(
     modifier: Modifier = Modifier
 ) {
     val inlineIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }
-    val priorityCd = stringResource(R.string.priority)
+    val priorityCd = stringResource(Res.string.priority)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -3807,7 +3809,7 @@ private fun GroupOnboardingNameCard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = stringResource(R.string.onboarding_group_name_question),
+                text = stringResource(Res.string.onboarding_group_name_question),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -3825,7 +3827,7 @@ private fun GroupOnboardingNameCard(
                     textFieldValue = truncated
                     onGroupNameChange(truncated.text)
                 },
-                label = { Text(stringResource(R.string.group_name)) },
+                label = { Text(stringResource(Res.string.group_name)) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 singleLine = true,
                 modifier = Modifier
@@ -3840,7 +3842,7 @@ private fun GroupOnboardingNameCard(
                     }
             )
             Text(
-                text = stringResource(R.string.onboarding_group_name_hint),
+                text = stringResource(Res.string.onboarding_group_name_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3852,7 +3854,7 @@ private fun GroupOnboardingNameCard(
                     onClick = onContinue,
                     enabled = groupName.trim().isNotBlank()
                 ) {
-                    Text(stringResource(R.string.continue_word))
+                    Text(stringResource(Res.string.continue_word))
                 }
             }
         }
@@ -3877,13 +3879,13 @@ private fun GroupOnboardingGroupTypeCard(
                 .fillMaxWidth()
         ) {
             Text(
-                text = stringResource(R.string.onboarding_group_type_question),
+                text = stringResource(Res.string.onboarding_group_type_question),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.group_type_long_press_hint),
+                text = stringResource(Res.string.group_type_long_press_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3897,7 +3899,7 @@ private fun GroupOnboardingGroupTypeCard(
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.onboarding_team_size_hint),
+                text = stringResource(Res.string.onboarding_team_size_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3910,11 +3912,11 @@ private fun GroupOnboardingGroupTypeCard(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
+                        contentDescription = stringResource(Res.string.back)
                     )
                 }
                 Button(onClick = onContinue) {
-                    Text(stringResource(R.string.continue_word))
+                    Text(stringResource(Res.string.continue_word))
                 }
             }
         }
@@ -3932,13 +3934,13 @@ private fun GroupOnboardingBalanceModeCard(
         listOf(
             Triple(
                 com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name,
-                R.string.mode_rebalance,
-                R.string.mode_rebalance_tooltip
+                Res.string.mode_rebalance,
+                Res.string.mode_rebalance_tooltip
             ),
             Triple(
                 com.bismarck.voleimanager.app.data.model.BalancingMode.REST.name,
-                R.string.mode_rest,
-                R.string.mode_rest_tooltip
+                Res.string.mode_rest,
+                Res.string.mode_rest_tooltip
             )
         )
     }
@@ -3954,13 +3956,13 @@ private fun GroupOnboardingBalanceModeCard(
                 .fillMaxWidth()
         ) {
             Text(
-                text = stringResource(R.string.onboarding_balance_mode_question),
+                text = stringResource(Res.string.onboarding_balance_mode_question),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.group_type_long_press_hint),
+                text = stringResource(Res.string.group_type_long_press_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3972,15 +3974,15 @@ private fun GroupOnboardingBalanceModeCard(
                     selected = selectedMode == value,
                     onSelect = { onModeSelected(value) },
                     iconRes = if (value == com.bismarck.voleimanager.app.data.model.BalancingMode.REBALANCE.name) {
-                        R.drawable.arrowsbothsides
+                        Res.drawable.arrowsbothsides
                     } else {
-                        R.drawable.zzz_rest
+                        Res.drawable.zzz_rest
                     }
                 )
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.onboarding_team_size_hint),
+                text = stringResource(Res.string.onboarding_team_size_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -3993,11 +3995,11 @@ private fun GroupOnboardingBalanceModeCard(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
+                        contentDescription = stringResource(Res.string.back)
                     )
                 }
                 Button(onClick = onContinue) {
-                    Text(stringResource(R.string.continue_word))
+                    Text(stringResource(Res.string.continue_word))
                 }
             }
         }
@@ -4011,7 +4013,7 @@ private fun OnboardingBalanceModeRow(
     tooltip: String,
     selected: Boolean,
     onSelect: () -> Unit,
-    iconRes: Int,
+    iconRes: DrawableResource,
     iconSize: Dp = 20.dp
 ) {
     val scope = rememberCoroutineScope()
@@ -4089,7 +4091,7 @@ private fun GroupOnboardingTeamSizeCard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = stringResource(R.string.onboarding_team_size_question),
+                text = stringResource(Res.string.onboarding_team_size_question),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -4121,13 +4123,13 @@ private fun GroupOnboardingTeamSizeCard(
                 }
             }
             Text(
-                text = stringResource(R.string.onboarding_team_size_hint),
+                text = stringResource(Res.string.onboarding_team_size_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (groupType.usesPositions && selectedTeamSize == 7) {
                 Text(
-                    text = stringResource(R.string.onboarding_team_size_seven_bench_hint),
+                    text = stringResource(Res.string.onboarding_team_size_seven_bench_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -4141,7 +4143,7 @@ private fun GroupOnboardingTeamSizeCard(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
+                            contentDescription = stringResource(Res.string.back)
                         )
                     }
                 } else {
@@ -4151,7 +4153,7 @@ private fun GroupOnboardingTeamSizeCard(
                     onClick = onContinue,
                     enabled = selectedTeamSize != null
                 ) {
-                    Text(stringResource(R.string.continue_word))
+                    Text(stringResource(Res.string.continue_word))
                 }
             }
         }
@@ -4180,7 +4182,7 @@ private fun GroupOnboardingMinimumPlayersCard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = stringResource(R.string.onboarding_add_players_instruction, minimumPlayers),
+                text = stringResource(Res.string.onboarding_add_players_instruction, minimumPlayers),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -4192,7 +4194,7 @@ private fun GroupOnboardingMinimumPlayersCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(imageVector = Icons.Default.Person, contentDescription = null)
                     Text(
-                        text = stringResource(R.string.onboarding_name_title),
+                        text = stringResource(Res.string.onboarding_name_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -4200,7 +4202,7 @@ private fun GroupOnboardingMinimumPlayersCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = stringResource(R.string.onboarding_name_description),
+                        text = stringResource(Res.string.onboarding_name_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -4208,7 +4210,7 @@ private fun GroupOnboardingMinimumPlayersCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(imageVector = Icons.Default.WorkspacePremium, contentDescription = null)
                     Text(
-                        text = stringResource(R.string.onboarding_elo_title),
+                        text = stringResource(Res.string.onboarding_elo_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -4216,7 +4218,7 @@ private fun GroupOnboardingMinimumPlayersCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = stringResource(R.string.onboarding_elo_description),
+                        text = stringResource(Res.string.onboarding_elo_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -4229,8 +4231,8 @@ private fun GroupOnboardingMinimumPlayersCard(
                     }
                     Text(
                         text = stringResource(
-                            if (groupType.usesPositions) R.string.onboarding_position_title
-                            else R.string.onboarding_priority_title
+                            if (groupType.usesPositions) Res.string.onboarding_position_title
+                            else Res.string.onboarding_priority_title
                         ),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
@@ -4240,8 +4242,8 @@ private fun GroupOnboardingMinimumPlayersCard(
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
                         text = stringResource(
-                            if (groupType.usesPositions) R.string.onboarding_position_description
-                            else R.string.onboarding_priority_description
+                            if (groupType.usesPositions) Res.string.onboarding_position_description
+                            else Res.string.onboarding_priority_description
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -4260,14 +4262,14 @@ private fun GroupOnboardingMinimumPlayersCard(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
+                        contentDescription = stringResource(Res.string.back)
                     )
                 }
                 Button(
                     onClick = onContinue,
                     enabled = currentPlayers >= minimumPlayers
                 ) {
-                    Text(stringResource(R.string.continue_word))
+                    Text(stringResource(Res.string.continue_word))
                 }
             }
         }
@@ -4304,20 +4306,20 @@ fun EmptyStateCard(
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
-            title = { Text(stringResource(R.string.clear_match_title)) },
-            text = { Text(stringResource(R.string.clear_match_desc)) },
+            title = { Text(stringResource(Res.string.clear_match_title)) },
+            text = { Text(stringResource(Res.string.clear_match_desc)) },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     onClick = {
                         onClearRecent()
                         showClearConfirmation = false
-                    }) { Text(stringResource(R.string.yes_clear)) }
+                    }) { Text(stringResource(Res.string.yes_clear)) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmation = false }) {
                     Text(
-                        stringResource(R.string.no),
+                        stringResource(Res.string.no),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -4325,10 +4327,10 @@ fun EmptyStateCard(
     }
 
     val minNeeded = currentTeamSize * 2
-    val selectMinimumPlayers = stringResource(R.string.select_minimum_players, minNeeded)
+    val selectMinimumPlayers = stringResource(Res.string.select_minimum_players, minNeeded)
     val selectMinimumPlayersLong =
-        stringResource(R.string.select_minimum_players_long, minNeeded)
-    val spectatorWaitingGameStart = stringResource(R.string.spectator_waiting_game_start)
+        stringResource(Res.string.select_minimum_players_long, minNeeded)
+    val spectatorWaitingGameStart = stringResource(Res.string.spectator_waiting_game_start)
     val winnerNamesAnnotated = remember(lastWinners, presentPlayerIds) {
         buildAnnotatedString {
             append("(")
@@ -4363,13 +4365,13 @@ fun EmptyStateCard(
             val winnerNames = lastWinners.map { it.name }
             val kingTextColor = MaterialTheme.colorScheme.tertiary
             val mainLogo = if (isDarkTheme) {
-                R.drawable.bola_volei_fundo_escuro
+                Res.drawable.bola_volei_fundo_escuro
             } else {
-                R.drawable.logo_volei_manager
+                Res.drawable.logo_volei_manager
             }
             if (limitReached) {
                 Icon(
-                    painter = painterResource(R.drawable.crown_icon),
+                    painter = painterResource(Res.drawable.crown_icon),
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = kingTextColor
@@ -4386,7 +4388,7 @@ fun EmptyStateCard(
             if (hasPreviousMatch) {
                 if (limitReached) {
                     Text(
-                        text = stringResource(R.string.limit_reached_title),
+                        text = stringResource(Res.string.limit_reached_title),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = kingTextColor,
@@ -4404,31 +4406,31 @@ fun EmptyStateCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     // Adapta a mensagem dependendo do modo de balanceamento
                     val body = when (BalancingMode.fromStoredValue(balancingMode)) {
-                        BalancingMode.REBALANCE -> stringResource(R.string.limit_reached_text, currentStreak)
+                        BalancingMode.REBALANCE -> stringResource(Res.string.limit_reached_text, currentStreak)
                         BalancingMode.REST -> {
                             when {
                                 selectedCount >= currentTeamSize * 4 -> stringResource(
-                                    R.string.limit_reached_text_rest_selected_gte_four_teams,
+                                    Res.string.limit_reached_text_rest_selected_gte_four_teams,
                                     currentStreak
                                 )
                                 selectedCount >= currentTeamSize * 3 -> stringResource(
-                                    R.string.limit_reached_text_rest_selected_gte_three_teams,
+                                    Res.string.limit_reached_text_rest_selected_gte_three_teams,
                                     currentStreak
                                 )
                                 selectedCount == (currentTeamSize * 3) - 1 -> stringResource(
-                                    R.string.limit_reached_text_rest_selected_eq_two_teams_plus_one,
+                                    Res.string.limit_reached_text_rest_selected_eq_two_teams_plus_one,
                                     currentStreak
                                 )
                                 selectedCount > currentTeamSize * 2 -> stringResource(
-                                    R.string.limit_reached_text_rest_selected_gt_two_teams_plus_one,
+                                    Res.string.limit_reached_text_rest_selected_gt_two_teams_plus_one,
                                     currentStreak
                                 )
                                 selectedCount == currentTeamSize * 2 -> stringResource(
-                                    R.string.limit_reached_text_rest_selected_eq_two_teams,
+                                    Res.string.limit_reached_text_rest_selected_eq_two_teams,
                                     currentStreak
                                 )
                                 else -> stringResource(
-                                    R.string.limit_reached_text_rest_selected_lt_two_teams,
+                                    Res.string.limit_reached_text_rest_selected_lt_two_teams,
                                     currentStreak,
                                     currentTeamSize * 2
                                 )
@@ -4442,13 +4444,13 @@ fun EmptyStateCard(
                     )
                  } else {
                     val teamName =
-                        if (streakOwner == "A") stringResource(R.string.team_a) else if (streakOwner == "B") stringResource(
-                            R.string.team_b
+                        if (streakOwner == "A") stringResource(Res.string.team_a) else if (streakOwner == "B") stringResource(
+                            Res.string.team_b
                         ) else stringResource(
-                            R.string.winner
+                            Res.string.winner
                         )
                     Text(
-                        text = stringResource(R.string.team_x_wins, teamName),
+                        text = stringResource(Res.string.team_x_wins, teamName),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -4463,7 +4465,7 @@ fun EmptyStateCard(
                  }
             } else {
                 Text(
-                    stringResource(R.string.selected_group, getDisplayGroupName(currentGroup)),
+                    stringResource(Res.string.selected_group, getDisplayGroupName(currentGroup)),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -4472,9 +4474,9 @@ fun EmptyStateCard(
                 // "Aguardando início do jogo" logo abaixo — evita duplicar o texto na tela.
                 if (!isSpectator) {
                     val emptyStateMessage = if (selectedCount < minNeeded) {
-                        stringResource(R.string.select_minimum_players, minNeeded)
+                        stringResource(Res.string.select_minimum_players, minNeeded)
                     } else {
-                        stringResource(R.string.click_to_start_match)
+                        stringResource(Res.string.click_to_start_match)
                     }
                     Text(
                         text = emptyStateMessage,
@@ -4549,8 +4551,8 @@ fun EmptyStateCard(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                if (hasPreviousMatch) stringResource(R.string.start_next_match)
-                                else stringResource(R.string.start_match),
+                                if (hasPreviousMatch) stringResource(Res.string.start_next_match)
+                                else stringResource(Res.string.start_match),
                                 fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 maxLines = 1,
@@ -4583,7 +4585,7 @@ fun EmptyStateCard(
                                 if (showSecondaryMenu) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
                             val trailingIconColor = MaterialTheme.colorScheme.onPrimary
                             val select_minimum_4_players =
-                                stringResource(R.string.select_minimum_4_players)
+                                stringResource(Res.string.select_minimum_4_players)
 
                             Button(
                                 onClick = { showSecondaryMenu = !showSecondaryMenu },
@@ -4601,7 +4603,7 @@ fun EmptyStateCard(
                             ) {
                                 Icon(
                                     Icons.Default.KeyboardArrowDown,
-                                    contentDescription = stringResource(R.string.options_menu),
+                                    contentDescription = stringResource(Res.string.options_menu),
                                     modifier = Modifier
                                         .size(26.dp)
                                         .offset(x = iconOffset)
@@ -4617,7 +4619,7 @@ fun EmptyStateCard(
                             ) {
                                 // OpÃ§Ã£o: Montar times manualmente
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.manual_teams)) },
+                                    text = { Text(stringResource(Res.string.manual_teams)) },
                                     onClick = {
                                         showSecondaryMenu = false
                                         if (selectedCount >= 4) {
@@ -4636,7 +4638,7 @@ fun EmptyStateCard(
 
                                 // OpÃ§Ã£o: Limpar jogo atual
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.clear_match)) },
+                                    text = { Text(stringResource(Res.string.clear_match)) },
                                     onClick = {
                                         showSecondaryMenu = false
                                         showClearConfirmation = true
@@ -4653,7 +4655,7 @@ fun EmptyStateCard(
                                 // que a partida ainda pode ser desfeita com segurança)
                                 if (canUndoLastMatch) {
                                     DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.undo_last_match)) },
+                                        text = { Text(stringResource(Res.string.undo_last_match)) },
                                         onClick = {
                                             showSecondaryMenu = false
                                             onUndoLastMatch()
@@ -4838,7 +4840,7 @@ fun PlayerCard(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            painter = painterResource(R.drawable.volei_manager_icon),
+                            painter = painterResource(Res.drawable.volei_manager_icon),
                             contentDescription = null,
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() })
                         )
@@ -4872,9 +4874,9 @@ fun PlayerCard(
                     text = {
                         Text(
                             if (isGuaranteedNextMatch) {
-                                stringResource(R.string.remove_next_match_guarantee)
+                                stringResource(Res.string.remove_next_match_guarantee)
                             } else {
-                                stringResource(R.string.guarantee_next_match)
+                                stringResource(Res.string.guarantee_next_match)
                             }
                         )
                     },
@@ -4882,13 +4884,13 @@ fun PlayerCard(
                     leadingIcon = { Icon(Icons.Default.PlayArrow, null) }
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.edit)) },
+                    text = { Text(stringResource(Res.string.edit)) },
                     onClick = { showMenu = false; onEdit() },
                     leadingIcon = { Icon(Icons.Default.Edit, null) })
                 DropdownMenuItem(
                     text = {
                         Text(
-                            stringResource(R.string.delete),
+                            stringResource(Res.string.delete),
                             color = MaterialTheme.colorScheme.error
                         )
                     },
@@ -4976,7 +4978,7 @@ fun WaitingPlayerCard(
                             Spacer(Modifier.width(2.dp))
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = stringResource(R.string.priority),
+                                contentDescription = stringResource(Res.string.priority),
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -4984,7 +4986,7 @@ fun WaitingPlayerCard(
                         if (isResting) {
                             Spacer(Modifier.width(4.dp))
                             Icon(
-                                painter = painterResource(R.drawable.zzz_rest),
+                                painter = painterResource(Res.drawable.zzz_rest),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier

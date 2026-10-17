@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app.ui
 
+import org.jetbrains.compose.resources.StringResource
+import com.bismarck.voleimanager.app.resources.*
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -42,10 +44,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.ui.viewmodel.UserProfileType
 
 /**
@@ -70,14 +71,14 @@ fun UserProfileOnboardingScreen(onProfileSelected: (UserProfileType) -> Unit) {
             ) {
                 item {
                     Text(
-                        text = stringResource(R.string.onboarding_profile_question),
+                        text = stringResource(Res.string.onboarding_profile_question),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 item {
                     Text(
-                        text = stringResource(R.string.onboarding_profile_hint),
+                        text = stringResource(Res.string.onboarding_profile_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -103,7 +104,7 @@ fun UserProfileOnboardingScreen(onProfileSelected: (UserProfileType) -> Unit) {
                             onClick = { selected?.let(onProfileSelected) },
                             enabled = selected != null
                         ) {
-                            Text(stringResource(R.string.continue_word))
+                            Text(stringResource(Res.string.continue_word))
                         }
                     }
                 }
@@ -121,18 +122,18 @@ private fun UserProfileOptionCard(
 ) {
     val (titleRes, descriptionRes, icon) = when (profile) {
         UserProfileType.ORGANIZADOR -> Triple(
-            R.string.user_profile_organizer,
-            R.string.user_profile_organizer_desc,
+            Res.string.user_profile_organizer,
+            Res.string.user_profile_organizer_desc,
             Icons.Filled.Person
         )
         UserProfileType.AUXILIAR -> Triple(
-            R.string.user_profile_assistant,
-            R.string.user_profile_assistant_desc,
+            Res.string.user_profile_assistant,
+            Res.string.user_profile_assistant_desc,
             Icons.Filled.Groups
         )
         UserProfileType.ESPECTADOR -> Triple(
-            R.string.user_profile_viewer,
-            R.string.user_profile_viewer_desc,
+            Res.string.user_profile_viewer,
+            Res.string.user_profile_viewer_desc,
             Icons.Filled.Visibility
         )
     }
@@ -188,20 +189,20 @@ fun MandatoryAccountGateScreen(
     onBackClick: () -> Unit
 ) {
     ProfileRoutingScreenScaffold(
-        titleRes = R.string.onboarding_auth_required_title,
-        hintRes = R.string.onboarding_auth_required_hint,
+        titleRes = Res.string.onboarding_auth_required_title,
+        hintRes = Res.string.onboarding_auth_required_hint,
         onBackClick = onBackClick
     ) {
         Button(onClick = onSignUpClick, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.signup_title))
+            Text(stringResource(Res.string.signup_title))
         }
         Spacer(Modifier.height(12.dp))
         OutlinedButton(onClick = onLoginClick, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.login_title))
+            Text(stringResource(Res.string.login_title))
         }
         Spacer(Modifier.height(12.dp))
         TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.onboarding_skip))
+            Text(stringResource(Res.string.onboarding_skip))
         }
     }
 }
@@ -215,20 +216,20 @@ fun SpectatorAuthSuggestionScreen(
     onBackClick: () -> Unit
 ) {
     ProfileRoutingScreenScaffold(
-        titleRes = R.string.onboarding_spectator_auth_title,
-        hintRes = R.string.onboarding_spectator_auth_hint,
+        titleRes = Res.string.onboarding_spectator_auth_title,
+        hintRes = Res.string.onboarding_spectator_auth_hint,
         onBackClick = onBackClick
     ) {
         Button(onClick = onSignUpClick, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.signup_title))
+            Text(stringResource(Res.string.signup_title))
         }
         Spacer(Modifier.height(12.dp))
         OutlinedButton(onClick = onLoginClick, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.login_title))
+            Text(stringResource(Res.string.login_title))
         }
         Spacer(Modifier.height(12.dp))
         TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.onboarding_skip))
+            Text(stringResource(Res.string.onboarding_skip))
         }
     }
 }
@@ -237,16 +238,16 @@ fun SpectatorAuthSuggestionScreen(
 @Composable
 fun SpectatorJoinSuggestionScreen(onJoinClick: () -> Unit, onSkip: () -> Unit, onBackClick: () -> Unit) {
     ProfileRoutingScreenScaffold(
-        titleRes = R.string.onboarding_spectator_join_title,
-        hintRes = R.string.onboarding_spectator_join_hint,
+        titleRes = Res.string.onboarding_spectator_join_title,
+        hintRes = Res.string.onboarding_spectator_join_hint,
         onBackClick = onBackClick
     ) {
         Button(onClick = onJoinClick, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.join_existing_group))
+            Text(stringResource(Res.string.join_existing_group))
         }
         Spacer(Modifier.height(12.dp))
         TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.onboarding_explore_without_group))
+            Text(stringResource(Res.string.onboarding_explore_without_group))
         }
     }
 }
@@ -257,8 +258,8 @@ fun SpectatorJoinSuggestionScreen(onJoinClick: () -> Unit, onSkip: () -> Unit, o
  *  no call site em `VoleiManagerApp`). */
 @Composable
 private fun ProfileRoutingScreenScaffold(
-    titleRes: Int,
-    hintRes: Int,
+    titleRes: StringResource,
+    hintRes: StringResource,
     onBackClick: () -> Unit,
     buttons: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
@@ -268,7 +269,7 @@ private fun ProfileRoutingScreenScaffold(
                 IconButton(onClick = onBackClick, modifier = Modifier.padding(4.dp)) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
+                        contentDescription = stringResource(Res.string.back)
                     )
                 }
                 Column(

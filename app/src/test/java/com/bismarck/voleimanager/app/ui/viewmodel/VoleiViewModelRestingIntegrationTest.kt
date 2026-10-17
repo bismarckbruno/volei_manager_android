@@ -648,7 +648,7 @@ class VoleiViewModelRestingIntegrationTest {
             )
         )
 
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
         withTimeout(3_000) {
             vm.currentGroupConfig.first { it.groupName == "Amigos" }
         }
@@ -666,7 +666,7 @@ class VoleiViewModelRestingIntegrationTest {
         val dao = FakeVoleiDao()
         val repo = VoleiRepository(dao)
 
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
         withTimeout(3_000) {
             vm.currentGroupConfig.first { it.onboardingStep == ONBOARDING_STEP_GROUP_NAME }
         }
@@ -697,7 +697,7 @@ class VoleiViewModelRestingIntegrationTest {
         val repo = VoleiRepository(dao)
         repo.insertPlayer(Player(name = "Bruno", groupName = "Amigos", elo = 1200.0))
 
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
         val loaded = withTimeout(3_000) {
             vm.currentGroupConfig.first { it.groupName == "Amigos" }
         }
@@ -737,7 +737,7 @@ class VoleiViewModelRestingIntegrationTest {
             )
         )
 
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
         val groups = withTimeout(3_000) {
             vm.groupsSortedByRecentHistory.first {
                 it.contains("MaisRecente") && it.contains("MaisAntigo") && it.contains("SemHistorico")
@@ -792,7 +792,7 @@ class VoleiViewModelRestingIntegrationTest {
             .putString("game_state_$DEFAULT_GROUP_NAME", AppJson.encodeToString(GameStateSnapshot.serializer(), savedSnapshot))
             .apply()
 
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
         withTimeout(3_000) {
             vm.isGroupDataLoading.first { !it }
         }
@@ -847,7 +847,7 @@ class VoleiViewModelRestingIntegrationTest {
             .putString("game_state_$DEFAULT_GROUP_NAME", AppJson.encodeToString(GameStateSnapshot.serializer(), savedSnapshot))
             .apply()
 
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
         withTimeout(3_000) {
             vm.isGroupDataLoading.first { !it }
         }
@@ -904,7 +904,7 @@ class VoleiViewModelRestingIntegrationTest {
 
         val dao = FakeVoleiDao()
         val repo = VoleiRepository(dao)
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
 
         runBlocking {
             repo.saveGroupConfig(

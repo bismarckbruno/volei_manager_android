@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app.ui.game
 
+import com.bismarck.voleimanager.app.platform.AppStrings
+import com.bismarck.voleimanager.app.resources.*
 import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -60,8 +62,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -94,7 +96,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
-import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.PlayerNameWithPositionBadges
@@ -172,7 +173,7 @@ internal fun WaitingListContent(
         undoAction = null
     }
 
-    val undoStr = stringResource(R.string.undo)
+    val undoStr = stringResource(Res.string.undo)
     fun showSnackbar(message: String, hasUndo: Boolean) {
         scope.launch {
             val result = snackbarHostState.showSnackbar(
@@ -260,7 +261,7 @@ internal fun WaitingListContent(
         val index = waitingList.indexOfFirst { it.id == player.id }
         undoAction = UndoAction.Remove(player, index)
         viewModel.removePlayerFromWaitingList(player)
-        val off_waitlist = resources.getString(R.string.off_waitlist, player.name)
+        val off_waitlist = AppStrings.get(Res.string.off_waitlist, player.name)
         showSnackbar(off_waitlist, true)
     }
 
@@ -286,7 +287,7 @@ internal fun WaitingListContent(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Text(
-                            text = stringResource(R.string.no_player_waiting),
+                            text = stringResource(Res.string.no_player_waiting),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -325,7 +326,7 @@ internal fun WaitingListContent(
                         },
                         onMoveToBeginning = {
                             val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                            val went_to_start_queue = resources.getString(R.string.went_to_start_queue, player.name)
+                            val went_to_start_queue = AppStrings.get(Res.string.went_to_start_queue, player.name)
                             viewModel.movePlayerToBeginning(player)
                             scrollToAndHighlight(player.id, 0)
                             undoAction =
@@ -334,7 +335,7 @@ internal fun WaitingListContent(
                         },
                         onMoveToEnd = {
                             val oldIndex = waitingList.indexOfFirst { it.id == player.id }
-                            val went_to_end_queue = resources.getString(R.string.went_to_end_queue, player.name)
+                            val went_to_end_queue = AppStrings.get(Res.string.went_to_end_queue, player.name)
                             viewModel.movePlayerToEnd(player)
                             scrollToAndHighlight(player.id, waitingList.size - 1)
                             undoAction = UndoAction.Move(
@@ -369,7 +370,7 @@ internal fun WaitingListContent(
                             modifier = Modifier.padding(8.dp)
                         ) {
                             Text(
-                                stringResource(R.string.absent, absentPlayers.size),
+                                stringResource(Res.string.absent, absentPlayers.size),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -381,7 +382,7 @@ internal fun WaitingListContent(
                             )
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = if (absentExpanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
+                                contentDescription = if (absentExpanded) stringResource(Res.string.collapse) else stringResource(Res.string.expand),
                                 modifier = Modifier
                                     .size(20.dp)
                                     .rotate(absentRotation),
@@ -395,7 +396,7 @@ internal fun WaitingListContent(
                     if (absentPlayers.isEmpty()) {
                         item(key = "inactive_empty") {
                             Text(
-                                text = stringResource(R.string.all_players_present),
+                                text = stringResource(Res.string.all_players_present),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
@@ -418,7 +419,7 @@ internal fun WaitingListContent(
                                     val targetIndex = 0
                                     undoAction = UndoAction.Add(player, targetIndex)
                                     viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                    val has_entered_start_queue = resources.getString(R.string.has_entered_start_queue, player.name)
+                                    val has_entered_start_queue = AppStrings.get(Res.string.has_entered_start_queue, player.name)
                                     showSnackbar(has_entered_start_queue, true)
                                     scope.launch { delay(100); listState.animateScrollToItem(0) }
                                 },
@@ -426,7 +427,7 @@ internal fun WaitingListContent(
                                 val targetIndex = waitingList.size
                                 undoAction = UndoAction.Add(player, targetIndex)
                                 viewModel.insertPlayerIntoWaitingList(player, targetIndex)
-                                val has_entered_end_queue = resources.getString(R.string.has_entered_end_queue, player.name)
+                                val has_entered_end_queue = AppStrings.get(Res.string.has_entered_end_queue, player.name)
                                 showSnackbar(has_entered_end_queue, true)
                                 scope.launch {
                                     delay(100)
@@ -487,7 +488,7 @@ fun WaitingListBottomSheet(
             ) {
                 BottomSheetDefaults.DragHandle()
                 Text(
-                    text = stringResource(R.string.waiting_list, waitingList.size),
+                    text = stringResource(Res.string.waiting_list, waitingList.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -635,7 +636,7 @@ private fun WaitingListPlayerItem(
                                     Spacer(Modifier.width(2.dp))
                                     Icon(
                                         Icons.Default.Star,
-                                        contentDescription = stringResource(R.string.priority),
+                                        contentDescription = stringResource(Res.string.priority),
                                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -643,7 +644,7 @@ private fun WaitingListPlayerItem(
                                 if (isResting) {
                                     Spacer(Modifier.width(4.dp))
                                     Icon(
-                                        painter = painterResource(R.drawable.zzz_rest),
+                                        painter = painterResource(Res.drawable.zzz_rest),
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier
@@ -667,7 +668,7 @@ private fun WaitingListPlayerItem(
                                 trailingIcon = if (isResting) {
                                     {
                                         Icon(
-                                            painter = painterResource(R.drawable.zzz_rest),
+                                            painter = painterResource(Res.drawable.zzz_rest),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
@@ -704,7 +705,7 @@ private fun WaitingListPlayerItem(
                     ) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.options_menu),
+                            contentDescription = stringResource(Res.string.options_menu),
                             modifier = Modifier.size(24.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                         )
@@ -731,7 +732,7 @@ private fun WaitingListPlayerItem(
                 offset = DpOffset(x = 16.dp, y = 0.dp)
             ) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.start_of_queue)) },
+                    text = { Text(stringResource(Res.string.start_of_queue)) },
                     leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
                     onClick = {
                         onMoveToBeginning()
@@ -740,7 +741,7 @@ private fun WaitingListPlayerItem(
                     enabled = !isFirst
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.move_up)) },
+                    text = { Text(stringResource(Res.string.move_up)) },
                     leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
                     onClick = {
                         onMoveUp()
@@ -749,7 +750,7 @@ private fun WaitingListPlayerItem(
                     enabled = !isFirst
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.move_down)) },
+                    text = { Text(stringResource(Res.string.move_down)) },
                     leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
                     onClick = {
                         onMoveDown()
@@ -758,7 +759,7 @@ private fun WaitingListPlayerItem(
                     enabled = !isLast
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.end_of_queue)) },
+                    text = { Text(stringResource(Res.string.end_of_queue)) },
                     leadingIcon = {
                         Icon(
                             Icons.Default.VerticalAlignBottom,
@@ -772,7 +773,7 @@ private fun WaitingListPlayerItem(
                     enabled = !isLast
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.remove_from_queue), color = MaterialTheme.colorScheme.error) },
+                    text = { Text(stringResource(Res.string.remove_from_queue), color = MaterialTheme.colorScheme.error) },
                     leadingIcon = {
                         Icon(
                             Icons.Default.Delete,
@@ -871,7 +872,7 @@ private fun InactivePlayerItem(
                                 Spacer(Modifier.width(2.dp))
                                 Icon(
                                     Icons.Default.Star,
-                                    contentDescription = stringResource(R.string.priority),
+                                    contentDescription = stringResource(Res.string.priority),
                                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -916,7 +917,7 @@ private fun InactivePlayerItem(
                     ) {
                         Icon(
                             Icons.Default.PersonAddAlt1,
-                            contentDescription = stringResource(R.string.add_to_queue),
+                            contentDescription = stringResource(Res.string.add_to_queue),
                             modifier = Modifier.size(24.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
@@ -933,7 +934,7 @@ private fun InactivePlayerItem(
                 offset = DpOffset(x = 16.dp, y = 0.dp)
             ) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.start_of_queue)) },
+                    text = { Text(stringResource(Res.string.start_of_queue)) },
                     leadingIcon = { Icon(Icons.Default.VerticalAlignTop, contentDescription = null) },
                     onClick = {
                         onMoveToBeginning()
@@ -941,7 +942,7 @@ private fun InactivePlayerItem(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.end_of_queue)) },
+                    text = { Text(stringResource(Res.string.end_of_queue)) },
                     leadingIcon = {
                         Icon(
                             Icons.Default.VerticalAlignBottom,

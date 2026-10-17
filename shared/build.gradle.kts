@@ -45,6 +45,8 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(libs.jetbrains.compose.runtime)
+            // Strings/drawables compartilhados (composeResources); api porque o :app usa stringResource.
+            api(libs.jetbrains.compose.components.resources)
             // Anotações do Room (@Entity, @PrimaryKey...) nas entidades compartilhadas.
             api(libs.androidx.room.runtime)
             // Backup .vlz e estado do jogo salvo (substitui o Gson, que é só JVM).
@@ -66,4 +68,10 @@ dependencies {
     listOf("kspAndroid", "kspIosArm64", "kspIosSimulatorArm64").forEach {
         add(it, libs.androidx.room.compiler)
     }
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.bismarck.voleimanager.app.resources"
+    generateResClass = always
 }

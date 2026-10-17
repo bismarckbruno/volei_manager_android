@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app.ui
 
+import com.bismarck.voleimanager.app.platform.AppStrings
+import com.bismarck.voleimanager.app.resources.*
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -83,7 +85,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -93,12 +95,11 @@ import android.net.Uri
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import androidx.compose.ui.unit.DpOffset
 import com.bismarck.voleimanager.app.util.AndroidPlatformHost
 import com.bismarck.voleimanager.app.BuildConfig
-import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
 import com.bismarck.voleimanager.app.ui.viewmodel.PremiumScreenPersona
@@ -173,7 +174,7 @@ private fun PersonaSegmentedButtonRow(viewModel: VoleiViewModel, persona: Premiu
             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
             icon = {}
         ) {
-            Text(stringResource(R.string.premium_screen_persona_admin))
+            Text(stringResource(Res.string.premium_screen_persona_admin))
         }
         SegmentedButton(
             selected = persona == PremiumScreenPersona.ESPECTADOR,
@@ -181,7 +182,7 @@ private fun PersonaSegmentedButtonRow(viewModel: VoleiViewModel, persona: Premiu
             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
             icon = {}
         ) {
-            Text(stringResource(R.string.premium_screen_persona_espectador))
+            Text(stringResource(Res.string.premium_screen_persona_espectador))
         }
     }
 }
@@ -213,20 +214,20 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel, persona: PremiumScree
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    stringResource(R.string.live_screen_spectator_title),
+                    stringResource(Res.string.live_screen_spectator_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
             }
             if (espectadorGroups.isEmpty()) {
                 Text(
-                    stringResource(R.string.live_screen_spectator_no_group),
+                    stringResource(Res.string.live_screen_spectator_no_group),
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
                 Text(
                     pluralStringResource(
-                        R.plurals.live_screen_spectator_groups_count,
+                        Res.plurals.live_screen_spectator_groups_count,
                         espectadorGroups.size,
                         espectadorGroups.size
                     ),
@@ -249,8 +250,8 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel, persona: PremiumScree
         if (!hasPremiumAccess) {
             PremiumPlansSection(
                 viewModel = viewModel,
-                title = stringResource(R.string.cloud_sync_spectator_support_title),
-                description = stringResource(R.string.cloud_sync_spectator_support_description),
+                title = stringResource(Res.string.cloud_sync_spectator_support_title),
+                description = stringResource(Res.string.cloud_sync_spectator_support_description),
                 collapsible = false
             )
         }
@@ -261,8 +262,8 @@ private fun SpectatorLiveScreen(viewModel: VoleiViewModel, persona: PremiumScree
 internal fun LiveScoreboard(state: LiveGameState, swapSides: Boolean = false) {
     val (leftTeam, rightTeam) = if (swapSides) state.teamB to state.teamA else state.teamA to state.teamB
     val (leftScore, rightScore) = if (swapSides) state.scoreB to state.scoreA else state.scoreA to state.scoreB
-    val leftLabelRes = if (swapSides) R.string.live_screen_team_b_label else R.string.live_screen_team_a_label
-    val rightLabelRes = if (swapSides) R.string.live_screen_team_a_label else R.string.live_screen_team_b_label
+    val leftLabelRes = if (swapSides) Res.string.live_screen_team_b_label else Res.string.live_screen_team_a_label
+    val rightLabelRes = if (swapSides) Res.string.live_screen_team_a_label else Res.string.live_screen_team_b_label
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         Text(
             "$leftScore x $rightScore",
@@ -293,13 +294,13 @@ internal fun LiveScoreboard(state: LiveGameState, swapSides: Boolean = false) {
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
     )
     Text(
-        stringResource(R.string.live_screen_waiting_list_label),
+        stringResource(Res.string.live_screen_waiting_list_label),
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.Bold
     )
     if (state.waitingList.isEmpty()) {
         Text(
-            stringResource(R.string.live_screen_waiting_list_empty),
+            stringResource(Res.string.live_screen_waiting_list_empty),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -357,19 +358,19 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
         SectionCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painter = painterResource(R.drawable.premium_icon3),
+                    painter = painterResource(Res.drawable.premium_icon3),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    stringResource(R.string.cloud_sync_screen_title),
+                    stringResource(Res.string.cloud_sync_screen_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
             }
             Text(
-                stringResource(R.string.cloud_sync_screen_intro),
+                stringResource(Res.string.cloud_sync_screen_intro),
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -381,20 +382,20 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
         // ========== GRUPOS SINCRONIZADOS ==========
         SectionCard {
             Text(
-                stringResource(R.string.cloud_sync_groups_title),
+                stringResource(Res.string.cloud_sync_groups_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 if (hasPremiumAccess) {
                     pluralStringResource(
-                        R.plurals.cloud_sync_groups_limit_label,
+                        Res.plurals.cloud_sync_groups_limit_label,
                         effectivePlanTier.maxSyncedGroups,
                         syncedGroupNames.size,
                         effectivePlanTier.maxSyncedGroups
                     )
                 } else {
-                    stringResource(R.string.cloud_sync_groups_locked_hint)
+                    stringResource(Res.string.cloud_sync_groups_locked_hint)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -408,7 +409,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
             val ownGroups = allGroups.filter { it.remoteRole == null }
             if (ownGroups.isEmpty()) {
                 Text(
-                    stringResource(R.string.cloud_sync_groups_empty),
+                    stringResource(Res.string.cloud_sync_groups_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -440,7 +441,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                         value = selectedGroup.groupName,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(stringResource(R.string.cloud_sync_groups_selector_label)) },
+                        label = { Text(stringResource(Res.string.cloud_sync_groups_selector_label)) },
                         trailingIcon = {
                             val rotation by animateFloatAsState(
                                 targetValue = if (expanded) 180f else 0f,
@@ -449,7 +450,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                             )
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
-                                contentDescription = stringResource(R.string.keyboard_arrow_down),
+                                contentDescription = stringResource(Res.string.keyboard_arrow_down),
                                 modifier = Modifier
                                     .rotate(rotation)
                                     .size(24.dp)
@@ -486,7 +487,7 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
                                         if (group.isCloudSynced) {
                                             Icon(
                                                 Icons.Outlined.CloudDone,
-                                                contentDescription = stringResource(R.string.cloud_sync_groups_synced_badge),
+                                                contentDescription = stringResource(Res.string.cloud_sync_groups_synced_badge),
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
@@ -504,8 +505,8 @@ private fun OrganizerAssistantCloudScreen(viewModel: VoleiViewModel, persona: Pr
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     CloudSyncToggleRow(
-                        label = stringResource(R.string.cloud_sync_groups_activate_label),
-                        tooltip = stringResource(R.string.cloud_sync_groups_activate_tooltip),
+                        label = stringResource(Res.string.cloud_sync_groups_activate_label),
+                        tooltip = stringResource(Res.string.cloud_sync_groups_activate_tooltip),
                         checked = selectedGroup.isCloudSynced,
                         enabled = hasPremiumAccess,
                         onCheckedChange = { checked ->
@@ -621,8 +622,8 @@ private fun SpectatorCodeSection(
     if (showRegenerateConfirm) {
         AlertDialog(
             onDismissRequest = { showRegenerateConfirm = false },
-            title = { Text(stringResource(R.string.spectator_code_regenerate_confirm_title)) },
-            text = { Text(stringResource(R.string.spectator_code_regenerate_confirm_message)) },
+            title = { Text(stringResource(Res.string.spectator_code_regenerate_confirm_title)) },
+            text = { Text(stringResource(Res.string.spectator_code_regenerate_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showRegenerateConfirm = false
@@ -630,18 +631,18 @@ private fun SpectatorCodeSection(
                     onRegenerate { result, error ->
                         regenerating = false
                         feedbackMessage = if (result != null) {
-                            context.getString(R.string.spectator_code_regenerated_message, result.revokedCount)
+                            AppStrings.get(Res.string.spectator_code_regenerated_message, result.revokedCount)
                         } else {
-                            error ?: context.getString(R.string.spectator_code_regenerate_error)
+                            error ?: AppStrings.get(Res.string.spectator_code_regenerate_error)
                         }
                     }
                 }) {
-                    Text(stringResource(R.string.spectator_code_regenerate_confirm_action), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(Res.string.spectator_code_regenerate_confirm_action), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRegenerateConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(Res.string.cancel))
                 }
             }
         )
@@ -653,12 +654,12 @@ private fun SpectatorCodeSection(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            stringResource(R.string.spectator_code_section_title),
+            stringResource(Res.string.spectator_code_section_title),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
         )
         Text(
-            stringResource(R.string.spectator_code_section_hint),
+            stringResource(Res.string.spectator_code_section_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -685,9 +686,9 @@ private fun SpectatorCodeSection(
                 Text(
                     stringResource(
                         if (activationInProgress) {
-                            R.string.spectator_code_syncing_history
+                            Res.string.spectator_code_syncing_history
                         } else {
-                            R.string.spectator_code_loading
+                            Res.string.spectator_code_loading
                         }
                     ),
                     style = MaterialTheme.typography.bodySmall,
@@ -700,7 +701,7 @@ private fun SpectatorCodeSection(
                     showRetry = false
                     onRetry()
                 }) {
-                    Text(stringResource(R.string.spectator_code_retry_button))
+                    Text(stringResource(Res.string.spectator_code_retry_button))
                 }
             }
         } else {
@@ -718,7 +719,7 @@ private fun SpectatorCodeSection(
                         } else {
                             Icon(
                                 Icons.Default.Refresh,
-                                contentDescription = stringResource(R.string.spectator_code_regenerate_button)
+                                contentDescription = stringResource(Res.string.spectator_code_regenerate_button)
                             )
                         }
                     }
@@ -733,7 +734,7 @@ private fun SpectatorCodeSection(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            stringResource(R.string.spectator_code_live_viewers, viewerCount),
+                            stringResource(Res.string.spectator_code_live_viewers, viewerCount),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -747,7 +748,7 @@ private fun SpectatorCodeSection(
                         CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            stringResource(R.string.spectator_code_syncing_history),
+                            stringResource(Res.string.spectator_code_syncing_history),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -762,21 +763,21 @@ private fun SpectatorCodeSection(
                 OutlinedButton(
                     onClick = {
                         clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(spectatorCode))
-                        feedbackMessage = context.getString(R.string.spectator_code_copied)
+                        feedbackMessage = AppStrings.get(Res.string.spectator_code_copied)
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(stringResource(R.string.spectator_code_copy))
+                    Text(stringResource(Res.string.spectator_code_copy))
                 }
                 OutlinedButton(onClick = { showQrDialog = true }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.spectator_code_qr_button))
+                    Text(stringResource(Res.string.spectator_code_qr_button))
                 }
             }
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
-                    val shareText = context.getString(
-                        R.string.spectator_code_share_text,
+                    val shareText = AppStrings.get(
+                        Res.string.spectator_code_share_text,
                         spectatorCode,
                         "https://play.google.com/store/apps/details?id=${context.packageName}"
                     )
@@ -788,7 +789,7 @@ private fun SpectatorCodeSection(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.spectator_code_share_button))
+                Text(stringResource(Res.string.spectator_code_share_button))
             }
             feedbackMessage?.let {
                 Spacer(Modifier.height(4.dp))
@@ -805,13 +806,13 @@ private fun QrCodeDialog(text: String, onDismiss: () -> Unit) {
     val bitmap = remember(text) { QrCodeGenerator.generate(text) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.spectator_code_qr_title)) },
+        title = { Text(stringResource(Res.string.spectator_code_qr_title)) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 if (bitmap != null) {
                     androidx.compose.foundation.Image(
                         bitmap = bitmap.asImageBitmap(),
-                        contentDescription = stringResource(R.string.spectator_code_qr_title),
+                        contentDescription = stringResource(Res.string.spectator_code_qr_title),
                         modifier = Modifier.size(220.dp)
                     )
                 }
@@ -819,14 +820,14 @@ private fun QrCodeDialog(text: String, onDismiss: () -> Unit) {
                 Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    stringResource(R.string.spectator_code_qr_hint),
+                    stringResource(Res.string.spectator_code_qr_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.close)) }
         }
     )
 }
@@ -844,18 +845,18 @@ private fun AdminSessionTransferSection(onTransfer: () -> Unit) {
     if (showConfirm) {
         AlertDialog(
             onDismissRequest = { showConfirm = false },
-            title = { Text(stringResource(R.string.admin_session_transfer_confirm_title)) },
-            text = { Text(stringResource(R.string.admin_session_transfer_confirm_message)) },
+            title = { Text(stringResource(Res.string.admin_session_transfer_confirm_title)) },
+            text = { Text(stringResource(Res.string.admin_session_transfer_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showConfirm = false
                     onTransfer()
                 }) {
-                    Text(stringResource(R.string.admin_session_transfer_confirm_action))
+                    Text(stringResource(Res.string.admin_session_transfer_confirm_action))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { showConfirm = false }) { Text(stringResource(Res.string.cancel)) }
             }
         )
     }
@@ -865,13 +866,13 @@ private fun AdminSessionTransferSection(onTransfer: () -> Unit) {
             .padding(12.dp)
     ) {
         Text(
-            stringResource(R.string.admin_session_transfer_warning),
+            stringResource(Res.string.admin_session_transfer_warning),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error
         )
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = { showConfirm = true }) {
-            Text(stringResource(R.string.admin_session_transfer_button))
+            Text(stringResource(Res.string.admin_session_transfer_button))
         }
     }
 }
@@ -897,8 +898,8 @@ private fun GroupVisibilityToggles(
     )
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
         CloudSyncToggleRow(
-            label = stringResource(R.string.cloud_sync_visibility_share_history),
-            tooltip = stringResource(R.string.cloud_sync_visibility_share_history_tooltip),
+            label = stringResource(Res.string.cloud_sync_visibility_share_history),
+            tooltip = stringResource(Res.string.cloud_sync_visibility_share_history_tooltip),
             checked = group.shareHistoryWithObservers,
             onCheckedChange = { checked ->
                 onChange(checked, group.showEloToObservers && checked, group.shareOnlyTodayHistory && checked)
@@ -921,7 +922,7 @@ private fun GroupVisibilityToggles(
                     icon = {}
                 ) {
                     Text(
-                        stringResource(R.string.cloud_sync_visibility_share_full_history),
+                        stringResource(Res.string.cloud_sync_visibility_share_full_history),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
                     )
@@ -939,7 +940,7 @@ private fun GroupVisibilityToggles(
                     icon = {}
                 ) {
                     Text(
-                        stringResource(R.string.cloud_sync_visibility_share_today_history),
+                        stringResource(Res.string.cloud_sync_visibility_share_today_history),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
                     )
@@ -949,8 +950,8 @@ private fun GroupVisibilityToggles(
             // "Mostrar Elo" só faz sentido (e só fica visível) com o histórico compartilhado
             // ativo — sem histórico compartilhado não há nada para o espectador ver o Elo junto.
             CloudSyncToggleRow(
-                label = stringResource(R.string.cloud_sync_visibility_show_elo),
-                tooltip = stringResource(R.string.cloud_sync_visibility_show_elo_tooltip),
+                label = stringResource(Res.string.cloud_sync_visibility_show_elo),
+                tooltip = stringResource(Res.string.cloud_sync_visibility_show_elo_tooltip),
                 checked = group.showEloToObservers,
                 onCheckedChange = { checked -> onChange(group.shareHistoryWithObservers, checked, group.shareOnlyTodayHistory) },
                 colors = lockedSwitchColors
@@ -1038,7 +1039,7 @@ private fun CloudSyncToggleRow(
 @Composable
 internal fun PremiumPlansSection(
     viewModel: VoleiViewModel,
-    title: String = stringResource(R.string.cloud_sync_status_title),
+    title: String = stringResource(Res.string.cloud_sync_status_title),
     description: String? = null,
     collapsible: Boolean = true
 ) {
@@ -1106,9 +1107,9 @@ internal fun PremiumPlansSection(
         Text(
             if (hasPremiumAccess) {
                 val planNameRes = if (effectivePlanTier == CloudPlanTier.MULTI) {
-                    R.string.cloud_sync_plan_multi_name
+                    Res.string.cloud_sync_plan_multi_name
                 } else {
-                    R.string.cloud_sync_plan_single_name
+                    Res.string.cloud_sync_plan_single_name
                 }
                 when (effectiveBasePlanId) {
                     // Período (mensal/anual) só é conhecido de forma otimista/local (ver
@@ -1116,12 +1117,12 @@ internal fun PremiumPlansSection(
                     // "Premium ativo — Até 5 grupos" de antes.
                     BillingProductIds.BASE_PLAN_ANNUAL, BillingProductIds.BASE_PLAN_MONTHLY -> {
                         val periodRes = if (effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL) {
-                            R.string.cloud_sync_period_annual
+                            Res.string.cloud_sync_period_annual
                         } else {
-                            R.string.cloud_sync_period_monthly
+                            Res.string.cloud_sync_period_monthly
                         }
                         stringResource(
-                            R.string.cloud_sync_status_active_with_period,
+                            Res.string.cloud_sync_status_active_with_period,
                             stringResource(planNameRes),
                             stringResource(periodRes)
                         )
@@ -1129,16 +1130,16 @@ internal fun PremiumPlansSection(
                     else -> {
                         val tierLabel = stringResource(
                             if (effectivePlanTier == CloudPlanTier.MULTI) {
-                                R.string.cloud_sync_tier_multi
+                                Res.string.cloud_sync_tier_multi
                             } else {
-                                R.string.cloud_sync_tier_single
+                                Res.string.cloud_sync_tier_single
                             }
                         )
-                        stringResource(R.string.cloud_sync_status_active, tierLabel)
+                        stringResource(Res.string.cloud_sync_status_active, tierLabel)
                     }
                 }
             } else {
-                stringResource(R.string.cloud_sync_status_inactive)
+                stringResource(Res.string.cloud_sync_status_inactive)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = if (hasPremiumAccess) {
@@ -1161,7 +1162,7 @@ internal fun PremiumPlansSection(
 
                 if (!hasPremiumAccess && !canPurchasePremium) {
                     Text(
-                        stringResource(R.string.premium_purchase_gating_banner),
+                        stringResource(Res.string.premium_purchase_gating_banner),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -1185,9 +1186,9 @@ internal fun PremiumPlansSection(
                 val multiActive = hasPremiumAccess && effectivePlanTier == CloudPlanTier.MULTI
 
                 PlanOptionRow(
-                    title = stringResource(R.string.cloud_sync_plan_single_title),
-                    monthlyPrice = singleMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
-                        ?: stringResource(R.string.cloud_sync_plan_single_price),
+                    title = stringResource(Res.string.cloud_sync_plan_single_title),
+                    monthlyPrice = singleMonthlyOffer?.let { stringResource(Res.string.cloud_sync_price_per_month, it.formattedPrice) }
+                        ?: stringResource(Res.string.cloud_sync_plan_single_price),
                     selected = singleActive,
                     monthlySubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
                     onSubscribeClick = activity?.let { act ->
@@ -1195,11 +1196,11 @@ internal fun PremiumPlansSection(
                     },
                     annualPrice = singleAnnualOffer?.let {
                         stringResource(
-                            R.string.cloud_sync_plan_annual_price,
+                            Res.string.cloud_sync_plan_annual_price,
                             it.formattedPrice,
                             monthlyEquivalentFormatted(it)
                         )
-                    } ?: stringResource(R.string.cloud_sync_plan_single_annual_price),
+                    } ?: stringResource(Res.string.cloud_sync_plan_single_annual_price),
                     annualSubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
                     onSubscribeAnnualClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.SINGLE, annual = true) }
@@ -1207,9 +1208,9 @@ internal fun PremiumPlansSection(
                 )
                 Spacer(Modifier.height(16.dp))
                 PlanOptionRow(
-                    title = stringResource(R.string.cloud_sync_plan_multi_title),
-                    monthlyPrice = multiMonthlyOffer?.let { stringResource(R.string.cloud_sync_price_per_month, it.formattedPrice) }
-                        ?: stringResource(R.string.cloud_sync_plan_multi_price),
+                    title = stringResource(Res.string.cloud_sync_plan_multi_title),
+                    monthlyPrice = multiMonthlyOffer?.let { stringResource(Res.string.cloud_sync_price_per_month, it.formattedPrice) }
+                        ?: stringResource(Res.string.cloud_sync_plan_multi_price),
                     selected = multiActive,
                     monthlySubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
                     onSubscribeClick = activity?.let { act ->
@@ -1217,11 +1218,11 @@ internal fun PremiumPlansSection(
                     },
                     annualPrice = multiAnnualOffer?.let {
                         stringResource(
-                            R.string.cloud_sync_plan_annual_price,
+                            Res.string.cloud_sync_plan_annual_price,
                             it.formattedPrice,
                             monthlyEquivalentFormatted(it)
                         )
-                    } ?: stringResource(R.string.cloud_sync_plan_multi_annual_price),
+                    } ?: stringResource(Res.string.cloud_sync_plan_multi_annual_price),
                     annualSubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
                     onSubscribeAnnualClick = activity?.let { act ->
                         { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.MULTI, annual = true) }
@@ -1231,7 +1232,7 @@ internal fun PremiumPlansSection(
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
                 Spacer(Modifier.height(20.dp))
                 Text(
-                    stringResource(R.string.cloud_sync_plan_benefits_title),
+                    stringResource(Res.string.cloud_sync_plan_benefits_title),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1254,7 +1255,7 @@ internal fun PremiumPlansSection(
                             "https://play.google.com/store/account/subscriptions?sku=$activeProductId&package=${context.packageName}".toUri()
                         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                     }) {
-                        Text(stringResource(R.string.cloud_sync_cancel_subscription))
+                        Text(stringResource(Res.string.cloud_sync_cancel_subscription))
                     }
                 }
 
@@ -1264,7 +1265,7 @@ internal fun PremiumPlansSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     )
                     Text(
-                        stringResource(R.string.cloud_sync_debug_hint),
+                        stringResource(Res.string.cloud_sync_debug_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1273,19 +1274,19 @@ internal fun PremiumPlansSection(
                             viewModel.setDebugPremiumPlanTier(CloudPlanTier.SINGLE)
                             viewModel.setDebugPremiumOverride(true)
                         }) {
-                            Text(stringResource(R.string.cloud_sync_debug_simulate_single))
+                            Text(stringResource(Res.string.cloud_sync_debug_simulate_single))
                         }
                         TextButton(onClick = {
                             viewModel.setDebugPremiumPlanTier(CloudPlanTier.MULTI)
                             viewModel.setDebugPremiumOverride(true)
                         }) {
-                            Text(stringResource(R.string.cloud_sync_debug_simulate_multi))
+                            Text(stringResource(Res.string.cloud_sync_debug_simulate_multi))
                         }
                     }
                     if (debugPremiumOverride) {
                         Spacer(Modifier.height(16.dp))
                         TextButton(onClick = { viewModel.setDebugPremiumOverride(false) }) {
-                            Text(stringResource(R.string.cloud_sync_debug_cancel_simulation))
+                            Text(stringResource(Res.string.cloud_sync_debug_cancel_simulation))
                         }
                     }
                 }
@@ -1329,7 +1330,7 @@ private fun PlanOptionRow(
         )
         if (selected) {
             Text(
-                stringResource(R.string.cloud_sync_plan_active_badge),
+                stringResource(Res.string.cloud_sync_plan_active_badge),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -1366,9 +1367,9 @@ private fun PlanOptionRow(
             ) {
                 Text(
                     if (monthlySubscribed) {
-                        stringResource(R.string.cloud_sync_plan_subscribed)
+                        stringResource(Res.string.cloud_sync_plan_subscribed)
                     } else {
-                        stringResource(R.string.cloud_sync_plan_subscribe)
+                        stringResource(Res.string.cloud_sync_plan_subscribe)
                     }
                 )
             }
@@ -1383,9 +1384,9 @@ private fun PlanOptionRow(
             ) {
                 Text(
                     if (annualSubscribed) {
-                        stringResource(R.string.cloud_sync_plan_subscribed)
+                        stringResource(Res.string.cloud_sync_plan_subscribed)
                     } else {
-                        stringResource(R.string.cloud_sync_plan_subscribe_annual)
+                        stringResource(Res.string.cloud_sync_plan_subscribe_annual)
                     }
                 )
             }
@@ -1400,10 +1401,10 @@ private fun PlanOptionRow(
 @Composable
 private fun PremiumPlanBenefitsChecklist(modifier: Modifier = Modifier) {
     val benefits = listOf(
-        R.string.cloud_sync_plan_benefit_sync,
-        R.string.cloud_sync_plan_benefit_code,
-        R.string.cloud_sync_plan_benefit_colors,
-        R.string.cloud_sync_plan_benefit_support
+        Res.string.cloud_sync_plan_benefit_sync,
+        Res.string.cloud_sync_plan_benefit_code,
+        Res.string.cloud_sync_plan_benefit_colors,
+        Res.string.cloud_sync_plan_benefit_support
     )
     Column(modifier = modifier) {
         benefits.forEach { benefitRes ->

@@ -1,5 +1,7 @@
 package com.bismarck.voleimanager.app
 
+import com.bismarck.voleimanager.app.platform.AppStrings
+import com.bismarck.voleimanager.app.resources.*
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -102,8 +104,8 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(isFlexibleUpdateReady) {
                     if (!isFlexibleUpdateReady) return@LaunchedEffect
                     val result = snackbarHostState.showSnackbar(
-                        message = getString(R.string.update_downloaded_message),
-                        actionLabel = getString(R.string.update_downloaded_action),
+                        message = AppStrings.get(Res.string.update_downloaded_message),
+                        actionLabel = AppStrings.get(Res.string.update_downloaded_action),
                         duration = SnackbarDuration.Indefinite
                     )
                     if (result == SnackbarResult.ActionPerformed) {

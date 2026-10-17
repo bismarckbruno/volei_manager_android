@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.bismarck.voleimanager.app.data.model.GroupTypeTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:09:58.738Z" hostname="NITRO-5-BIS" time="0.151">
+<testsuite name="com.bismarck.voleimanager.app.data.model.GroupTypeTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:49:17.077Z" hostname="NITRO-5-BIS" time="0.268">
   <properties/>
-  <testcase name="onlyModesWithoutPositionsSupportPriority" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.089"/>
-  <testcase name="coerceTeamSizeClampsToModeRange" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.004"/>
-  <testcase name="onlyRecreationalAndFixedPositionsAreSelectable" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.031"/>
-  <testcase name="tournamentsHaveNoBalancingMode" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.001"/>
-  <testcase name="teamSizeRangesMatchEachMode" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.004"/>
-  <testcase name="onlyNonTournamentTypesCanBeConverted" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.0"/>
+  <testcase name="onlyModesWithoutPositionsSupportPriority" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.128"/>
+  <testcase name="coerceTeamSizeClampsToModeRange" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.003"/>
+  <testcase name="onlyRecreationalAndFixedPositionsAreSelectable" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.038"/>
+  <testcase name="tournamentsHaveNoBalancingMode" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.028"/>
+  <testcase name="teamSizeRangesMatchEachMode" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.008"/>
+  <testcase name="onlyNonTournamentTypesCanBeConverted" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.005"/>
   <testcase name="fromStoredValueFallsBackToRecreational" classname="com.bismarck.voleimanager.app.data.model.GroupTypeTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

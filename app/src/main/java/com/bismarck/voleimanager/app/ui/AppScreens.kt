@@ -1,5 +1,8 @@
 package com.bismarck.voleimanager.app.ui
 
+import org.jetbrains.compose.resources.DrawableResource
+import com.bismarck.voleimanager.app.platform.AppStrings
+import com.bismarck.voleimanager.app.resources.*
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
@@ -55,8 +58,7 @@ import androidx.compose.material.icons.outlined.Scoreboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import com.bismarck.voleimanager.app.R
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -69,11 +71,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.vectorResource
+import org.jetbrains.compose.resources.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -175,19 +177,19 @@ private fun SortModeIcon(
     when {
         matchSortMode != null -> when (matchSortMode) {
             MatchSortMode.NEWEST -> Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.arrowup),
+                imageVector = vectorResource(Res.drawable.arrowup),
                 contentDescription = null,
                 modifier = modifier,
                 tint = tint
             )
             MatchSortMode.OLDEST -> Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.arrowdown),
+                imageVector = vectorResource(Res.drawable.arrowdown),
                 contentDescription = null,
                 modifier = modifier,
                 tint = tint
             )
             MatchSortMode.ELO_DELTA -> Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.plus_minus),
+                imageVector = vectorResource(Res.drawable.plus_minus),
                 contentDescription = null,
                 modifier = modifier,
                 tint = tint
@@ -219,13 +221,13 @@ private fun SortModeIcon(
                 tint = tint
             )
             PlayerSortMode.GAMES -> Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.volei_manager_icon),
+                imageVector = vectorResource(Res.drawable.volei_manager_icon),
                 contentDescription = null,
                 modifier = modifier,
                 tint = tint
             )
             PlayerSortMode.VICTORIES -> Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.crown_icon),
+                imageVector = vectorResource(Res.drawable.crown_icon),
                 contentDescription = null,
                 modifier = modifier,
                 tint = tint
@@ -618,8 +620,8 @@ fun HistoryScreen(
     val restrictHistoryToDates = if (activeHistoryPlayerFilter != null && selectedHistoryDate == null) dateOptionsForPlayer else null
 
     val visibleHistoryDateLabel = when {
-        activeHistoryPlayerFilter == null -> selectedHistoryDate?.let { formatLocalizedDate(it) } ?: stringResource(R.string.all_dates)
-        selectedHistoryDate == null -> stringResource(R.string.all_dates_with_player, activeHistoryPlayerFilter)
+        activeHistoryPlayerFilter == null -> selectedHistoryDate?.let { formatLocalizedDate(it) } ?: stringResource(Res.string.all_dates)
+        selectedHistoryDate == null -> stringResource(Res.string.all_dates_with_player, activeHistoryPlayerFilter)
         else -> formatLocalizedDate(selectedHistoryDate)
     }
 
@@ -840,7 +842,7 @@ fun HistoryScreen(
                                         contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 ) {
-                                    Icon(Icons.Default.Person, contentDescription = stringResource(R.string.player), modifier = Modifier.size(24.dp))
+                                    Icon(Icons.Default.Person, contentDescription = stringResource(Res.string.player), modifier = Modifier.size(24.dp))
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 ExposedDropdownMenuBox(
@@ -881,7 +883,7 @@ fun HistoryScreen(
                                             text = {
                                                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                                     Text(
-                                                        if (activePersonFilterText == null) stringResource(R.string.all_dates) else stringResource(R.string.all_dates_with_player, activePersonFilterText),
+                                                        if (activePersonFilterText == null) stringResource(Res.string.all_dates) else stringResource(Res.string.all_dates_with_player, activePersonFilterText),
                                                         fontWeight = if (allDatesSelected2) FontWeight.SemiBold else FontWeight.Normal,
                                                         color = if (allDatesSelected2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                                     )
@@ -935,10 +937,10 @@ fun HistoryScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                             Crossfade(targetState = selectedTab == 0, label = "tabIconL0") { isSelected ->
                                                 if (isSelected) Icon(Icons.Default.Check, null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
-                                                else Icon(painter = painterResource(id = R.drawable.volei_manager_icon), null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
+                                                else Icon(painter = painterResource(Res.drawable.volei_manager_icon), null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
                                             }
                                             Spacer(Modifier.width(8.dp))
-                                            val matchLabel = if (sortedHistory.size == 1) stringResource(R.string.match) else stringResource(R.string.matches)
+                                            val matchLabel = if (sortedHistory.size == 1) stringResource(Res.string.match) else stringResource(Res.string.matches)
                                             Text("${sortedHistory.size} $matchLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
@@ -961,7 +963,7 @@ fun HistoryScreen(
                                                 else Icon(Icons.Default.Groups, null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
                                             }
                                             Spacer(Modifier.width(8.dp))
-                                            val playerLabel = if (uniquePlayerCount == 1) stringResource(R.string.player) else stringResource(R.string.players)
+                                            val playerLabel = if (uniquePlayerCount == 1) stringResource(Res.string.player) else stringResource(Res.string.players)
                                             Text("$uniquePlayerCount $playerLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
@@ -969,17 +971,17 @@ fun HistoryScreen(
                                 Spacer(Modifier.width(8.dp))
                                 val activeSortBadgeIcon = when {
                                     selectedTab == 0 -> when (matchSortMode) {
-                                        MatchSortMode.NEWEST -> ImageVector.vectorResource(R.drawable.arrowup)
-                                        MatchSortMode.OLDEST -> ImageVector.vectorResource(R.drawable.arrowdown)
-                                        MatchSortMode.ELO_DELTA -> ImageVector.vectorResource(R.drawable.plus_minus)
+                                        MatchSortMode.NEWEST -> vectorResource(Res.drawable.arrowup)
+                                        MatchSortMode.OLDEST -> vectorResource(Res.drawable.arrowdown)
+                                        MatchSortMode.ELO_DELTA -> vectorResource(Res.drawable.plus_minus)
                                         MatchSortMode.SCORE_DIFF -> Icons.Outlined.Scoreboard
                                     }
                                     else -> when (playerSortMode) {
                                         PlayerSortMode.ALPHABETICAL -> Icons.Default.SortByAlpha
                                         PlayerSortMode.ELO -> Icons.Default.WorkspacePremium
                                         PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
-                                        PlayerSortMode.GAMES -> ImageVector.vectorResource(R.drawable.volei_manager_icon)
-                                        PlayerSortMode.VICTORIES -> ImageVector.vectorResource(R.drawable.crown_icon)
+                                        PlayerSortMode.GAMES -> vectorResource(Res.drawable.volei_manager_icon)
+                                        PlayerSortMode.VICTORIES -> vectorResource(Res.drawable.crown_icon)
                                         PlayerSortMode.PERCENTAGE -> Icons.Default.Percent
                                     }
                                 }
@@ -991,7 +993,7 @@ fun HistoryScreen(
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                                     ) {
                                         Icon(Icons.AutoMirrored.Filled.Sort,
-                                            contentDescription = stringResource(R.string.sort_word),
+                                            contentDescription = stringResource(Res.string.sort_word),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Box(
@@ -1016,19 +1018,19 @@ fun HistoryScreen(
                                         modifier = Modifier.widthIn(min = 260.dp)
                                     ) {
                                         if (selectedTab == 0) {
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.newest_first)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.arrowup), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.oldest_first)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.arrowdown), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo_change)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.plus_minus), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_score_diff)); Spacer(Modifier.weight(1f)); Icon(Icons.Outlined.Scoreboard, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.newest_first)); Spacer(Modifier.weight(1f)); Icon(vectorResource(Res.drawable.arrowup), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.oldest_first)); Spacer(Modifier.weight(1f)); Icon(vectorResource(Res.drawable.arrowdown), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_elo_change)); Spacer(Modifier.weight(1f)); Icon(vectorResource(Res.drawable.plus_minus), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_score_diff)); Spacer(Modifier.weight(1f)); Icon(Icons.Outlined.Scoreboard, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false })
                                         } else {
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.alphabetical)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.alphabetical)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
                                             if (showElo) {
-                                                DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_elo)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
+                                                DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_elo)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
                                             }
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_played_time)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_matches)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.volei_manager_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_victories)); Spacer(Modifier.weight(1f)); Icon(ImageVector.vectorResource(R.drawable.crown_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false })
-                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.by_percentage)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Percent, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_played_time)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_matches)); Spacer(Modifier.weight(1f)); Icon(vectorResource(Res.drawable.volei_manager_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_victories)); Spacer(Modifier.weight(1f)); Icon(vectorResource(Res.drawable.crown_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_percentage)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.Percent, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PERCENTAGE); expandedFilter = false })
                                         }
                                     }
                                 }
@@ -1040,7 +1042,7 @@ fun HistoryScreen(
                             if (sortedHistory.isNotEmpty()) {
                                 item {
                                     val avgDurationText = averageMatchDurationMinutes?.let { "${it}min" } ?: "--"
-                                    HistorySummaryItem(text = stringResource(R.string.average_duration, avgDurationText), leadingIcon = Icons.Default.AccessTime)
+                                    HistorySummaryItem(text = stringResource(Res.string.average_duration, avgDurationText), leadingIcon = Icons.Default.AccessTime)
                                 }
                             }
                             items(sortedHistory, key = { it.id }) { match ->
@@ -1058,19 +1060,19 @@ fun HistoryScreen(
                             }
                             if (sortedHistory.isEmpty()) item {
                                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                    Text(stringResource(R.string.no_matches_found), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(stringResource(Res.string.no_matches_found), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         } else {
                             if (historyPlayerList.isEmpty()) {
                                 item {
                                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                        Text(stringResource(R.string.no_players), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(stringResource(Res.string.no_players), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             } else {
                                 item {
-                                    HistorySummaryItem(text = stringResource(R.string.average_elo, averagePlayersEloText ?: "--"), leadingIcon = Icons.Default.WorkspacePremium)
+                                    HistorySummaryItem(text = stringResource(Res.string.average_elo, averagePlayersEloText ?: "--"), leadingIcon = Icons.Default.WorkspacePremium)
                                 }
                                 itemsIndexed(items = historyPlayerList, key = { _, info -> "${info.player.id}_${info.name}" }) { index, info ->
                                     HistoryPlayerCard(
@@ -1122,7 +1124,7 @@ fun HistoryScreen(
                     contentColor = if (activePersonFilterText != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
-                Icon(Icons.Default.Person, contentDescription = stringResource(R.string.filter_player), modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Person, contentDescription = stringResource(Res.string.filter_player), modifier = Modifier.size(24.dp))
             }
 
             Spacer(Modifier.width(8.dp))
@@ -1189,7 +1191,7 @@ fun HistoryScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    if (activePersonFilterText == null) stringResource(R.string.all_dates) else stringResource(R.string.all_dates_with_player, activePersonFilterText),
+                                    if (activePersonFilterText == null) stringResource(Res.string.all_dates) else stringResource(Res.string.all_dates_with_player, activePersonFilterText),
                                     fontWeight = if (allDatesSelected) FontWeight.SemiBold else FontWeight.Normal,
                                     color = if (allDatesSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )
@@ -1263,15 +1265,15 @@ fun HistoryScreen(
                                 )
                             } else {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.volei_manager_icon),
+                                    painter = painterResource(Res.drawable.volei_manager_icon),
                                     contentDescription = null,
                                     modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
                                 )
                             }
                         }
                         Spacer(Modifier.width(8.dp))
-                        val matchLabel = if (sortedHistory.size == 1) stringResource(R.string.match) else stringResource(
-                            R.string.matches
+                        val matchLabel = if (sortedHistory.size == 1) stringResource(Res.string.match) else stringResource(
+                            Res.string.matches
                         )
                         Text("${sortedHistory.size} $matchLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
@@ -1312,8 +1314,8 @@ fun HistoryScreen(
                             }
                         }
                         Spacer(Modifier.width(8.dp))
-                        val playerLabel = if (uniquePlayerCount == 1) stringResource(R.string.player) else stringResource(
-                            R.string.players
+                        val playerLabel = if (uniquePlayerCount == 1) stringResource(Res.string.player) else stringResource(
+                            Res.string.players
                         )
                         Text("$uniquePlayerCount $playerLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
@@ -1324,17 +1326,17 @@ fun HistoryScreen(
             // Filter/sort icon button
             val activeSortBadgeIcon = when {
                 selectedTab == 0 -> when (matchSortMode) {
-                    MatchSortMode.NEWEST -> ImageVector.vectorResource(R.drawable.arrowup)
-                    MatchSortMode.OLDEST -> ImageVector.vectorResource(R.drawable.arrowdown)
-                    MatchSortMode.ELO_DELTA -> ImageVector.vectorResource(R.drawable.plus_minus)
+                    MatchSortMode.NEWEST -> vectorResource(Res.drawable.arrowup)
+                    MatchSortMode.OLDEST -> vectorResource(Res.drawable.arrowdown)
+                    MatchSortMode.ELO_DELTA -> vectorResource(Res.drawable.plus_minus)
                     MatchSortMode.SCORE_DIFF -> Icons.Outlined.Scoreboard
                 }
                 else -> when (playerSortMode) {
                     PlayerSortMode.ALPHABETICAL -> Icons.Default.SortByAlpha
                     PlayerSortMode.ELO -> Icons.Default.WorkspacePremium
                     PlayerSortMode.PLAYED_TIME -> Icons.Default.AccessTime
-                    PlayerSortMode.GAMES -> ImageVector.vectorResource(R.drawable.volei_manager_icon)
-                    PlayerSortMode.VICTORIES -> ImageVector.vectorResource(R.drawable.crown_icon)
+                    PlayerSortMode.GAMES -> vectorResource(Res.drawable.volei_manager_icon)
+                    PlayerSortMode.VICTORIES -> vectorResource(Res.drawable.crown_icon)
                     PlayerSortMode.PERCENTAGE -> Icons.Default.Percent
                 }
             }
@@ -1347,7 +1349,7 @@ fun HistoryScreen(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = stringResource(R.string.sort_word),
+                        contentDescription = stringResource(Res.string.sort_word),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1378,9 +1380,9 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.NEWEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.newest_first))
+                                    Text(stringResource(Res.string.newest_first))
                                     Spacer(Modifier.weight(1f))
-                                    Icon(ImageVector.vectorResource(R.drawable.arrowup), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(vectorResource(Res.drawable.arrowup), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.NEWEST); expandedFilter = false }
@@ -1390,9 +1392,9 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.oldest_first))
+                                    Text(stringResource(Res.string.oldest_first))
                                     Spacer(Modifier.weight(1f))
-                                    Icon(ImageVector.vectorResource(R.drawable.arrowdown), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(vectorResource(Res.drawable.arrowdown), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false }
@@ -1402,9 +1404,9 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_elo_change))
+                                    Text(stringResource(Res.string.by_elo_change))
                                     Spacer(Modifier.weight(1f))
-                                    Icon(ImageVector.vectorResource(R.drawable.plus_minus), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(vectorResource(Res.drawable.plus_minus), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false }
@@ -1414,7 +1416,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_score_diff))
+                                    Text(stringResource(Res.string.by_score_diff))
                                     Spacer(Modifier.weight(1f))
                                     Icon(Icons.Outlined.Scoreboard, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -1427,7 +1429,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.alphabetical))
+                                    Text(stringResource(Res.string.alphabetical))
                                     Spacer(Modifier.weight(1f))
                                     Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -1440,7 +1442,7 @@ fun HistoryScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null)
                                         Spacer(Modifier.width(8.dp))
-                                        Text(stringResource(R.string.by_elo))
+                                        Text(stringResource(Res.string.by_elo))
                                         Spacer(Modifier.weight(1f))
                                         Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
@@ -1453,7 +1455,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_played_time))
+                                    Text(stringResource(Res.string.by_played_time))
                                     Spacer(Modifier.weight(1f))
                                     Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -1465,9 +1467,9 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.GAMES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_matches))
+                                    Text(stringResource(Res.string.by_matches))
                                     Spacer(Modifier.weight(1f))
-                                    Icon(ImageVector.vectorResource(R.drawable.volei_manager_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(vectorResource(Res.drawable.volei_manager_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.GAMES); expandedFilter = false }
@@ -1477,9 +1479,9 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.VICTORIES, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_victories))
+                                    Text(stringResource(Res.string.by_victories))
                                     Spacer(Modifier.weight(1f))
-                                    Icon(ImageVector.vectorResource(R.drawable.crown_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(vectorResource(Res.drawable.crown_icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.VICTORIES); expandedFilter = false }
@@ -1489,7 +1491,7 @@ fun HistoryScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     RadioButton(selected = playerSortMode == PlayerSortMode.PERCENTAGE, onClick = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.by_percentage))
+                                    Text(stringResource(Res.string.by_percentage))
                                     Spacer(Modifier.weight(1f))
                                     Icon(Icons.Default.Percent, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -1533,7 +1535,7 @@ fun HistoryScreen(
                                     val avgDurationText = averageMatchDurationMinutes?.let { "${it}min" } ?: "--"
                                     HistorySummaryItem(
                                         text = stringResource(
-                                            R.string.average_duration,
+                                            Res.string.average_duration,
                                             avgDurationText
                                         ),
                                         leadingIcon = Icons.Default.AccessTime
@@ -1561,7 +1563,7 @@ fun HistoryScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        stringResource(R.string.no_matches_found),
+                                        stringResource(Res.string.no_matches_found),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -1584,7 +1586,7 @@ fun HistoryScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            stringResource(R.string.no_players),
+                                            stringResource(Res.string.no_players),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -1593,7 +1595,7 @@ fun HistoryScreen(
                                 item {
                                     HistorySummaryItem(
                                         text = stringResource(
-                                            R.string.average_elo,
+                                            Res.string.average_elo,
                                             averagePlayersEloText ?: "--"
                                         ),
                                         leadingIcon = Icons.Default.WorkspacePremium
@@ -1687,7 +1689,7 @@ private fun HistoryPlayerFilterDialog(
             ) {
                 Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
                     Text(
-                        text = stringResource(R.string.filter_player),
+                        text = stringResource(Res.string.filter_player),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1700,11 +1702,11 @@ private fun HistoryPlayerFilterDialog(
                             value = searchQuery,
                             onValueChange = { onSearchQueryChange(it.take(MAX_PLAYER_NAME_LENGTH)) },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text(stringResource(R.string.search_player)) },
+                            placeholder = { Text(stringResource(Res.string.search_player)) },
                             trailingIcon = {
                                 if (searchQuery.isNotBlank()) {
                                     IconButton(onClick = { onSearchQueryChange("") }) {
-                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                                        Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.cancel))
                                     }
                                 }
                             }
@@ -1718,7 +1720,7 @@ private fun HistoryPlayerFilterDialog(
                         ) {
                             Icon(
                                 imageVector = if (sortByDates) Icons.Default.DateRange else Icons.Default.SortByAlpha,
-                                contentDescription = if (sortByDates) stringResource(R.string.by_played_time) else stringResource(R.string.alphabetical)
+                                contentDescription = if (sortByDates) stringResource(Res.string.by_played_time) else stringResource(Res.string.alphabetical)
                             )
                         }
                     }
@@ -1740,7 +1742,7 @@ private fun HistoryPlayerFilterDialog(
                         ) {
                             RadioButton(selected = selectedPlayer == null, onClick = { selectedPlayer = null })
                             Spacer(Modifier.width(2.dp))
-                            Text(stringResource(R.string.all_players))
+                            Text(stringResource(Res.string.all_players))
                         }
                     }
                     items(filteredPlayers) { player ->
@@ -1780,7 +1782,7 @@ private fun HistoryPlayerFilterDialog(
                     if (filteredPlayers.isEmpty()) {
                         item {
                             Text(
-                                text = stringResource(R.string.no_players),
+                                text = stringResource(Res.string.no_players),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(16.dp)
                             )
@@ -1798,13 +1800,13 @@ private fun HistoryPlayerFilterDialog(
                         onClick = onClear,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(stringResource(R.string.clear_filter))
+                        Text(stringResource(Res.string.clear_filter))
                     }
                     Button(
                         onClick = { onConfirm(selectedPlayer) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(stringResource(R.string.apply_filter))
+                        Text(stringResource(Res.string.apply_filter))
                     }
                 }
             }
@@ -1867,7 +1869,7 @@ fun HistoryPlayerCard(
     usesPositions: Boolean = false
 ) {
     val showDeletedIndicator = isDeleted && playerSortMode == PlayerSortMode.ALPHABETICAL
-    val deletedPlayerTooltip = stringResource(R.string.player_was_deleted)
+    val deletedPlayerTooltip = stringResource(Res.string.player_was_deleted)
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -2005,7 +2007,7 @@ fun HistoryPlayerCard(
                                         Spacer(Modifier.width(2.dp))
                                         Icon(
                                             Icons.Default.Star,
-                                            contentDescription = stringResource(R.string.priority),
+                                            contentDescription = stringResource(Res.string.priority),
                                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -2089,7 +2091,7 @@ fun HistoryPlayerCard(
                                     Spacer(Modifier.width(2.dp))
                                     Icon(
                                         Icons.Default.Star,
-                                        contentDescription = stringResource(R.string.priority),
+                                        contentDescription = stringResource(Res.string.priority),
                                         modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -2170,7 +2172,7 @@ private fun VictoriesAndGamesRow(
     val gamesWeight = if (gamesHighlighted) FontWeight.Bold else FontWeight.Normal
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            painter = painterResource(R.drawable.crown_icon),
+            painter = painterResource(Res.drawable.crown_icon),
             contentDescription = null,
             modifier = Modifier.size(iconSize),
             tint = victoriesColor
@@ -2184,7 +2186,7 @@ private fun VictoriesAndGamesRow(
         )
         Spacer(Modifier.width(12.dp))
         Icon(
-            painter = painterResource(R.drawable.volei_manager_icon),
+            painter = painterResource(Res.drawable.volei_manager_icon),
             contentDescription = null,
             modifier = Modifier.size(iconSize),
             tint = gamesColor
@@ -2375,7 +2377,7 @@ fun HistoryItem(
                     if (showElo) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                painter = painterResource(R.drawable.plus_minus_bold),
+                                painter = painterResource(Res.drawable.plus_minus_bold),
                                 contentDescription = null,
                                 modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }),
                                 tint = contentColor
@@ -2407,8 +2409,8 @@ fun HistoryItem(
                 ) {
                     if (isTeamAWin) {
                         Icon(
-                            painter = painterResource(R.drawable.crown_icon),
-                            contentDescription = stringResource(R.string.winner_word),
+                            painter = painterResource(Res.drawable.crown_icon),
+                            contentDescription = stringResource(Res.string.winner_word),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                             tint = crownColor
                         )
@@ -2421,8 +2423,8 @@ fun HistoryItem(
                 ) {
                     if (!isTeamAWin) {
                         Icon(
-                            painter = painterResource(R.drawable.crown_icon),
-                            contentDescription = stringResource(R.string.winner),
+                            painter = painterResource(Res.drawable.crown_icon),
+                            contentDescription = stringResource(Res.string.winner),
                             modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.titleLarge.fontSize.toDp() }),
                             tint = crownColor
                         )
@@ -2436,7 +2438,7 @@ fun HistoryItem(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Text(stringResource(R.string.team_a), fontWeight = FontWeight.Bold)
+                    Text(stringResource(Res.string.team_a), fontWeight = FontWeight.Bold)
                     if (showScore && hasScore){
                         Box(
                             modifier = Modifier
@@ -2483,7 +2485,7 @@ fun HistoryItem(
                     )
                 }
                 Text(
-                    stringResource(R.string.vs),
+                    stringResource(Res.string.vs),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     style = MaterialTheme.typography.titleSmall
@@ -2493,7 +2495,7 @@ fun HistoryItem(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Text(stringResource(R.string.team_b), fontWeight = FontWeight.Bold)
+                    Text(stringResource(Res.string.team_b), fontWeight = FontWeight.Bold)
                     if (showScore && hasScore) {
                         Box(
                             modifier = Modifier
@@ -2596,7 +2598,7 @@ private fun FaqQuestionIcon(imageVector: androidx.compose.ui.graphics.vector.Ima
 
 /** Simple leading icon wrapper for drawable-based icons (custom vector assets). */
 @Composable
-private fun FaqQuestionIcon(iconRes: Int) {
+private fun FaqQuestionIcon(iconRes: DrawableResource) {
     Icon(
         painter = painterResource(iconRes),
         contentDescription = null,
@@ -2610,156 +2612,156 @@ fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit
     val context = LocalContext.current
     val faqItems = listOf(
         FaqEntry(
-            stringResource(R.string.faq_q1),
+            stringResource(Res.string.faq_q1),
             icon = { FaqQuestionIcon(Icons.Default.WorkspacePremium) },
-            answer = stringResource(R.string.faq_a1),
-            keywords = stringResource(R.string.faq_kw1)
+            answer = stringResource(Res.string.faq_a1),
+            keywords = stringResource(Res.string.faq_kw1)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q10),
-            icon = { FaqQuestionIcon(R.drawable.plus_minus) },
-            answer = stringResource(R.string.faq_a10),
-            keywords = stringResource(R.string.faq_kw10)
+            stringResource(Res.string.faq_q10),
+            icon = { FaqQuestionIcon(Res.drawable.plus_minus) },
+            answer = stringResource(Res.string.faq_a10),
+            keywords = stringResource(Res.string.faq_kw10)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q2),
+            stringResource(Res.string.faq_q2),
             icon = { FaqQuestionIcon(Icons.Default.Star) },
-            answer = stringResource(R.string.faq_a2),
-            keywords = stringResource(R.string.faq_kw2)
+            answer = stringResource(Res.string.faq_a2),
+            keywords = stringResource(Res.string.faq_kw2)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q3),
-            icon = { FaqQuestionIcon(R.drawable.volei_manager_icon) },
-            answer = stringResource(R.string.faq_a3),
-            keywords = stringResource(R.string.faq_kw3)
+            stringResource(Res.string.faq_q3),
+            icon = { FaqQuestionIcon(Res.drawable.volei_manager_icon) },
+            answer = stringResource(Res.string.faq_a3),
+            keywords = stringResource(Res.string.faq_kw3)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q4),
+            stringResource(Res.string.faq_q4),
             icon = { FaqQuestionIcon(Icons.Default.Groups) },
-            answer = stringResource(R.string.faq_a4),
-            keywords = stringResource(R.string.faq_kw4)
+            answer = stringResource(Res.string.faq_a4),
+            keywords = stringResource(Res.string.faq_kw4)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q14),
+            stringResource(Res.string.faq_q14),
             icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS))},
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a14_col1) to stringResource(R.string.faq_a14_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a14_table)),
+                columnHeaders = stringResource(Res.string.faq_a14_col1) to stringResource(Res.string.faq_a14_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a14_table)),
                 firstColumnWeight = 0.3f
             ),
-            keywords = stringResource(R.string.faq_kw14)
+            keywords = stringResource(Res.string.faq_kw14)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q5),
+            stringResource(Res.string.faq_q5),
             icon = { FaqQuestionIcon(Icons.Filled.People) },
-            answer = stringResource(R.string.faq_a5),
-            keywords = stringResource(R.string.faq_kw5)
+            answer = stringResource(Res.string.faq_a5),
+            keywords = stringResource(Res.string.faq_kw5)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q8),
+            stringResource(Res.string.faq_q8),
             icon = { FaqQuestionIcon(Icons.Default.PersonAddAlt1) },
-            answer = stringResource(R.string.faq_a8),
-            keywords = stringResource(R.string.faq_kw8)
+            answer = stringResource(Res.string.faq_a8),
+            keywords = stringResource(Res.string.faq_kw8)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q6),
-            icon = { FaqQuestionIcon(R.drawable.arrowsbothsides) },
-            answer = stringResource(R.string.faq_a6),
+            stringResource(Res.string.faq_q6),
+            icon = { FaqQuestionIcon(Res.drawable.arrowsbothsides) },
+            answer = stringResource(Res.string.faq_a6),
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a6_col1) to stringResource(R.string.faq_a6_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a6_table)),
+                columnHeaders = stringResource(Res.string.faq_a6_col1) to stringResource(Res.string.faq_a6_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a6_table)),
                 firstColumnWeight = 0.25f
             ),
-            keywords = stringResource(R.string.faq_kw6)
+            keywords = stringResource(Res.string.faq_kw6)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q7),
-            icon = { FaqQuestionIcon(R.drawable.crown_icon) },
-            answer = stringResource(R.string.faq_a7),
-            keywords = stringResource(R.string.faq_kw7)
+            stringResource(Res.string.faq_q7),
+            icon = { FaqQuestionIcon(Res.drawable.crown_icon) },
+            answer = stringResource(Res.string.faq_a7),
+            keywords = stringResource(Res.string.faq_kw7)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q9),
+            stringResource(Res.string.faq_q9),
             icon = { FaqQuestionIcon(Icons.Default.Edit) },
-            answer = stringResource(R.string.faq_a9),
-            keywords = stringResource(R.string.faq_kw9)
+            answer = stringResource(Res.string.faq_a9),
+            keywords = stringResource(Res.string.faq_kw9)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q11),
+            stringResource(Res.string.faq_q11),
             icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a11_col1) to stringResource(R.string.faq_a11_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a11_table)),
+                columnHeaders = stringResource(Res.string.faq_a11_col1) to stringResource(Res.string.faq_a11_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a11_table)),
                 firstColumnWeight = 0.3f
             ),
-            keywords = stringResource(R.string.faq_kw11)
+            keywords = stringResource(Res.string.faq_kw11)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q16),
+            stringResource(Res.string.faq_q16),
             icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a16_col1) to stringResource(R.string.faq_a16_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a16_table)),
+                columnHeaders = stringResource(Res.string.faq_a16_col1) to stringResource(Res.string.faq_a16_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a16_table)),
                 firstColumnWeight = 0.25f
             ),
-            keywords = stringResource(R.string.faq_kw16)
+            keywords = stringResource(Res.string.faq_kw16)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q13),
+            stringResource(Res.string.faq_q13),
             icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a13_col1) to stringResource(R.string.faq_a13_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a13_table)),
+                columnHeaders = stringResource(Res.string.faq_a13_col1) to stringResource(Res.string.faq_a13_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a13_table)),
                 firstColumnWeight = 0.3f
             ),
-            keywords = stringResource(R.string.faq_kw13)
+            keywords = stringResource(Res.string.faq_kw13)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q12),
+            stringResource(Res.string.faq_q12),
             icon = { FaqQuestionIcon(groupTypeIcon(GroupType.FIXED_POSITIONS)) },
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a12_col1) to stringResource(R.string.faq_a12_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a12_table)),
+                columnHeaders = stringResource(Res.string.faq_a12_col1) to stringResource(Res.string.faq_a12_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a12_table)),
                 firstColumnWeight = 0.25f
             ),
-            keywords = stringResource(R.string.faq_kw12)
+            keywords = stringResource(Res.string.faq_kw12)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q15),
+            stringResource(Res.string.faq_q15),
             icon = { FaqQuestionIcon(Icons.Default.Groups) },
-            answer = stringResource(R.string.faq_a15_intro),
+            answer = stringResource(Res.string.faq_a15_intro),
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a15_col1) to stringResource(R.string.faq_a15_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a15_table)),
+                columnHeaders = stringResource(Res.string.faq_a15_col1) to stringResource(Res.string.faq_a15_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a15_table)),
                 firstColumnWeight = 0.3f
             ),
-            keywords = stringResource(R.string.faq_kw15),
+            keywords = stringResource(Res.string.faq_kw15),
             action = if (viewModel != null) {
                 {
                     Button(onClick = { viewModel.exportPlayersTemplate(context) }) {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.download_players_template))
+                        Text(stringResource(Res.string.download_players_template))
                     }
                 }
             } else null
         ),
         FaqEntry(
-            stringResource(R.string.faq_q17),
+            stringResource(Res.string.faq_q17),
             icon = { FaqQuestionIcon(Icons.Default.Cloud) },
-            answer = stringResource(R.string.faq_a17_intro),
+            answer = stringResource(Res.string.faq_a17_intro),
             table = FaqTableData(
-                columnHeaders = stringResource(R.string.faq_a17_col1) to stringResource(R.string.faq_a17_col2),
-                rows = parseFaqTableRows(stringResource(R.string.faq_a17_table)),
+                columnHeaders = stringResource(Res.string.faq_a17_col1) to stringResource(Res.string.faq_a17_col2),
+                rows = parseFaqTableRows(stringResource(Res.string.faq_a17_table)),
                 firstColumnWeight = 0.35f
             ),
-            keywords = stringResource(R.string.faq_kw17)
+            keywords = stringResource(Res.string.faq_kw17)
         ),
         FaqEntry(
-            stringResource(R.string.faq_q18),
+            stringResource(Res.string.faq_q18),
             icon = { FaqQuestionIcon(Icons.AutoMirrored.Filled.Login) },
-            answer = stringResource(R.string.faq_a18),
-            keywords = stringResource(R.string.faq_kw18)
+            answer = stringResource(Res.string.faq_a18),
+            keywords = stringResource(Res.string.faq_kw18)
         )
     )
     var expandedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -2804,7 +2806,7 @@ fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit
         Spacer(Modifier.height(16.dp))
 
         Text(
-            stringResource(R.string.faq_title),
+            stringResource(Res.string.faq_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -2816,7 +2818,7 @@ fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit
             value = searchQuery,
             onValueChange = { searchQuery = it.take(FaqSearch.MAX_QUERY_LENGTH) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.faq_search_hint)) },
+            placeholder = { Text(stringResource(Res.string.faq_search_hint)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
@@ -2838,14 +2840,14 @@ fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    stringResource(R.string.faq_search_no_results),
+                    stringResource(Res.string.faq_search_no_results),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    stringResource(R.string.faq_search_no_results_cta),
+                    stringResource(Res.string.faq_search_no_results_cta),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     textDecoration = TextDecoration.Underline,
@@ -3042,7 +3044,7 @@ fun AboutScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    stringResource(R.string.about_app_title),
+                    stringResource(Res.string.about_app_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -3050,13 +3052,13 @@ fun AboutScreen() {
                 )
 
                 Text(
-                    stringResource(R.string.about_app_desc),
+                    stringResource(Res.string.about_app_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
                 Button(
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(context.getString(R.string.feedback_form_url)))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(AppStrings.get(Res.string.feedback_form_url)))
                         context.startActivity(intent)
                     },
                     modifier = Modifier
@@ -3067,7 +3069,7 @@ fun AboutScreen() {
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
-                    Text(stringResource(R.string.send_feedback), fontWeight = FontWeight.Bold)
+                    Text(stringResource(Res.string.send_feedback), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -3086,7 +3088,7 @@ fun AboutScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    stringResource(R.string.about_code),
+                    stringResource(Res.string.about_code),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -3094,11 +3096,11 @@ fun AboutScreen() {
                 )
 
                 Text(
-                    stringResource(R.string.about_code_desc),
+                    stringResource(Res.string.about_code_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                val readmeUrl = stringResource(R.string.readme_url)
+                val readmeUrl = stringResource(Res.string.readme_url)
 
                 Button(
                     onClick = {
@@ -3113,7 +3115,7 @@ fun AboutScreen() {
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
-                    Text(stringResource(R.string.project_docs), fontWeight = FontWeight.Bold)
+                    Text(stringResource(Res.string.project_docs), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -3133,7 +3135,7 @@ fun AboutScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    stringResource(R.string.about_dev),
+                    stringResource(Res.string.about_dev),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -3141,7 +3143,7 @@ fun AboutScreen() {
                 )
 
                 Text(
-                    stringResource(R.string.about_dev_desc),
+                    stringResource(Res.string.about_dev_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -3153,7 +3155,7 @@ fun AboutScreen() {
                     // Foto de perfil circular
                     val imageResId = remember {
                         try {
-                            R.drawable.foto_perfil_desenvolvedor
+                            Res.drawable.foto_perfil_desenvolvedor
                         } catch (e: Exception) {
                             null
                         }
@@ -3161,7 +3163,7 @@ fun AboutScreen() {
 
                     if (imageResId != null) {
                         androidx.compose.foundation.Image(
-                            painter = painterResource(id = imageResId),
+                            painter = painterResource(imageResId),
                             contentDescription = "Bruno Bismarck",
                             modifier = Modifier
                                 .size(80.dp)
@@ -3298,19 +3300,19 @@ fun ExportableImageContent(
             horizontalArrangement = Arrangement.Center
         ) {
             val exportLogoRes = if (isDarkTheme) {
-                R.drawable.bola_volei_fundo_escuro
+                Res.drawable.bola_volei_fundo_escuro
             } else {
-                R.drawable.logo_volei_manager
+                Res.drawable.logo_volei_manager
             }
             androidx.compose.foundation.Image(
-                painter = painterResource(id = exportLogoRes),
+                painter = painterResource(exportLogoRes),
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
                 contentScale = ContentScale.Fit
             )
             Spacer(Modifier.width(12.dp))
             Text(
-                stringResource(R.string.app_name),
+                stringResource(Res.string.app_name),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (isDarkTheme) MaterialTheme.colorScheme.primary else com.bismarck.voleimanager.app.ui.theme.voleiManagerBlue
@@ -3318,7 +3320,7 @@ fun ExportableImageContent(
         }
 
         val displayGroupName = getDisplayGroupName(groupName)
-        val localizedGroupTitle = stringResource(R.string.export_history_group_title, displayGroupName)
+        val localizedGroupTitle = stringResource(Res.string.export_history_group_title, displayGroupName)
         val title = "$localizedGroupTitle - ${formatLocalizedDate(date)}"
         Text(
             text = title,
@@ -3330,19 +3332,19 @@ fun ExportableImageContent(
         
         val sortLabel = when {
             matches != null -> when (matchSortMode) {
-                MatchSortMode.NEWEST -> stringResource(R.string.sort_newest_first)
-                MatchSortMode.OLDEST -> stringResource(R.string.sort_oldest_first)
-                MatchSortMode.ELO_DELTA -> stringResource(R.string.sort_highest_elo_change)
-                MatchSortMode.SCORE_DIFF -> stringResource(R.string.sort_largest_score_difference)
+                MatchSortMode.NEWEST -> stringResource(Res.string.sort_newest_first)
+                MatchSortMode.OLDEST -> stringResource(Res.string.sort_oldest_first)
+                MatchSortMode.ELO_DELTA -> stringResource(Res.string.sort_highest_elo_change)
+                MatchSortMode.SCORE_DIFF -> stringResource(Res.string.sort_largest_score_difference)
                 else -> ""
             }
             players != null -> when (playerSortMode) {
-                PlayerSortMode.ALPHABETICAL -> stringResource(R.string.sort_alphabetical_order)
-                PlayerSortMode.ELO -> stringResource(R.string.sort_highest_elo)
-                PlayerSortMode.PLAYED_TIME -> stringResource(R.string.sort_most_played_time)
-                PlayerSortMode.GAMES -> stringResource(R.string.sort_most_matches)
-                PlayerSortMode.VICTORIES -> stringResource(R.string.sort_most_victories)
-                PlayerSortMode.PERCENTAGE -> stringResource(R.string.sort_highest_percentage)
+                PlayerSortMode.ALPHABETICAL -> stringResource(Res.string.sort_alphabetical_order)
+                PlayerSortMode.ELO -> stringResource(Res.string.sort_highest_elo)
+                PlayerSortMode.PLAYED_TIME -> stringResource(Res.string.sort_most_played_time)
+                PlayerSortMode.GAMES -> stringResource(Res.string.sort_most_matches)
+                PlayerSortMode.VICTORIES -> stringResource(Res.string.sort_most_victories)
+                PlayerSortMode.PERCENTAGE -> stringResource(Res.string.sort_highest_percentage)
                 else -> ""
             }
             else -> ""
@@ -3382,7 +3384,7 @@ fun ExportableImageContent(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = stringResource(R.string.average_elo, averagePlayersEloText),
+                    text = stringResource(Res.string.average_elo, averagePlayersEloText),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -3402,7 +3404,7 @@ fun ExportableImageContent(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = stringResource(R.string.average_duration, averageMatchDurationText),
+                    text = stringResource(Res.string.average_duration, averageMatchDurationText),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -1,5 +1,6 @@
 package com.bismarck.voleimanager.app.ui
 
+import com.bismarck.voleimanager.app.resources.*
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,8 +17,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import com.bismarck.voleimanager.app.R
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,7 +57,7 @@ fun ManualSetupScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val errorMsg = stringResource(R.string.select_equal_number)
+    val errorMsg = stringResource(Res.string.select_equal_number)
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val listState = rememberLazyListState()
@@ -230,11 +230,11 @@ private fun ManualSetupActionBar(
             onClick = onCancel,
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+            Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.cancel))
         }
 
         Text(
-            text = stringResource(R.string.assemble_teams),
+            text = stringResource(Res.string.assemble_teams),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -254,7 +254,7 @@ private fun ManualSetupActionBar(
             },
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
-            Text(stringResource(R.string.start))
+            Text(stringResource(Res.string.start))
             if (canStart) {
                 Spacer(Modifier.width(4.dp))
                 Icon(Icons.Default.Check, null)
@@ -278,18 +278,18 @@ private fun ManualSetupSelectionSummary(
         verticalAlignment = Alignment.CenterVertically
     ) {
         TeamCounter(
-            stringResource(R.string.team_a),
+            stringResource(Res.string.team_a),
             teamACount,
             teamAColor
         )
         Text(
-            stringResource(R.string.vs),
+            stringResource(Res.string.vs),
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         TeamCounter(
-            stringResource(R.string.team_b),
+            stringResource(Res.string.team_b),
             teamBCount,
             teamBColor
         )

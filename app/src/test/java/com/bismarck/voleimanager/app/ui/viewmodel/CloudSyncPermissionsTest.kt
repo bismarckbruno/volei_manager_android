@@ -233,7 +233,7 @@ class CloudSyncPermissionsTest {
 
         val dao = FakeVoleiDao()
         val repo = VoleiRepository(dao)
-        val vm = VoleiViewModel(app, repo)
+        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
 
         runBlocking {
             repo.saveGroupConfig(

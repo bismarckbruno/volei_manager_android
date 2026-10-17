@@ -1,36 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.bismarck.voleimanager.app.util.PositionAssignerTest" tests="31" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:09:59.626Z" hostname="NITRO-5-BIS" time="0.347">
+<testsuite name="com.bismarck.voleimanager.app.util.PositionAssignerTest" tests="31" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:49:18.302Z" hostname="NITRO-5-BIS" time="0.382">
   <properties/>
   <testcase name="describeComposition_listsOneEntryPerRequiredSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.041"/>
-  <testcase name="pickToCoverComposition_allowsMultipleLosersWhenWaitingQueueLacksDepth" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.008"/>
-  <testcase name="pickToCoverComposition_singleSlotFillsStrictlyFromFrontOfQueue" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.004"/>
-  <testcase name="pickToCoverComposition_prefersSetterFromQueueWhenGuaranteeSetterEnabled" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.009"/>
-  <testcase name="orderByIdealComposition_fourVsFour_followsPlaymakerThenAttackThenTwoDefenseSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.014"/>
-  <testcase name="everyPlayerInCourtReceivesAPosition" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.127"/>
-  <testcase name="sevenVsSeven_requiresTwoMiddleBlockersPlusLibero" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.045"/>
-  <testcase name="pickToCoverComposition_capsLoserReentryToOneWhenWaitingQueueHasEnoughNonLosers" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.003"/>
-  <testcase name="balancesEloBetweenTeams" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.006"/>
-  <testcase name="liberoCountsAsMiddleBlockerBelowSixPlayers" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.005"/>
-  <testcase name="orderByIdealComposition_withGuaranteeSetterDisabled_hasNoDedicatedPlaymakerSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
-  <testcase name="pickToCoverComposition_withGuaranteeSetterDisabled_convertsPlaymakerSlotToAttack" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.007"/>
-  <testcase name="orderByIdealComposition_sixVsSix_withGuaranteeSetterDisabled_startsWithGenericAttackSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.034"/>
-  <testcase name="assignPositionsToExistingTeam_keepsExistingSetterInPlaymakerSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.003"/>
+  <testcase name="pickToCoverComposition_allowsMultipleLosersWhenWaitingQueueLacksDepth" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.006"/>
+  <testcase name="pickToCoverComposition_singleSlotFillsStrictlyFromFrontOfQueue" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.022"/>
+  <testcase name="pickToCoverComposition_prefersSetterFromQueueWhenGuaranteeSetterEnabled" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.044"/>
+  <testcase name="orderByIdealComposition_fourVsFour_followsPlaymakerThenAttackThenTwoDefenseSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.028"/>
+  <testcase name="everyPlayerInCourtReceivesAPosition" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.03"/>
+  <testcase name="sevenVsSeven_requiresTwoMiddleBlockersPlusLibero" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.022"/>
+  <testcase name="pickToCoverComposition_capsLoserReentryToOneWhenWaitingQueueHasEnoughNonLosers" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
+  <testcase name="balancesEloBetweenTeams" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.009"/>
+  <testcase name="liberoCountsAsMiddleBlockerBelowSixPlayers" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.003"/>
+  <testcase name="orderByIdealComposition_withGuaranteeSetterDisabled_hasNoDedicatedPlaymakerSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.009"/>
+  <testcase name="pickToCoverComposition_withGuaranteeSetterDisabled_convertsPlaymakerSlotToAttack" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.002"/>
+  <testcase name="orderByIdealComposition_sixVsSix_withGuaranteeSetterDisabled_startsWithGenericAttackSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.015"/>
+  <testcase name="assignPositionsToExistingTeam_keepsExistingSetterInPlaymakerSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.011"/>
   <testcase name="pickToCoverComposition_guaranteesAtLeastHalfRoundedUpFromFrontOfQueue_threeSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.002"/>
-  <testcase name="wildcardFillsSlotWithoutSpecialist" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.002"/>
+  <testcase name="wildcardFillsSlotWithoutSpecialist" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.003"/>
   <testcase name="assignPositionsToExistingTeam_sevenVsSeven_withoutLibero_keepsABenchLiberoSlot" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
-  <testcase name="assignPositionsToExistingTeam_marksMissingSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.0"/>
+  <testcase name="assignPositionsToExistingTeam_marksMissingSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
   <testcase name="orderByIdealComposition_sixVsSix_withLibero_followsSetterToLiberoDisplayOrder" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.002"/>
-  <testcase name="pickToCoverComposition_frontGuaranteeStillRespectsBestFitForRemainingSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
-  <testcase name="orderByIdealComposition_prefersWhoPlayedFewerGamesWithinTheSameRole" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
+  <testcase name="pickToCoverComposition_frontGuaranteeStillRespectsBestFitForRemainingSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.004"/>
+  <testcase name="orderByIdealComposition_prefersWhoPlayedFewerGamesWithinTheSameRole" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.01"/>
   <testcase name="twoVsTwo_requiresPlaymakerAndAttackOnBothTeams" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
-  <testcase name="pickToCoverComposition_guaranteesAtLeastHalfRoundedUpFromFrontOfQueue_fiveSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.0"/>
-  <testcase name="orderByIdealComposition_sevenVsSeven_withLibero_putsBenchLiberoLast" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.002"/>
-  <testcase name="fourVsFour_requiresOnePlaymakerTwoAttackersOneDefender" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.0"/>
-  <testcase name="sixVsSix_liberoSlotBecomesMiddleBlockerWhenNoLiberoAvailable" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
-  <testcase name="reportsUnfilledSlotsWhenNoPlaymakerExists" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.0"/>
-  <testcase name="fallsBackToSecondaryPreferenceWhenPreferredSlotIsTaken" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.0"/>
-  <testcase name="orderByIdealComposition_sixVsSix_withoutLibero_convertsLiberoSlotToMiddleBlocker" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
-  <testcase name="sixVsSix_reservesLiberoSlotWhenLiberoExists" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
+  <testcase name="pickToCoverComposition_guaranteesAtLeastHalfRoundedUpFromFrontOfQueue_fiveSlots" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
+  <testcase name="orderByIdealComposition_sevenVsSeven_withLibero_putsBenchLiberoLast" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.005"/>
+  <testcase name="fourVsFour_requiresOnePlaymakerTwoAttackersOneDefender" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.003"/>
+  <testcase name="sixVsSix_liberoSlotBecomesMiddleBlockerWhenNoLiberoAvailable" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.034"/>
+  <testcase name="reportsUnfilledSlotsWhenNoPlaymakerExists" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.018"/>
+  <testcase name="fallsBackToSecondaryPreferenceWhenPreferredSlotIsTaken" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
+  <testcase name="orderByIdealComposition_sixVsSix_withoutLibero_convertsLiberoSlotToMiddleBlocker" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.005"/>
+  <testcase name="sixVsSix_reservesLiberoSlotWhenLiberoExists" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.019"/>
   <testcase name="splitByElo_producesBalancedHalvesWithEqualOrOffByOneSizes" classname="com.bismarck.voleimanager.app.util.PositionAssignerTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
