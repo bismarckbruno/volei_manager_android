@@ -1,39 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.bismarck.voleimanager.app.util.TollCalculatorTest" tests="33" skipped="0" failures="0" errors="0" timestamp="2026-10-16T20:08:25.666Z" hostname="NITRO-5-BIS" time="0.361">
+<testsuite name="com.bismarck.voleimanager.app.util.TollCalculatorTest" tests="33" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:10:00.077Z" hostname="NITRO-5-BIS" time="0.087">
   <properties/>
-  <testcase name="effectiveGames_noToll_returnsActualGamesOnly" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.016"/>
-  <testcase name="applyToll_playerAlreadyHasTollToday_noChange" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.019"/>
-  <testcase name="calculateToll_excludeSelf_allOthersRemoved_returnsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.031"/>
-  <testcase name="scenario_lateArrival_unevenGames" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.018"/>
-  <testcase name="effectiveGames_withTollFromYesterday_ignoresToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.006"/>
-  <testcase name="calculateToll_excludesSelf" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.008"/>
-  <testcase name="applyToll_playerHasOldToll_recalculatesToday" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.014"/>
-  <testcase name="effectiveGames_withTollToday_addsToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.007"/>
+  <testcase name="effectiveGames_noToll_returnsActualGamesOnly" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.002"/>
+  <testcase name="applyToll_playerAlreadyHasTollToday_noChange" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.003"/>
+  <testcase name="calculateToll_excludeSelf_allOthersRemoved_returnsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
+  <testcase name="scenario_lateArrival_unevenGames" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.007"/>
+  <testcase name="effectiveGames_withTollFromYesterday_ignoresToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.002"/>
+  <testcase name="calculateToll_excludesSelf" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
+  <testcase name="applyToll_playerHasOldToll_recalculatesToday" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.033"/>
+  <testcase name="effectiveGames_withTollToday_addsToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
   <testcase name="effectiveGames_zeroActualZeroToll_returnsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
-  <testcase name="shouldApplyToll_noTollDate_returnsTrue" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.026"/>
-  <testcase name="calculateToll_considersExistingTollOfPresentPlayers" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.014"/>
-  <testcase name="calculateToll_twoPresentDifferentGames_returnsAverage" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.002"/>
-  <testcase name="effectiveGames_tollDateEmpty_ignoresToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
+  <testcase name="shouldApplyToll_noTollDate_returnsTrue" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.003"/>
+  <testcase name="calculateToll_considersExistingTollOfPresentPlayers" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
+  <testcase name="calculateToll_twoPresentDifferentGames_returnsAverage" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
+  <testcase name="effectiveGames_tollDateEmpty_ignoresToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.004"/>
   <testcase name="calculateToll_singlePresentWith3Games_returns3" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
   <testcase name="calculateToll_noPresentPlayers_returnsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
   <testcase name="scenario_lateArrival_midSession" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
-  <testcase name="calculateToll_roundsCorrectly_fractionalAboveHalf" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
+  <testcase name="calculateToll_roundsCorrectly_fractionalAboveHalf" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
   <testcase name="shouldApplyToll_tollFromYesterday_returnsTrue" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
-  <testcase name="calculateToll_singlePresentWithZeroGames_returnsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.01"/>
+  <testcase name="calculateToll_singlePresentWithZeroGames_returnsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.002"/>
   <testcase name="scenario_effectiveGames_ordering_for_team_sort" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
   <testcase name="calculateToll_roundsCorrectly_fractionalBelowHalf" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
   <testcase name="scenario_secondLateArrival_firstAlreadyHasToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
-  <testcase name="scenario_dailyReset_nextDay" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.004"/>
-  <testcase name="calculateToll_ignoresOldTollOfPresentPlayers" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
-  <testcase name="applyToll_newPlayerGetsAverageToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.008"/>
-  <testcase name="calculateToll_roundsHalfUp" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.002"/>
+  <testcase name="scenario_dailyReset_nextDay" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
+  <testcase name="calculateToll_ignoresOldTollOfPresentPlayers" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
+  <testcase name="applyToll_newPlayerGetsAverageToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
+  <testcase name="calculateToll_roundsHalfUp" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
   <testcase name="calculateToll_missingUsageMapEntry_treatedAsZeroGames" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
-  <testcase name="calculateToll_roundsUpFromHalf" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
+  <testcase name="calculateToll_roundsUpFromHalf" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
   <testcase name="applyToll_preservesPlayerFields" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
-  <testcase name="calculateToll_largeLobby_averagesCorrectly" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.003"/>
-  <testcase name="applyToll_noPresentOthers_tollIsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
+  <testcase name="calculateToll_largeLobby_averagesCorrectly" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
+  <testcase name="applyToll_noPresentOthers_tollIsZero" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.0"/>
   <testcase name="shouldApplyToll_tollFromToday_returnsFalse" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.001"/>
-  <testcase name="scenario_firstPlayerOfTheDay_noToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.008"/>
+  <testcase name="scenario_firstPlayerOfTheDay_noToll" classname="com.bismarck.voleimanager.app.util.TollCalculatorTest" time="0.002"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

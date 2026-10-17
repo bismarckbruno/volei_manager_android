@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.bismarck.voleimanager.app.util.AppDateTimeTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-16T20:08:19.074Z" hostname="NITRO-5-BIS" time="0.828">
+<testsuite name="com.bismarck.voleimanager.app.util.AppDateTimeTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:09:58.894Z" hostname="NITRO-5-BIS" time="0.122">
   <properties/>
-  <testcase name="sortHistoryDatesNewestFirst_ordersChronologically" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.359"/>
-  <testcase name="formatTwoDecimals_matchesUsLocaleFormat" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.078"/>
-  <testcase name="matchDateTime_roundTrips" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.186"/>
-  <testcase name="formatLocalizedDate_onlyChangesEnglish" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.052"/>
-  <testcase name="todayAndStartOfToday_areConsistent" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.015"/>
-  <testcase name="parsers_acceptSingleDigitsAndTrailingText_butRejectInvalidDates" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.007"/>
-  <testcase name="parseLegacyMatchDate_triesAllKnownFormats" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.01"/>
-  <testcase name="matchDateToIsoDay_convertsHistoryDateToLogDate" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.002"/>
+  <testcase name="sortHistoryDatesNewestFirst_ordersChronologically" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.039"/>
+  <testcase name="formatTwoDecimals_matchesUsLocaleFormat" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.02"/>
+  <testcase name="matchDateTime_roundTrips" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.018"/>
+  <testcase name="formatLocalizedDate_onlyChangesEnglish" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.018"/>
+  <testcase name="todayAndStartOfToday_areConsistent" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.008"/>
+  <testcase name="parsers_acceptSingleDigitsAndTrailingText_butRejectInvalidDates" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.002"/>
+  <testcase name="parseLegacyMatchDate_triesAllKnownFormats" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.005"/>
+  <testcase name="matchDateToIsoDay_convertsHistoryDateToLogDate" classname="com.bismarck.voleimanager.app.util.AppDateTimeTest" time="0.007"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

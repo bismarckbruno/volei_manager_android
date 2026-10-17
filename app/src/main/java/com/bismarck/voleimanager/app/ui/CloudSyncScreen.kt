@@ -96,6 +96,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.DpOffset
+import com.bismarck.voleimanager.app.util.AndroidPlatformHost
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.data.model.GroupConfig
@@ -1190,7 +1191,7 @@ internal fun PremiumPlansSection(
                     selected = singleActive,
                     monthlySubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
                     onSubscribeClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = false) }
+                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.SINGLE, annual = false) }
                     },
                     annualPrice = singleAnnualOffer?.let {
                         stringResource(
@@ -1201,7 +1202,7 @@ internal fun PremiumPlansSection(
                     } ?: stringResource(R.string.cloud_sync_plan_single_annual_price),
                     annualSubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
                     onSubscribeAnnualClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.SINGLE, annual = true) }
+                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.SINGLE, annual = true) }
                     }
                 )
                 Spacer(Modifier.height(16.dp))
@@ -1212,7 +1213,7 @@ internal fun PremiumPlansSection(
                     selected = multiActive,
                     monthlySubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
                     onSubscribeClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = false) }
+                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.MULTI, annual = false) }
                     },
                     annualPrice = multiAnnualOffer?.let {
                         stringResource(
@@ -1223,7 +1224,7 @@ internal fun PremiumPlansSection(
                     } ?: stringResource(R.string.cloud_sync_plan_multi_annual_price),
                     annualSubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
                     onSubscribeAnnualClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(act, CloudPlanTier.MULTI, annual = true) }
+                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.MULTI, annual = true) }
                     }
                 )
                 Spacer(Modifier.height(16.dp))

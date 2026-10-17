@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.bismarck.voleimanager.app.util.AndroidPlatformHost
 import com.bismarck.voleimanager.app.platform.FileRef
 import com.bismarck.voleimanager.app.R
 import com.bismarck.voleimanager.app.BuildConfig
@@ -996,7 +997,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 onResult
             )
         },
-        onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
+        onGoogleClick = { onResult -> viewModel.signInWithGoogle(AndroidPlatformHost(context), onResult) },
         onForgotPasswordClick = { email, onResult ->
             viewModel.sendPasswordResetEmail(
                 email,
@@ -1011,7 +1012,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         onConfirm = { email, password, fullName, nickname, birthDate, onResult ->
             viewModel.signUpWithEmail(email, password, fullName, nickname, birthDate, onResult)
         },
-        onGoogleClick = { onResult -> viewModel.signInWithGoogle(context, onResult) },
+        onGoogleClick = { onResult -> viewModel.signInWithGoogle(AndroidPlatformHost(context), onResult) },
         onSwitchToLogin = { showSignUpDialog = false; showLoginDialog = true }
     )
 
@@ -2224,7 +2225,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 "${mdm.values.average().toInt()}min"
                                             } else null
 
-                                            viewModel.captureHistoryScreenAsImage(
+                                            captureHistoryScreenAsImage(
+                                                viewModel = viewModel,
                                                 context = context,
                                                 view = view,
                                                 matches = matchesToShare,
@@ -2438,7 +2440,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                     eloAvg
                                                 )
                                             } else null
-                                            viewModel.captureHistoryScreenAsImage(
+                                            captureHistoryScreenAsImage(
+                                                viewModel = viewModel,
                                                 context = context,
                                                 view = view,
                                                 matches = null,

@@ -1,20 +1,11 @@
 package com.bismarck.voleimanager.app.ui.viewmodel
 
-import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.findViewTreeLifecycleOwner
-import androidx.lifecycle.findViewTreeViewModelStoreOwner
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.findViewTreeSavedStateRegistryOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.lifecycle.viewModelScope
 import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
@@ -58,12 +49,19 @@ import com.bismarck.voleimanager.app.util.TeamBalancer
 import com.bismarck.voleimanager.app.util.TelemetryManager
 import com.bismarck.voleimanager.app.util.TollCalculator
 import com.bismarck.voleimanager.app.platform.AppLog
+import com.bismarck.voleimanager.app.platform.DeviceInfo
 import com.bismarck.voleimanager.app.platform.FileRef
 import com.bismarck.voleimanager.app.platform.FileService
+import com.bismarck.voleimanager.app.platform.GoogleSignInService
+import com.bismarck.voleimanager.app.platform.PlatformHost
 import com.bismarck.voleimanager.app.platform.PreferencesStore
 import com.bismarck.voleimanager.app.platform.SharedPreferencesStore
 import com.bismarck.voleimanager.app.platform.Telemetry
+import com.bismarck.voleimanager.app.util.AndroidDeviceInfo
 import com.bismarck.voleimanager.app.util.AndroidFileService
+import com.bismarck.voleimanager.app.util.AndroidGoogleSignInService
+import com.bismarck.voleimanager.app.util.BillingPurchaseLauncher
+import com.bismarck.voleimanager.app.util.PurchaseLauncher
 import com.bismarck.voleimanager.app.util.FirebaseTelemetry
 import com.bismarck.voleimanager.app.util.AppDateTime
 import com.bismarck.voleimanager.app.util.AppJson
@@ -80,12 +78,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStreamReader
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -504,7 +498,14 @@ class VoleiViewModel(
     private val repository: VoleiRepository,
     private val preferences: PreferencesStore = SharedPreferencesStore.create(application),
     private val telemetry: Telemetry = FirebaseTelemetry(application),
-    private val fileService: FileService = AndroidFileService(application)
+    private val fileService: FileService = AndroidFileService(application),
+    private val deviceInfo: DeviceInfo = AndroidDeviceInfo(application),
+    private val googleSignIn: GoogleSignInService = AndroidGoogleSignInService(),
+    private val purchaseLauncher: PurchaseLauncher = BillingPurchaseLauncher(),
+    private val onPlatformInit: () -> Unit = {
+        AuthManager.init(application)
+        BillingManager.init(application)
+    }
 ) :
     AndroidViewModel(application) {
     private val screenDataSharing = SharingStarted.Eagerly
@@ -643,16 +644,7 @@ class VoleiViewModel(
     /** Identificador estável deste aparelho (`Settings.Secure.ANDROID_ID`, com fallback aleatório
      *  se indisponível) — usado só para `admin-session-transfer`, nunca enviado como PII (ver
      *  [GroupConfig.activeAdminDeviceId]). */
-    private val localDeviceId: String by lazy {
-        try {
-            android.provider.Settings.Secure.getString(
-                getApplication<Application>().contentResolver,
-                android.provider.Settings.Secure.ANDROID_ID
-            ).takeUnless { it.isNullOrBlank() } ?: java.util.UUID.randomUUID().toString()
-        } catch (e: Exception) {
-            java.util.UUID.randomUUID().toString()
-        }
-    }
+    private val localDeviceId: String by lazy { deviceInfo.deviceId }
 
     /**
      * `true` quando este aparelho está autorizado a publicar como organizador do grupo ativo em
@@ -1057,7 +1049,7 @@ class VoleiViewModel(
      * `premium-purchase-gating`. Assinar sem conta verificada deixaria o entitlement órfão (sem
      * `uid` para gravar em `users/{uid}.activeEntitlement`).
      */
-    fun purchasePremiumPlan(activity: Activity, tier: CloudPlanTier, annual: Boolean) {
+    fun purchasePremiumPlan(host: PlatformHost, tier: CloudPlanTier, annual: Boolean) {
         val user = currentUser.value
         val app = getApplication<Application>()
         if (user == null) {
@@ -1073,7 +1065,7 @@ class VoleiViewModel(
             showMessage(app.getString(R.string.cloud_sync_plan_offer_unavailable))
             return
         }
-        val launched = BillingManager.launchPurchaseFlow(activity, offer)
+        val launched = purchaseLauncher.launch(host, offer)
         if (launched) {
             rememberSelectedBasePlan(offer.productId, annual)
         } else {
@@ -1429,14 +1421,13 @@ class VoleiViewModel(
 
     /** Login (ou cadastro automático, no primeiro acesso) via conta Google — ver
      *  [com.bismarck.voleimanager.app.util.GoogleSignInHelper] e
-     *  [AuthManager.signInWithGoogleIdToken]. [context] precisa ser um contexto de Activity (ex.:
-     *  `LocalContext.current` na Composable que abre o diálogo), pois o seletor de contas do
+     *  [AuthManager.signInWithGoogleIdToken]. [host] precisa ser o anfitri?o da Activity atual (ex.:
+     *  `AndroidPlatformHost(LocalContext.current)` na Composable que abre o diálogo), pois o seletor de contas do
      *  Google é uma UI do sistema exibida sobre a Activity atual. */
-    fun signInWithGoogle(context: Context, onResult: (String?) -> Unit) {
+    fun signInWithGoogle(host: PlatformHost, onResult: (String?) -> Unit) {
         _authInProgress.value = true
         viewModelScope.launch {
-            val webClientId = context.getString(R.string.google_web_client_id)
-            val error = GoogleSignInHelper.getIdToken(context, webClientId).fold(
+            val error = googleSignIn.getIdToken(host).fold(
                 onSuccess = { idToken -> AuthManager.signInWithGoogleIdToken(idToken) },
                 onFailure = { e -> e.message ?: getApplication<Application>().getString(R.string.google_sign_in_error) }
             )
@@ -2994,8 +2985,7 @@ class VoleiViewModel(
         _telemetryEnabled.value = prefs.getBoolean(Telemetry.PREF_KEY_TELEMETRY_ENABLED, false)
         _showTelemetryConsentPrompt.value = !prefs.contains(Telemetry.PREF_KEY_TELEMETRY_ENABLED)
         telemetry.init(_telemetryEnabled.value)
-        AuthManager.init(getApplication())
-        BillingManager.init(getApplication())
+        onPlatformInit()
         viewModelScope.launch {
             BillingManager.purchaseEvents.collect { event ->
                 val error = CloudFunctionsManager.linkPurchaseToken(event.purchaseToken, event.productId)
@@ -5563,15 +5553,11 @@ class VoleiViewModel(
         return outputStream.toByteArray()
     }
 
-    fun shareBitmap(context: Context, bitmap: android.graphics.Bitmap, date: String) {
+    fun shareHistoryImage(pngBytes: ByteArray, date: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val safeDate = date.replace(Regex("[^a-zA-Z0-9]"), "_")
-                val fileName = "history_$safeDate.png"
-                val pngBytes = ByteArrayOutputStream().also {
-                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
-                }.toByteArray()
-                fileService.shareFile(fileName, pngBytes, "image/png", "Share history")
+                fileService.shareFile("history_$safeDate.png", pngBytes, "image/png", "Share history")
             } catch (e: Exception) {
                 AppLog.e("Share", "Erro ao compartilhar imagem: ${e.message}")
             }
@@ -5789,88 +5775,6 @@ class VoleiViewModel(
             })
         }
         return AppJson.encodeToString(JsonObject.serializer(), JsonObject(data))
-    }
-
-    fun captureHistoryScreenAsImage(
-        context: Context,
-        view: android.view.View,
-        matches: List<MatchHistory>?,
-        matchSortMode: com.bismarck.voleimanager.app.ui.MatchSortMode?,
-        players: List<com.bismarck.voleimanager.app.ui.HistoryPlayerInfo>?,
-        playerSortMode: com.bismarck.voleimanager.app.ui.PlayerSortMode?,
-        date: String,
-        isDarkTheme: Boolean,
-        showElo: Boolean,
-        showScore: Boolean,
-        matchDurationsMinutes: Map<Int, Int>? = null,
-        averagePlayersEloText: String? = null,
-        averageMatchDurationText: String? = null
-    ) {
-        val groupName = _currentGroupConfig.value.groupName
-        val usesPositions = _currentGroupConfig.value.type.usesPositions
-        val teamAColorFamily = com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily(effectiveTeamAColor.value, isDarkTheme)
-        val teamBColorFamily = com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily(effectiveTeamBColor.value, isDarkTheme)
-        val composeView = androidx.compose.ui.platform.ComposeView(context).apply {
-            setViewTreeLifecycleOwner(view.findViewTreeLifecycleOwner())
-            setViewTreeViewModelStoreOwner(view.findViewTreeViewModelStoreOwner())
-            setViewTreeSavedStateRegistryOwner(view.findViewTreeSavedStateRegistryOwner())
-
-            setContent {
-                com.bismarck.voleimanager.app.ui.theme.AppTheme(darkTheme = isDarkTheme, dynamicColor = false) {
-                    androidx.compose.material3.Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
-                        com.bismarck.voleimanager.app.ui.ExportableImageContent(
-                            matches = matches,
-                            matchSortMode = matchSortMode,
-                            players = players,
-                            playerSortMode = playerSortMode,
-                            groupName = groupName,
-                            date = date,
-                            isDarkTheme = isDarkTheme,
-                            showElo = showElo,
-                            showScore = showScore,
-                            matchDurationsMinutes = matchDurationsMinutes,
-                            averagePlayersEloText = averagePlayersEloText,
-                            averageMatchDurationText = averageMatchDurationText,
-                            usesPositions = usesPositions,
-                            teamAColorFamily = teamAColorFamily,
-                            teamBColorFamily = teamBColorFamily
-                        )
-                    }
-                }
-            }
-        }
-        val scrollView = android.widget.ScrollView(context).apply {
-            addView(composeView)
-            alpha = 0f
-            isVerticalScrollBarEnabled = false
-        }
-        val root = view.rootView as? android.view.ViewGroup
-        if (root != null) {
-            root.addView(scrollView, android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT))
-            scrollView.postDelayed({
-                try {
-                    // ExportableImageContent tem largura fixa de 400.dp (ver AppScreens.kt). Convertemos
-                    // esse valor para pixels usando a densidade real do dispositivo — usar um valor fixo
-                    // em pixels (ex.: 1440) fazia a imagem sair com margens em branco desproporcionais
-                    // (e por consequência "mais larga") em aparelhos com densidade de tela menor, já que
-                    // o mesmo "1440px" representa uma largura em dp bem maior nesses aparelhos. Isso
-                    // acontecia igualmente para Administrador e Espectador, mas só ficava visível quando
-                    // os dois usavam celulares com densidades diferentes nos testes.
-                    val exportWidthPx = (400f * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
-                    composeView.measure(
-                        android.view.View.MeasureSpec.makeMeasureSpec(exportWidthPx, android.view.View.MeasureSpec.EXACTLY),
-                        android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
-                    )
-                    composeView.layout(0, 0, composeView.measuredWidth, composeView.measuredHeight)
-                    if (composeView.measuredWidth > 0 && composeView.measuredHeight > 0) {
-                        val bitmap = android.graphics.Bitmap.createBitmap(composeView.measuredWidth, composeView.measuredHeight, android.graphics.Bitmap.Config.ARGB_8888)
-                        val canvas = android.graphics.Canvas(bitmap)
-                        composeView.draw(canvas)
-                        shareBitmap(context, bitmap, date)
-                    }
-                } catch (e: Exception) { e.printStackTrace() } finally { root.removeView(scrollView) }
-            }, 500)
-        }
     }
 
     fun clearRecentGameData() {
