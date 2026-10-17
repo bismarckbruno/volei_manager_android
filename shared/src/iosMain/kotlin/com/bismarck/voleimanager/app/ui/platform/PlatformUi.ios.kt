@@ -47,7 +47,7 @@ private class DocumentPickerDelegate(var onPicked: (String) -> Unit) :
 }
 
 @Composable
-actual fun rememberDocumentPicker(onPicked: (String) -> Unit): (List<String>) -> Unit {
+actual fun rememberDocumentPicker(onPicked: (String) -> Unit): (mimeTypes: List<String>) -> Unit {
     val delegate = remember { DocumentPickerDelegate(onPicked) }
     delegate.onPicked = rememberUpdatedState(onPicked).value
     return {

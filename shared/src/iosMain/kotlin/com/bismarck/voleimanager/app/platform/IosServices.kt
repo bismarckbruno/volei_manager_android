@@ -60,7 +60,7 @@ internal fun NSData.toByteArray(): ByteArray {
     return result
 }
 
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
 internal fun ByteArray.toNSData(): NSData {
     if (isEmpty()) return NSData()
     return usePinned { NSData.create(bytes = it.addressOf(0), length = size.toULong()) }

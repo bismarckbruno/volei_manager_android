@@ -496,9 +496,9 @@ class PositionAssignerTest {
 
         val (halfA, halfB) = PositionAssigner.splitByElo(players)
 
-        assertTrue(Math.abs(halfA.size - halfB.size) <= 1)
+        assertTrue(kotlin.math.abs(halfA.size - halfB.size) <= 1)
         assertEquals(players.size, halfA.size + halfB.size)
-        val gap = Math.abs(halfA.sumOf { it.elo } - halfB.sumOf { it.elo })
+        val gap = kotlin.math.abs(halfA.sumOf { it.elo } - halfB.sumOf { it.elo })
         // A diferença não deve exceder o Elo do jogador mais forte (garantia frouxa de equilíbrio).
         assertTrue(gap <= players.maxOf { it.elo })
     }
