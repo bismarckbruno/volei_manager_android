@@ -1,4 +1,5 @@
 package com.bismarck.voleimanager.app.ui.components
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures

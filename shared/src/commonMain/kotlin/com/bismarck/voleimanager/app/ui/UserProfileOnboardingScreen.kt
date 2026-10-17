@@ -1,4 +1,5 @@
 package com.bismarck.voleimanager.app.ui
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import org.jetbrains.compose.resources.StringResource
 import com.bismarck.voleimanager.app.resources.*

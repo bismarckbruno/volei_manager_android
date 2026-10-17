@@ -1,18 +1,11 @@
 package com.bismarck.voleimanager.app.ui
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import org.jetbrains.compose.resources.DrawableResource
 import com.bismarck.voleimanager.app.platform.AppStrings
 import com.bismarck.voleimanager.app.resources.*
-import android.widget.Toast
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.content.res.Configuration
-import androidx.activity.compose.BackHandler
-import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -47,9 +40,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import com.bismarck.voleimanager.app.util.AndroidPlatformHost
 import com.bismarck.voleimanager.app.platform.FileRef
-import com.bismarck.voleimanager.app.BuildConfig
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -59,20 +50,15 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.*
@@ -87,7 +73,6 @@ import com.bismarck.voleimanager.app.ui.viewmodel.PostProfileOnboardingStage
 import com.bismarck.voleimanager.app.util.AppDateTime
 import com.bismarck.voleimanager.app.util.AppAuthUser
 import com.bismarck.voleimanager.app.util.decodeAvatarBase64
-import com.bismarck.voleimanager.app.util.loadBitmapForAvatarEditing
 import com.bismarck.voleimanager.app.util.compressAvatarBitmap
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
 import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
@@ -176,7 +161,7 @@ private fun DrawerAccountHeader(
             ) {
                 if (avatarBitmap != null) {
                     Image(
-                        bitmap = avatarBitmap.asImageBitmap(),
+                        bitmap = avatarBitmap,
                         contentDescription = stringResource(Res.string.account_avatar_content_description),
                         modifier = Modifier.fillMaxSize()
                     )
@@ -289,7 +274,7 @@ private fun balancingModeIconRes(balancingMode: String): DrawableResource =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
-    val context = LocalContext.current
+    val actions = LocalPlatformActions.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -381,34 +366,26 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
     val density = LocalDensity.current
 
-    val launcherImport =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let {
-                viewModel.importData(FileRef(it.toString()), pendingImportType)
-                Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
-            }
-        }
-    var pendingAvatarCropBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    val avatarPhotoPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                val bitmap =
-                    withContext(Dispatchers.IO) { loadBitmapForAvatarEditing(context, uri) }
-                if (bitmap != null) {
-                    pendingAvatarCropBitmap = bitmap
-                }
-            }
-        }
-    }
-    val csvImportMimeTypes = arrayOf(
+    val csvImportMimeTypes = listOf(
         "text/*",
         "text/csv",
         "application/csv",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
         "application/vnd.ms-excel" // .xls (legacy binary format; parsing not supported, shows a clear error)
     )
+    val launchImportPicker = rememberDocumentPicker { uri ->
+        viewModel.importData(FileRef(uri), pendingImportType)
+        actions.showToast(importing)
+    }
+    var pendingAvatarCropBitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    val launchAvatarPicker = rememberImagePicker { uri ->
+        scope.launch {
+            val bitmap = actions.loadAvatarForEditing(uri)
+            if (bitmap != null) {
+                pendingAvatarCropBitmap = bitmap
+            }
+        }
+    }
 
     // Recarrega o usuário logado ao voltar ao primeiro plano (ex.: após confirmar o e-mail pelo
     // link recebido, num navegador ou app de e-mail à parte), fazendo o botão "Reenviar e-mail de
@@ -463,16 +440,14 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val shouldRequestReview by viewModel.shouldRequestReview.collectAsState()
     LaunchedEffect(uiMessage) {
         uiMessage?.let { message ->
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            actions.showToast(message, long = true)
             viewModel.clearUiMessage()
         }
     }
 
     LaunchedEffect(shouldRequestReview) {
         if (shouldRequestReview) {
-            (context as? android.app.Activity)?.let { activity ->
-                com.bismarck.voleimanager.app.util.InAppReviewHelper.requestReview(activity)
-            }
+            actions.requestReview()
             viewModel.onReviewRequestHandled()
         }
     }
@@ -497,7 +472,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         }
     }
 
-    BackHandler(enabled = drawerState.isOpen || isSetupMode || currentScreen != Screen.GAME) {
+    PlatformBackHandler(enabled = drawerState.isOpen || isSetupMode || currentScreen != Screen.GAME) {
         if (drawerState.isOpen) {
             scope.launch { drawerState.close() }
         } else if (isSetupMode) {
@@ -682,8 +657,8 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             pendingImportType = CsvType.BACKUP_COMPLETO
-                            launcherImport.launch(
-                                arrayOf(
+                            launchImportPicker(
+                                listOf(
                                     "application/json",
                                     "text/plain",
                                     "application/octet-stream"
@@ -754,7 +729,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                     ),
                                     onClick = {
                                         pendingImportType = CsvType.JOGADORES
-                                        launcherImport.launch(csvImportMimeTypes)
+                                        launchImportPicker(csvImportMimeTypes)
                                         showImportDialog = false
                                     }) {
                                     Box(
@@ -779,7 +754,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = {
                                     pendingImportType = CsvType.HISTORICO
-                                    launcherImport.launch(csvImportMimeTypes)
+                                    launchImportPicker(csvImportMimeTypes)
                                     showImportDialog = false
                                 }) {
                                 Box(
@@ -797,7 +772,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = {
                                     pendingImportType = CsvType.ELO_LOGS
-                                    launcherImport.launch(csvImportMimeTypes)
+                                    launchImportPicker(csvImportMimeTypes)
                                     showImportDialog = false
                                 }) {
                                 Box(
@@ -881,7 +856,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.importData(uri, CsvType.BACKUP_COMPLETO)
-                    Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
+                    actions.showToast(importing)
                     viewModel.cancelExternalImport()
                 }) { Text(stringResource(Res.string.import_word)) }
             },
@@ -922,11 +897,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val intent = android.content.Intent(
-                        android.content.Intent.ACTION_VIEW,
-                        privacyPolicyUrl.toUri()
-                    )
-                    context.startActivity(intent)
+                    actions.openUrl(privacyPolicyUrl)
                 }) {
                     Text(stringResource(Res.string.view_in_browser))
                 }
@@ -960,11 +931,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val intent = android.content.Intent(
-                        android.content.Intent.ACTION_VIEW,
-                        termsOfUseUrl.toUri()
-                    )
-                    context.startActivity(intent)
+                    actions.openUrl(termsOfUseUrl)
                 }) {
                     Text(stringResource(Res.string.view_in_browser))
                 }
@@ -999,7 +966,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 onResult
             )
         },
-        onGoogleClick = { onResult -> viewModel.signInWithGoogle(AndroidPlatformHost(context), onResult) },
+        onGoogleClick = { onResult -> viewModel.signInWithGoogle(actions.host, onResult) },
         onForgotPasswordClick = { email, onResult ->
             viewModel.sendPasswordResetEmail(
                 email,
@@ -1014,7 +981,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         onConfirm = { email, password, fullName, nickname, birthDate, onResult ->
             viewModel.signUpWithEmail(email, password, fullName, nickname, birthDate, onResult)
         },
-        onGoogleClick = { onResult -> viewModel.signInWithGoogle(AndroidPlatformHost(context), onResult) },
+        onGoogleClick = { onResult -> viewModel.signInWithGoogle(actions.host, onResult) },
         onSwitchToLogin = { showSignUpDialog = false; showLoginDialog = true }
     )
 
@@ -1031,7 +998,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     }
 
     if (postProfileOnboardingStage == PostProfileOnboardingStage.AUTH_REQUIRED) {
-        BackHandler { viewModel.returnToProfileSelection() }
+        PlatformBackHandler { viewModel.returnToProfileSelection() }
         MandatoryAccountGateScreen(
             onLoginClick = { showLoginDialog = true },
             onSignUpClick = { showSignUpDialog = true },
@@ -1041,7 +1008,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         return
     }
     if (postProfileOnboardingStage == PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION) {
-        BackHandler { viewModel.returnToProfileSelection() }
+        PlatformBackHandler { viewModel.returnToProfileSelection() }
         SpectatorAuthSuggestionScreen(
             onLoginClick = { showLoginDialog = true },
             onSignUpClick = { showSignUpDialog = true },
@@ -1051,7 +1018,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
         return
     }
     if (postProfileOnboardingStage == PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION) {
-        BackHandler { viewModel.returnToProfileSelection() }
+        PlatformBackHandler { viewModel.returnToProfileSelection() }
         SpectatorJoinSuggestionScreen(
             onJoinClick = { showJoinGroupDialog = true },
             onSkip = { viewModel.onSpectatorJoinStepDone() },
@@ -1129,9 +1096,9 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
                         var groupExpanded by remember { mutableStateOf(false) }
                         var groupAnchorWidth by remember { mutableStateOf(280.dp) }
-                        val groupConfiguration = LocalConfiguration.current
+                        val groupIsLandscape = rememberIsLandscape()
                         val groupHeightFraction =
-                            if (groupConfiguration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                            if (groupIsLandscape) {
                                 0.27f
                             } else {
                                 0.57f
@@ -1525,9 +1492,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             hasPhoto = currentUser?.photoBase64 != null,
             onDismiss = { showEditProfilePhotoDialog = false },
             onPickPhoto = {
-                avatarPhotoPickerLauncher.launch(
-                    androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
+                launchAvatarPicker()
             },
             onRemovePhoto = { viewModel.updateProfilePhoto(null) { } }
         )
@@ -1588,7 +1553,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 viewModel.deleteAccount { error ->
                     showDeleteAccountConfirmDialog = false
                     if (error != null) {
-                        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                        actions.showToast(error, long = true)
                     }
                 }
             }
@@ -1750,7 +1715,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                             )
                         }
 
-                        if (BuildConfig.DEBUG) {
+                        if (actions.isDebugBuild) {
                             HorizontalDivider(
                                 Modifier.padding(vertical = 12.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
@@ -1873,22 +1838,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                 confirmButton = {
                     Button(onClick = {
                         showRateAppDialog = false
-                        val packageName = context.packageName
-                        try {
-                            context.startActivity(
-                                Intent(
-                                    Intent.ACTION_VIEW,
-                                    "market://details?id=$packageName".toUri()
-                                )
-                            )
-                        } catch (_: ActivityNotFoundException) {
-                            context.startActivity(
-                                Intent(
-                                    Intent.ACTION_VIEW,
-                                    "https://play.google.com/store/apps/details?id=$packageName".toUri()
-                                )
-                            )
-                        }
+                        actions.openStoreListing()
                     }) { Text(stringResource(Res.string.rate_app_dialog_confirm)) }
                 },
                 dismissButton = {
@@ -1916,8 +1866,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     Button(onClick = {
                         showSendQuestionDialog = false
                         val feedbackFormUrl = AppStrings.get(Res.string.feedback_form_url)
-                        val intent = Intent(Intent.ACTION_VIEW, feedbackFormUrl.toUri())
-                        context.startActivity(intent)
+                        actions.openUrl(feedbackFormUrl)
                     }) { Text(stringResource(Res.string.send_question_dialog_confirm)) }
                 },
                 dismissButton = {
@@ -2140,7 +2089,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 }
                             }
                         } else if (currentScreen == Screen.HISTORY) {
-                            val view = LocalView.current
                             val historyDate by viewModel.historyDateFilter.collectAsState()
                             val isRemoteHistoryGroup = groupConfig.remoteRole != null
                             val localGroupHistoryForExport by viewModel.currentGroupHistory.collectAsState()
@@ -2173,12 +2121,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             )
                                         }
                                     } else {
-                                        Toast.makeText(
-                                            context,
-                                            generating_image,
-                                            Toast.LENGTH_SHORT
-                                        )
-                                            .show()
+                                        actions.showToast(generating_image)
 
                                         if (historySelectedTab == 0) {
                                             // --- Export matches ---
@@ -2229,8 +2172,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
 
                                             captureHistoryScreenAsImage(
                                                 viewModel = viewModel,
-                                                context = context,
-                                                view = view,
+                                                actions = actions,
                                                 matches = matchesToShare,
                                                 matchSortMode = historyMatchSortMode,
                                                 players = null,
@@ -2444,8 +2386,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                             } else null
                                             captureHistoryScreenAsImage(
                                                 viewModel = viewModel,
-                                                context = context,
-                                                view = view,
+                                                actions = actions,
                                                 matches = null,
                                                 matchSortMode = null,
                                                 players = sortedPlayers,

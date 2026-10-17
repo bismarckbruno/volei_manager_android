@@ -1,4 +1,6 @@
 package com.bismarck.voleimanager.app.ui
+import kotlin.math.roundToInt
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import com.bismarck.voleimanager.app.platform.AppStrings
 import com.bismarck.voleimanager.app.resources.*
@@ -79,27 +81,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import androidx.compose.ui.unit.DpOffset
-import com.bismarck.voleimanager.app.util.AndroidPlatformHost
-import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.data.model.GroupConfig
 import com.bismarck.voleimanager.app.ui.viewmodel.CloudPlanTier
 import com.bismarck.voleimanager.app.ui.viewmodel.PremiumScreenPersona
@@ -109,7 +104,7 @@ import com.bismarck.voleimanager.app.util.BillingProductIds
 import com.bismarck.voleimanager.app.util.SubscriptionOffer
 import com.bismarck.voleimanager.app.util.JoinRole
 import com.bismarck.voleimanager.app.util.LiveGameState
-import com.bismarck.voleimanager.app.util.QrCodeGenerator
+import com.bismarck.voleimanager.app.util.generateQrCode
 import com.bismarck.voleimanager.app.util.RegeneratedSpectatorCode
 import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
 import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
@@ -117,10 +112,6 @@ import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import androidx.core.net.toUri
-import java.text.NumberFormat
-import java.util.Currency
-
 /**
  * Tela "Premium": ponto único de sincronização em nuvem premium. O conteúdo é dividido por
  * perfil do usuário ([UserProfileType]):
@@ -323,7 +314,7 @@ internal fun RemoteHistoryRow(entry: RemoteHistoryEntry) {
 internal fun RemoteEloRow(entry: RemoteEloLogEntry) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(entry.playerNameSnapshot, style = MaterialTheme.typography.bodyMedium)
-        Text("%.0f".format(entry.elo), style = MaterialTheme.typography.bodyMedium)
+        Text(entry.elo.roundToInt().toString(), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -612,7 +603,7 @@ private fun SpectatorCodeSection(
     onRegenerate: ((RegeneratedSpectatorCode?, String?) -> Unit) -> Unit,
     onRetry: () -> Unit
 ) {
-    val context = LocalContext.current
+    val actions = LocalPlatformActions.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     var showQrDialog by remember { mutableStateOf(false) }
     var showRegenerateConfirm by remember { mutableStateOf(false) }
@@ -779,13 +770,9 @@ private fun SpectatorCodeSection(
                     val shareText = AppStrings.get(
                         Res.string.spectator_code_share_text,
                         spectatorCode,
-                        "https://play.google.com/store/apps/details?id=${context.packageName}"
+                        actions.storeUrl
                     )
-                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, shareText)
-                    }
-                    context.startActivity(Intent.createChooser(sendIntent, null))
+                    actions.shareText(shareText)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -803,7 +790,7 @@ private fun SpectatorCodeSection(
  *  botão "Compartilhar código" (fase 1, texto simples), em formato para leitura por câmera. */
 @Composable
 private fun QrCodeDialog(text: String, onDismiss: () -> Unit) {
-    val bitmap = remember(text) { QrCodeGenerator.generate(text) }
+    val bitmap = remember(text) { generateQrCode(text) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.spectator_code_qr_title)) },
@@ -811,7 +798,7 @@ private fun QrCodeDialog(text: String, onDismiss: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 if (bitmap != null) {
                     androidx.compose.foundation.Image(
-                        bitmap = bitmap.asImageBitmap(),
+                        bitmap = bitmap,
                         contentDescription = stringResource(Res.string.spectator_code_qr_title),
                         modifier = Modifier.size(220.dp)
                     )
@@ -1049,8 +1036,7 @@ internal fun PremiumPlansSection(
     val effectiveBasePlanId by viewModel.effectivePremiumBasePlanId.collectAsState()
     val subscriptionOffers by viewModel.subscriptionOffers.collectAsState()
     val canPurchasePremium by viewModel.canPurchasePremium.collectAsState()
-    val activity = LocalContext.current as? Activity
-    val context = LocalContext.current
+    val actions = LocalPlatformActions.current
 
     // Só recolhe de fato quando já é premium: quem ainda não assinou precisa ver os planos
     // (a "chamada" da seção), enquanto quem já assina tem o foco nas configurações premium de
@@ -1191,9 +1177,7 @@ internal fun PremiumPlansSection(
                         ?: stringResource(Res.string.cloud_sync_plan_single_price),
                     selected = singleActive,
                     monthlySubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
-                    onSubscribeClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.SINGLE, annual = false) }
-                    },
+                    onSubscribeClick = { viewModel.purchasePremiumPlan(actions.host, CloudPlanTier.SINGLE, annual = false) },
                     annualPrice = singleAnnualOffer?.let {
                         stringResource(
                             Res.string.cloud_sync_plan_annual_price,
@@ -1202,9 +1186,7 @@ internal fun PremiumPlansSection(
                         )
                     } ?: stringResource(Res.string.cloud_sync_plan_single_annual_price),
                     annualSubscribed = singleActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
-                    onSubscribeAnnualClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.SINGLE, annual = true) }
-                    }
+                    onSubscribeAnnualClick = { viewModel.purchasePremiumPlan(actions.host, CloudPlanTier.SINGLE, annual = true) }
                 )
                 Spacer(Modifier.height(16.dp))
                 PlanOptionRow(
@@ -1213,9 +1195,7 @@ internal fun PremiumPlansSection(
                         ?: stringResource(Res.string.cloud_sync_plan_multi_price),
                     selected = multiActive,
                     monthlySubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_MONTHLY,
-                    onSubscribeClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.MULTI, annual = false) }
-                    },
+                    onSubscribeClick = { viewModel.purchasePremiumPlan(actions.host, CloudPlanTier.MULTI, annual = false) },
                     annualPrice = multiAnnualOffer?.let {
                         stringResource(
                             Res.string.cloud_sync_plan_annual_price,
@@ -1224,9 +1204,7 @@ internal fun PremiumPlansSection(
                         )
                     } ?: stringResource(Res.string.cloud_sync_plan_multi_annual_price),
                     annualSubscribed = multiActive && effectiveBasePlanId == BillingProductIds.BASE_PLAN_ANNUAL,
-                    onSubscribeAnnualClick = activity?.let { act ->
-                        { viewModel.purchasePremiumPlan(AndroidPlatformHost(act), CloudPlanTier.MULTI, annual = true) }
-                    }
+                    onSubscribeAnnualClick = { viewModel.purchasePremiumPlan(actions.host, CloudPlanTier.MULTI, annual = true) }
                 )
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
@@ -1251,15 +1229,13 @@ internal fun PremiumPlansSection(
                         BillingProductIds.SINGLE_GROUP
                     }
                     OutlinedButton(onClick = {
-                        val uri =
-                            "https://play.google.com/store/account/subscriptions?sku=$activeProductId&package=${context.packageName}".toUri()
-                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        actions.openSubscriptionManagement(activeProductId)
                     }) {
                         Text(stringResource(Res.string.cloud_sync_cancel_subscription))
                     }
                 }
 
-                if (BuildConfig.DEBUG) {
+                if (actions.isDebugBuild) {
                     HorizontalDivider(
                         Modifier.padding(vertical = 16.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
@@ -1299,13 +1275,8 @@ internal fun PremiumPlansSection(
  *  sua própria moeda local (respeitando o preço regional do Play Console), quanto economiza por
  *  mês ao assinar o plano anual em vez do mensal. Cai para [SubscriptionOffer.formattedPrice] se o
  *  código de moeda vier inválido/ausente (nunca deveria acontecer com dados reais da Play Store). */
-private fun monthlyEquivalentFormatted(offer: SubscriptionOffer): String = try {
-    val currency = Currency.getInstance(offer.priceCurrencyCode)
-    val format = NumberFormat.getCurrencyInstance().apply { this.currency = currency }
-    format.format(offer.priceAmountMicros / 12.0 / 1_000_000.0)
-} catch (e: IllegalArgumentException) {
-    offer.formattedPrice
-}
+private fun monthlyEquivalentFormatted(offer: SubscriptionOffer): String =
+    formatCurrency(offer.priceAmountMicros / 12.0 / 1_000_000.0, offer.priceCurrencyCode) ?: offer.formattedPrice
 
 @Composable
 private fun PlanOptionRow(

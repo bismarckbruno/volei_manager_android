@@ -45,6 +45,12 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(libs.jetbrains.compose.runtime)
+            // UI compartilhada (telas em commonMain); api porque o :app monta o MainActivity com elas.
+            api(compose.foundation)
+            api(compose.material3)
+            api(compose.materialIconsExtended)
+            api(compose.ui)
+            api(libs.androidx.lifecycle.runtime.compose)
             // Strings/drawables compartilhados (composeResources); api porque o :app usa stringResource.
             api(libs.jetbrains.compose.components.resources)
             // Anotações do Room (@Entity, @PrimaryKey...) nas entidades compartilhadas.
@@ -55,6 +61,10 @@ kotlin {
             api(libs.kotlinx.coroutines.core)
             // ViewModel multiplataforma (o VoleiViewModel vive em commonMain).
             api(libs.androidx.lifecycle.viewmodel)
+        }
+        androidMain.dependencies {
+            implementation(libs.androidx.activity.compose)
+            implementation(libs.zxing.core)
         }
         iosMain.dependencies {
             // SQLite embarcado para o Room no iOS (no Android usa o SQLite do framework).

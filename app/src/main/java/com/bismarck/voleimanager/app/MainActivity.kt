@@ -34,6 +34,9 @@ import com.bismarck.voleimanager.app.data.AppDatabase
 import com.bismarck.voleimanager.app.data.getDatabase
 import com.bismarck.voleimanager.app.data.VoleiRepository
 import com.bismarck.voleimanager.app.ui.VoleiManagerApp
+import com.bismarck.voleimanager.app.ui.platform.LocalPlatformActions
+import com.bismarck.voleimanager.app.util.AndroidPlatformActions
+import androidx.compose.runtime.CompositionLocalProvider
 import com.bismarck.voleimanager.app.ui.theme.AppTheme
 import com.bismarck.voleimanager.app.ui.viewmodel.ThemeMode
 import com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel
@@ -74,7 +77,10 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this, viewModelFactory)[VoleiViewModel::class.java]
         handleViewIntent(intent)
 
+        val platformActions = AndroidPlatformActions(this)
+
         setContent {
+            CompositionLocalProvider(LocalPlatformActions provides platformActions) {
             val themeMode by viewModel.themeMode.collectAsState()
             val darkTheme = when (themeMode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -129,6 +135,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
             }
         }
     }

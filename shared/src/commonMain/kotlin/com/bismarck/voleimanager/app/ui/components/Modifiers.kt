@@ -1,4 +1,5 @@
 package com.bismarck.voleimanager.app.ui.components
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.Modifier

@@ -1,4 +1,5 @@
 package com.bismarck.voleimanager.app.ui.components
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import org.jetbrains.compose.resources.DrawableResource
 import com.bismarck.voleimanager.app.resources.*
@@ -52,8 +53,6 @@ import com.bismarck.voleimanager.app.data.model.PositionRole
 import com.bismarck.voleimanager.app.data.model.TeamComposition
 import com.bismarck.voleimanager.app.data.model.TeamSlot
 import com.bismarck.voleimanager.app.util.PositionAssigner
-import java.util.Locale
-
 /** Nome completo da posição, no idioma do app. */
 @Composable
 fun positionLabel(position: PlayerPosition): String = stringResource(
@@ -128,9 +127,9 @@ fun groupTypeIcon(type: GroupType): ImageVector = when (type) {
 /**
  * Ícone do levantador (letra "L"/"S"/"A" estilizada) na opção "Garantir levantador", ilustrado
  * na língua do idioma ativo no aparelho: retorna a variante em pt, es ou en (padrão) conforme o
- * idioma do [Locale] atual.
+ * idioma do idioma atual.
  */
-fun setterIconRes(): DrawableResource = when (Locale.getDefault().language) {
+fun setterIconRes(): DrawableResource = when (currentLanguage()) {
     "pt" -> Res.drawable.setter_icon_pt
     "es" -> Res.drawable.setter_icon_es
     else -> Res.drawable.setter_icon_en
@@ -382,7 +381,7 @@ fun assignedPositionTooltip(player: Player, assigned: PlayerPosition, teamSize: 
                 PlayerPosition.fromStoredValue(player.preferredPosition),
                 PlayerPosition.fromStoredValue(player.secondaryPosition)
             ).distinct()
-            val chosenLabels = chosenPositions.map { positionLabel(it).lowercase(Locale.getDefault()) }
+            val chosenLabels = chosenPositions.map { positionLabel(it).lowercase() }
             if (chosenLabels.isEmpty()) {
                 stringResource(Res.string.position_badge_no_preference_tooltip, positionLabel(assigned))
             } else {

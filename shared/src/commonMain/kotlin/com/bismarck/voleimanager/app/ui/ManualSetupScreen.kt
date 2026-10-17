@@ -1,7 +1,7 @@
 package com.bismarck.voleimanager.app.ui
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import com.bismarck.voleimanager.app.resources.*
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,7 +35,6 @@ import com.bismarck.voleimanager.app.util.PositionAssigner
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.launch
 
@@ -58,8 +57,7 @@ fun ManualSetupScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val errorMsg = stringResource(Res.string.select_equal_number)
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
     val listState = rememberLazyListState()
 
     // Calcula os times em tempo real baseados na seleção

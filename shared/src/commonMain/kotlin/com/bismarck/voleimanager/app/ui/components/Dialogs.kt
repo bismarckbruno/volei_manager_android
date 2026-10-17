@@ -1,4 +1,5 @@
 package com.bismarck.voleimanager.app.ui.components
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import org.jetbrains.compose.resources.DrawableResource
 import com.bismarck.voleimanager.app.resources.*
@@ -10,7 +11,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.animation.core.animateFloatAsState
@@ -51,12 +51,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
-import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
-import android.view.WindowManager
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Scoreboard
 import androidx.compose.ui.graphics.Color
@@ -77,7 +72,6 @@ import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
-import java.util.Locale
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.TeamAccentColor
 import com.bismarck.voleimanager.app.ui.theme.teamAccentColorFamily
@@ -109,11 +103,8 @@ import kotlin.math.roundToInt
 @Composable
 private fun DialogKeyboardFocus(focusRequester: FocusRequester) {
     val keyboardController = LocalSoftwareKeyboardController.current
-    val view = LocalView.current
+    DialogKeyboardAlwaysVisibleEffect()
     LaunchedEffect(Unit) {
-        (view.parent as? DialogWindowProvider)?.window?.setSoftInputMode(
-            WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
-        )
         delay(100)
         focusRequester.requestFocus()
         keyboardController?.show()
@@ -859,7 +850,7 @@ fun GroupConfigDialog(
     var guaranteeSetter by remember { mutableStateOf(initialGuaranteeSetter) }
     var showTypeChangeConfirmation by remember { mutableStateOf(false) }
 
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
 
     // De 6 a 7 jogadores por time, garantir levantador é obrigatório (vaga de levantador tem
     // posição específica reservada nessas composições); só é possível desligar de 2 a 5.
@@ -1947,7 +1938,7 @@ private fun parseBirthDateToIso(input: String): String? {
     val month = parts[1].toIntOrNull() ?: return null
     val year = parts[2].toIntOrNull() ?: return null
     if (day !in 1..31 || month !in 1..12 || year < 1900 || year > 2100) return null
-    return "%04d-%02d-%02d".format(year, month, day)
+    return "${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
 }
 
 /** Converte uma data ISO `yyyy-MM-dd` (guardada no perfil) de volta para `DD/MM/AAAA`, para
@@ -2347,9 +2338,9 @@ fun TransferGroupOwnershipDialog(
  *  [com.bismarck.voleimanager.app.util.cropAvatarBitmap]) e o repassa via [onConfirm]. */
 @Composable
 fun AvatarCropDialog(
-    sourceBitmap: android.graphics.Bitmap,
+    sourceBitmap: androidx.compose.ui.graphics.ImageBitmap,
     onDismiss: () -> Unit,
-    onConfirm: (android.graphics.Bitmap) -> Unit
+    onConfirm: (androidx.compose.ui.graphics.ImageBitmap) -> Unit
 ) {
     var rotationSteps by remember { mutableIntStateOf(0) }
     // Zoom mínimo permitido (ver minAvatarZoom): deixa a foto inteira visível, caso o usuário
@@ -2414,7 +2405,7 @@ fun AvatarCropDialog(
                     // (cropAvatarBitmap): escala total relativa ao bitmap = avatarCoverScale*zoom.
                     val extraScale = zoom / minZoom
                     androidx.compose.foundation.Image(
-                        bitmap = rotatedBitmap.asImageBitmap(),
+                        bitmap = rotatedBitmap,
                         contentDescription = null,
                         contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                         modifier = Modifier

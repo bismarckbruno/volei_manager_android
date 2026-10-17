@@ -1,12 +1,10 @@
 package com.bismarck.voleimanager.app.ui
+import com.bismarck.voleimanager.app.util.normalizeForSearch
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import org.jetbrains.compose.resources.DrawableResource
 import com.bismarck.voleimanager.app.platform.AppStrings
 import com.bismarck.voleimanager.app.resources.*
-import android.annotation.SuppressLint
-import android.content.Intent
-import android.content.res.Configuration
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
@@ -68,8 +66,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -88,7 +84,6 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.core.net.toUri
 import com.bismarck.voleimanager.app.data.model.MatchHistory
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
@@ -110,9 +105,6 @@ import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.NumberFormat
-import java.util.Locale
-
 /** Converte uma entrada "enxuta" de histórico remoto ([RemoteHistoryEntry], vinda do Firestore)
  *  em um [MatchHistory] local, para reaproveitar toda a computação/UI de [HistoryScreen] tanto
  *  para grupos locais quanto sincronizados (Auxiliar/Espectador). Ids de jogadores ficam vazios
@@ -164,7 +156,7 @@ data class HistoryPlayerInfo(
 enum class PlayerSortMode { ALPHABETICAL, ELO, PLAYED_TIME, GAMES, VICTORIES, PERCENTAGE }
 enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
 
-internal data class PlayerIdentifier(val id: Int?, val name: String)
+data class PlayerIdentifier(val id: Int?, val name: String)
 private val historyDiacriticsRegex = Regex("\\p{M}+")
 
 @Composable
@@ -242,7 +234,7 @@ private fun SortModeIcon(
     }
 }
 
-internal fun parseTeamIdentifiers(teamNamesRaw: String, teamIdsRaw: String): List<PlayerIdentifier> {
+fun parseTeamIdentifiers(teamNamesRaw: String, teamIdsRaw: String): List<PlayerIdentifier> {
     val names = teamNamesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     val ids = if (teamIdsRaw.isBlank()) {
         emptyList()
@@ -252,13 +244,11 @@ internal fun parseTeamIdentifiers(teamNamesRaw: String, teamIdsRaw: String): Lis
     return names.mapIndexed { index, name -> PlayerIdentifier(ids.getOrNull(index), name) }
 }
 
-internal fun canonicalHistoryName(name: String): String {
-    return java.text.Normalizer.normalize(name.trim(), java.text.Normalizer.Form.NFD)
-        .replace(historyDiacriticsRegex, "")
-        .lowercase(Locale.ROOT)
+fun canonicalHistoryName(name: String): String {
+    return normalizeForSearch(name.trim())
 }
 
-internal fun resolveHistoryPlayer(
+fun resolveHistoryPlayer(
     identifier: PlayerIdentifier,
     playersById: Map<Int, Player>,
     playersByCanonicalName: Map<String, Player>,
@@ -270,7 +260,7 @@ internal fun resolveHistoryPlayer(
     return if (canonicalHistoryName(byId.name) == canonicalIdentifierName) byId else byName ?: byId
 }
 
-internal fun buildUniqueHistoryIdentifiers(allIdentifiers: List<PlayerIdentifier>): List<PlayerIdentifier> {
+fun buildUniqueHistoryIdentifiers(allIdentifiers: List<PlayerIdentifier>): List<PlayerIdentifier> {
     val uniquePlayerIdentifiers = mutableListOf<PlayerIdentifier>()
     val seenIds = mutableSetOf<Int>()
     val indexByCanonicalName = mutableMapOf<String, Int>()
@@ -303,7 +293,7 @@ internal fun buildUniqueHistoryIdentifiers(allIdentifiers: List<PlayerIdentifier
     return uniquePlayerIdentifiers
 }
 
-internal data class HistoryComputationResult(
+data class HistoryComputationResult(
     val sortedHistory: List<MatchHistory>,
     val matchDurationsMinutes: Map<Int, Int>,
     val averageMatchDurationMinutes: Int?,
@@ -319,7 +309,7 @@ private data class HistoryFilterIndex(
     val canonicalPlayersByMatchId: Map<Int, Set<String>>
 )
 
-internal fun computeHistoryComputation(
+fun computeHistoryComputation(
     groupHistory: List<MatchHistory>,
     historyDate: String?,
     historyPlayerFilter: String?,
@@ -485,7 +475,7 @@ internal fun computeHistoryComputation(
     }
 
     val averagePlayersEloText = if (sortedPlayers.isEmpty()) null
-    else NumberFormat.getIntegerInstance(Locale.getDefault()).format(sortedPlayers.map { it.displayElo }.average().toInt())
+    else formatInteger(sortedPlayers.map { it.displayElo }.average().toLong())
 
     return HistoryComputationResult(
         sortedHistory = sortedHistory,
@@ -498,15 +488,8 @@ internal fun computeHistoryComputation(
 }
 
 fun formatLocalizedDate(internalDate: String): String =
-    AppDateTime.formatLocalizedDate(internalDate, Locale.getDefault().language)
+    AppDateTime.formatLocalizedDate(internalDate, currentLanguage())
 
-@Composable
-private fun currentLocale(): Locale {
-    val configuration = LocalConfiguration.current
-    return remember(configuration) {
-        if (configuration.locales.isEmpty) Locale.ROOT else configuration.locales[0]
-    }
-}
 
 private fun formatPlayedDuration(minutes: Int): String {
     val safeMinutes = minutes.coerceAtLeast(0)
@@ -595,7 +578,7 @@ fun HistoryScreen(
         HistoryFilterIndex(
             playerOptions = buildUniqueHistoryIdentifiers(allIdentifiers)
                 .map { it.name }
-                .sortedBy { it.lowercase(Locale.getDefault()) },
+                .sortedBy { it.lowercase() },
             playerDateCounts = datesByCanonical.mapValues { it.value.size },
             datesByCanonicalPlayer = datesByCanonical.mapValues { it.value.toSet() },
             canonicalPlayersByMatchId = canonicalByMatchId
@@ -714,10 +697,10 @@ fun HistoryScreen(
     // --- Compute layout mode once for all player cards ---
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val locale = currentLocale()
+    val locale = currentLanguage()
     val nameTextStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
     val statsTextStyle = MaterialTheme.typography.bodySmall
-    val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
+    val screenWidthPx = with(density) { rememberScreenWidthDp().roundToPx() }
     // Overhead: 16dp*2 (Column padding) + 12dp*2 (Card padding) + 28dp (rank) + 8dp (spacer) + 12dp (gap)
     val contentOverheadPx = with(density) { 104.dp.roundToPx() }
     val availableContentPx = screenWidthPx - contentOverheadPx
@@ -741,11 +724,7 @@ fun HistoryScreen(
     ) {
         if (historyPlayerList.isEmpty() || availableContentPx <= 0) true
         else {
-            val percentFormat = NumberFormat.getInstance(locale).apply {
-                maximumFractionDigits = 2
-                minimumFractionDigits = 0
-            }
-            historyPlayerList.all { info ->
+                        historyPlayerList.all { info ->
             val badgeCount = if (usesPositions) {
                 listOfNotNull(info.player.preferredPosition, info.player.secondaryPosition).size
             } else 0
@@ -775,7 +754,7 @@ fun HistoryScreen(
                 tinySpacingPx +
                 textMeasurer.measure(info.gamesPlayed.toString(), statsTextStyle).size.width
 
-            val percentageFormatted = percentFormat.format(if (info.gamesPlayed > 0) info.victories.toDouble() / info.gamesPlayed * 100.0 else 0.0)
+            val percentageFormatted = formatDecimal(if (info.gamesPlayed > 0) info.victories.toDouble() / info.gamesPlayed * 100.0 else 0.0)
             val percentageW = textMeasurer.measure(percentageFormatted, statsTextStyle).size.width + iconBodyMediumPx
 
             val topRowRequired = nameW + rowGapPx + victoriesGamesW
@@ -787,8 +766,7 @@ fun HistoryScreen(
         }
     }
 
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
     val containerHeightPx = LocalWindowInfo.current.containerSize.height
     val containerHeightDp = with(density) { containerHeightPx.toDp() }
     val maxMenuHeight = containerHeightDp * if (isLandscape) 0.33f else 0.57f
@@ -1672,7 +1650,7 @@ private fun HistoryPlayerFilterDialog(
         if (sortByDates) {
             filtered.sortedByDescending { playerDateCounts[canonicalHistoryName(it)] ?: 0 }
         } else {
-            filtered.sortedBy { it.lowercase(Locale.getDefault()) }
+            filtered.sortedBy { it.lowercase() }
         }
     }
 
@@ -1873,7 +1851,7 @@ fun HistoryPlayerCard(
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
-    val locale = currentLocale()
+    val locale = currentLanguage()
 
     LaunchedEffect(showDeletedIndicator) {
         if (!showDeletedIndicator) {
@@ -1887,10 +1865,7 @@ fun HistoryPlayerCard(
     // NumberFormat.getInstance() does locale data lookups and is costly enough to notice
     // when instantiated per row on every recomposition; remember it per (percentage, locale).
     val percentageFormatted = remember(percentage, locale) {
-        NumberFormat.getInstance(locale).apply {
-            maximumFractionDigits = 2
-            minimumFractionDigits = 0
-        }.format(percentage)
+        formatDecimal(percentage)
     }
     val playedTimeText = formatPlayedDuration(playedMinutes)
 
@@ -2201,7 +2176,6 @@ private fun VictoriesAndGamesRow(
     }
 }
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun HistoryItem(
     match: MatchHistory,
@@ -2262,12 +2236,9 @@ fun HistoryItem(
     val scoreA = match.teamAScore ?: 0
     val scoreB = match.teamBScore ?: 0
     val hasScore = scoreA > 0 || scoreB > 0
-    val locale = currentLocale()
+    val locale = currentLanguage()
     val formattedDelta = remember(match.eloPoints, locale) {
-        NumberFormat.getInstance(locale).apply {
-            maximumFractionDigits = 2
-            minimumFractionDigits = 0
-        }.format(match.eloPoints)
+        formatDecimal(match.eloPoints)
     }
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -2609,7 +2580,7 @@ private fun FaqQuestionIcon(iconRes: DrawableResource) {
 
 @Composable
 fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit = {}) {
-    val context = LocalContext.current
+    val actions = LocalPlatformActions.current
     val faqItems = listOf(
         FaqEntry(
             stringResource(Res.string.faq_q1),
@@ -3021,7 +2992,7 @@ fun FAQItem(
 // --- TELA SOBRE ---
 @Composable
 fun AboutScreen() {
-    val context = LocalContext.current
+    val actions = LocalPlatformActions.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -3058,8 +3029,7 @@ fun AboutScreen() {
 
                 Button(
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(AppStrings.get(Res.string.feedback_form_url)))
-                        context.startActivity(intent)
+                        actions.openUrl(AppStrings.get(Res.string.feedback_form_url))
                     },
                     modifier = Modifier
                         .width(IntrinsicSize.Max)
@@ -3104,8 +3074,7 @@ fun AboutScreen() {
 
                 Button(
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, readmeUrl.toUri())
-                        context.startActivity(intent)
+                        actions.openUrl(readmeUrl)
                     },
                     modifier = Modifier
                         .width(IntrinsicSize.Max)
@@ -3202,9 +3171,7 @@ fun AboutScreen() {
                     // Pílula do Instagram
                     Button(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW,
-                                "https://www.instagram.com/bismarckbruno/".toUri())
-                            context.startActivity(intent)
+                            actions.openUrl("https://www.instagram.com/bismarckbruno/")
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -3447,7 +3414,6 @@ fun Modifier.scale(scale: Float): Modifier = composed {
     this.size((20 * scale).dp)
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
 @Composable
 fun AboutScreenPreview() {
     com.bismarck.voleimanager.app.ui.theme.AppTheme {

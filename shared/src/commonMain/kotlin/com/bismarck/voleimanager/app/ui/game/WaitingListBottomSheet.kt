@@ -1,8 +1,8 @@
 package com.bismarck.voleimanager.app.ui.game
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import com.bismarck.voleimanager.app.platform.AppStrings
 import com.bismarck.voleimanager.app.resources.*
-import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
@@ -71,9 +71,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -94,8 +91,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
-import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.PlayerPositionBadges
 import com.bismarck.voleimanager.app.ui.components.PlayerNameWithPositionBadges
@@ -133,7 +128,6 @@ internal fun WaitingListContent(
     externalSnackbarHostState: SnackbarHostState? = null,
     isSpectator: Boolean = false
 ) {
-    val resources = LocalResources.current
     val restingMap by viewModel.restingPlayers.collectAsState()
     val groupConfig by viewModel.currentGroupConfig.collectAsState()
     val usesPositions = groupConfig.type.usesPositions
@@ -508,14 +502,7 @@ fun WaitingListBottomSheet(
         // Activity's enableEdgeToEdge() config doesn't reach it: the OS still enforces a dark
         // contrast scrim over the navigation bar there by default. Disable it so the bar shows
         // this sheet's own surfaceContainerLow background (set via containerColor above) instead.
-        val view = LocalView.current
-        LaunchedEffect(view) {
-            val window = (view.parent as? DialogWindowProvider)?.window
-            if (window != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                window.isNavigationBarContrastEnforced = false
-                window.isStatusBarContrastEnforced = false
-            }
-        }
+        DialogSystemBarsContrastEffect()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -559,7 +546,7 @@ private fun WaitingListPlayerItem(
     val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
     val highlightAlpha = remember { Animatable(0f) }
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
 
     LaunchedEffect(highlightPulse) {
         if (highlightPulse <= 0) return@LaunchedEffect
@@ -805,7 +792,7 @@ private fun InactivePlayerItem(
     LocalDensity.current
     val haptic = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
 
     Box(modifier = modifier.fillMaxWidth()) {
         Card(

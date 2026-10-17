@@ -1,4 +1,5 @@
 package com.bismarck.voleimanager.app.ui.theme
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import androidx.compose.ui.graphics.Color
 

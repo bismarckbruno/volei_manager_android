@@ -1,12 +1,9 @@
 package com.bismarck.voleimanager.app.ui.game
+import com.bismarck.voleimanager.app.ui.platform.*
 
 import org.jetbrains.compose.resources.DrawableResource
 import com.bismarck.voleimanager.app.platform.AppStrings
 import com.bismarck.voleimanager.app.resources.*
-import android.app.Activity
-import android.content.pm.ActivityInfo
-import android.content.res.Configuration
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
@@ -95,12 +92,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -156,18 +150,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.roundToInt
 
 
-@Composable
-private fun currentLocale(): Locale {
-    val configuration = LocalConfiguration.current
-    return remember(configuration) {
-        if (configuration.locales.isEmpty) Locale.ROOT else configuration.locales[0]
-    }
-}
 
 private fun orderedActiveTeamPlayers(
     players: List<Player>,
@@ -176,7 +162,7 @@ private fun orderedActiveTeamPlayers(
 ): List<Player> {
     if (assignedSlotIndices.isNullOrEmpty()) return players
     val ordered = players.sortedWith(
-        compareBy<Player>({ assignedSlotIndices[it.id] ?: Int.MAX_VALUE }, { it.name.lowercase(Locale.ROOT) })
+        compareBy<Player>({ assignedSlotIndices[it.id] ?: Int.MAX_VALUE }, { it.name.lowercase() })
     )
     return if (reverseOrder) ordered.asReversed() else ordered
 }
@@ -196,7 +182,6 @@ fun GameScreenContent(
     onShowSnackbar: (String, String?, (() -> Unit)?) -> Unit,
     headerDoubleTapTick: Int = 0
 ) {
-    val resources = LocalResources.current
     val focusManager = LocalFocusManager.current
     val undoLabel = stringResource(Res.string.undo)
     val sortedPlayersFromRoom by viewModel.sortedPlayersForPresence.collectAsState()
@@ -256,7 +241,7 @@ fun GameScreenContent(
     var confirmWinTeam by remember { mutableStateOf<String?>(null) }
     var playerSearchExpanded by rememberSaveable { mutableStateOf(false) }
     var playerSearchQuery by rememberSaveable { mutableStateOf("") }
-    BackHandler(enabled = playerSearchExpanded) {
+    PlatformBackHandler(enabled = playerSearchExpanded) {
         playerSearchQuery = ""
         playerSearchExpanded = false
         focusManager.clearFocus(force = true)
@@ -280,7 +265,7 @@ fun GameScreenContent(
     }
     val historyPlayerNames = remember(currentGroupHistory) {
         fun canonicalName(name: String): String {
-            return name.trim().lowercase(Locale.ROOT)
+            return name.trim().lowercase()
         }
         currentGroupHistory.asSequence()
             .flatMap { match ->
@@ -620,7 +605,7 @@ fun GameScreenContent(
                                                     targetDate,
                                                     showElo,
                                                     showToll,
-                                                    !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase(Locale.ROOT)),
+                                                    !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase()),
                                                     config.type.usesPositions,
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
@@ -726,7 +711,7 @@ fun GameScreenContent(
                                                     targetDate,
                                                     showElo,
                                                     showToll,
-                                                    !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase(Locale.ROOT)),
+                                                    !historyPlayerIds.contains(p.id) && !historyPlayerNames.contains(p.name.trim().lowercase()),
                                                     config.type.usesPositions,
                                                     { viewModel.togglePlayerPresence(p) },
                                                     { viewModel.toggleGuaranteedNextMatchPlayer(p) },
@@ -853,8 +838,7 @@ fun ActiveGameView(
     headerDoubleTapTick: Int = 0,
     isSpectator: Boolean = false
 ) {
-    val resources = LocalResources.current
-    val locale = currentLocale()
+    val locale = currentLanguage()
     val assignedPositions by viewModel.assignedPositions.collectAsState()
     val assignedSlotIndices by viewModel.assignedSlotIndices.collectAsState()
     val compositionIncomplete by viewModel.compositionIncomplete.collectAsState()
@@ -935,19 +919,16 @@ fun ActiveGameView(
     // Big scoreboard: full-screen, landscape-only, larger scoreboard reachable from the
     // regular game screen without leaving the app or cancelling the match.
     var showBigScoreboard by rememberSaveable { mutableStateOf(false) }
-    val activity = LocalContext.current as? Activity
-    DisposableEffect(showBigScoreboard, activity) {
+    val platformActions = LocalPlatformActions.current
+    DisposableEffect(showBigScoreboard) {
         if (showBigScoreboard) {
-            val previousOrientation = activity?.requestedOrientation
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            onDispose {
-                activity?.requestedOrientation = previousOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            }
+            platformActions.setLandscapeLocked(true)
+            onDispose { platformActions.setLandscapeLocked(false) }
         } else {
             onDispose { }
         }
     }
-    BackHandler(enabled = showBigScoreboard) {
+    PlatformBackHandler(enabled = showBigScoreboard) {
         showBigScoreboard = false
     }
     // If "Usar placar" gets disabled while the big scoreboard is open, close it and
@@ -1410,8 +1391,7 @@ fun ActiveGameView(
     }
     val useCompactTeamCards = !showScore && firstPlayers.size <= 2 && secondPlayers.size <= 2
 
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
     val orderedFirstPlayers = remember(firstPlayers, assignedSlotIndices, isLandscape, usesPositions, gamesPlayedMap) {
         if (usesPositions) {
             orderedActiveTeamPlayers(
@@ -2887,8 +2867,7 @@ fun ActiveTeamCard(
     val avgEloTooltipText = stringResource(Res.string.average_elo_indicator_tooltip)
     val avgEloIndicatorCd = stringResource(Res.string.average_elo_indicator_cd)
 
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
     val teamNameStyle = if (!isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium
 
     @Composable
@@ -4697,8 +4676,8 @@ fun PlayerCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
-    val locale = currentLocale()
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val locale = currentLanguage()
+    val isLandscape = rememberIsLandscape()
     val cardShape = RoundedCornerShape(12.dp)
     // Cor/espessura da borda e cor do fundo animadas suavemente (animateColorAsState/animateDpAsState)
     // para que, quando o Administrador marca/desmarca presença, a mudança apareça de forma fluida
@@ -4917,7 +4896,7 @@ fun WaitingPlayerCard(
     usesPositions: Boolean = false,
     onClick: () -> Unit
 ) {
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = rememberIsLandscape()
     // In portrait every fillMaxWidth()/weight() below is skipped so the whole card hugs its
     // content (name + star/position badges); those only make sense to enable the landscape
     // marquee, which needs a fixed width range to scroll long names within.

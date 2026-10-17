@@ -11,6 +11,9 @@ import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import java.io.ByteArrayOutputStream
 
 private const val TAG = "AvatarImage"
@@ -22,14 +25,13 @@ private const val EDIT_MAX_DIMENSION_PX = 1024
 /** Lado (em pixels) da miniatura final salva como foto de perfil — suficiente para ficar nítida
  *  num avatar de tela (círculo de até ~96dp em telas densas), sem gastar espaço à toa no
  *  documento Firestore do usuário. */
-private const val AVATAR_OUTPUT_PX = 320
 private const val AVATAR_JPEG_QUALITY = 85
 
 /** Lê a imagem apontada por [uri] já reduzida para no máximo [EDIT_MAX_DIMENSION_PX] pixels de
  *  lado (mantendo a proporção original), pronta para ser exibida no diálogo de corte/rotação
  *  ([com.bismarck.voleimanager.app.ui.components.AvatarCropDialog]). Retorna `null` se a imagem
  *  não puder ser lida/decodificada. */
-fun loadBitmapForAvatarEditing(context: Context, uri: Uri): Bitmap? {
+fun loadBitmapForAvatarEditing(context: Context, uri: Uri): ImageBitmap? {
     return try {
         val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, boundsOptions) }
@@ -41,7 +43,7 @@ fun loadBitmapForAvatarEditing(context: Context, uri: Uri): Bitmap? {
         val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
         val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
             ?: return null
-        applyExifOrientation(decoded, readExifOrientation(context, uri))
+        applyExifOrientation(decoded, readExifOrientation(context, uri)).asImageBitmap()
     } catch (e: Exception) {
         Log.w(TAG, "Falha ao carregar foto para edição: ${e.message}")
         null
@@ -91,43 +93,11 @@ private fun applyExifOrientation(bitmap: Bitmap, orientation: Int): Bitmap {
 
 /** Retorna uma cópia de [source] rotacionada em [degrees] graus (múltiplos de 90), ou o próprio
  *  [source] se [degrees] for 0 (módulo 360). */
-fun rotateAvatarBitmap(source: Bitmap, degrees: Int): Bitmap {
+actual fun rotateAvatarBitmap(source: ImageBitmap, degrees: Int): ImageBitmap {
     val normalized = ((degrees % 360) + 360) % 360
     if (normalized == 0) return source
     val matrix = Matrix().apply { postRotate(normalized.toFloat()) }
-    return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
-}
-
-/** Fator de escala "cobrir" (igual ao `ContentScale.Crop`) que faz [bitmap] preencher totalmente
- *  um quadro de [viewportPx] pixels de lado, mantendo a proporção original — base para o zoom de
- *  1x no diálogo de corte (ver [maxAvatarPan], [cropAvatarBitmap] e
- *  [com.bismarck.voleimanager.app.ui.components.AvatarCropDialog]). */
-fun avatarCoverScale(bitmap: Bitmap, viewportPx: Float): Float =
-    maxOf(viewportPx / bitmap.width, viewportPx / bitmap.height)
-
-/** Deslocamento máximo (em px, no espaço do viewport de corte) que ainda mantém [bitmap]
- *  cobrindo totalmente o quadro de [viewportPx] de lado, dado o [zoom] atual — usado para travar
- *  o arraste do usuário sem revelar bordas vazias. */
-fun maxAvatarPan(bitmap: Bitmap, zoom: Float, viewportPx: Float): Offset {
-    val scale = avatarCoverScale(bitmap, viewportPx) * zoom
-    val scaledW = bitmap.width * scale
-    val scaledH = bitmap.height * scale
-    val maxX = maxOf(0f, (scaledW - viewportPx) / 2f)
-    val maxY = maxOf(0f, (scaledH - viewportPx) / 2f)
-    return Offset(maxX, maxY)
-}
-
-/** Menor [zoom] (relativo ao recorte "cobrir" de zoom=1, ver [cropAvatarBitmap]) que ainda deixa
- *  [bitmap] inteiro visível dentro do quadro de corte, sem cortar nenhuma borda — para fotos que
- *  não são quadradas (a maioria), zoom=1 sempre corta a dimensão mais longa pela metade; reduzir
- *  até este valor mínimo encolhe a imagem até ela caber por completo (as bordas reveladas ficam
- *  brancas, ver [com.bismarck.voleimanager.app.ui.components.AvatarCropDialog]), permitindo ao
- *  usuário então arrastar/ampliar de novo para focar em qualquer outro trecho — não só o centro. */
-fun minAvatarZoom(bitmap: Bitmap): Float {
-    val longestSide = maxOf(bitmap.width, bitmap.height).toFloat()
-    val shortestSide = minOf(bitmap.width, bitmap.height).toFloat()
-    if (longestSide <= 0f) return 1f
-    return (shortestSide / longestSide).coerceAtMost(1f)
+    return Bitmap.createBitmap(source.asAndroidBitmap(), 0, 0, source.width, source.height, matrix, true).asImageBitmap()
 }
 
 /**
@@ -137,7 +107,7 @@ fun minAvatarZoom(bitmap: Bitmap): Float {
  * viewport de prévia ([viewportPx] pixels de lado — convertido proporcionalmente para o espaço de
  * saída, que pode ter um tamanho diferente).
  */
-fun cropAvatarBitmap(bitmap: Bitmap, zoom: Float, pan: Offset, viewportPx: Float, outputPx: Int = AVATAR_OUTPUT_PX): Bitmap {
+actual fun cropAvatarBitmap(bitmap: ImageBitmap, zoom: Float, pan: Offset, viewportPx: Float, outputPx: Int): ImageBitmap {
     val baseScale = maxOf(outputPx / bitmap.width.toFloat(), outputPx / bitmap.height.toFloat())
     val totalScale = baseScale * zoom
     val scaleRatio = outputPx / viewportPx
@@ -158,16 +128,16 @@ fun cropAvatarBitmap(bitmap: Bitmap, zoom: Float, pan: Offset, viewportPx: Float
     // descoberta (ver AVATAR_MIN_ZOOM em AvatarCropDialog), ela fica branca em vez de transparente
     // — pixels transparentes virariam preto ao comprimir para JPEG (sem canal alfa).
     canvas.drawColor(android.graphics.Color.WHITE)
-    canvas.drawBitmap(bitmap, matrix, paint)
-    return output
+    canvas.drawBitmap(bitmap.asAndroidBitmap(), matrix, paint)
+    return output.asImageBitmap()
 }
 
 /** Comprime [bitmap] (já no tamanho final, ver [cropAvatarBitmap]) em JPEG e retorna o resultado
  *  codificado em Base64 (sem quebras de linha) — pronto para ser salvo no documento de perfil do
  *  usuário no Firestore. */
-fun compressAvatarBitmap(bitmap: Bitmap): String {
+actual fun compressAvatarBitmap(bitmap: ImageBitmap): String {
     val output = ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.JPEG, AVATAR_JPEG_QUALITY, output)
+    bitmap.asAndroidBitmap().compress(Bitmap.CompressFormat.JPEG, AVATAR_JPEG_QUALITY, output)
     return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
 }
 
@@ -185,7 +155,7 @@ fun downloadAndCompressAvatarFromUrl(urlString: String): String? = try {
         doInput = true
     }
     val bytes = connection.inputStream.use { it.readBytes() }
-    val original = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    val original = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
     if (original == null) {
         null
     } else {
@@ -199,9 +169,9 @@ fun downloadAndCompressAvatarFromUrl(urlString: String): String? = try {
 
 /** Decodifica uma foto de perfil previamente salva por [compressAvatarBitmap] de volta para um
  *  [Bitmap], para exibição em `Image`/`Icon` compostos manualmente com `BitmapFactory`. */
-fun decodeAvatarBase64(base64: String): Bitmap? = try {
+actual fun decodeAvatarBase64(base64: String): ImageBitmap? = try {
     val bytes = Base64.decode(base64, Base64.NO_WRAP)
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
 } catch (e: Exception) {
     Log.w(TAG, "Falha ao decodificar foto de perfil: ${e.message}")
     null
