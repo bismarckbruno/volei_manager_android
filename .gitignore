@@ -29,3 +29,8 @@ app/google-services.json
 # Build outputs de todos os módulos
 build/
 .kotlin/
+
+# Xcode (gerado pelo XcodeGen)
+*.xcodeproj/
+xcuserdata/
+DerivedData/

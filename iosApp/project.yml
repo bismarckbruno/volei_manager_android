@@ -1,0 +1,42 @@
+﻿# Projeto Xcode gerado com XcodeGen (https://github.com/yonaskolb/XcodeGen):
+#   brew install xcodegen && cd iosApp && xcodegen generate && open Voleizin.xcodeproj
+# O .xcodeproj nÃ£o Ã© versionado; o framework Kotlin ("Shared") Ã© compilado pelo Gradle numa
+# etapa de build antes do Swift.
+name: Voleizin
+options:
+  bundleIdPrefix: com.bismarck.voleimanager
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Voleizin:
+    type: application
+    platform: iOS
+    sources:
+      - path: Voleizin
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bismarck.voleimanager.app
+        INFOPLIST_FILE: Voleizin/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        FRAMEWORK_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+        OTHER_LDFLAGS:
+          - $(inherited)
+          - -framework
+          - Shared
+    preBuildScripts:
+      - name: Compilar framework Kotlin (Shared)
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+
