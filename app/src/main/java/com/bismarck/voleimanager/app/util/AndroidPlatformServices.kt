@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.provider.Settings
+import com.bismarck.voleimanager.app.BuildConfig
 import com.bismarck.voleimanager.app.R
+import com.bismarck.voleimanager.app.platform.PurchaseLauncher
 import com.bismarck.voleimanager.app.platform.DeviceInfo
 import com.bismarck.voleimanager.app.platform.GoogleSignInService
 import com.bismarck.voleimanager.app.platform.PlatformHost
@@ -24,6 +26,8 @@ class AndroidPlatformHost(val context: Context) : PlatformHost {
 
 /** `Settings.Secure.ANDROID_ID`, com fallback aleatório se indisponível. */
 class AndroidDeviceInfo(context: Context) : DeviceInfo {
+    override val isDebugBuild: Boolean = BuildConfig.DEBUG
+
     private val appContext = context.applicationContext
 
     override val deviceId: String by lazy {
@@ -45,10 +49,6 @@ class AndroidGoogleSignInService : GoogleSignInService {
 }
 
 /** Abre o fluxo de compra de uma assinatura; `true` se foi iniciado. */
-fun interface PurchaseLauncher {
-    fun launch(host: PlatformHost, offer: SubscriptionOffer): Boolean
-}
-
 class BillingPurchaseLauncher : PurchaseLauncher {
     override fun launch(host: PlatformHost, offer: SubscriptionOffer): Boolean {
         val activity = (host as AndroidPlatformHost).activity ?: return false

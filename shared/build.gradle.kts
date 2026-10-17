@@ -52,6 +52,9 @@ kotlin {
             // Backup .vlz e estado do jogo salvo (substitui o Gson, que é só JVM).
             api(libs.kotlinx.serialization.json)
             api(libs.kotlinx.datetime)
+            api(libs.kotlinx.coroutines.core)
+            // ViewModel multiplataforma (o VoleiViewModel vive em commonMain).
+            api(libs.androidx.lifecycle.viewmodel)
         }
         iosMain.dependencies {
             // SQLite embarcado para o Room no iOS (no Android usa o SQLite do framework).

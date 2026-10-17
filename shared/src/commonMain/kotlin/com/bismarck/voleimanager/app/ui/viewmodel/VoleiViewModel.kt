@@ -1,0 +1,5569 @@
+package com.bismarck.voleimanager.app.ui.viewmodel
+
+import com.bismarck.voleimanager.app.platform.*
+import kotlin.uuid.Uuid
+import com.bismarck.voleimanager.app.resources.*
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.bismarck.voleimanager.app.data.VoleiRepository
+import com.bismarck.voleimanager.app.data.model.GroupConfig
+import com.bismarck.voleimanager.app.data.model.GroupLog
+import com.bismarck.voleimanager.app.data.model.GroupType
+import com.bismarck.voleimanager.app.data.model.MatchHistory
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_BALANCING_MODE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_NAME
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_GROUP_TYPE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_COMPLETE
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_MIN_PLAYERS
+import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
+import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.data.model.PlayerEloLog
+import com.bismarck.voleimanager.app.data.model.PlayerPosition
+import com.bismarck.voleimanager.app.data.model.TournamentMatch
+import com.bismarck.voleimanager.app.data.model.TournamentTeam
+import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
+import com.bismarck.voleimanager.app.util.AppAuthUser
+import com.bismarck.voleimanager.app.util.BillingProductIds
+import com.bismarck.voleimanager.app.util.EloCalculator
+import com.bismarck.voleimanager.app.util.GeneratedJoinCode
+import com.bismarck.voleimanager.app.util.GroupVisibility
+import com.bismarck.voleimanager.app.util.JoinRole
+import com.bismarck.voleimanager.app.util.LiveGameState
+import com.bismarck.voleimanager.app.util.PositionAssigner
+import com.bismarck.voleimanager.app.util.RegeneratedSpectatorCode
+import com.bismarck.voleimanager.app.util.RemoteEloLogEntry
+import com.bismarck.voleimanager.app.util.RemoteHistoryEntry
+import com.bismarck.voleimanager.app.util.RemotePlayerSnapshot
+import com.bismarck.voleimanager.app.util.SubscriptionOffer
+import com.bismarck.voleimanager.app.util.TeamBalancer
+import com.bismarck.voleimanager.app.util.TollCalculator
+import com.bismarck.voleimanager.app.util.AppDateTime
+import com.bismarck.voleimanager.app.util.AppJson
+import com.bismarck.voleimanager.app.util.formatTwoDecimals
+import com.bismarck.voleimanager.app.util.normalizeForSearch
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import com.bismarck.voleimanager.app.data.model.BalancingMode
+
+const val DEFAULT_GROUP_NAME = "Geral"
+const val MAX_GROUP_NAME_LENGTH = 20
+const val MAX_PLAYER_NAME_LENGTH = 24
+const val MAX_EXPORT_FILE_NAME_LENGTH = 80
+private const val AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS = 12L * 60L * 60L * 1000L
+private val REVIEW_REQUEST_MILESTONES = listOf(3, 10, 25)
+// Gatilho de fallback do pedido de avaliação (ver registerCompletedMatchForReviewFallback):
+// cobre quem nunca aciona os marcos de "limpeza válida" acima.
+private const val REVIEW_FALLBACK_MIN_DISTINCT_DAYS = 2
+/** Janela em que "Desfazer última vitória" fica disponível após finalizar uma partida
+ *  (`undo-last-match`) — existe para corrigir erros pontuais (ex.: vencedor errado) logo em
+ *  seguida, não para reescrever histórico antigo nem distorcer demais o horário de término
+ *  registrado. */
+const val UNDO_MATCH_WINDOW_MILLIS = 60L * 60L * 1000L
+private const val REVIEW_FALLBACK_MIN_MATCHES_FINISHED = 7
+private const val KEY_MATCHES_FINISHED_COUNT = "matches_finished_count"
+private const val KEY_LAST_MATCH_FINISHED_DATE = "last_match_finished_date"
+private const val KEY_DISTINCT_MATCH_DAYS_COUNT = "distinct_match_days_count"
+private const val KEY_REVIEW_FALLBACK_DONE = "review_fallback_done"
+/** Intervalo mínimo entre trocas de qual(is) grupo(s) é(são) o(s) grupo(s) premium sincronizado(s)
+ *  (ver [VoleiViewModel.setGroupCloudSynced]) — bloqueio otimista da UI; a regra de verdade é
+ *  sempre revalidada no backend. */
+private const val PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS = 15L * 24L * 60L * 60L * 1000L
+
+/**
+ * Cabeçalho do CSV de jogadores — fonte única usada tanto pela exportação real
+ * ([VoleiViewModel.exportData]) quanto pelo modelo baixável ([VoleiViewModel.exportPlayersTemplate]),
+ * para evitar desalinhamento se o formato mudar no futuro.
+ */
+private const val PLAYERS_CSV_HEADER =
+    "ID,Nome,Elo,Partidas,Vitorias,Grupo,Prioridade,PedagioDiario,DataPedagio,PosicaoPreferida,PosicaoSecundaria"
+
+private const val XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+enum class Screen { GAME, HISTORY, CLOUD_SYNC, FAQ, ABOUT }
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+enum class CsvType { JOGADORES, HISTORICO, ELO_LOGS, BACKUP_COMPLETO }
+/**
+ * Cor de destaque disponível para um time (Time A ou Time B). Usuários premium podem escolher
+ * qualquer uma das 5 para cada time, desde que Time A e Time B usem cores diferentes. Sem
+ * premium, o app sempre usa o padrão [BLUE] (Time A) / [YELLOW] (Time B). O mapeamento para
+ * valores reais de [androidx.compose.ui.graphics.Color] fica na camada de UI (ui/theme), não
+ * aqui, para manter o ViewModel livre de tipos do Compose.
+ */
+enum class TeamAccentColor { BLUE, YELLOW, RED, GREEN, PURPLE }
+
+/** Faz o parse seguro de um nome salvo de [TeamAccentColor] (ex.: vindo do banco), retornando
+ *  `null` em vez de lançar exceção se o valor for desconhecido/corrompido. */
+fun parseTeamAccentColorOrNull(name: String): TeamAccentColor? = try {
+    TeamAccentColor.valueOf(name)
+} catch (e: IllegalArgumentException) {
+    null
+}
+
+/**
+ * Perfil do usuário no app, perguntado uma única vez, antes de qualquer outra etapa do
+ * onboarding (inclusive antes do onboarding de grupo). Organizador e Auxiliar são direcionados
+ * para o cadastro/login gratuito na tela de Nuvem; Espectador segue sem conta obrigatória.
+ */
+enum class UserProfileType { ORGANIZADOR, AUXILIAR, ESPECTADOR }
+
+/**
+ * Persona exibida na tela de Premium/Nuvem, escolhida por segmented button no topo da tela.
+ * Ao contrário de [UserProfileType] (perguntado uma única vez no onboarding), este valor pode ser
+ * trocado livremente pelo usuário depois — quem é dono de alguns grupos pode também ser Auxiliar
+ * ou Espectador de grupos de outras pessoas, então ambas as versões da tela (Admin/Espectador)
+ * ficam sempre disponíveis, independente da resposta original do onboarding.
+ */
+enum class PremiumScreenPersona { ADMIN, ESPECTADOR }
+
+/**
+ * Passos intermediários mostrados logo após [VoleiViewModel.setUserProfileType] — chamado agora
+ * só a partir da tela Nuvem (não há mais uma pergunta de perfil obrigatória no primeiro
+ * lançamento do app; ver [com.bismarck.voleimanager.app.ui.UserProfileOnboardingScreen]).
+ * Organizador/Auxiliar veem uma sugestão pulável de criar conta/entrar ([AUTH_REQUIRED], nome
+ * mantido por compatibilidade — na prática pode ser pulada) antes de prosseguir (não precisam
+ * confirmar o e-mail ainda, só ter feito login/cadastro, caso não pulem). Espectador vê uma
+ * sugestão pulável de login ([SPECTATOR_AUTH_SUGGESTION]) seguida de uma sugestão pulável de
+ * código de grupo ([SPECTATOR_JOIN_SUGGESTION]). É um estado transitório, não persistido: se o
+ * app for encerrado no meio do fluxo, o usuário simplesmente cai direto no restante do app na
+ * próxima abertura.
+ */
+enum class PostProfileOnboardingStage { NONE, AUTH_REQUIRED, SPECTATOR_AUTH_SUGGESTION, SPECTATOR_JOIN_SUGGESTION }
+
+/**
+ * Pacote de assinatura premium da sincronização em nuvem: [NONE] (sem assinatura), [SINGLE]
+ * (1 grupo sincronizado) ou [MULTI] (até 5 grupos sincronizados). O preço de cada pacote é
+ * definido inteiramente no Play Console (com preço por região, ex.: R$ 4,90/R$ 9,90 no Brasil) —
+ * ver [com.bismarck.voleimanager.app.util.BillingManager]. A confirmação definitiva do pacote
+ * ativo vem do backend (ver `billing-integration`/`purchase-validation-function`); até lá,
+ * [VoleiViewModel.effectivePremiumPlanTier] usa o estado local do Play Billing
+ * ([VoleiViewModel.realBillingPremiumPlanTier]) ou, só em build de debug sem uma compra real,
+ * [VoleiViewModel.debugPremiumPlanTier].
+ */
+enum class CloudPlanTier(val maxSyncedGroups: Int) { NONE(0), SINGLE(1), MULTI(5) }
+
+data class PendingMergeImportData(
+    val players: List<Player>,
+    val history: List<MatchHistory>,
+    val logs: List<PlayerEloLog>,
+    val overlappingGroups: List<String>,
+    val duplicatePlayerNames: List<String> = emptyList(),
+    val duplicatePlayerGroups: Map<String, Int> = emptyMap(),
+    /** Configuração do grupo do backup importado (só presente em importações de .vlz), usada para
+     *  salvar a config de um grupo novo e para trocar automaticamente para ele após a importação. */
+    val groupConfig: GroupConfig? = null
+)
+
+data class ManualStreakAdjustmentLog(
+    val timestamp: Long,
+    val groupName: String,
+    val team: String,
+    val oldOwner: String?,
+    val oldStreak: Int,
+    val newOwner: String?,
+    val newStreak: Int
+)
+
+data class ManualSubstitutionLog(
+    val timestamp: Long,
+    val groupName: String,
+    val playerOutName: String,
+    val playerInName: String,
+    val targetTeam: String,
+    val incomingSource: String
+)
+
+data class RestingMarkResult(
+    val restingPlayers: Map<Int, Int>,
+    val waitingList: List<Player>
+)
+
+data class ReturningPlayersResolution(
+    val returningIds: Set<Int>,
+    val restingPlayers: Map<Int, Int>,
+    val waitingList: List<Player>
+)
+
+data class TeamSnapshotWithIds(
+    val names: String,
+    val ids: String
+)
+
+/** Converte para o formato "enxuto" publicado em `liveState` (ver [CloudSyncManager]) — usa
+ *  [Player.publicId] (estável entre dispositivos) em vez do [Player.id] local. */
+fun Player.toRemoteSnapshot() = RemotePlayerSnapshot(
+    publicId = publicId,
+    name = name,
+    elo = elo,
+    isPriority = isPriority,
+    matchesPlayed = matchesPlayed,
+    victories = victories,
+    preferredPosition = preferredPosition,
+    secondaryPosition = secondaryPosition,
+    dailyToll = dailyToll,
+    tollDate = tollDate
+)
+
+/** Reconstrói um [Player] "sintético" a partir de um snapshot remoto, para os dispositivos que
+ *  entraram via código (Auxiliar/Espectador) reaproveitarem a mesma UI local de [Player]
+ *  ([GameScreenContent][com.bismarck.voleimanager.app.ui.game.GameScreenContent]) sem terem
+ *  nenhuma linha real na tabela `players` do Room. [Player.id] é derivado de forma estável a
+ *  partir do [RemotePlayerSnapshot.publicId] (nunca colide com ids reais do Room porque esses
+ *  dispositivos nunca têm jogadores reais salvos para o grupo remoto — a tabela local fica vazia
+ *  para ele). `dailyToll`/`tollDate` são o valor já calculado pelo organizador (que continua sendo
+ *  o único a *calcular* presença/tolerância localmente); aqui só replicamos o resultado final para
+ *  o mesmo badge aparecer igual em todos os papéis.
+ */
+fun RemotePlayerSnapshot.toSyntheticPlayer(groupName: String) = Player(
+    id = publicId.hashCode(),
+    name = name,
+    elo = elo,
+    matchesPlayed = matchesPlayed,
+    victories = victories,
+    isPriority = isPriority,
+    groupName = groupName,
+    preferredPosition = preferredPosition,
+    secondaryPosition = secondaryPosition,
+    publicId = publicId,
+    dailyToll = dailyToll,
+    tollDate = tollDate
+)
+
+private data class TeamSnapshotEntry(
+    val name: String,
+    val id: Int?
+)
+
+fun normalizeTeamSnapshotWithIds(
+    rawNames: String,
+    rawIds: String,
+    normalizeName: (String) -> String
+): TeamSnapshotWithIds {
+    val idsByIndex = if (rawIds.isBlank()) emptyList() else rawIds.split(",").map { it.trim().toIntOrNull() }
+    val entries = rawNames
+        .take(255)
+        .split(",")
+        .mapIndexedNotNull { index, rawName ->
+            val normalizedName = normalizeName(rawName)
+            if (normalizedName.isBlank()) return@mapIndexedNotNull null
+            TeamSnapshotEntry(name = normalizedName, id = idsByIndex.getOrNull(index))
+        }
+        .sortedBy { it.name.lowercase() }
+
+    val names = entries.joinToString(", ") { it.name }
+    val ids = if (entries.none { it.id != null }) {
+        ""
+    } else {
+        entries.joinToString(",") { it.id?.toString() ?: "" }
+    }
+    return TeamSnapshotWithIds(names = names, ids = ids)
+}
+
+/**
+ * `Player.id` e `Player.publicId` são únicos globalmente (todos os grupos), mas um backup
+ * (.vlz) preserva o `id`/`publicId` originais do dispositivo em que foi exportado. Reimportar
+ * esse backup — seja para restaurar o mesmo grupo após um import parcial anterior, seja para
+ * um teste em outro grupo do mesmo dispositivo — pode colidir com jogadores já existentes que
+ * usam por acaso o mesmo id/publicId (ex.: ids sequenciais baixos de outro grupo já criado).
+ * Como `insertPlayers` usa [androidx.room.OnConflictStrategy.IGNORE], essa colisão faz a linha
+ * ser descartada silenciosamente, sem nenhum aviso — o jogador simplesmente não aparece.
+ *
+ * Esta função detecta essas colisões antes do insert e atribui uma nova identidade (id e/ou
+ * publicId) apenas aos jogadores que colidem, propagando o novo id para as referências em
+ * [MatchHistory.teamAIds]/[teamBIds] e [PlayerEloLog.playerId] do mesmo backup, para que o
+ * histórico e o Elo continuem apontando para o jogador correto após o remapeamento.
+ */
+fun remapCollidingPlayerIdentities(
+    players: List<Player>,
+    history: List<MatchHistory>,
+    logs: List<PlayerEloLog>,
+    existingIds: Set<Int>,
+    existingPublicIds: Set<String>
+): Triple<List<Player>, List<MatchHistory>, List<PlayerEloLog>> {
+    val usedIds = existingIds.toMutableSet()
+    val usedPublicIds = existingPublicIds.toMutableSet()
+    players.forEach { p ->
+        if (p.id > 0) usedIds.add(p.id)
+        usedPublicIds.add(p.publicId)
+    }
+
+    val idRemap = mutableMapOf<Int, Int>()
+    var nextCandidateId = (usedIds.maxOrNull() ?: 0) + 1
+
+    val remappedPlayers = players.map { p ->
+        val needsNewId = p.id > 0 && existingIds.contains(p.id) && idRemap[p.id] == null
+        val newId = when {
+            !needsNewId -> p.id
+            else -> {
+                while (usedIds.contains(nextCandidateId)) nextCandidateId++
+                usedIds.add(nextCandidateId)
+                idRemap[p.id] = nextCandidateId
+                nextCandidateId
+            }
+        }
+        val needsNewPublicId = existingPublicIds.contains(p.publicId)
+        val newPublicId = if (needsNewPublicId) {
+            var candidate = Uuid.random().toString()
+            while (usedPublicIds.contains(candidate)) candidate = Uuid.random().toString()
+            usedPublicIds.add(candidate)
+            candidate
+        } else {
+            p.publicId
+        }
+        if (newId == p.id && newPublicId == p.publicId) p else p.copy(id = newId, publicId = newPublicId)
+    }
+
+    if (idRemap.isEmpty()) return Triple(remappedPlayers, history, logs)
+
+    fun remapIdCsv(csv: String): String {
+        if (csv.isBlank()) return csv
+        return csv.split(",").joinToString(",") { token ->
+            val trimmed = token.trim()
+            val originalId = trimmed.toIntOrNull()
+            if (originalId != null) (idRemap[originalId] ?: originalId).toString() else token
+        }
+    }
+
+    val remappedHistory = history.map { h ->
+        if (h.teamAIds.isBlank() && h.teamBIds.isBlank()) h
+        else h.copy(teamAIds = remapIdCsv(h.teamAIds), teamBIds = remapIdCsv(h.teamBIds))
+    }
+    val remappedLogs = logs.map { l ->
+        idRemap[l.playerId]?.let { l.copy(playerId = it) } ?: l
+    }
+
+    return Triple(remappedPlayers, remappedHistory, remappedLogs)
+}
+
+fun canonicalizePersonNameCompat(name: String): String {
+    val normalized = name.trim().replace(Regex("\\s+"), " ")
+    return normalizeForSearch(normalized)
+}
+
+fun collectDuplicatePlayerNames(players: List<Player>): List<String> {
+    val duplicates = linkedSetOf<String>()
+    players.groupBy { it.groupName }.forEach { (_, groupPlayers) ->
+        val seen = mutableSetOf<String>()
+        groupPlayers.forEach { player ->
+            val key = canonicalizePersonNameCompat(player.name)
+            if (key.isBlank()) return@forEach
+            if (key in seen) {
+                duplicates.add(player.name.trim())
+            } else {
+                seen.add(key)
+            }
+        }
+    }
+    return duplicates.toList()
+}
+
+fun resolveImportedPlayersForInsert(
+    players: List<Player>,
+    existingNamesByGroup: Map<String, Set<String>> = emptyMap()
+): Pair<List<Player>, List<String>> {
+    val accepted = mutableListOf<Player>()
+    val skipped = linkedSetOf<String>()
+    players.groupBy { it.groupName }.forEach { (groupName, groupPlayers) ->
+        val seenInPayload = mutableSetOf<String>()
+        val existingNames = existingNamesByGroup[groupName].orEmpty()
+        groupPlayers.forEach { player ->
+            val canonicalName = canonicalizePersonNameCompat(player.name)
+            if (canonicalName.isBlank()) return@forEach
+            if (canonicalName in existingNames || canonicalName in seenInPayload) {
+                skipped.add("${player.name.trim()} [$groupName]")
+                return@forEach
+            }
+            seenInPayload.add(canonicalName)
+            accepted.add(player)
+        }
+    }
+    return accepted to skipped.toList()
+}
+
+fun resolveImportedPlayersWithAutoRename(
+    players: List<Player>,
+    existingNamesByGroup: Map<String, Set<String>> = emptyMap()
+): Pair<List<Player>, List<String>> {
+    val accepted = mutableListOf<Player>()
+    val renamed = linkedSetOf<String>()
+    players.groupBy { it.groupName }.forEach { (groupName, groupPlayers) ->
+        val seenInPayload = mutableSetOf<String>()
+        val existingNames = existingNamesByGroup[groupName].orEmpty().toMutableSet()
+        groupPlayers.forEach { player ->
+            val canonicalName = canonicalizePersonNameCompat(player.name)
+            if (canonicalName.isBlank()) return@forEach
+        val baseName = player.name.trim().replace(Regex("\\s+"), " ").ifBlank { "Desconhecido" }
+            if (canonicalName in existingNames || canonicalName in seenInPayload) {
+                var nextIndex = 2
+                var candidate = baseName
+                while (true) {
+                    val candidateCanonical = canonicalizePersonNameCompat(candidate)
+                    if (candidateCanonical !in existingNames && candidateCanonical !in seenInPayload) {
+                        break
+                    }
+                    candidate = "${baseName} $nextIndex"
+                    nextIndex++
+                }
+                val renamedPlayer = player.copy(name = candidate)
+                renamed.add("${player.name.trim()} -> ${renamedPlayer.name} [$groupName]")
+                accepted.add(renamedPlayer)
+                seenInPayload.add(canonicalizePersonNameCompat(candidate))
+                existingNames.add(canonicalizePersonNameCompat(candidate))
+                return@forEach
+            }
+            seenInPayload.add(canonicalName)
+            existingNames.add(canonicalName)
+            accepted.add(player)
+        }
+    }
+    return accepted to renamed.toList()
+}
+
+fun applyRestingMark(
+    currentResting: Map<Int, Int>,
+    currentWaiting: List<Player>,
+    playersToRest: List<Player>,
+    returnRound: Int
+): RestingMarkResult {
+    if (playersToRest.isEmpty()) return RestingMarkResult(currentResting, currentWaiting)
+    val idsToRest = playersToRest.map { it.id }.toSet()
+    val nextResting = currentResting.toMutableMap()
+    playersToRest.forEach { nextResting[it.id] = returnRound }
+    val waitingWithoutResting = currentWaiting.filterNot { idsToRest.contains(it.id) }
+    val nextWaiting = (waitingWithoutResting + playersToRest).distinctBy { it.id }
+    return RestingMarkResult(nextResting, nextWaiting)
+}
+
+fun resolveReturningPlayers(
+    currentResting: Map<Int, Int>,
+    currentWaiting: List<Player>,
+    roundCounter: Int
+): ReturningPlayersResolution {
+    val returningIds = currentResting.filterValues { it <= roundCounter }.keys
+    if (returningIds.isEmpty()) {
+        return ReturningPlayersResolution(
+            returningIds = emptySet(),
+            restingPlayers = currentResting,
+            waitingList = currentWaiting
+        )
+    }
+    val nextResting = currentResting.filterKeys { !returningIds.contains(it) }
+    val nextWaiting = currentWaiting.filterNot { returningIds.contains(it.id) }
+    return ReturningPlayersResolution(returningIds, nextResting, nextWaiting)
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class VoleiViewModel(
+    private val repository: VoleiRepository,
+    private val preferences: PreferencesStore,
+    private val telemetry: Telemetry,
+    private val fileService: FileService,
+    private val deviceInfo: DeviceInfo,
+    private val googleSignIn: GoogleSignInService,
+    private val purchaseLauncher: PurchaseLauncher,
+    private val strings: StringProvider,
+    private val auth: AuthService,
+    private val billing: BillingService,
+    private val cloudFunctions: CloudFunctionsService,
+    private val livePresence: LivePresenceService,
+    private val cloudSync: CloudSyncService,
+    private val spreadsheet: SpreadsheetCodec,
+    private val onPlatformInit: () -> Unit = {}
+) : ViewModel() {
+    private val screenDataSharing = SharingStarted.Eagerly
+
+    private val _uiMessage = MutableStateFlow<String?>(null)
+    val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
+
+    private val _pendingMergeImport = MutableStateFlow<PendingMergeImportData?>(null)
+    val pendingMergeImport: StateFlow<PendingMergeImportData?> = _pendingMergeImport.asStateFlow()
+
+    /**
+     * Uri de um backup (.vlz/.json) aberto fora do app (gerenciador de arquivos, e-mail, etc.),
+     * aguardando confirmação do usuário antes de importar. Ver [onExternalFileOpened].
+     */
+    private val _pendingExternalImportUri = MutableStateFlow<FileRef?>(null)
+    val pendingExternalImportUri: StateFlow<FileRef?> = _pendingExternalImportUri.asStateFlow()
+
+    /** Chamado pela MainActivity quando o app é aberto via ACTION_VIEW (ex.: toque em um .vlz). */
+    fun onExternalFileOpened(file: FileRef) {
+        _pendingExternalImportUri.value = file
+    }
+
+    fun cancelExternalImport() {
+        _pendingExternalImportUri.value = null
+    }
+
+    fun clearUiMessage() {
+        _uiMessage.value = null
+    }
+
+    /** Exibe uma mensagem simples de UI (snackbar), ex.: aviso de recurso bloqueado. */
+    fun showMessage(message: String) {
+        _uiMessage.value = message
+    }
+    private val _currentScreen = MutableStateFlow(Screen.GAME)
+    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+    fun navigateTo(screen: Screen) {
+        _currentScreen.value = screen
+    }
+    private val _isGroupDataLoading = MutableStateFlow(true)
+    val isGroupDataLoading: StateFlow<Boolean> = _isGroupDataLoading.asStateFlow()
+    private var groupLoadToken = 0
+
+    /** Timestamp da última [LiveGameState] que este próprio dispositivo publicou — mantido só
+     *  para diagnóstico; a supressão de "eco" real agora usa [localSyncSessionId] (ver abaixo),
+     *  já que comparar `updatedAt` (relógio do aparelho) é sujeito a variação de relógio entre
+     *  dispositivos e pode causar "rollback" de placar (`fix-admin-aux-sync-races`). */
+    private var lastPushedUpdatedAt: Long = 0L
+
+    /** Identificador único desta instância da ViewModel (gerado uma vez por processo), publicado
+     *  em [LiveGameState.writerSessionId] a cada push. Um estado remoto só é ignorado como
+     *  "auto-eco" quando `writerSessionId == localSyncSessionId` — nunca por comparação de
+     *  timestamp — então uma atualização legítima de outro dispositivo nunca é descartada por
+     *  causa de relógios dessincronizados. */
+    private val localSyncSessionId: String = Uuid.random().toString()
+
+    /** cloudGroupId para o qual este dispositivo já recebeu pelo menos um [LiveGameState] real do
+     *  organizador. Enquanto for `null`/diferente do grupo remoto atual, um Auxiliar não publica
+     *  nada (mesmo que [observeAndPushCloudLiveState] já rode), para não sobrescrever o jogo em
+     *  andamento do organizador com o estado local vazio/zerado que um dispositivo recém-entrado
+     *  ainda não teve chance de receber (ver `fix-admin-aux-sync-races`). */
+    private var remoteStateInitializedForGroupId: String? = null
+
+    private val _isAwaitingInitialRemoteSync = MutableStateFlow(false)
+    /** `true` enquanto um Auxiliar/Espectador acabou de entrar/trocar para um grupo remoto e
+     *  ainda não recebeu o primeiro [LiveGameState] de verdade do organizador — usado para mostrar
+     *  um indicador de carregamento central na tela em vez de deixar a UI parecer vazia/travada. */
+    val isAwaitingInitialRemoteSync: StateFlow<Boolean> = _isAwaitingInitialRemoteSync.asStateFlow()
+
+    /** Último mapa de "jogos hoje" por publicId recebido do organizador — ecoado por um Auxiliar
+     *  ao publicar suas próprias atualizações, mesmo padrão de [lastKnownRemotePresentPlayers]. */
+    private var lastKnownRemoteGamesPlayedToday: Map<String, Int> = emptyMap()
+
+    /** Últimos mapas de posição/slot atribuídos recebidos do organizador — ecoados por um
+     *  Auxiliar, mesmo padrão acima. */
+    private var lastKnownRemoteAssignedPositions: Map<String, String> = emptyMap()
+    private var lastKnownRemoteAssignedSlotIndices: Map<String, Int> = emptyMap()
+    private var lastKnownRemoteCompositionIncomplete: Boolean = false
+
+    private val _remoteGamesPlayedToday = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    /** Espelho de [LiveGameState.gamesPlayedToday] com as chaves já convertidas de publicId para o
+     *  [Player.id] sintético usado por [toSyntheticPlayer] — consumido por `GameScreen.kt` no
+     *  lugar de `gamesPlayedTodayMap`/`gamesPlayedStrictTodayMap` quando o papel deste dispositivo
+     *  é Auxiliar/Espectador (que não têm registros locais de Elo para o grupo remoto). */
+    val remoteGamesPlayedToday: StateFlow<Map<Int, Int>> = _remoteGamesPlayedToday.asStateFlow()
+
+    /** ID do último pedido de encerramento de partida ([LiveGameState.pendingFinishRequestId]) já
+     *  processado pelo organizador — evita chamar [finishGame] duas vezes para o mesmo pedido de
+     *  um Auxiliar remoto. */
+    private var lastProcessedFinishRequestId: String? = null
+
+    /** Último [LiveGameState.presentPlayers] recebido/observado — usado por um Auxiliar remoto
+     *  para "ecoar" essa lista ao publicar suas próprias atualizações (placar, times), já que só
+     *  o organizador tem o roster real no Room para recalculá-la (ver [observeAndPushCloudLiveState]). */
+    private var lastKnownRemotePresentPlayers: List<RemotePlayerSnapshot> = emptyList()
+
+    /** Último [LiveGameState.allPlayers] recebido/observado — mesmo papel de
+     *  [lastKnownRemotePresentPlayers], mas para o elenco completo do grupo (usado pelo Auxiliar
+     *  para ver a lista de jogadores completa, sem restrição de edição). */
+    private var lastKnownRemoteAllPlayers: List<RemotePlayerSnapshot> = emptyList()
+
+    /** Último id de pedido de alternância de presença ([LiveGameState.pendingPresenceToggleRequestId])
+     *  já processado pelo organizador, para não aplicar o mesmo pedido de um Auxiliar duas vezes
+     *  (mesmo padrão de [lastProcessedFinishRequestId]). */
+    private var lastProcessedPresenceToggleRequestId: String? = null
+
+    private val _currentGroupConfig = MutableStateFlow(
+        GroupConfig(groupName = "", onboardingStep = ONBOARDING_STEP_GROUP_NAME)
+    )
+    val currentGroupConfig: StateFlow<GroupConfig> = _currentGroupConfig.asStateFlow()
+
+    /** Espelha em tempo real os toggles/metadados/atividade de [GroupConfig.cloudGroupId] do grupo
+     *  ativo. Fonte única compartilhada por [remoteLiveGameState]/[remoteHistory]/[remoteEloLogs]/
+     *  [observeAndMirrorRemoteLiveState] e por [observeRemoteGroupVisibility] (evita abrir vários
+     *  listeners Firestore redundantes para o mesmo documento). Precisa ser declarada bem antes do
+     *  bloco `init` (que dispara [observeRemoteGroupVisibility]/[observeAndMirrorRemoteLiveState]
+     *  de forma síncrona via `Dispatchers.Main.immediate`) — senão o `collect` roda antes desta
+     *  propriedade ser inicializada e derruba o app com NPE na primeira abertura. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val remoteGroupVisibility: StateFlow<GroupVisibility?> = _currentGroupConfig
+        .map { it.cloudGroupId }
+        .distinctUntilChanged()
+        .flatMapLatest { cloudGroupId ->
+            if (cloudGroupId == null) flowOf(null) else cloudSync.observeGroupVisibility(cloudGroupId)
+        }
+        .stateIn(viewModelScope, screenDataSharing, null)
+
+    /** `true` enquanto o organizador mantém a sincronização em nuvem do grupo ligada
+     *  ([GroupConfig.isCloudSynced]) — ver [GroupVisibility.isActive]. Quando fica `false`,
+     *  Auxiliar/Espectador devem ocultar os dados ao vivo/histórico instantaneamente (o código de
+     *  convite continua válido para quando o organizador reativar). */
+    val isRemoteGroupActive: StateFlow<Boolean> = remoteGroupVisibility
+        .map { it?.isActive ?: true }
+        .stateIn(viewModelScope, screenDataSharing, true)
+
+    /** Identificador estável deste aparelho (`Settings.Secure.ANDROID_ID`, com fallback aleatório
+     *  se indisponível) — usado só para `admin-session-transfer`, nunca enviado como PII (ver
+     *  [GroupConfig.activeAdminDeviceId]). */
+    private val localDeviceId: String by lazy { deviceInfo.deviceId }
+
+    /**
+     * `true` quando este aparelho está autorizado a publicar como organizador do grupo ativo em
+     * nuvem — só fica `false` quando outro aparelho reivindicou explicitamente a sessão de
+     * administrador via "Transferir sessão de administrador" (ver `admin-session-transfer`,
+     * [transferAdminSession], [GroupConfig.activeAdminDeviceId]). `true` por padrão enquanto
+     * ninguém reivindicou a sessão ainda, preservando o comportamento de sempre (um único
+     * aparelho por grupo, sem restrição alguma).
+     */
+    val isLocalDeviceActiveAdmin: StateFlow<Boolean> = remoteGroupVisibility
+        .map { it?.activeAdminDeviceId == null || it.activeAdminDeviceId == localDeviceId }
+        .stateIn(viewModelScope, screenDataSharing, true)
+
+    /** Mesma checagem de [isLocalDeviceActiveAdmin], mas para um grupo qualquer (não só o grupo
+     *  ativo) — usado pela tela Premium, cujo seletor de grupo pode apontar para outro grupo
+     *  próprio (ver [observeGroupCloudMeta]). */
+    fun isThisDeviceTheActiveAdmin(activeAdminDeviceId: String?): Boolean =
+        activeAdminDeviceId == null || activeAdminDeviceId == localDeviceId
+
+    /**
+     * `true` quando o grupo atualmente selecionado foi sincronizado via código de convite de
+     * Espectador ([GroupConfig.remoteRole] == `"ESPECTADOR"`) — ou seja, este dispositivo não tem
+     * permissão de edição sobre o grupo, só visualização em tempo real (ver
+     * `spectator-game-screen-restrictions`). Grupos próprios (`remoteRole == null`) ou entrados
+     * como Auxiliar sempre retornam `false`.
+     */
+    val isSpectatorOfCurrentGroup: StateFlow<Boolean> = _currentGroupConfig
+        .map { it.remoteRole == UserProfileType.ESPECTADOR.name }
+        .stateIn(viewModelScope, screenDataSharing, false)
+
+    /** `true` quando o grupo ativo foi acessado via código de Auxiliar
+     *  ([GroupConfig.remoteRole] == `"AUXILIAR"`) — este dispositivo não tem roster real no Room
+     *  para o grupo (não é o dono), mas tem permissão de edição total, só que espelhada via
+     *  [LiveGameState] (ver `aux-full-roster-sync`). */
+    val isAuxiliarOfCurrentGroup: StateFlow<Boolean> = _currentGroupConfig
+        .map { it.remoteRole == UserProfileType.AUXILIAR.name }
+        .stateIn(viewModelScope, screenDataSharing, false)
+
+    val players = repository.allPlayers.stateIn(
+        viewModelScope,
+        screenDataSharing,
+        emptyList()
+    )
+    private val _allHistory = repository.history.stateIn(
+        viewModelScope,
+        screenDataSharing,
+        emptyList()
+    )
+    private val _allGroupConfigs = repository.allGroupConfigs.stateIn(
+        viewModelScope,
+        screenDataSharing,
+        emptyList()
+    )
+    private val _allEloLogs = repository.eloLogs.stateIn(
+        viewModelScope,
+        screenDataSharing,
+        emptyList()
+    )
+
+    private val currentGroupName = _currentGroupConfig
+        .map { it.groupName }
+        .distinctUntilChanged()
+
+    val currentGroupPlayers = currentGroupName
+        .flatMapLatest { repository.playersByGroup(it) }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    val currentGroupHistory = currentGroupName
+        .flatMapLatest { repository.historyByGroup(it) }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    val currentGroupEloLogs = currentGroupName
+        .flatMapLatest { repository.eloLogsByGroup(it) }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    val groupsSortedByRecentHistory = combine(
+        _allHistory,
+        players,
+        _allEloLogs,
+        _allGroupConfigs
+    ) { history, allPlayers, allEloLogs, allConfigs ->
+        val groupsWithDates = mutableMapOf<String, Long>()
+
+        history.forEach { match ->
+            val matchTime = AppDateTime.parseMatchDateTime(match.date) ?: 0L
+            val currentMax = groupsWithDates[match.groupName] ?: 0L
+            if (matchTime > currentMax) {
+                groupsWithDates[match.groupName] = matchTime
+            }
+        }
+
+        val orderedByHistory = groupsWithDates.toList()
+            .sortedByDescending { it.second }
+            .map { it.first }
+
+        val allGroups = linkedSetOf<String>()
+        allGroups.addAll(allConfigs.map { it.groupName })
+        allGroups.addAll(allPlayers.map { it.groupName })
+        allGroups.addAll(history.map { it.groupName })
+        allGroups.addAll(allEloLogs.map { it.groupName })
+
+        val groupsWithoutHistory = allGroups
+            .filterNot { groupsWithDates.containsKey(it) }
+            .sortedBy { it.lowercase() }
+
+        orderedByHistory + groupsWithoutHistory
+    }.stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    private val _historyDateFilter = MutableStateFlow<String?>(null)
+    val historyDateFilter = _historyDateFilter.asStateFlow()
+
+    val availableHistoryDates = currentGroupHistory.map { list ->
+        AppDateTime.sortHistoryDatesNewestFirst(list.map { it.date.split(" ")[0] }.distinct())
+    }.stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    val targetDate = combine(currentGroupEloLogs, availableHistoryDates) { logs, _dates ->
+        val today = AppDateTime.todayIsoDate()
+        val hasToday = logs.any { it.date == today }
+        if (hasToday) today else logs.map { it.date }.maxOrNull() ?: today
+    }.stateIn(
+        viewModelScope,
+        screenDataSharing,
+        AppDateTime.todayIsoDate()
+    )
+
+    val gamesPlayedTodayMap = combine(currentGroupEloLogs, targetDate) { logs, tDate ->
+        logs.filter { it.date == tDate }.groupingBy { it.playerId }.eachCount()
+    }.stateIn(viewModelScope, screenDataSharing, emptyMap())
+
+    // Usado na tela de jogo em andamento: conta apenas os jogos do dia real (sem cair
+    // para o último dia com histórico), zerando para o primeiro jogo do dia de cada jogador.
+    val gamesPlayedStrictTodayMap = currentGroupEloLogs.map { logs ->
+        val today = AppDateTime.todayIsoDate()
+        logs.filter { it.date == today }.groupingBy { it.playerId }.eachCount()
+    }.stateIn(viewModelScope, screenDataSharing, emptyMap())
+
+    val sortedPlayersForPresence =
+        combine(currentGroupPlayers, gamesPlayedTodayMap) { pList, gamesMap ->
+            pList.sortedWith { p1, p2 ->
+                val g1 = gamesMap[p1.id] ?: 0
+                val g2 = gamesMap[p2.id] ?: 0
+                when {
+                    g1 > 0 || g2 > 0 -> {
+                        // Para jogadores que já jogaram hoje, ordena por jogos em ordem decrescente e depois por Elo decrescente
+                        if (g1 != g2) g2.compareTo(g1) else p2.elo.compareTo(p1.elo)
+                    }
+                    else -> {
+                        // Para jogadores sem jogos no dia, ordena alfabeticamente pelo nome
+                        p1.name.compareTo(p2.name)
+                    }
+                }
+            }
+        }.stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    private val _showElo = MutableStateFlow(false)
+    val showElo: StateFlow<Boolean> = _showElo.asStateFlow()
+
+    private val _showToll = MutableStateFlow(false)
+    val showToll: StateFlow<Boolean> = _showToll.asStateFlow()
+
+    private val _telemetryEnabled = MutableStateFlow(false)
+    val telemetryEnabled: StateFlow<Boolean> = _telemetryEnabled.asStateFlow()
+
+    /** True apenas antes do usuário responder ao diálogo de consentimento de telemetria pela
+     *  primeira vez (nunca mais volta a ser true depois disso, mesmo que ele desative depois). */
+    private val _showTelemetryConsentPrompt = MutableStateFlow(false)
+    val showTelemetryConsentPrompt: StateFlow<Boolean> = _showTelemetryConsentPrompt.asStateFlow()
+
+    private val _userProfileType = MutableStateFlow<UserProfileType?>(null)
+    val userProfileType: StateFlow<UserProfileType?> = _userProfileType.asStateFlow()
+
+    /** Persona exibida no momento na tela de Premium/Nuvem (ver [PremiumScreenPersona]) — inicia
+     *  na versão correspondente ao [UserProfileType] escolhido no onboarding, mas pode ser trocada
+     *  livremente pelo usuário depois via segmented button, e essa escolha é persistida. */
+    private val _premiumScreenPersona = MutableStateFlow(PremiumScreenPersona.ADMIN)
+    val premiumScreenPersona: StateFlow<PremiumScreenPersona> = _premiumScreenPersona.asStateFlow()
+
+    private val _postProfileOnboardingStage = MutableStateFlow(PostProfileOnboardingStage.NONE)
+    val postProfileOnboardingStage: StateFlow<PostProfileOnboardingStage> = _postProfileOnboardingStage.asStateFlow()
+
+    /**
+     * Sobreposição pessoal (só neste dispositivo/usuário) das cores de time, disponível apenas
+     * para quem tem acesso premium — mesmo estando num grupo cujo organizador definiu outras
+     * cores. Quando desabilitada (padrão), o usuário vê as cores oficiais do grupo
+     * ([GroupConfig.teamAColorName]/[GroupConfig.teamBColorName], definidas pelo organizador ou
+     * auxiliar via [setGroupTeamColors]) — inclusive se ele próprio não for premium.
+     */
+    private val _personalTeamColorOverrideEnabled = MutableStateFlow(false)
+    private val _personalTeamAColor = MutableStateFlow(TeamAccentColor.BLUE)
+    private val _personalTeamBColor = MutableStateFlow(TeamAccentColor.YELLOW)
+
+    /**
+     * Estado local e otimista da assinatura, refletindo a última compra conhecida pelo Play
+     * Billing neste aparelho ([BillingManager.activeProductIds]) — `true` assim que uma das duas
+     * assinaturas ([BillingProductIds.SINGLE_GROUP]/[BillingProductIds.MULTI_GROUP]) é comprada e
+     * reconhecida (`acknowledge`), mesmo antes do backend confirmar via Real-time Developer
+     * Notifications (`purchase-validation-function`, ainda não implementada em
+     * `volei_manager_backend`). Quando essa fase existir, isso deve ser substituído/combinado com
+     * `users/{uid}.activeEntitlement` do Firestore, que é a fonte de verdade definitiva (única
+     * capaz de refletir cancelamento, reembolso ou expiração sem o app precisar estar aberto).
+     */
+    private val _realPremiumEntitlement: StateFlow<Boolean> = billing.activeProductIds
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, screenDataSharing, false)
+
+    /**
+     * Interruptor **apenas de debug** para simular uma assinatura premium ativa sem precisar de
+     * uma compra real na Play Store, permitindo testar recursos premium (ex.: cores de time)
+     * durante o desenvolvimento. Nunca tem efeito em build de release: [setDebugPremiumOverride]
+     * ignora a chamada e [hasPremiumAccess] nunca considera este flag fora de [deviceInfo.isDebugBuild].
+     */
+    private val _debugPremiumOverride = MutableStateFlow(false)
+    val debugPremiumOverride: StateFlow<Boolean> = _debugPremiumOverride.asStateFlow()
+
+    val hasPremiumAccess: StateFlow<Boolean> =
+        combine(_realPremiumEntitlement, _debugPremiumOverride) { real, debugOverride ->
+            real || (deviceInfo.isDebugBuild && debugOverride)
+        }.stateIn(viewModelScope, screenDataSharing, false)
+
+    /**
+     * Cores efetivas do Time A/B a serem exibidas: por padrão, as cores oficiais do grupo atual
+     * (definidas pelo organizador/auxiliar premium, visíveis a todos, inclusive observadores sem
+     * premium). Se o próprio usuário tiver acesso premium e tiver ativado uma sobreposição
+     * pessoal ([setPersonalTeamColorOverride]), essa sobreposição prevalece só para ele.
+     */
+    val effectiveTeamColors: StateFlow<Pair<TeamAccentColor, TeamAccentColor>> = combine(
+        _currentGroupConfig,
+        hasPremiumAccess,
+        _personalTeamColorOverrideEnabled,
+        _personalTeamAColor,
+        _personalTeamBColor
+    ) { config, premium, overrideEnabled, personalA, personalB ->
+        if (premium && overrideEnabled) {
+            personalA to personalB
+        } else {
+            val groupA = config.teamAColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.BLUE
+            val groupB = config.teamBColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.YELLOW
+            groupA to groupB
+        }
+    }.stateIn(viewModelScope, screenDataSharing, TeamAccentColor.BLUE to TeamAccentColor.YELLOW)
+
+    val effectiveTeamAColor: StateFlow<TeamAccentColor> = effectiveTeamColors
+        .map { it.first }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.BLUE)
+    val effectiveTeamBColor: StateFlow<TeamAccentColor> = effectiveTeamColors
+        .map { it.second }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.YELLOW)
+
+    val personalTeamColorOverrideEnabled: StateFlow<Boolean> =
+        _personalTeamColorOverrideEnabled.asStateFlow()
+    val personalTeamAColor: StateFlow<TeamAccentColor> = _personalTeamAColor.asStateFlow()
+    val personalTeamBColor: StateFlow<TeamAccentColor> = _personalTeamBColor.asStateFlow()
+
+    /** Cores oficiais configuradas no grupo atual (editáveis via [setGroupTeamColors]),
+     *  ignorando qualquer sobreposição pessoal — usado para preencher o seletor de edição. */
+    val groupTeamAColor: StateFlow<TeamAccentColor> = _currentGroupConfig
+        .map { it.teamAColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.BLUE }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.BLUE)
+    val groupTeamBColor: StateFlow<TeamAccentColor> = _currentGroupConfig
+        .map { it.teamBColorName?.let(::parseTeamAccentColorOrNull) ?: TeamAccentColor.YELLOW }
+        .stateIn(viewModelScope, screenDataSharing, TeamAccentColor.YELLOW)
+
+    // ---------------------------------------------------------------------------------------
+    // Sincronização em nuvem (tela "Nuvem") — modelo local/premium. A engine de fato (Firestore),
+    // o cadastro/login (Firebase Auth) e a validação de compra ficam para as fases seguintes
+    // (`auth-account-flow`, `firestore-sync-engine`, `billing-integration`); por ora esta seção
+    // cobre o que já dá para testar localmente: escolha de qual(is) grupo(s) é(são) o(s) grupo(s)
+    // premium sincronizado(s), respeitando o limite do pacote e o intervalo mínimo de troca.
+    // ---------------------------------------------------------------------------------------
+
+    /** Todos os grupos locais, para a tela de Nuvem listar candidatos à sincronização. */
+    val allGroupConfigs: StateFlow<List<GroupConfig>> = _allGroupConfigs
+
+    /**
+     * Nomes dos grupos **próprios** marcados como sincronizados em nuvem neste dispositivo —
+     * usado pela contagem "N de M grupos sincronizados" na aba Admin da tela Premium. Grupos
+     * remotos entrados via código (`remoteRole != null`, ex.: Espectador) também ficam com
+     * [GroupConfig.isCloudSynced] = true localmente (ver [joinRemoteGroup]), mas contam contra o
+     * limite do pacote de *quem administra* aquele grupo, não deste dispositivo — por isso são
+     * excluídos aqui e só aparecem na contagem de "Acompanhando N grupo(s) como espectador" da
+     * aba Espectador (ver [SpectatorLiveScreen][com.bismarck.voleimanager.app.ui.SpectatorLiveScreen]).
+     */
+    val cloudSyncedGroupNames: StateFlow<List<String>> = _allGroupConfigs
+        .map { list -> list.filter { it.isCloudSynced && it.remoteRole == null }.map { it.groupName } }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    /**
+     * `retry-vs-inflight-activation`: nomes de grupo cuja ativação em nuvem (chamada ao backend +
+     * backfill do histórico pré-existente, ver [activateCloudGroupBackend]) ainda está em
+     * andamento — usado por [SpectatorCodeSection][com.bismarck.voleimanager.app.ui.CloudSyncScreen]
+     * para trocar o botão "Tentar novamente" por uma mensagem de status enquanto o envio inicial
+     * ainda está rodando, em vez de deixar o usuário disparar uma segunda chamada concorrente
+     * (que competia com a primeira pelos mesmos documentos do Firestore e podia deixar parte do
+     * histórico antigo sem subir).
+     */
+    private val _cloudActivationInProgress = MutableStateFlow<Set<String>>(emptySet())
+    val cloudActivationInProgress: StateFlow<Set<String>> = _cloudActivationInProgress.asStateFlow()
+
+    /**
+     * Pacote real derivado das assinaturas ativas conhecidas pelo Play Billing neste aparelho
+     * ([BillingManager.activeProductIds]) — [CloudPlanTier.MULTI] tem prioridade sobre
+     * [CloudPlanTier.SINGLE] no caso (não esperado) de ambas aparecerem ativas ao mesmo tempo.
+     * Ver a ressalva de [_realPremiumEntitlement] sobre isso ainda não ser validado pelo backend.
+     */
+    private val _realPremiumPlanTier: StateFlow<CloudPlanTier> = billing.activeProductIds
+        .map { productIds ->
+            when {
+                BillingProductIds.MULTI_GROUP in productIds -> CloudPlanTier.MULTI
+                BillingProductIds.SINGLE_GROUP in productIds -> CloudPlanTier.SINGLE
+                else -> CloudPlanTier.NONE
+            }
+        }
+        .stateIn(viewModelScope, screenDataSharing, CloudPlanTier.NONE)
+
+    /** Pacote simulado **apenas em build de debug**, para testar o limite de grupos sincronizados
+     *  sem precisar de uma compra real (ver [setDebugPremiumPlanTier]). */
+    private val _debugPremiumPlanTier = MutableStateFlow(CloudPlanTier.SINGLE)
+    val debugPremiumPlanTier: StateFlow<CloudPlanTier> = _debugPremiumPlanTier.asStateFlow()
+
+    /** Pacote efetivamente em vigor: [CloudPlanTier.NONE] sem acesso premium; caso contrário, o
+     *  pacote real quando existir, senão (só em debug) o pacote simulado. */
+    val effectivePremiumPlanTier: StateFlow<CloudPlanTier> = combine(
+        hasPremiumAccess,
+        _realPremiumEntitlement,
+        _realPremiumPlanTier,
+        _debugPremiumPlanTier
+    ) { hasAccess, realEntitlement, realTier, debugTier ->
+        when {
+            !hasAccess -> CloudPlanTier.NONE
+            realEntitlement -> realTier
+            deviceInfo.isDebugBuild -> debugTier
+            else -> CloudPlanTier.NONE
+        }
+    }.stateIn(viewModelScope, screenDataSharing, CloudPlanTier.NONE)
+
+    /** Só tem efeito em build de debug — troca o pacote simulado (1 ou até 5 grupos) usado por
+     *  [effectivePremiumPlanTier] enquanto não existe integração real de pagamento. */
+    fun setDebugPremiumPlanTier(tier: CloudPlanTier) {
+        if (!deviceInfo.isDebugBuild || tier == CloudPlanTier.NONE) return
+        _debugPremiumPlanTier.value = tier
+        preferences.edit()
+            .putString("debug_premium_plan_tier", tier.name).apply()
+    }
+
+    /**
+     * `premium-active-period`: último período (mensal/anual) selecionado pelo próprio usuário ao
+     * tocar em "Assinar" para cada produto ([BillingProductIds.SINGLE_GROUP]/[MULTI_GROUP]), só
+     * para exibir qual botão específico já foi assinado (ex.: "Premium Five anual ativo") — é um
+     * registro **local e otimista**, gravado no instante em que o fluxo de compra é lançado (ver
+     * [purchasePremiumPlan]), não confirmado pelo Play Billing (que, diferente do produto em si,
+     * não expõe qual plano base foi comprado em [Purchase][com.android.billingclient.api.Purchase]
+     * pelo lado do cliente). Fica desatualizado/ausente se a assinatura vier de uma reinstalação,
+     * troca de aparelho, ou de uma compra feita antes desta versão — nesses casos
+     * [effectivePremiumBasePlanId] simplesmente não sabe o período e a UI cai de volta no texto
+     * genérico sem "mensal"/"anual" (ver [PremiumPlansSection][com.bismarck.voleimanager.app.ui.PremiumPlansSection]).
+     */
+    private val _premiumBasePlanByProduct = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    /** Ver [_premiumBasePlanByProduct]. Período do pacote [effectivePremiumPlanTier] atualmente em
+     *  vigor, ou `null` quando desconhecido/sem assinatura ativa. */
+    val effectivePremiumBasePlanId: StateFlow<String?> = combine(
+        effectivePremiumPlanTier, _premiumBasePlanByProduct
+    ) { tier, basePlanByProduct ->
+        val productId = when (tier) {
+            CloudPlanTier.SINGLE -> BillingProductIds.SINGLE_GROUP
+            CloudPlanTier.MULTI -> BillingProductIds.MULTI_GROUP
+            CloudPlanTier.NONE -> null
+        }
+        productId?.let { basePlanByProduct[it] }
+    }.stateIn(viewModelScope, screenDataSharing, null)
+
+    /** Ofertas de assinatura disponíveis na Play Store (preço já formatado/localizado), vindas do
+     *  [BillingManager] — vazio até os produtos existirem no Play Console e o billing conectar. */
+    val subscriptionOffers: StateFlow<List<SubscriptionOffer>> = billing.offers
+
+    /** Melhor oferta disponível para [tier] (mensal ou anual, conforme [annual]), ou `null` se as
+     *  ofertas ainda não carregaram (ex.: produto ainda não cadastrado no Play Console, ou sem
+     *  conexão) — quem chama deve tratar esse caso com uma mensagem amigável. */
+    fun findSubscriptionOffer(tier: CloudPlanTier, annual: Boolean): SubscriptionOffer? {
+        val productId = when (tier) {
+            CloudPlanTier.SINGLE -> BillingProductIds.SINGLE_GROUP
+            CloudPlanTier.MULTI -> BillingProductIds.MULTI_GROUP
+            CloudPlanTier.NONE -> return null
+        }
+        val basePlanId = if (annual) BillingProductIds.BASE_PLAN_ANNUAL else BillingProductIds.BASE_PLAN_MONTHLY
+        val offers = subscriptionOffers.value.filter { it.productId == productId }
+        return offers.firstOrNull { it.basePlanId == basePlanId } ?: offers.firstOrNull()
+    }
+
+    /**
+     * Lança o fluxo de compra nativo da Play Store para o pacote [tier] (mensal ou anual). Requer
+     * que [subscriptionOffers] já tenha a oferta correspondente (senão mostra uma mensagem
+     * amigável) — a confirmação chega de forma assíncrona pelo `PurchasesUpdatedListener` do
+     * [BillingManager], refletida automaticamente em [hasPremiumAccess]/[effectivePremiumPlanTier]
+     * assim que a compra for reconhecida.
+     *
+     * Bloqueia a compra (mostrando uma mensagem explicativa em vez de abrir a Play Store) se o
+     * usuário não estiver logado ou não tiver o e-mail confirmado — ver [canPurchasePremium] e
+     * `premium-purchase-gating`. Assinar sem conta verificada deixaria o entitlement órfão (sem
+     * `uid` para gravar em `users/{uid}.activeEntitlement`).
+     */
+    fun purchasePremiumPlan(host: PlatformHost, tier: CloudPlanTier, annual: Boolean) {
+        val user = currentUser.value
+        if (user == null) {
+            showMessage(strings.get(Res.string.premium_purchase_gating_login_required))
+            return
+        }
+        if (!user.emailVerified) {
+            showMessage(strings.get(Res.string.premium_purchase_gating_verify_required))
+            return
+        }
+        val offer = findSubscriptionOffer(tier, annual)
+        if (offer == null) {
+            showMessage(strings.get(Res.string.cloud_sync_plan_offer_unavailable))
+            return
+        }
+        val launched = purchaseLauncher.launch(host, offer)
+        if (launched) {
+            rememberSelectedBasePlan(offer.productId, annual)
+        } else {
+            showMessage(strings.get(Res.string.cloud_sync_plan_offer_unavailable))
+        }
+    }
+
+    /** Ver [_premiumBasePlanByProduct]. */
+    private fun rememberSelectedBasePlan(productId: String, annual: Boolean) {
+        val basePlanId = if (annual) BillingProductIds.BASE_PLAN_ANNUAL else BillingProductIds.BASE_PLAN_MONTHLY
+        _premiumBasePlanByProduct.value = _premiumBasePlanByProduct.value + (productId to basePlanId)
+        preferences.edit()
+            .putString("premium_base_plan_$productId", basePlanId).apply()
+    }
+
+    /** Reconsulta as assinaturas ativas conhecidas pela Play Store (ex.: ao o usuário voltar ao
+     *  app depois de concluir uma compra na tela nativa da Play Store) — ver [BillingManager.refreshPurchases]. */
+    fun refreshPurchases() = billing.refreshPurchases()
+
+    /**
+     * Ativa ou desativa a sincronização em nuvem de [groupName]. Exige acesso premium; ao ativar,
+     * respeita o limite de grupos simultâneos do pacote vigente ([effectivePremiumPlanTier]) e o
+     * intervalo mínimo de 15 dias entre trocas (ver [PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS]) — a
+     * regra "de verdade" será sempre revalidada no backend quando a Cloud Function existir; aqui
+     * é só o bloqueio otimista da UI. Desativar nunca é bloqueado (libera uma vaga).
+     */
+    fun setGroupCloudSynced(groupName: String, synced: Boolean) = viewModelScope.launch {
+        if (!hasPremiumAccess.value) return@launch
+        val configs = repository.getAllGroupConfigs()
+        val target = configs.firstOrNull { it.groupName == groupName } ?: return@launch
+        if (target.isCloudSynced == synced) return@launch
+
+        if (!synced) {
+            // Publica isActive=false ANTES de zerar o cloudGroupId localmente — o Firestore
+            // mantém o documento e o código de convite intactos, só sinaliza para
+            // Auxiliar/Espectador ocultarem os dados instantaneamente (ver
+            // GroupVisibility.isActive) até o grupo voltar a ser sincronizado.
+            val cloudGroupIdToDeactivate = target.cloudGroupId ?: target.publicId
+            cloudSync.setGroupActiveState(cloudGroupIdToDeactivate, isActive = false)
+            repository.saveGroupConfig(target.copy(isCloudSynced = false, cloudGroupId = null))
+            if (_currentGroupConfig.value.groupName == groupName) {
+                _currentGroupConfig.value = _currentGroupConfig.value.copy(
+                    isCloudSynced = false,
+                    cloudGroupId = null
+                )
+            }
+            return@launch
+        }
+
+        val currentlySynced = configs.filter { it.isCloudSynced }
+        val maxAllowed = effectivePremiumPlanTier.value.maxSyncedGroups
+        if (currentlySynced.size >= maxAllowed) {
+            showMessage(strings.get(Res.string.cloud_sync_limit_reached))
+            return@launch
+        }
+        // O intervalo de 15 dias só existe para impedir trocar QUAL grupo ocupa a vaga única do
+        // pacote SINGLE (o pedido original do usuário fala em "mudar o grupo premium" no
+        // singular). No pacote MULTI, preencher vagas ainda livres (até 5) é uma simples adição
+        // de capacidade, não uma troca — não faz sentido travar isso por 15 dias, senão quem
+        // acabou de assinar o MULTI teria que esperar 15 dias entre cada um dos 5 grupos iniciais.
+        if (maxAllowed == CloudPlanTier.SINGLE.maxSyncedGroups) {
+            // Usa `configs` (todos os grupos), não `currentlySynced`: desativar o grupo anterior
+            // já zera seu `isCloudSynced` sem apagar `lastPremiumSwitchAt`, então o cooldown
+            // precisa olhar a última troca registrada em qualquer grupo, não só nos ainda ativos.
+            val lastSwitchAt = configs.mapNotNull { it.lastPremiumSwitchAt }.maxOrNull()
+            if (lastSwitchAt != null && AppDateTime.nowMillis() - lastSwitchAt < PREMIUM_GROUP_SWITCH_COOLDOWN_MILLIS) {
+                showMessage(strings.get(Res.string.cloud_sync_switch_cooldown))
+                return@launch
+            }
+        }
+        val now = AppDateTime.nowMillis()
+
+        val updated = target.copy(
+            isCloudSynced = true,
+            cloudGroupId = target.publicId,
+            lastPremiumSwitchAt = now
+        )
+        repository.saveGroupConfig(updated)
+        // Reativa isActive=true no Firestore — reaproveita o mesmo documento/código de convite
+        // que já existia (ver observação em setGroupCloudSynced acima).
+        cloudSync.setGroupActiveState(target.publicId, isActive = true)
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(
+                isCloudSynced = true,
+                cloudGroupId = target.publicId,
+                lastPremiumSwitchAt = now
+            )
+        }
+        telemetry.logGroupCloudSynced(target.groupType,
+            effectivePremiumPlanTier.value.name
+        )
+
+        activateCloudGroupBackend(target.publicId, groupName)
+    }
+
+    /**
+     * Registra [groupName] como sincronizado no backend (cria/atualiza `cloudGroups/{cloudGroupId}`,
+     * reivindica a sessão de administrador e sobe o histórico pré-existente) — chamado tanto pela
+     * primeira ativação em [setGroupCloudSynced] quanto por [retryCloudGroupActivation], já que essa
+     * chamada pode falhar de forma transitória (ex.: `linkPurchaseToken` ainda não confirmou a
+     * assinatura no servidor no exato instante em que o grupo foi ativado localmente).
+     *
+     * Diferente da versão anterior (que só logava a falha via `Log.d` e nunca avisava ninguém),
+     * agora mostra uma mensagem amigável ([Res.string.cloud_sync_activation_error]) quando o backend
+     * recusa a chamada — é exatamente essa falha silenciosa que fazia o código de convite de
+     * Espectador ([SpectatorCodeSection]) ficar girando pra sempre e os toggles de visibilidade
+     * ([setGroupVisibility]) devolverem `PERMISSION_DENIED` (o documento do grupo nunca chegava a
+     * ganhar o dono/entitlement exigido pelas regras do Firestore).
+     */
+    private suspend fun activateCloudGroupBackend(cloudGroupId: String, groupName: String) {
+        // Evita rodar duas ativações do mesmo grupo em paralelo (ex.: usuário aperta "Tentar
+        // novamente" enquanto a chamada original ainda está em andamento) — ver
+        // `retry-vs-inflight-activation`. Sem essa guarda, uma segunda chamada disparava um
+        // segundo `backfillGroupHistoryIfNeeded` concorrente com o primeiro, competindo pelos
+        // mesmos documentos do Firestore e deixando parte do histórico antigo sem subir.
+        if (groupName in _cloudActivationInProgress.value) return
+        _cloudActivationInProgress.update { it + groupName }
+        try {
+            val backendError = cloudFunctions.switchPremiumGroup(cloudGroupId, groupName)
+            if (backendError != null) {
+                AppLog.d("VoleiViewModel", "switchPremiumGroup (best-effort) falhou: $backendError")
+                showMessage(strings.get(Res.string.cloud_sync_activation_error))
+            }
+
+            // Reivindica este aparelho como administrador ativo (só se ninguém tiver reivindicado
+            // antes — ver `admin-session-transfer`) e sobe o histórico/Elo pré-existentes do grupo
+            // (só roda uma vez por grupo, ver `history-backfill`) — aguardado aqui (em vez de
+            // apenas disparado) para que `_cloudActivationInProgress` só seja liberado quando o
+            // backfill de fato terminar.
+            claimAdminSessionIfUnclaimed(cloudGroupId)
+            backfillGroupHistoryIfNeeded(groupName, cloudGroupId).join()
+        } finally {
+            _cloudActivationInProgress.update { it - groupName }
+        }
+    }
+
+    /**
+     * Tenta de novo a ativação do grupo em nuvem no backend (ver [activateCloudGroupBackend]) sem
+     * precisar desligar/religar o toggle de sincronização — usado pelo botão "Tentar novamente" que
+     * aparece em [SpectatorCodeSection] quando o código de convite permanente fica tempo demais sem
+     * chegar (sinal de que a primeira chamada falhou silenciosamente, ex.: assinatura ainda não
+     * confirmada pelo servidor no momento em que o grupo foi ativado).
+     */
+    fun retryCloudGroupActivation(groupName: String) = viewModelScope.launch {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        val cloudGroupId = target.cloudGroupId ?: return@launch
+        activateCloudGroupBackend(cloudGroupId, groupName)
+    }
+
+    /**
+     * Reivindica [cloudGroupId] para este aparelho como administrador ativo, mas só se nenhum
+     * outro aparelho já tiver reivindicado a sessão antes ([GroupVisibility.activeAdminDeviceId]
+     * ainda `null`) — evita sobrescrever silenciosamente uma reivindicação alheia. Chamado
+     * automaticamente ao ativar a sincronização de um grupo; a troca explícita e consciente de
+     * "dono" é [transferAdminSession].
+     */
+    private fun claimAdminSessionIfUnclaimed(cloudGroupId: String) = viewModelScope.launch(ioDispatcher) {
+        val current = cloudSync.observeGroupVisibility(cloudGroupId).firstOrNull()
+        if (current?.activeAdminDeviceId != null) return@launch
+        cloudSync.setActiveAdminDevice(cloudGroupId, localDeviceId)
+    }
+
+    /**
+     * Transfere explicitamente a sessão de administrador de [groupName] para este aparelho —
+     * usado quando o usuário loga como organizador em um novo aparelho e quer continuar
+     * administrando o grupo por ali, sabendo que o aparelho anterior passa a ficar somente-leitura
+     * em relação à publicação do jogo ao vivo (ver [isLocalDeviceActiveAdmin], `admin-session-transfer`).
+     * Sempre sobrescreve, mesmo que já exista um dono reivindicado.
+     */
+    fun transferAdminSession(groupName: String) = viewModelScope.launch(ioDispatcher) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        val cloudGroupId = target.cloudGroupId ?: target.publicId
+        val now = AppDateTime.nowMillis()
+        cloudSync.setActiveAdminDevice(cloudGroupId, localDeviceId, now)
+        repository.saveGroupConfig(target.copy(activeAdminDeviceId = localDeviceId, activeAdminSince = now))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(activeAdminDeviceId = localDeviceId, activeAdminSince = now)
+        }
+    }
+
+    /**
+     * `history-backfill`: na primeira vez que [groupName] é sincronizado, sobe em lotes (ver
+     * `backfill-batched-writes`, melhor esforço) todo o histórico de partidas e log de Elo que já
+     * existiam ANTES da sincronização — sem isso, um grupo com meses de jogo mostraria só as
+     * partidas futuras a partir de hoje para quem entrar como Espectador. Só marca
+     * [GroupConfig.historyBackfilledAt] quando TODOS os lotes de partidas e de logs confirmam com
+     * sucesso — se algum lote falhar (rede instável, processo encerrado no meio, etc.), o flag
+     * fica em branco de propósito, para uma próxima ativação/retry poder tentar de novo em vez de
+     * deixar o histórico permanentemente incompleto sem nenhum aviso. [PlayerEloLog] não guarda
+     * `endTimestamp` (só a data em texto) — publicá-lo como `null` fazia o Firestore excluir (ou
+     * ordenar de forma indefinida) esses documentos na consulta `orderBy("endTimestamp", ...)` de
+     * [com.bismarck.voleimanager.app.util.CloudSyncManager.observeEloLogs], zerando
+     * jogos/vitórias/aproveitamento (e embaralhando o Elo "mais recente" exibido) para TODO
+     * jogador sincronizado por backfill. [resolveEloLogEndTimestamps] reconstrói uma marca real
+     * casando cada log com a partida do mesmo dia em que o jogador aparece (ver
+     * [RemoteEloLogEntry.endTimestamp]).
+     */
+    private fun backfillGroupHistoryIfNeeded(groupName: String, cloudGroupId: String) = viewModelScope.launch(ioDispatcher) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        if (target.historyBackfilledAt != null) return@launch
+
+        val historyEntries = repository.getHistoryByGroupSync(groupName)
+        val eloEntries = repository.getEloLogsByGroupSync(groupName)
+
+        val historyOk = cloudSync.pushHistoryEntriesBatched(
+            cloudGroupId,
+            historyEntries.map { match ->
+                RemoteHistoryEntry(
+                    date = match.date,
+                    teamA = match.teamA,
+                    teamB = match.teamB,
+                    winner = match.winner,
+                    teamAScore = match.teamAScore,
+                    teamBScore = match.teamBScore,
+                    endTimestamp = match.endTimestamp,
+                    startTimestamp = match.startTimestamp,
+                    eloPoints = match.eloPoints,
+                    teamAAverageElo = match.teamAAverageElo,
+                    teamBAverageElo = match.teamBAverageElo
+                )
+            }
+        )
+        val eloTimestamps = resolveEloLogEndTimestamps(eloEntries, historyEntries)
+        val eloOk = cloudSync.pushEloLogEntriesBatched(
+            cloudGroupId,
+            eloEntries.mapIndexed { index, log ->
+                RemoteEloLogEntry(
+                    playerNameSnapshot = log.playerNameSnapshot,
+                    date = log.date,
+                    elo = log.elo,
+                    won = log.won ?: false,
+                    endTimestamp = eloTimestamps[index]
+                )
+            }
+        )
+        if (!historyOk || !eloOk) {
+            AppLog.d("VoleiViewModel", "Backfill de histórico incompleto para $groupName (historyOk=$historyOk, eloOk=$eloOk)")
+            return@launch
+        }
+
+        val now = AppDateTime.nowMillis()
+        val latest = repository.getGroupConfig(groupName) ?: return@launch
+        repository.saveGroupConfig(latest.copy(historyBackfilledAt = now))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(historyBackfilledAt = now)
+        }
+    }
+
+    /**
+     * Gera um código de convite (via a Cloud Function real `createJoinCode`) para [groupName],
+     * concedendo o papel [role] a quem resgatar o código. Exige que o grupo já esteja
+     * sincronizado em nuvem (tenha um `cloudGroupId`) — se ainda não tiver acontecido a criação
+     * real do documento no backend (ex.: sem entitlement premium ainda), a Cloud Function retorna
+     * um erro amigável, repassado como está a [onResult].
+     */
+    fun generateJoinCode(groupName: String, role: JoinRole, onResult: (GeneratedJoinCode?, String?) -> Unit) =
+        viewModelScope.launch(ioDispatcher) {
+            val target = repository.getGroupConfig(groupName)
+            val cloudGroupId = target?.cloudGroupId
+            if (cloudGroupId == null) {
+                onResult(null, strings.get(Res.string.generate_join_code_group_not_synced))
+                return@launch
+            }
+            val result = cloudFunctions.createJoinCode(cloudGroupId, role)
+            onResult(result.getOrNull(), result.exceptionOrNull()?.message)
+        }
+
+    /**
+     * Força a geração de um novo código permanente de Espectador para [groupName], invalidando o
+     * anterior de verdade — a Cloud Function [CloudFunctionsManager.regenerateSpectatorCode]
+     * apaga todos os documentos de membro `ESPECTADOR` do grupo, o que faz os listeners do
+     * Firestore desses aparelhos falharem com `PERMISSION_DENIED` (ver [GroupVisibility.accessRevoked]
+     * e `spectator-code-kick`) — não é só trocar o texto do código, é revogar o acesso de fato.
+     */
+    fun regenerateSpectatorCode(groupName: String, onResult: (RegeneratedSpectatorCode?, String?) -> Unit) =
+        viewModelScope.launch(ioDispatcher) {
+            val target = repository.getGroupConfig(groupName)
+            val cloudGroupId = target?.cloudGroupId
+            if (cloudGroupId == null) {
+                onResult(null, strings.get(Res.string.generate_join_code_group_not_synced))
+                return@launch
+            }
+            val result = cloudFunctions.regenerateSpectatorCode(cloudGroupId)
+            onResult(result.getOrNull(), result.exceptionOrNull()?.message)
+        }
+
+    /** Observa em tempo real os metadados/toggles de um grupo em nuvem qualquer por
+     *  [cloudGroupId] — pass-through independente do grupo ativo do app, usado pela tela Premium
+     *  (cujo seletor de grupo pode apontar para qualquer grupo do próprio usuário, não só o grupo
+     *  [_currentGroupConfig] ativo no momento; ver [remoteGroupVisibility], que é escopado só ao
+     *  grupo ativo e por isso não pode ser reaproveitado aqui). */
+    fun observeGroupCloudMeta(cloudGroupId: String): Flow<GroupVisibility?> =
+        cloudSync.observeGroupVisibility(cloudGroupId)
+
+    /** Observa em tempo real quantos aparelhos estão fazendo streaming ao vivo dos dados de
+     *  [cloudGroupId] agora (presença no Realtime Database, ver [LivePresenceManager] e
+     *  `rtdb-presence-client`) — usado para mostrar "N assistindo agora" na tela Premium. */
+    fun observeLiveViewerCount(cloudGroupId: String): Flow<Int> =
+        livePresence.observePresenceCount(cloudGroupId)
+
+    // ---------------------------------------------------------------------------------------
+    // Conta (Firebase Auth) — cadastro/login gratuito por e-mail/senha, exigido de
+    // Organizador/Auxiliar antes de assinar um pacote premium. Login com Google fica para uma
+    // fase seguinte (`auth-account-flow`, item de login social).
+    // ---------------------------------------------------------------------------------------
+
+    /** Usuário logado no momento (ou `null`), refletido no cabeçalho do menu lateral. */
+    val currentUser: StateFlow<AppAuthUser?> = auth.currentUser
+        .stateIn(viewModelScope, screenDataSharing, null)
+
+    /** `true` só quando o usuário pode assinar um pacote premium: precisa estar logado E com
+     *  e-mail confirmado (Google já conta como confirmado por natureza — ver
+     *  [AppAuthUser.emailVerified]). Gateia [purchasePremiumPlan] e também é usado pela UI
+     *  ([PremiumPlansSection]) para explicar o motivo do bloqueio antes mesmo do usuário tentar
+     *  comprar (ver `premium-purchase-gating`). */
+    val canPurchasePremium: StateFlow<Boolean> = currentUser
+        .map { it != null && it.emailVerified }
+        .stateIn(viewModelScope, screenDataSharing, false)
+
+    private val _authInProgress = MutableStateFlow(false)
+    val authInProgress: StateFlow<Boolean> = _authInProgress.asStateFlow()
+
+    /** Cria uma conta gratuita e já efetua o login. [fullName]/[birthDate] ficam guardados para
+     *  uma futura verificação de elegibilidade de compra premium; [nickname] é o nome público
+     *  exibido no topo do app. [onResult] recebe `null` em caso de sucesso, ou uma mensagem de
+     *  erro amigável para exibir no diálogo. */
+    fun signUpWithEmail(
+        email: String,
+        password: String,
+        fullName: String,
+        nickname: String,
+        birthDate: String,
+        onResult: (String?) -> Unit
+    ) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = auth.signUp(email.trim(), password, fullName.trim(), nickname.trim(), birthDate.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Efetua login com e-mail/senha. [onResult] recebe `null` em caso de sucesso, ou uma
+     *  mensagem de erro amigável para exibir no diálogo. */
+    fun signInWithEmail(email: String, password: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = auth.signIn(email.trim(), password)
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Login (ou cadastro automático, no primeiro acesso) via conta Google — ver
+     *  [com.bismarck.voleimanager.app.util.GoogleSignInHelper] e
+     *  [AuthManager.signInWithGoogleIdToken]. [host] precisa ser o anfitri?o da Activity atual (ex.:
+     *  `AndroidPlatformHost(LocalContext.current)` na Composable que abre o diálogo), pois o seletor de contas do
+     *  Google é uma UI do sistema exibida sobre a Activity atual. */
+    fun signInWithGoogle(host: PlatformHost, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = googleSignIn.getIdToken(host).fold(
+                onSuccess = { idToken -> auth.signInWithGoogleIdToken(idToken) },
+                onFailure = { e -> e.message ?: strings.get(Res.string.google_sign_in_error) }
+            )
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Reenvia o e-mail de confirmação da conta logada (ver [AuthManager.resendVerificationEmail]).
+     *  [onResult] recebe `null` em caso de sucesso, ou uma mensagem amigável (erro, ou aviso caso
+     *  o e-mail já esteja confirmado). */
+    fun resendVerificationEmail(onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            onResult(auth.resendVerificationEmail())
+        }
+    }
+
+    /** Recarrega o usuário logado (ver [AuthManager.refreshCurrentUser]) para que
+     *  [currentUser].emailVerified reflita uma confirmação feita fora do app (link recebido por
+     *  e-mail) assim que o app volta ao primeiro plano — faz o botão "Reenviar e-mail de
+     *  confirmação" sumir automaticamente sem precisar de nenhuma ação do usuário. */
+    fun refreshCurrentUser() {
+        viewModelScope.launch { auth.refreshCurrentUser() }
+    }
+
+    /** Inicia a troca de e-mail da conta logada (confirma a senha atual, depois envia um link de
+     *  confirmação para o novo e-mail — ver [AuthManager.changeEmail]). [onResult] recebe `null`
+     *  em caso de sucesso, ou uma mensagem de erro amigável. */
+    fun changeEmail(currentPassword: String, newEmail: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = auth.changeEmail(currentPassword, newEmail.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Altera a senha da conta logada, exigindo a senha atual (ver [AuthManager.changePassword]).
+     *  [onResult] recebe `null` em caso de sucesso, ou uma mensagem de erro amigável. */
+    fun changePassword(currentPassword: String, newPassword: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = auth.changePassword(currentPassword, newPassword)
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Envia o e-mail de "esqueci minha senha" (ver [AuthManager.sendPasswordResetEmail]), usado
+     *  a partir da tela de login sem precisar estar logado. [onResult] recebe `null` em caso de
+     *  sucesso, ou uma mensagem de erro amigável. */
+    fun sendPasswordResetEmail(email: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = auth.sendPasswordResetEmail(email.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    fun signOut() {
+        auth.signOut()
+    }
+
+    /** Atualiza o apelido público, nome completo e data de nascimento do usuário logado. */
+    fun updateUserProfile(nickname: String, fullName: String, birthDate: String, onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = auth.updateProfile(nickname.trim(), fullName.trim(), birthDate.trim())
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    /** Define (ou remove, se [base64] for `null`) a foto de perfil do usuário logado. */
+    fun updateProfilePhoto(base64: String?, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            onResult(auth.updateProfilePhoto(base64))
+        }
+    }
+
+    /** Apaga a conta do usuário logado (Firebase Auth + perfil no Firestore). [onResult] recebe
+     *  `null` em caso de sucesso, ou uma mensagem de erro amigável (por exemplo, pedindo para
+     *  entrar novamente antes de apagar a conta, exigência de segurança do Firebase). */
+    fun deleteAccount(onResult: (String?) -> Unit) {
+        _authInProgress.value = true
+        viewModelScope.launch {
+            val error = auth.deleteAccount()
+            _authInProgress.value = false
+            onResult(error)
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Grupos remotos (entrados via código de Auxiliar/Espectador de outra pessoa) e
+    // transferência de posse de um grupo premium. Sem o backend de sincronização
+    // (`firestore-sync-engine`) ainda não existe validação/decodificação real de código — por
+    // ora, o código apenas define o papel (prefixo "AUX"/"ESP") e cria um grupo local marcado
+    // como remoto, para já poder testar a UI (ícone de streaming, sem editar/apagar, botão
+    // "sair"). Quando o backend existir, isso passa a resolver o grupo/õs dados reais.
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Tenta "entrar" num grupo de outra pessoa a partir de um código de convite, chamando a
+     * Cloud Function real `redeemJoinCode` (`volei_manager_backend`). Retorna uma mensagem de
+     * erro amigável, ou `null` em caso de sucesso (e já seleciona o grupo criado).
+     *
+     * Como um código só é resgatável de verdade depois que o organizador tiver uma assinatura
+     * premium ativa validada no servidor (`switchPremiumGroup` precisa rodar com sucesso antes,
+     * criando `cloudGroups/{cloudGroupId}`), e ainda não existe cobrança real, essa chamada
+     * tende a falhar em qualquer ambiente sem entitlement — por isso, em build de debug, caímos
+     * de volta na simulação local antiga (papel pelo prefixo "AUX"/"ESP") só para continuar
+     * testando a UI enquanto o backend de cobrança não existe.
+     */
+    fun joinGroupWithCode(code: String, onResult: (String?) -> Unit) = viewModelScope.launch(ioDispatcher) {
+        val trimmed = code.trim()
+        if (trimmed.isBlank()) {
+            onResult(strings.get(Res.string.join_group_invalid_code))
+            return@launch
+        }
+
+        // Espectador não precisa criar conta/logar para acompanhar um grupo: se ainda não há
+        // ninguém logado, entra anonimamente antes de tentar resgatar o código (o Firestore exige
+        // um uid autenticado para checar a lista de membros do grupo — ver `firestore.rules` e
+        // auth.signInAnonymously). Papel Auxiliar está temporariamente oculto/desativado,
+        // então na prática todo código resgatado por aqui hoje é de Espectador.
+        // Em build de debug (inclusive os testes Robolectric, que rodam sobre a variante debug e
+        // nunca têm Firebase configurado — ver auth.isRunningInUnitTest), uma falha aqui não
+        // deve bloquear a tentativa: seguimos adiante para redeemJoinCode/fallback local, já que
+        // sem Firebase real essa chamada sempre "falha" propositalmente nesse ambiente.
+        if (currentUser.value == null) {
+            val anonError = auth.signInAnonymously()
+            if (anonError != null && !deviceInfo.isDebugBuild) {
+                onResult(anonError)
+                return@launch
+            }
+        }
+
+        val remoteResult = cloudFunctions.redeemJoinCode(trimmed)
+        val redeemed = remoteResult.getOrNull()
+        if (redeemed != null) {
+            // Papel Auxiliar temporariamente oculto/desativado (ver `hide-auxiliar-role-temporarily`):
+            // a sincronização Admin<->Auxiliar ainda não está estável para o lançamento, então um
+            // código de Auxiliar (novo ou antigo, já gerado antes desta mudança) não é aceito.
+            if (redeemed.role == JoinRole.AUXILIAR) {
+                onResult(strings.get(Res.string.join_group_auxiliar_unavailable))
+                return@launch
+            }
+            val remoteRole = when (redeemed.role) {
+                JoinRole.AUXILIAR -> UserProfileType.AUXILIAR
+                JoinRole.ESPECTADOR -> UserProfileType.ESPECTADOR
+            }
+            joinRemoteGroup(
+                cloudGroupId = redeemed.cloudGroupId,
+                role = remoteRole,
+                displayCode = trimmed,
+                remoteGroupName = redeemed.groupName,
+                onResult = onResult
+            )
+            return@launch
+        }
+
+        if (deviceInfo.isDebugBuild) {
+            val upper = trimmed.uppercase()
+            val debugRole = when {
+                upper.startsWith("AUX") -> UserProfileType.AUXILIAR
+                upper.startsWith("ESP") -> UserProfileType.ESPECTADOR
+                else -> null
+            }
+            if (debugRole == UserProfileType.AUXILIAR) {
+                onResult(strings.get(Res.string.join_group_auxiliar_unavailable))
+                return@launch
+            }
+            if (debugRole != null) {
+                joinRemoteGroup(cloudGroupId = upper, role = debugRole, displayCode = upper, onResult = onResult)
+                return@launch
+            }
+        }
+
+        onResult(remoteResult.exceptionOrNull()?.message ?: strings.get(Res.string.join_group_invalid_code))
+    }
+
+    private suspend fun joinRemoteGroup(
+        cloudGroupId: String,
+        role: UserProfileType,
+        displayCode: String,
+        remoteGroupName: String? = null,
+        onResult: (String?) -> Unit
+    ) {
+        val baseName = normalizeGroupName(
+            remoteGroupName?.takeIf { it.isNotBlank() }
+                ?: strings.get(Res.string.join_group_remote_group_name, displayCode)
+        )
+        // Se já existir um grupo local com o mesmo nome (ex.: dois grupos remotos com nomes
+        // iguais, ou colisão com um grupo próprio), acrescenta um sufixo numérico até achar um
+        // nome livre, em vez de bloquear a entrada ou sobrescrever o grupo existente.
+        var groupName = baseName
+        var suffix = 2
+        while (repository.getGroupConfig(groupName) != null) {
+            val candidate = "$baseName ($suffix)"
+            groupName = normalizeGroupName(candidate)
+            suffix++
+            if (suffix > 50) {
+                onResult(strings.get(Res.string.join_group_already_joined))
+                return
+            }
+        }
+        val cfg = GroupConfig(
+            groupName = groupName,
+            onboardingStep = ONBOARDING_STEP_COMPLETE,
+            isCloudSynced = true,
+            cloudGroupId = cloudGroupId,
+            remoteRole = role.name
+        )
+        repository.saveGroupConfig(cfg)
+        loadGroupConfig(groupName)
+        telemetry.logMemberJoinedViaCode(role.name)
+        onResult(null)
+    }
+
+    /** Desconecta este dispositivo de um grupo remoto (Auxiliar/Espectador), sem afetar o grupo
+     *  para os demais membros — equivalente a [deleteGroup], mas usado apenas pela UI de grupos
+     *  de outra pessoa (botão vermelho "Sair", no lugar de "Apagar grupo"). */
+    fun leaveRemoteGroup(groupName: String) = deleteGroup(groupName)
+
+    /**
+     * Organizador solicita transferir a posse de um grupo premium sincronizado para um(a)
+     * Auxiliar (identificado por e-mail), que precisa também ser premium. Sem o backend de
+     * sincronização, isso fica registrado localmente como uma intenção pendente
+     * ([GroupConfig.pendingOwnershipTransferTo]) — a efetivação real (trocar quem é o
+     * organizador oficial nos demais dispositivos) exige a Cloud Function correspondente.
+     */
+    fun requestGroupOwnershipTransfer(groupName: String, targetEmail: String) = viewModelScope.launch(ioDispatcher) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        if (target.remoteRole != null || !target.isCloudSynced) {
+            showMessage(strings.get(Res.string.ownership_transfer_requires_own_premium_group))
+            return@launch
+        }
+        val normalizedEmail = targetEmail.trim()
+        if (normalizedEmail.isBlank()) return@launch
+        repository.saveGroupConfig(target.copy(pendingOwnershipTransferTo = normalizedEmail))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(pendingOwnershipTransferTo = normalizedEmail)
+        }
+        showMessage(strings.get(Res.string.ownership_transfer_requested))
+    }
+
+    fun cancelGroupOwnershipTransfer(groupName: String) = viewModelScope.launch(ioDispatcher) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        repository.saveGroupConfig(target.copy(pendingOwnershipTransferTo = null))
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(pendingOwnershipTransferTo = null)
+        }
+    }
+
+    private val _teamsSwapped = MutableStateFlow(false)
+    val teamsSwapped: StateFlow<Boolean> = _teamsSwapped.asStateFlow()
+    fun toggleTeamsSwapped() { _teamsSwapped.value = !_teamsSwapped.value }
+
+    /** Sinaliza para a UI que é um bom momento para solicitar o fluxo de review do Play. */
+    private val _shouldRequestReview = MutableStateFlow(false)
+    val shouldRequestReview: StateFlow<Boolean> = _shouldRequestReview.asStateFlow()
+
+    // --- Controle de descanso e rodadas ---
+    private val _roundCounter = MutableStateFlow(0)
+    val roundCounter: StateFlow<Int> = _roundCounter.asStateFlow()
+
+    // Mapa: playerId -> rodada de retorno (inclusive)
+    private val _restingPlayers = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    val restingPlayers = _restingPlayers.asStateFlow()
+
+    private fun markPlayersResting(players: List<Player>, rounds: Int = 1) {
+        if (players.isEmpty()) return
+        val returnRound = _roundCounter.value + rounds
+        val result = applyRestingMark(
+            currentResting = _restingPlayers.value,
+            currentWaiting = _waitingList.value,
+            playersToRest = players.map { applyTollIfNecessary(it) },
+            returnRound = returnRound
+        )
+        _restingPlayers.value = result.restingPlayers
+        _waitingList.value = result.waitingList
+    }
+
+    private fun collectAndClearReturningPlayers(): List<Player> {
+        val result = resolveReturningPlayers(
+            currentResting = _restingPlayers.value,
+            currentWaiting = _waitingList.value,
+            roundCounter = _roundCounter.value
+        )
+        if (result.returningIds.isEmpty()) return emptyList()
+        val returning = result.returningIds
+            .mapNotNull { id ->
+                currentGroupPlayers.value.find { it.id == id }
+                    ?.takeIf { _presentPlayerIds.value.contains(it.id) }
+            }
+        _restingPlayers.value = result.restingPlayers
+        _waitingList.value = result.waitingList
+        return returning
+    }
+
+    /**
+     * Se houver um time completo voltando do descanso, monta uma partida imediata
+     * contra o time que estava reinando na rodada anterior (_lastWinners).
+     * Retorna true quando a partida já foi formada e não precisa seguir a lógica padrão.
+     */
+    private fun tryScheduleReturningTeamMatchIfAny(conf: GroupConfig): Boolean {
+        val returningPlayers = collectAndClearReturningPlayers()
+        if (returningPlayers.isEmpty()) return false
+
+        val teamSize = conf.teamSize
+        val returningTeamPlayers = returningPlayers.take(teamSize).map { applyTollIfNecessary(it) }.toMutableList()
+        if (returningTeamPlayers.size < teamSize) {
+            val missing = teamSize - returningTeamPlayers.size
+            val substitutePlayers = _waitingList.value
+                .asSequence()
+                .filterNot { _restingPlayers.value.containsKey(it.id) }
+                .take(missing)
+                .toList()
+            if (substitutePlayers.isNotEmpty()) {
+                val substituteIds = substitutePlayers.map { it.id }.toSet()
+                returningTeamPlayers.addAll(substitutePlayers.map { applyTollIfNecessary(it) })
+                _waitingList.value = _waitingList.value.filterNot { substituteIds.contains(it.id) }
+            }
+        }
+        if (returningTeamPlayers.size < teamSize) {
+            _waitingList.value = (returningTeamPlayers + _waitingList.value).distinctBy { it.id }
+            return false
+        }
+
+        // O time adversário é o time reinante da rodada em que eles descansaram,
+        // guardado em _lastWinners e filtrado apenas pelos jogadores ainda presentes.
+        val reigningWinnerPlayers = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
+        val opposingTeamPlayers = mutableListOf<Player>()
+        opposingTeamPlayers.addAll(reigningWinnerPlayers.take(teamSize))
+        var replacedMissingWinnerWithWaitingPlayer = false
+
+        // Se o time reinante não completar a quadra, complementa com a waitingList.
+        if (opposingTeamPlayers.size < teamSize) {
+            val needed = teamSize - opposingTeamPlayers.size
+            val picks = _waitingList.value.take(needed)
+            opposingTeamPlayers.addAll(picks)
+            _waitingList.value = _waitingList.value.drop(needed)
+            if (picks.isNotEmpty()) replacedMissingWinnerWithWaitingPlayer = true
+        }
+
+        // Se ainda faltarem jogadores, devolve o time retornante para a fila de espera.
+        if (opposingTeamPlayers.size < teamSize) {
+            // Mantém o time retornante descansando por mais uma rodada.
+            markPlayersResting(returningTeamPlayers, rounds = 1)
+            return false
+        }
+
+        // Preserva os perdedores da rodada anterior na fila antes de agendar a partida imediata.
+        val previousLoserIds = lastLosers
+            .filter { _presentPlayerIds.value.contains(it.id) }
+            .map { it.id }
+            .toSet()
+        val returningTeamIds = returningTeamPlayers.map { it.id }.toSet()
+        val opposingTeamIds = opposingTeamPlayers.map { it.id }.toSet()
+        val previousLosers = lastLosers
+            .filter { _presentPlayerIds.value.contains(it.id) }
+            .filterNot { returningTeamIds.contains(it.id) || opposingTeamIds.contains(it.id) }
+            .map { applyTollIfNecessary(it) }
+        _waitingList.value = (
+            _waitingList.value.filterNot { returningTeamIds.contains(it.id) || opposingTeamIds.contains(it.id) } + previousLosers
+        ).distinctBy { it.id }
+
+        // O time que voltou do descanso ocupa o lado oposto ao time reinante.
+        // Se o reinante está no lado A, o retornante entra como B; se está no B, entra como A.
+        val returningTeamPlaysAsA = when (_streakOwner.value) {
+            "A" -> false
+            "B" -> true
+            else -> true
+        }
+
+        if (returningTeamPlaysAsA) {
+            _teamA.value = sortTeamPlayers(returningTeamPlayers)
+            _teamB.value = sortTeamPlayers(opposingTeamPlayers)
+        } else {
+            _teamA.value = sortTeamPlayers(opposingTeamPlayers)
+            _teamB.value = sortTeamPlayers(returningTeamPlayers)
+        }
+        _autoSelectedLoserPlayerIds.value = (_teamA.value + _teamB.value)
+            .map { it.id }
+            .filter { previousLoserIds.contains(it) }
+            .toSet()
+        _hasPreviousMatch.value = false
+        resetScoresAndPointIndicator()
+        if (replacedMissingWinnerWithWaitingPlayer) {
+            _currentStreak.value = 0
+            _streakOwner.value = null
+        }
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+
+        refreshPositionAssignments()
+        return true
+    }
+
+    private val _teamA = MutableStateFlow<List<Player>>(emptyList())
+    val teamA = _teamA.asStateFlow()
+    private val _teamB = MutableStateFlow<List<Player>>(emptyList())
+    val teamB = _teamB.asStateFlow()
+    private val _waitingList = MutableStateFlow<List<Player>>(emptyList())
+    val waitingList = _waitingList.asStateFlow()
+    private val _presentPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
+    val presentPlayerIds = _presentPlayerIds.asStateFlow()
+
+    /** Jogadores marcados como presentes/selecionados, sincronizados via [LiveGameState.presentPlayers]
+     *  para dispositivos que entraram como Auxiliar/Espectador (sem roster real no Room). Alimenta a
+     *  tela "Jogo (Ao vivo)" antes de uma partida começar (ver `spectator-player-list-visible`). */
+    private val _remoteSelectedPlayers = MutableStateFlow<List<Player>>(emptyList())
+    val remoteSelectedPlayers = _remoteSelectedPlayers.asStateFlow()
+
+    /** Elenco completo (sem filtro de presença) do grupo remoto, sincronizado via
+     *  [LiveGameState.allPlayers] — usado pelo Auxiliar para ver a lista de jogadores completa do
+     *  grupo, sem as restrições de edição do Espectador (ver `aux-full-roster-sync`). */
+    private val _remoteAllPlayers = MutableStateFlow<List<Player>>(emptyList())
+    val remoteAllPlayers = _remoteAllPlayers.asStateFlow()
+
+    /** Posição ocupada por cada jogador na partida atual. Vazio fora do Modo Posições Fixas. */
+    private val _assignedPositions = MutableStateFlow<Map<Int, PlayerPosition>>(emptyMap())
+    val assignedPositions = _assignedPositions.asStateFlow()
+    private val _assignedSlotIndices = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    val assignedSlotIndices = _assignedSlotIndices.asStateFlow()
+
+    /** `true` quando algum time em quadra não cumpre a composição mínima de posições. */
+    private val _compositionIncomplete = MutableStateFlow(false)
+    val compositionIncomplete = _compositionIncomplete.asStateFlow()
+
+    private val _scoreA = MutableStateFlow(0)
+    val scoreA = _scoreA.asStateFlow()
+    private val _scoreB = MutableStateFlow(0)
+    val scoreB = _scoreB.asStateFlow()
+    private val _lastScoringTeam = MutableStateFlow<String?>(null)
+    val lastScoringTeam = _lastScoringTeam.asStateFlow()
+    private val _rotationRequiredForTeam = MutableStateFlow<String?>(null)
+    val rotationRequiredForTeam = _rotationRequiredForTeam.asStateFlow()
+
+    private val _hasPreviousMatch = MutableStateFlow(false)
+    val hasPreviousMatch = _hasPreviousMatch.asStateFlow()
+    /** `true` enquanto a última partida finalizada do grupo ainda puder ser desfeita (ver
+     *  [UndoMatchSnapshot] / [refreshCanUndoLastMatch] / [undoLastMatch]). */
+    private val _canUndoLastMatch = MutableStateFlow(false)
+    val canUndoLastMatch = _canUndoLastMatch.asStateFlow()
+    private var undoExpiryJob: kotlinx.coroutines.Job? = null
+    private val _currentStreak = MutableStateFlow(0)
+    val currentStreak = _currentStreak.asStateFlow()
+    private val _streakOwner = MutableStateFlow<String?>(null)
+    val streakOwner = _streakOwner.asStateFlow()
+    private val _lastWinners = MutableStateFlow<List<Player>>(emptyList())
+    val lastWinners = _lastWinners.asStateFlow()
+    private val _rebalancedPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
+    val rebalancedPlayerIds = _rebalancedPlayerIds.asStateFlow()
+    private val _autoSelectedLoserPlayerIds = MutableStateFlow<Set<Int>>(emptySet())
+    val autoSelectedLoserPlayerIds = _autoSelectedLoserPlayerIds.asStateFlow()
+    private val _guaranteedNextMatchPlayerIds = MutableStateFlow<List<Int>>(emptyList())
+    val guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.asStateFlow()
+    private val _manualStreakAdjustments = MutableStateFlow<List<ManualStreakAdjustmentLog>>(emptyList())
+    val manualStreakAdjustments = _manualStreakAdjustments.asStateFlow()
+    private val _manualSubstitutions = MutableStateFlow<List<ManualSubstitutionLog>>(emptyList())
+    val manualSubstitutions = _manualSubstitutions.asStateFlow()
+    private var lastLosers: List<Player> = emptyList()
+    private val _currentMatchStartTimestamp = MutableStateFlow<Long?>(null)
+
+    // Controla quando a persistência do estado de jogo fica ativa (após a primeira carga do grupo)
+    private var persistenceReady = false
+    private val maxManualStreakLogsInMemory = 50
+    private val maxManualSubstitutionLogsInMemory = 50
+
+    init {
+        loadPreferences()
+        viewModelScope.launch {
+            val existingGroups = repository.getAllGroupNames()
+            val initialGroup = existingGroups.firstOrNull()
+            if (initialGroup != null) {
+                loadGroupConfig(initialGroup)
+            } else {
+                // Instalação nova: não persiste nenhum grupo até o usuário confirmar um nome válido.
+                startFreshGroupOnboarding()
+            }
+        }
+        observeAndPersistGameState()
+        observeAndPushCloudLiveState()
+        observeAndMirrorRemoteLiveState()
+        observeRemoteGroupVisibility()
+        viewModelScope.launch {
+            availableHistoryDates.collect { dates ->
+                if (_historyDateFilter.value == null && dates.isNotEmpty()) _historyDateFilter.value =
+                    dates.first()
+            }
+        }
+    }
+
+    // Observa todos os fluxos do estado de jogo e persiste a cada alteração
+    private fun observeAndPersistGameState() {
+        viewModelScope.launch {
+            combine(
+                _teamA, _teamB, _waitingList, _presentPlayerIds, _scoreA
+            ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
+        }
+        viewModelScope.launch {
+            combine(
+                _scoreB, _currentStreak, _hasPreviousMatch, _lastWinners, _streakOwner
+            ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
+        }
+        viewModelScope.launch {
+            combine(_lastScoringTeam, _rotationRequiredForTeam) { _, _ -> }
+                .collect { if (persistenceReady) saveGameState() }
+        }
+        // Persiste também os jogadores em descanso e o contador de rodadas
+        viewModelScope.launch {
+            combine(
+                _restingPlayers,
+                _roundCounter,
+                _rebalancedPlayerIds,
+                _autoSelectedLoserPlayerIds,
+                _guaranteedNextMatchPlayerIds
+            ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
+        }
+        viewModelScope.launch {
+            combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { _, _, _ -> }
+                .collect { if (persistenceReady) saveGameState() }
+        }
+
+        // Sempre que os times mudarem, remove esses jogadores do mapa de descanso e garante que a waitingList não tenha duplicados nem jogadores em quadra
+        viewModelScope.launch {
+            combine(_teamA, _teamB) { a, b ->
+                val ids = (a.map { it.id } + b.map { it.id }).toSet()
+                ids
+            }.collect { ids ->
+                if (ids.isNotEmpty()) {
+                    // Limpa as marcações de descanso dos jogadores que estão em quadra agora
+                    val reduced = _restingPlayers.value.filterKeys { !ids.contains(it) }
+                    if (reduced.size != _restingPlayers.value.size) _restingPlayers.value = reduced
+                    // Remove da waitingList os jogadores que estão nos times e elimina duplicados
+                    val dedup = _waitingList.value.filterNot { ids.contains(it.id) }.distinctBy { it.id }
+                    if (dedup.size != _waitingList.value.size) _waitingList.value = dedup
+                } else {
+                    // Mantém a waitingList sem duplicados mesmo quando não há partida em andamento
+                    val dedup = _waitingList.value.distinctBy { it.id }
+                    if (dedup.size != _waitingList.value.size) _waitingList.value = dedup
+                }
+            }
+        }
+    }
+
+    /**
+     * Motor de sincronização (`firestore-sync-engine`): sempre que o grupo local ativo for o
+     * grupo **próprio** deste dispositivo ([GroupConfig.remoteRole] nulo) e estiver premium
+     * sincronizado ([GroupConfig.isCloudSynced] com [GroupConfig.cloudGroupId] não nulo), publica
+     * o estado do jogo em andamento (times, fila, placar, sequência) em
+     * `cloudGroups/{cloudGroupId}/liveState/current`, para que auxiliares/espectadores que
+     * entraram via código vejam em tempo real (ver [CloudSyncManager.pushLiveState]). Usa
+     * [kotlinx.coroutines.flow.debounce] para não disparar uma escrita por tecla em sequências
+     * rápidas de toques no placar.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
+    private fun observeAndPushCloudLiveState() {
+        data class LiveGameStatePartial(
+            val teamA: List<Player>,
+            val teamB: List<Player>,
+            val waitingList: List<Player>,
+            val scoreA: Int,
+            val scoreB: Int,
+            val presentPlayerIds: Set<Int>
+        )
+        data class ExtraFieldsPartial(
+            val matchStartTimestamp: Long?,
+            val lastScoringTeam: String?,
+            val rotationRequiredForTeam: String?,
+            val assignedPositions: Map<Int, PlayerPosition>,
+            val assignedSlotIndices: Map<Int, Int>,
+            val compositionIncomplete: Boolean,
+            val hasPreviousMatch: Boolean,
+            val lastWinners: List<Player>
+        )
+        val partialFlow = combine(
+            combine(_teamA, _teamB, _waitingList) { teamA, teamB, waiting -> Triple(teamA, teamB, waiting) },
+            _scoreA, _scoreB, _presentPlayerIds
+        ) { teams, scoreA, scoreB, presentIds ->
+            LiveGameStatePartial(teams.first, teams.second, teams.third, scoreA, scoreB, presentIds)
+        }
+        // Campos extras que também dependem de um Player.id real (elenco completo, marcador de
+        // ponto/rodízio, início da partida, posições atribuídas) são agrupados aqui para não
+        // estourar o limite de 5 flows tipadas do combine() abaixo.
+        val extraFlow = combine(
+            combine(_currentMatchStartTimestamp, _lastScoringTeam, _rotationRequiredForTeam) { ts, lastTeam, rotation -> Triple(ts, lastTeam, rotation) },
+            combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { positions, slots, incomplete -> Triple(positions, slots, incomplete) },
+            combine(_hasPreviousMatch, _lastWinners) { hasPrev, winners -> hasPrev to winners }
+        ) { a, b, c -> ExtraFieldsPartial(a.first, a.second, a.third, b.first, b.second, b.third, c.first, c.second) }
+        val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow, gamesPlayedStrictTodayMap, isLocalDeviceActiveAdmin) { players, extra, gamesMap, adminOk ->
+            Triple(players, extra, gamesMap) to adminOk
+        }
+        viewModelScope.launch {
+            combine(_currentGroupConfig, partialFlow, _currentStreak, _streakOwner, groupPlayersAndExtra) { config, partial, streak, owner, playersAndExtra ->
+                val groupPlayers = playersAndExtra.first.first
+                val extra = playersAndExtra.first.second
+                val gamesMap = playersAndExtra.first.third
+                val isLocalAdminAllowed = playersAndExtra.second
+                // Organizador (grupo próprio) publica sempre, MAS só se este for o aparelho
+                // reivindicado como administrador ativo do grupo (ver `admin-session-transfer`,
+                // [isLocalDeviceActiveAdmin]) — sem essa checagem, um segundo aparelho logado como
+                // organizador do mesmo grupo (ex.: após restaurar um backup) sobrescreveria a
+                // qualquer momento o estado publicado pelo aparelho "de verdade". Auxiliar
+                // (`remoteRole == "AUXILIAR"`) só publica depois de ter recebido pelo menos um
+                // LiveGameState real do organizador para o grupo atual — evita que o estado local
+                // vazio/zerado de um Auxiliar recém conectado (antes do primeiro espelhamento)
+                // sobrescreva o jogo em andamento do organizador (ver `fix-admin-aux-sync-races`).
+                // Espectador nunca escreve.
+                val canPush = config.isCloudSynced && config.cloudGroupId != null &&
+                    ((config.remoteRole == null && isLocalAdminAllowed) ||
+                        (config.remoteRole == UserProfileType.AUXILIAR.name &&
+                            remoteStateInitializedForGroupId == config.cloudGroupId))
+                if (canPush) {
+                    // Presença/seleção pré-partida, elenco completo, jogos hoje e posições
+                    // atribuídas: só o organizador tem o roster real no Room para calculá-los; o
+                    // Auxiliar ecoa o último valor observado, para não apagar esses dados com um
+                    // valor vazio ao publicar sua própria edição de placar/times.
+                    val presentSnapshots: List<RemotePlayerSnapshot>
+                    val allPlayerSnapshots: List<RemotePlayerSnapshot>
+                    val gamesPlayedTodayByPublicId: Map<String, Int>
+                    val assignedPositionsByPublicId: Map<String, String>
+                    val assignedSlotIndicesByPublicId: Map<String, Int>
+                    val compositionIncompleteValue: Boolean
+                    if (config.remoteRole == null) {
+                        presentSnapshots = partial.presentPlayerIds.mapNotNull { id -> groupPlayers.find { it.id == id } }
+                            .map { it.toRemoteSnapshot() }
+                        allPlayerSnapshots = groupPlayers.map { it.toRemoteSnapshot() }
+                        gamesPlayedTodayByPublicId = groupPlayers.mapNotNull { p ->
+                            gamesMap[p.id]?.let { p.publicId to it }
+                        }.toMap()
+                        val playersById = groupPlayers.associateBy { it.id }
+                        assignedPositionsByPublicId = extra.assignedPositions.mapNotNull { (id, pos) ->
+                            playersById[id]?.publicId?.let { it to pos.name }
+                        }.toMap()
+                        assignedSlotIndicesByPublicId = extra.assignedSlotIndices.mapNotNull { (id, slot) ->
+                            playersById[id]?.publicId?.let { it to slot }
+                        }.toMap()
+                        compositionIncompleteValue = extra.compositionIncomplete
+                    } else {
+                        presentSnapshots = lastKnownRemotePresentPlayers
+                        allPlayerSnapshots = lastKnownRemoteAllPlayers
+                        gamesPlayedTodayByPublicId = lastKnownRemoteGamesPlayedToday
+                        assignedPositionsByPublicId = lastKnownRemoteAssignedPositions
+                        assignedSlotIndicesByPublicId = lastKnownRemoteAssignedSlotIndices
+                        compositionIncompleteValue = lastKnownRemoteCompositionIncomplete
+                    }
+                    config.cloudGroupId!! to LiveGameState(
+                        groupName = config.groupName,
+                        teamA = partial.teamA.map { it.toRemoteSnapshot() },
+                        teamB = partial.teamB.map { it.toRemoteSnapshot() },
+                        waitingList = partial.waitingList.map { it.toRemoteSnapshot() },
+                        scoreA = partial.scoreA,
+                        scoreB = partial.scoreB,
+                        currentStreak = streak,
+                        streakOwner = owner,
+                        updatedAt = AppDateTime.nowMillis(),
+                        presentPlayers = presentSnapshots,
+                        allPlayers = allPlayerSnapshots,
+                        matchStartTimestamp = extra.matchStartTimestamp,
+                        lastScoringTeam = extra.lastScoringTeam,
+                        rotationRequiredForTeam = extra.rotationRequiredForTeam,
+                        writerSessionId = localSyncSessionId,
+                        gamesPlayedToday = gamesPlayedTodayByPublicId,
+                        assignedPositions = assignedPositionsByPublicId,
+                        assignedSlotIndices = assignedSlotIndicesByPublicId,
+                        compositionIncomplete = compositionIncompleteValue,
+                        hasPreviousMatch = extra.hasPreviousMatch,
+                        lastWinners = extra.lastWinners.map { it.toRemoteSnapshot() }
+                    )
+                } else null
+            }.debounce(400).collect { pushable ->
+                if (pushable != null) {
+                    lastPushedUpdatedAt = pushable.second.updatedAt
+                    lastKnownRemotePresentPlayers = pushable.second.presentPlayers
+                    lastKnownRemoteAllPlayers = pushable.second.allPlayers
+                    lastKnownRemoteGamesPlayedToday = pushable.second.gamesPlayedToday
+                    lastKnownRemoteAssignedPositions = pushable.second.assignedPositions
+                    lastKnownRemoteAssignedSlotIndices = pushable.second.assignedSlotIndices
+                    lastKnownRemoteCompositionIncomplete = pushable.second.compositionIncomplete
+                    cloudSync.pushLiveState(pushable.first, pushable.second)
+                }
+            }
+        }
+    }
+
+    /**
+     * Espelha o [LiveGameState] em nuvem de volta para as flows locais de jogo (`_teamA`,
+     * `_teamB`, `_waitingList`, `_scoreA`, `_scoreB`, `_currentStreak`, `_streakOwner`) que
+     * alimentam a mesma [com.bismarck.voleimanager.app.ui.game.GameScreenContent] usada
+     * localmente — é isso que permite ao Auxiliar/Espectador reaproveitarem toda a UI rica do
+     * jogo (ver `aux-bidirectional-sync`), e ao organizador enxergar em tempo real uma edição
+     * feita por um Auxiliar em outro aparelho.
+     *
+     * Descarta apenas o auto-eco genuíno deste mesmo dispositivo, comparando
+     * [LiveGameState.writerSessionId] com [localSyncSessionId] — nunca por comparação de
+     * `updatedAt` (relógio do aparelho), que é sujeito a variação entre dispositivos e podia
+     * causar "rollback" de placar (ver `fix-admin-aux-sync-races`).
+     */
+    /** Zera todos os espelhos do jogo ao vivo usados por Auxiliar/Espectador (times, fila, placar,
+     *  jogadores, posições atribuídas) — chamado quando o organizador desliga a sincronização em
+     *  nuvem do grupo ([GroupVisibility.isActive] = false), para ocultar a última "foto" recebida
+     *  em vez de deixá-la travada na tela até uma próxima atualização que talvez nunca chegue. */
+    private fun clearRemoteLiveStateMirrors() {
+        lastKnownRemotePresentPlayers = emptyList()
+        lastKnownRemoteAllPlayers = emptyList()
+        lastKnownRemoteGamesPlayedToday = emptyMap()
+        lastKnownRemoteAssignedPositions = emptyMap()
+        lastKnownRemoteAssignedSlotIndices = emptyMap()
+        lastKnownRemoteCompositionIncomplete = false
+        _remoteAllPlayers.value = emptyList()
+        _remoteSelectedPlayers.value = emptyList()
+        _remoteGamesPlayedToday.value = emptyMap()
+        _teamA.value = emptyList()
+        _teamB.value = emptyList()
+        _waitingList.value = emptyList()
+        _scoreA.value = 0
+        _scoreB.value = 0
+        _currentStreak.value = 0
+        _streakOwner.value = null
+        _assignedPositions.value = emptyMap()
+        _assignedSlotIndices.value = emptyMap()
+        _compositionIncomplete.value = false
+        _currentMatchStartTimestamp.value = null
+        _lastScoringTeam.value = null
+        _rotationRequiredForTeam.value = null
+        _hasPreviousMatch.value = false
+        _lastWinners.value = emptyList()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeAndMirrorRemoteLiveState() {
+        viewModelScope.launch {
+            combine(
+                _currentGroupConfig.map { it.cloudGroupId to it.remoteRole }.distinctUntilChanged(),
+                isRemoteGroupActive
+            ) { pair, active -> Triple(pair.first, pair.second, active) }
+                .distinctUntilChanged()
+                .flatMapLatest { (cloudGroupId, remoteRole, active) ->
+                    remoteStateInitializedForGroupId = null
+                    _isAwaitingInitialRemoteSync.value = cloudGroupId != null && remoteRole != null && active
+                    if (remoteRole != null && !active) {
+                        // Organizador desligou a sincronização em nuvem deste grupo (ver
+                        // GroupVisibility.isActive/setGroupCloudSynced) — oculta os dados ao vivo
+                        // instantaneamente para Auxiliar/Espectador em vez de deixar a última
+                        // "foto" (times/placar/fila) travada na tela até uma próxima atualização
+                        // que talvez nunca chegue.
+                        clearRemoteLiveStateMirrors()
+                    }
+                    if (cloudGroupId == null || remoteRole == null || !active) flowOf(null) else cloudSync.observeLiveState(cloudGroupId)
+                }
+                .collect { state ->
+                    if (state == null) return@collect
+                    if (state.writerSessionId != null && state.writerSessionId == localSyncSessionId) return@collect
+                    val config = _currentGroupConfig.value
+                    if (config.cloudGroupId == null) return@collect
+
+                    lastKnownRemotePresentPlayers = state.presentPlayers
+                    lastKnownRemoteAllPlayers = state.allPlayers
+                    lastKnownRemoteGamesPlayedToday = state.gamesPlayedToday
+                    lastKnownRemoteAssignedPositions = state.assignedPositions
+                    lastKnownRemoteAssignedSlotIndices = state.assignedSlotIndices
+                    lastKnownRemoteCompositionIncomplete = state.compositionIncomplete
+                    _remoteAllPlayers.value = state.allPlayers.map { it.toSyntheticPlayer(config.groupName) }
+                    _remoteGamesPlayedToday.value = state.gamesPlayedToday.mapKeys { it.key.hashCode() }
+                    // Sincronizado para todos os papéis (organizador, auxiliar, espectador): quem
+                    // publicou o valor mais recente já é o único responsável por "ser dono" dele
+                    // (organizador para o início da partida, quem tocou no placar por último para
+                    // marcador de ponto/rodízio), então basta espelhar sem checagem extra de papel.
+                    _currentMatchStartTimestamp.value = state.matchStartTimestamp
+                    _lastScoringTeam.value = state.lastScoringTeam
+                    _rotationRequiredForTeam.value = state.rotationRequiredForTeam
+
+                    if (config.remoteRole == null) {
+                        // Organizador: remapeia os snapshots remotos para os Players reais deste
+                        // aparelho via publicId (só aceita se todos os jogadores citados existirem
+                        // localmente, para não "sumir" gente da tela por uma corrida de sincronismo).
+                        val localByPublicId = currentGroupPlayers.value.associateBy { it.publicId }
+                        fun mapBack(list: List<RemotePlayerSnapshot>): List<Player>? =
+                            list.map { localByPublicId[it.publicId] ?: return null }
+                        val mappedA = mapBack(state.teamA)
+                        val mappedB = mapBack(state.teamB)
+                        val mappedWait = mapBack(state.waitingList)
+                        if (mappedA != null && mappedB != null && mappedWait != null) {
+                            _teamA.value = mappedA
+                            _teamB.value = mappedB
+                            _waitingList.value = mappedWait
+                            _scoreA.value = state.scoreA
+                            _scoreB.value = state.scoreB
+                            _currentStreak.value = state.currentStreak
+                            _streakOwner.value = state.streakOwner
+                        }
+                        val requestId = state.pendingFinishRequestId
+                        val requestWinner = state.pendingFinishWinner
+                        if (requestId != null && requestId != lastProcessedFinishRequestId && requestWinner != null) {
+                            lastProcessedFinishRequestId = requestId
+                            finishGame(requestWinner)
+                        }
+                        val presenceRequestId = state.pendingPresenceToggleRequestId
+                        val presencePublicId = state.pendingPresenceTogglePublicId
+                        if (presenceRequestId != null && presenceRequestId != lastProcessedPresenceToggleRequestId && presencePublicId != null) {
+                            lastProcessedPresenceToggleRequestId = presenceRequestId
+                            currentGroupPlayers.value.find { it.publicId == presencePublicId }?.let { togglePlayerPresence(it) }
+                        }
+                    } else {
+                        // Auxiliar/Espectador: não existem Players reais no Room local deste
+                        // aparelho para o grupo remoto, então reconstruímos objetos sintéticos.
+                        _teamA.value = state.teamA.map { it.toSyntheticPlayer(config.groupName) }
+                        _teamB.value = state.teamB.map { it.toSyntheticPlayer(config.groupName) }
+                        _waitingList.value = state.waitingList.map { it.toSyntheticPlayer(config.groupName) }
+                        _scoreA.value = state.scoreA
+                        _scoreB.value = state.scoreB
+                        _currentStreak.value = state.currentStreak
+                        _streakOwner.value = state.streakOwner
+                        // Banner de "time vencedor" (EmptyStateCard): estes valores só existem
+                        // localmente quando uma partida é encerrada neste próprio aparelho, então
+                        // para Auxiliar/Espectador eles precisam vir espelhados do organizador.
+                        _hasPreviousMatch.value = state.hasPreviousMatch
+                        _lastWinners.value = state.lastWinners.map { it.toSyntheticPlayer(config.groupName) }
+                        // Não rodamos o algoritmo de PositionAssigner localmente para um grupo
+                        // remoto — adotamos direto o mapa de posições/composição publicado pelo
+                        // organizador (traduzindo publicId -> id sintético via hashCode, mesmo
+                        // esquema usado em toSyntheticPlayer).
+                        _assignedPositions.value = state.assignedPositions.mapNotNull { (publicId, posName) ->
+                            runCatching { PlayerPosition.valueOf(posName) }.getOrNull()?.let { publicId.hashCode() to it }
+                        }.toMap()
+                        _assignedSlotIndices.value = state.assignedSlotIndices.mapKeys { it.key.hashCode() }
+                        _compositionIncomplete.value = state.compositionIncomplete
+                        // Marca que este dispositivo já recebeu um LiveGameState real do
+                        // organizador para o grupo atual — a partir daqui um Auxiliar pode
+                        // começar a publicar suas próprias edições com segurança (ver
+                        // observeAndPushCloudLiveState / `fix-admin-aux-sync-races`).
+                        remoteStateInitializedForGroupId = config.cloudGroupId
+                        _isAwaitingInitialRemoteSync.value = false
+                    }
+                    _remoteSelectedPlayers.value = state.presentPlayers.map { it.toSyntheticPlayer(config.groupName) }
+                }
+        }
+    }
+
+    /**
+     * Mantém o espelho local de visibilidade ([GroupConfig.shareHistoryWithObservers]/
+     * [GroupConfig.showEloToObservers]) em dia com o documento em nuvem do grupo ativo, para que
+     * uma mudança feita em outro dispositivo (ex.: organizador ligando o toggle pelo celular
+     * enquanto o auxiliar está com o app aberto no tablet) reflita aqui sem precisar reabrir o
+     * app.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeRemoteGroupVisibility() {
+        viewModelScope.launch {
+            remoteGroupVisibility
+                .collect { visibility ->
+                    if (visibility == null) return@collect
+                    val current = _currentGroupConfig.value
+                    if (current.cloudGroupId == null) return@collect
+                    // `spectator-code-kick`: só acontece quando o organizador regenerou o código
+                    // de Espectador ([regenerateSpectatorCode] apaga o documento de membro deste
+                    // uid), derrubando o acesso deste aparelho de verdade (não só trocando o
+                    // texto do código). Desconecta o Espectador localmente e avisa o motivo, em
+                    // vez de deixar a tela travada tentando reconectar para sempre.
+                    if (visibility.accessRevoked && current.remoteRole == UserProfileType.ESPECTADOR.name) {
+                        val groupName = current.groupName
+                        showMessage(strings.get(Res.string.spectator_access_revoked_message))
+                        leaveRemoteGroup(groupName)
+                        return@collect
+                    }
+                    val newGroupType = visibility.groupType ?: current.groupType
+                    val newBalancingMode = visibility.balancingMode ?: current.balancingMode
+                    val newTeamSize = visibility.teamSize ?: current.teamSize
+                    val newTeamAColorName = visibility.teamAColorName ?: current.teamAColorName
+                    val newTeamBColorName = visibility.teamBColorName ?: current.teamBColorName
+                    if (current.shareHistoryWithObservers != visibility.shareHistoryWithObservers ||
+                        current.showEloToObservers != visibility.showEloToObservers ||
+                        current.shareOnlyTodayHistory != visibility.shareOnlyTodayHistory ||
+                        current.groupType != newGroupType ||
+                        current.balancingMode != newBalancingMode ||
+                        current.teamSize != newTeamSize ||
+                        current.teamAColorName != newTeamAColorName ||
+                        current.teamBColorName != newTeamBColorName
+                    ) {
+                        val updated = current.copy(
+                            shareHistoryWithObservers = visibility.shareHistoryWithObservers,
+                            showEloToObservers = visibility.showEloToObservers,
+                            shareOnlyTodayHistory = visibility.shareOnlyTodayHistory,
+                            groupType = newGroupType,
+                            balancingMode = newBalancingMode,
+                            teamSize = newTeamSize,
+                            teamAColorName = newTeamAColorName,
+                            teamBColorName = newTeamBColorName
+                        )
+                        _currentGroupConfig.value = updated
+                        repository.saveGroupConfig(updated)
+                    }
+                }
+        }
+    }
+
+    /** Grupo remoto observado ao vivo (times, placar, fila) quando este dispositivo entrou via
+     *  código de Auxiliar/Espectador ([GroupConfig.remoteRole] não nulo) — usado pela tela "Ao
+     *  vivo" no lugar da engine local de jogo, que não roda para grupos de outra pessoa. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val remoteLiveGameState: StateFlow<LiveGameState?> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
+        .distinctUntilChanged()
+        .flatMapLatest { (config, active) ->
+            val cloudGroupId = config.takeIf { it.remoteRole != null }?.cloudGroupId
+            if (cloudGroupId == null || !active) flowOf(null) else cloudSync.observeLiveState(cloudGroupId)
+        }
+        .stateIn(viewModelScope, screenDataSharing, null)
+
+    /** Data de hoje no formato `yyyy-MM-dd`, usada para filtrar logs de Elo remotos (cujo campo
+     *  `date` já vem nesse formato, ver `dateLog` em [finishGame]) quando
+     *  [GroupConfig.shareOnlyTodayHistory] estiver ligado. */
+    private fun todayDateString(): String =
+        AppDateTime.todayIsoDate()
+
+    /** Início do dia de hoje (00:00, fuso local) em epoch millis — usado para filtrar
+     *  [RemoteHistoryEntry] por [RemoteHistoryEntry.endTimestamp], já que o campo `date` dessas
+     *  entradas é uma string de exibição (`dd/MM/yyyy HH:mm`, ver `dateDisplay` em [finishGame])
+     *  e não pode ser comparada diretamente com [todayDateString]. */
+    private fun startOfTodayMillis(): Long = AppDateTime.startOfTodayMillis()
+
+    /** Histórico de partidas do grupo remoto ativo. Auxiliar sempre vê tudo (regras do Firestore já
+     *  concedem acesso total a `canManageGroupContent`); Espectador só vê quando o organizador/
+     *  auxiliar ligou [GroupConfig.shareHistoryWithObservers], e, se
+     *  [GroupConfig.shareOnlyTodayHistory] estiver ligado, só as partidas de hoje. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val remoteHistory: StateFlow<List<RemoteHistoryEntry>> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
+        .flatMapLatest { (config, active) ->
+            val cloudGroupId = config.cloudGroupId
+            val allowed = active && (config.remoteRole == UserProfileType.AUXILIAR.name || config.shareHistoryWithObservers)
+            if (config.remoteRole != null && cloudGroupId != null && allowed) {
+                val restrictToToday = config.remoteRole == UserProfileType.ESPECTADOR.name && config.shareOnlyTodayHistory
+                if (restrictToToday) {
+                    cloudSync.observeHistory(cloudGroupId).map { entries ->
+                        val startOfToday = startOfTodayMillis()
+                        entries.filter { (it.endTimestamp ?: 0L) >= startOfToday }
+                    }
+                } else {
+                    cloudSync.observeHistory(cloudGroupId)
+                }
+            } else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    /** Ranking de Elo do grupo remoto ativo. Auxiliar sempre vê tudo; Espectador só quando o
+     *  organizador/auxiliar ligou tanto [GroupConfig.shareHistoryWithObservers] quanto
+     *  [GroupConfig.showEloToObservers], e restrito a hoje se [GroupConfig.shareOnlyTodayHistory]
+     *  estiver ligado — mantém os números derivados (partidas/vitórias/porcentagem) consistentes
+     *  com o que aparece em [remoteHistory]. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val remoteEloLogs: StateFlow<List<RemoteEloLogEntry>> = combine(_currentGroupConfig, isRemoteGroupActive) { config, active -> config to active }
+        .flatMapLatest { (config, active) ->
+            val cloudGroupId = config.cloudGroupId
+            // "showEloToObservers" só deve ocultar o valor do Elo em si (gated separadamente na UI via
+            // VoleiManagerApp.showElo) — não deve impedir a busca dos logs, senão o número de
+            // partidas/vitórias (calculado a partir desses mesmos logs) some junto para o espectador.
+            val allowed = active && (config.remoteRole == UserProfileType.AUXILIAR.name ||
+                config.shareHistoryWithObservers)
+            if (config.remoteRole != null && cloudGroupId != null && allowed) {
+                val restrictToToday = config.remoteRole == UserProfileType.ESPECTADOR.name && config.shareOnlyTodayHistory
+                if (restrictToToday) {
+                    cloudSync.observeEloLogs(cloudGroupId).map { entries ->
+                        val today = todayDateString()
+                        entries.filter { it.date == today }
+                    }
+                } else {
+                    cloudSync.observeEloLogs(cloudGroupId)
+                }
+            } else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, screenDataSharing, emptyList())
+
+    /**
+     * Liga/desliga, para o grupo premium sincronizado [groupName], a visibilidade de histórico
+     * ([shareHistory]) e de ranking de Elo ([showElo]) para espectadores (`observer-visibility-controls`),
+     * além de escolher se o histórico exposto é completo ou só o de hoje ([shareOnlyToday]).
+     * Permitido a organizador (grupo próprio) e auxiliar (grupo remoto, `remoteRole == "AUXILIAR"`)
+     * — nunca a espectador. Grava localmente de imediato e envia ao Firestore em segundo plano
+     * (best-effort, ver [CloudSyncManager.setGroupVisibility]).
+     */
+    fun setGroupVisibility(
+        groupName: String,
+        shareHistory: Boolean,
+        showElo: Boolean,
+        shareOnlyToday: Boolean = false
+    ) = viewModelScope.launch(ioDispatcher) {
+        val target = repository.getGroupConfig(groupName) ?: return@launch
+        if (target.remoteRole == UserProfileType.ESPECTADOR.name) return@launch
+        val cloudGroupId = target.cloudGroupId ?: return@launch
+        val effectiveShowElo = showElo && shareHistory
+        val effectiveShareOnlyToday = shareOnlyToday && shareHistory
+        val updated = target.copy(
+            shareHistoryWithObservers = shareHistory,
+            showEloToObservers = effectiveShowElo,
+            shareOnlyTodayHistory = effectiveShareOnlyToday
+        )
+        repository.saveGroupConfig(updated)
+        if (_currentGroupConfig.value.groupName == groupName) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(
+                shareHistoryWithObservers = shareHistory,
+                showEloToObservers = effectiveShowElo,
+                shareOnlyTodayHistory = effectiveShareOnlyToday
+            )
+        }
+        val error = cloudSync.setGroupVisibility(cloudGroupId, shareHistory, effectiveShowElo, effectiveShareOnlyToday)
+        if (error != null) showMessage(error)
+    }
+
+    private fun saveGameState() {
+        val snapshot = GameStateSnapshot(
+            groupName = _currentGroupConfig.value.groupName,
+            teamA = _teamA.value,
+            teamB = _teamB.value,
+            waitingList = _waitingList.value,
+            presentPlayerIds = _presentPlayerIds.value.toList(),
+            scoreA = _scoreA.value,
+            scoreB = _scoreB.value,
+            currentStreak = _currentStreak.value,
+            streakOwner = _streakOwner.value,
+            hasPreviousMatch = _hasPreviousMatch.value,
+            lastWinners = _lastWinners.value,
+            lastLosers = lastLosers,
+            currentMatchStartTimestamp = _currentMatchStartTimestamp.value,
+            roundCounter = _roundCounter.value,
+            restingPlayers = _restingPlayers.value,
+            rebalancedPlayerIds = _rebalancedPlayerIds.value.toList(),
+            autoSelectedLoserPlayerIds = _autoSelectedLoserPlayerIds.value.toList(),
+            guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.value,
+            lastScoringTeam = _lastScoringTeam.value,
+            rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            assignedPositions = _assignedPositions.value.mapValues { it.value.name },
+            assignedSlotIndices = _assignedSlotIndices.value,
+            compositionIncomplete = _compositionIncomplete.value
+        )
+        // If nothing meaningful is happening, clear instead of saving
+        if (!snapshot.hasPreviousMatch && snapshot.teamA.isEmpty() && snapshot.teamB.isEmpty()) {
+            clearSavedGameState(snapshot.groupName)
+            return
+        }
+        val json = AppJson.encodeToString(GameStateSnapshot.serializer(), snapshot)
+        preferences
+            .edit().putString("game_state_${snapshot.groupName}", json).apply()
+    }
+
+    private fun clearSavedGameState(groupName: String = _currentGroupConfig.value.groupName) {
+        preferences
+            .edit().remove("game_state_$groupName").apply()
+    }
+
+    // --- `undo-last-match`: snapshot temporário (até UNDO_MATCH_WINDOW_MILLIS) para desfazer a
+    // última partida finalizada com fidelidade total (streak + referências remotas a apagar). ---
+
+    private fun saveUndoSnapshot(snapshot: UndoMatchSnapshot) {
+        val json = AppJson.encodeToString(UndoMatchSnapshot.serializer(), snapshot)
+        preferences
+            .edit().putString("undo_snapshot_${snapshot.groupName}", json).apply()
+    }
+
+    private fun loadUndoSnapshot(groupName: String): UndoMatchSnapshot? {
+        val json = preferences
+            .getString("undo_snapshot_$groupName", null) ?: return null
+        return try {
+            AppJson.decodeFromString(UndoMatchSnapshot.serializer(), json)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun clearUndoSnapshot(groupName: String) {
+        preferences
+            .edit().remove("undo_snapshot_$groupName").apply()
+    }
+
+    /**
+     * Reavalia se a última partida finalizada do grupo [groupName] ainda pode ser desfeita:
+     * precisa existir um [UndoMatchSnapshot] salvo, apontando exatamente para a última
+     * [MatchHistory] do grupo (protege contra snapshot obsoleto, ex.: outra partida já foi
+     * jogada depois) e dentro da janela de [UNDO_MATCH_WINDOW_MILLIS]. Também agenda a própria
+     * expiração (via coroutine) para o botão sumir sozinho mesmo com a tela parada ali.
+     */
+    private suspend fun refreshCanUndoLastMatch(groupName: String) {
+        undoExpiryJob?.cancel()
+        undoExpiryJob = null
+        val snapshot = loadUndoSnapshot(groupName)
+        if (snapshot == null) {
+            _canUndoLastMatch.value = false
+            return
+        }
+        val lastMatch = repository.getLastMatchForGroupSync(groupName)
+        val now = AppDateTime.nowMillis()
+        val valid = lastMatch != null && lastMatch.id == snapshot.matchId && now < snapshot.expiresAt
+        _canUndoLastMatch.value = valid
+        if (!valid) {
+            clearUndoSnapshot(groupName)
+            return
+        }
+        armUndoExpiry(groupName, snapshot.expiresAt)
+    }
+
+    /** Agenda a expiração automática de [_canUndoLastMatch] para `expiresAt` (`undo-last-match`),
+     *  cancelando qualquer agendamento anterior. */
+    private fun armUndoExpiry(groupName: String, expiresAt: Long) {
+        undoExpiryJob?.cancel()
+        val remaining = (expiresAt - AppDateTime.nowMillis()).coerceAtLeast(0L)
+        undoExpiryJob = viewModelScope.launch {
+            delay(remaining)
+            if (_currentGroupConfig.value.groupName == groupName) {
+                _canUndoLastMatch.value = false
+            }
+            clearUndoSnapshot(groupName)
+        }
+    }
+
+    private suspend fun shouldAutoClearCurrentGameByInactivity(groupName: String): Boolean {
+        val latestMatchTimestamp = repository.getHistoryByGroupSync(groupName)
+            .asSequence()
+            .mapNotNull { match ->
+                match.endTimestamp ?: match.startTimestamp ?: parseLegacyMatchDate(match.date)
+            }
+            .maxOrNull()
+            ?: return false
+        return (AppDateTime.nowMillis() - latestMatchTimestamp) >= AUTO_CLEAR_GAME_AFTER_LAST_MATCH_MS
+    }
+
+    private fun parseLegacyMatchDate(rawDate: String): Long? = AppDateTime.parseLegacyMatchDate(rawDate)
+
+    private fun tryRestoreGameState(groupName: String): Boolean {
+        val json = preferences
+            .getString("game_state_$groupName", null) ?: return false
+        return try {
+            val snapshot = AppJson.decodeFromString(GameStateSnapshot.serializer(), json)
+            if (snapshot == null || snapshot.groupName != groupName) return false
+            _teamA.value = snapshot.teamA
+            _teamB.value = snapshot.teamB
+            _waitingList.value = snapshot.waitingList
+            _presentPlayerIds.value = snapshot.presentPlayerIds.toSet()
+            _scoreA.value = snapshot.scoreA
+            _scoreB.value = snapshot.scoreB
+            _currentStreak.value = snapshot.currentStreak
+            _streakOwner.value = snapshot.streakOwner
+            _hasPreviousMatch.value = snapshot.hasPreviousMatch
+            _lastWinners.value = snapshot.lastWinners
+            lastLosers = snapshot.lastLosers
+            _currentMatchStartTimestamp.value = snapshot.currentMatchStartTimestamp
+            _roundCounter.value = snapshot.roundCounter
+            _restingPlayers.value = snapshot.restingPlayers
+            _rebalancedPlayerIds.value = snapshot.rebalancedPlayerIds.toSet()
+            _autoSelectedLoserPlayerIds.value = snapshot.autoSelectedLoserPlayerIds.toSet()
+            _guaranteedNextMatchPlayerIds.value = snapshot.guaranteedNextMatchPlayerIds
+            _lastScoringTeam.value = snapshot.lastScoringTeam
+            _rotationRequiredForTeam.value = snapshot.rotationRequiredForTeam
+            _assignedPositions.value = (snapshot.assignedPositions ?: emptyMap())
+                .mapNotNull { (id, name) ->
+                    PlayerPosition.fromStoredValue(name)?.let { id to it }
+                }
+                .toMap()
+            _assignedSlotIndices.value = snapshot.assignedSlotIndices ?: emptyMap()
+            _compositionIncomplete.value = snapshot.compositionIncomplete
+            AppLog.d("GameState", "Estado do jogo restaurado para grupo '$groupName'")
+            true
+        } catch (e: Exception) {
+            AppLog.e("GameState", "Erro ao restaurar estado do jogo: ${e.message}")
+            false
+        }
+    }
+
+    fun setHistoryDateFilter(d: String?) {
+        _historyDateFilter.value = d
+    }
+
+    fun setThemeMode(m: ThemeMode) {
+        _themeMode.value = m
+        preferences.edit()
+            .putString("theme", m.name).apply()
+    }
+
+    fun setShowElo(show: Boolean) {
+        _showElo.value = show
+        preferences.edit()
+            .putBoolean("show_elo", show).apply()
+    }
+
+    fun setShowToll(show: Boolean) {
+        _showToll.value = show
+        preferences.edit()
+            .putBoolean("show_toll", show).apply()
+    }
+
+    /**
+     * Registra a escolha de consentimento de telemetria (opt-in/opt-out), liga/desliga a coleta
+     * no [TelemetryManager] e marca que o diálogo já foi respondido (não é mostrado de novo
+     * automaticamente, mas pode ser reaberto pelo menu para revisão).
+     */
+    fun setTelemetryEnabled(enabled: Boolean) {
+        _telemetryEnabled.value = enabled
+        _showTelemetryConsentPrompt.value = false
+        preferences.edit()
+            .putBoolean(Telemetry.PREF_KEY_TELEMETRY_ENABLED, enabled).apply()
+        telemetry.applyConsent(enabled)
+    }
+
+    /**
+     * Define as cores **oficiais** do grupo atual (Time A/B), definidas apenas pelo organizador
+     * (nunca por um Espectador, mesmo premium — ver [isSpectatorOfCurrentGroup]) — passam a valer
+     * para todos que visualizam este grupo, inclusive observadores sem premium (a menos que eles
+     * próprios tenham premium e uma sobreposição pessoal ativa, ver
+     * [setPersonalTeamColorOverride]). Só tem efeito se o usuário tiver acesso premium
+     * ([hasPremiumAccess]) e as duas cores forem diferentes entre si. Quando o grupo está
+     * sincronizado em nuvem, também publica a escolha em Firestore ([CloudSyncManager.setGroupTeamColors])
+     * para que Espectadores vejam a mesma personalização em tempo real (ver `spectator-color-sync`).
+     */
+    fun setGroupTeamColors(teamA: TeamAccentColor, teamB: TeamAccentColor) {
+        if (!hasPremiumAccess.value || teamA == teamB || isSpectatorOfCurrentGroup.value) return
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            teamAColorName = teamA.name,
+            teamBColorName = teamB.name
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+        val cloudGroupId = _currentGroupConfig.value.cloudGroupId
+        if (cloudGroupId != null) {
+            viewModelScope.launch(ioDispatcher) {
+                cloudSync.setGroupTeamColors(cloudGroupId, teamA.name, teamB.name)
+            }
+        }
+    }
+
+    /**
+     * Ativa uma sobreposição pessoal (só neste dispositivo) das cores de time, prevalecendo sobre
+     * as cores oficiais do grupo atual — só para quem já as vê. Útil para um observador/auxiliar
+     * premium que prefere outras cores sem alterar o que os demais membros do grupo enxergam. Só
+     * tem efeito se o usuário tiver acesso premium e as duas cores forem diferentes entre si.
+     */
+    fun setPersonalTeamColorOverride(teamA: TeamAccentColor, teamB: TeamAccentColor) {
+        if (!hasPremiumAccess.value || teamA == teamB) return
+        _personalTeamColorOverrideEnabled.value = true
+        _personalTeamAColor.value = teamA
+        _personalTeamBColor.value = teamB
+        preferences.edit()
+            .putBoolean("personal_team_color_override_enabled", true)
+            .putString("personal_team_color_a", teamA.name)
+            .putString("personal_team_color_b", teamB.name)
+            .apply()
+    }
+
+    /** Desativa a sobreposição pessoal, voltando a exibir as cores oficiais do grupo atual. */
+    fun clearPersonalTeamColorOverride() {
+        _personalTeamColorOverrideEnabled.value = false
+        preferences.edit()
+            .putBoolean("personal_team_color_override_enabled", false).apply()
+    }
+
+    /**
+     * Simula (ou desliga a simulação de) uma assinatura premium ativa, **apenas em build de
+     * debug** — em release essa chamada não faz nada, mesmo que a UI que a expõe não seja
+     * renderizada (defesa em profundidade). Ao desligar, a sobreposição pessoal é desativada
+     * (volta a valer a cor oficial do grupo) — as cores oficiais do grupo em si não são
+     * apagadas, do mesmo jeito que uma assinatura real expirando não deveria descustomizar o
+     * grupo para os demais membros sem uma ação explícita.
+     */
+    fun setDebugPremiumOverride(enabled: Boolean) {
+        if (!deviceInfo.isDebugBuild) return
+        _debugPremiumOverride.value = enabled
+        preferences.edit()
+            .putBoolean("debug_premium_override", enabled).apply()
+        if (!enabled && !_realPremiumEntitlement.value) {
+            clearPersonalTeamColorOverride()
+        }
+    }
+
+    /** Chamado quando o usuário troca de versão (Admin/Espectador) via segmented button no topo da
+     *  tela de Premium/Nuvem — persiste a escolha para as próximas aberturas do app. */
+    fun setPremiumScreenPersona(persona: PremiumScreenPersona) {
+        _premiumScreenPersona.value = persona
+        preferences.edit()
+            .putString("premium_screen_persona", persona.name).apply()
+    }
+
+    /**
+     * Registra o perfil do usuário (Organizador/Auxiliar/Espectador) — respondido a qualquer
+     * momento em que o usuário abrir a tela Nuvem sem ter escolhido ainda (ver [CloudSyncScreen],
+     * que embute [UserProfileOnboardingScreen] inline quando [userProfileType] é `null`). Não há
+     * mais uma etapa obrigatória no primeiro lançamento do app: o usuário pode criar/gerenciar
+     * grupos localmente sem nunca responder essa pergunta. Organizador e Auxiliar são então
+     * direcionados, na UI, a uma sugestão pulável de cadastro/login gratuito; Espectador segue
+     * com uma sugestão equivalente.
+     */
+    fun setUserProfileType(type: UserProfileType) {
+        _userProfileType.value = type
+        val prefs = preferences
+        prefs.edit().putString("user_profile_type", type.name).apply()
+        // A persona inicial da tela de Premium/Nuvem acompanha a resposta do onboarding, mas só
+        // na primeira vez — se o usuário já tiver trocado manualmente antes (ver
+        // setPremiumScreenPersona), essa escolha não é sobrescrita.
+        if (!prefs.contains("premium_screen_persona")) {
+            setPremiumScreenPersona(
+                if (type == UserProfileType.ESPECTADOR) PremiumScreenPersona.ESPECTADOR else PremiumScreenPersona.ADMIN
+            )
+        }
+        _postProfileOnboardingStage.value = when (type) {
+            UserProfileType.ORGANIZADOR, UserProfileType.AUXILIAR ->
+                if (currentUser.value == null) PostProfileOnboardingStage.AUTH_REQUIRED else PostProfileOnboardingStage.NONE
+            UserProfileType.ESPECTADOR -> PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION
+        }
+    }
+
+    /** Chamado quando o usuário aperta "voltar" numa das etapas intermediárias de roteamento por
+     *  perfil (gate de conta obrigatória, ou sugestões puláveis de login/código para o
+     *  Espectador), caso se arrependa da escolha de perfil feita na tela Nuvem — limpa
+     *  [userProfileType] para que [CloudSyncScreen] volte a mostrar o seletor inline (a
+     *  persistência em SharedPreferences só é sobrescrita quando [setUserProfileType] roda de
+     *  novo, então isso nunca é lido de volta como resposta "definitiva" se o app for reaberto). */
+    fun returnToProfileSelection() {
+        _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE
+        _userProfileType.value = null
+    }
+
+    /** Chamado assim que o gate de conta (Organizador/Auxiliar) é atendido — login ou cadastro
+     *  concluído — ou pulado manualmente, liberando o onboarding normal de grupo. Pular é permitido
+     *  porque criar/gerenciar grupos localmente não depende de conta; só os recursos de nuvem
+     *  (sincronização Premium) exigem login, e podem ser feitos depois, a qualquer momento. */
+    fun onAuthGatePassed() {
+        if (_postProfileOnboardingStage.value == PostProfileOnboardingStage.AUTH_REQUIRED) {
+            _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE
+        }
+    }
+
+    /** Chamado quando o Espectador pula (ou conclui com sucesso) a sugestão de login/cadastro,
+     *  avançando para a sugestão de código de grupo. */
+    fun onSpectatorAuthStepDone() {
+        if (_postProfileOnboardingStage.value == PostProfileOnboardingStage.SPECTATOR_AUTH_SUGGESTION) {
+            _postProfileOnboardingStage.value = PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION
+        }
+    }
+
+    /** Chamado quando o Espectador pula (ou conclui com sucesso) a sugestão de código de grupo,
+     *  encerrando o roteamento por perfil e liberando o onboarding normal de criação de grupo. */
+    fun onSpectatorJoinStepDone() {
+        if (_postProfileOnboardingStage.value == PostProfileOnboardingStage.SPECTATOR_JOIN_SUGGESTION) {
+            _postProfileOnboardingStage.value = PostProfileOnboardingStage.NONE
+        }
+    }
+
+    /** Usado pela dica de rolagem do cabeçalho (rotação/duplo toque), exibida uma vez por grupo. */
+    fun hasSeenHeaderScrollTooltip(groupName: String): Boolean {
+        return preferences
+            .getBoolean("seen_header_scroll_tooltip_$groupName", false)
+    }
+
+    fun markHeaderScrollTooltipSeen(groupName: String) {
+        preferences.edit()
+            .putBoolean("seen_header_scroll_tooltip_$groupName", true).apply()
+    }
+
+    /**
+     * Chamado após uma "Limpeza válida" (jogo real limpo via "Limpar jogo atual"), gatilho
+     * orgânico para sugerir a avaliação do app na Play Store. Cada marco (3ª, 10ª, 25ª
+     * limpeza válida) só dispara o pedido de review uma única vez; a Play Store decide
+     * internamente, com sua própria cota, se o diálogo será de fato exibido ao usuário.
+     */
+    private fun registerQualifyingGameClear() {
+        val prefs = preferences
+        val newCount = prefs.getInt("clear_match_valid_count", 0) + 1
+        prefs.edit().putInt("clear_match_valid_count", newCount).apply()
+
+        val milestone = REVIEW_REQUEST_MILESTONES.firstOrNull { it == newCount } ?: return
+        val milestoneKey = "review_milestone_${milestone}_done"
+        if (prefs.getBoolean(milestoneKey, false)) return
+        prefs.edit().putBoolean(milestoneKey, true).apply()
+        _shouldRequestReview.value = true
+    }
+
+    /**
+     * Gatilho de fallback do pedido de avaliação, para cobrir quem nunca usa "Limpar jogo
+     * atual" e por isso nunca aciona [registerQualifyingGameClear]. Conta partidas finalizadas
+     * (cada chamada de [finishGame]) e em quantos dias diferentes (calendário) isso aconteceu.
+     * A partir do 2º dia diferente com partida finalizada - ou seja, checado logo após o fim da
+     * primeira partida desse 2º dia, e continuando a cada partida seguinte caso ainda não tenha
+     * disparado -, sugere a avaliação uma única vez assim que o total acumulado de partidas
+     * finalizadas atingir [REVIEW_FALLBACK_MIN_MATCHES_FINISHED], desde que nenhum marco de
+     * limpeza válida já tenha disparado o pedido (nesse caso o fluxo de marcos já cuida disso).
+     */
+    private fun registerCompletedMatchForReviewFallback() {
+        val prefs = preferences
+        val today = AppDateTime.todayIsoDate()
+        val lastMatchDay = prefs.getString(KEY_LAST_MATCH_FINISHED_DATE, null)
+        var distinctDaysCount = prefs.getInt(KEY_DISTINCT_MATCH_DAYS_COUNT, 0)
+        if (lastMatchDay != today) {
+            distinctDaysCount += 1
+            prefs.edit()
+                .putString(KEY_LAST_MATCH_FINISHED_DATE, today)
+                .putInt(KEY_DISTINCT_MATCH_DAYS_COUNT, distinctDaysCount)
+                .apply()
+        }
+
+        val newMatchCount = prefs.getInt(KEY_MATCHES_FINISHED_COUNT, 0) + 1
+        prefs.edit().putInt(KEY_MATCHES_FINISHED_COUNT, newMatchCount).apply()
+
+        if (prefs.getBoolean(KEY_REVIEW_FALLBACK_DONE, false)) return
+        if (distinctDaysCount < REVIEW_FALLBACK_MIN_DISTINCT_DAYS) return
+        if (newMatchCount < REVIEW_FALLBACK_MIN_MATCHES_FINISHED) return
+        val anyClearMilestoneReached = REVIEW_REQUEST_MILESTONES.any {
+            prefs.getBoolean("review_milestone_${it}_done", false)
+        }
+        if (anyClearMilestoneReached) return
+
+        prefs.edit().putBoolean(KEY_REVIEW_FALLBACK_DONE, true).apply()
+        _shouldRequestReview.value = true
+    }
+
+    /** Chamado pela UI depois de tratar (ou tentar tratar) o pedido de review. */
+    fun onReviewRequestHandled() {
+        _shouldRequestReview.value = false
+    }
+
+    fun incrementScoreA() {
+        if (_scoreA.value < 99) {
+            _scoreA.value++
+            registerPointForTeam("A")
+        }
+    }
+
+    fun decrementScoreA() {
+        if (_scoreA.value > 0) {
+            _scoreA.value--
+            clearPointIndicator()
+        }
+    }
+
+    fun incrementScoreB() {
+        if (_scoreB.value < 99) {
+            _scoreB.value++
+            registerPointForTeam("B")
+        }
+    }
+
+    fun decrementScoreB() {
+        if (_scoreB.value > 0) {
+            _scoreB.value--
+            clearPointIndicator()
+        }
+    }
+
+    private fun registerPointForTeam(teamId: String) {
+        val previousScoringTeam = _lastScoringTeam.value
+        _lastScoringTeam.value = teamId
+        _rotationRequiredForTeam.value = if (previousScoringTeam != null && previousScoringTeam != teamId) {
+            teamId
+        } else {
+            null
+        }
+    }
+
+    private fun clearPointIndicator() {
+        _lastScoringTeam.value = null
+        _rotationRequiredForTeam.value = null
+    }
+
+    private fun resetScoresAndPointIndicator() {
+        _scoreA.value = 0
+        _scoreB.value = 0
+        clearPointIndicator()
+    }
+
+    fun setStreakForTeam(team: String, streakValue: Int): ManualStreakAdjustmentLog? {
+        if (team != "A" && team != "B") return null
+        val normalized = streakValue.coerceAtLeast(0)
+        val oldOwner = _streakOwner.value
+        val oldStreak = _currentStreak.value
+
+        val newOwner: String?
+        val newStreak: Int
+
+        if (normalized == 0) {
+            if (_streakOwner.value == team) {
+                _streakOwner.value = null
+                _currentStreak.value = 0
+                newOwner = null
+                newStreak = 0
+            } else {
+                return null
+            }
+        } else {
+            _streakOwner.value = team
+            _currentStreak.value = normalized
+            newOwner = team
+            newStreak = normalized
+        }
+
+        if (oldOwner == newOwner && oldStreak == newStreak) return null
+
+        val log = ManualStreakAdjustmentLog(
+            timestamp = AppDateTime.nowMillis(),
+            groupName = _currentGroupConfig.value.groupName,
+            team = team,
+            oldOwner = oldOwner,
+            oldStreak = oldStreak,
+            newOwner = newOwner,
+            newStreak = newStreak
+        )
+        appendManualStreakLog(log)
+        return log
+    }
+
+    fun undoLastManualStreakAdjustment(): Boolean {
+        val last = _manualStreakAdjustments.value.lastOrNull() ?: return false
+        if (
+            _currentGroupConfig.value.groupName != last.groupName ||
+            _streakOwner.value != last.newOwner ||
+            _currentStreak.value != last.newStreak
+        ) {
+            return false
+        }
+        _streakOwner.value = last.oldOwner
+        _currentStreak.value = last.oldStreak
+        _manualStreakAdjustments.value = _manualStreakAdjustments.value.dropLast(1)
+        return true
+    }
+
+    private fun appendManualStreakLog(log: ManualStreakAdjustmentLog) {
+        val trimmed = _manualStreakAdjustments.value.takeLast(maxManualStreakLogsInMemory - 1)
+        _manualStreakAdjustments.value = trimmed + log
+    }
+
+    private fun appendManualSubstitutionLog(log: ManualSubstitutionLog) {
+        val trimmed = _manualSubstitutions.value.takeLast(maxManualSubstitutionLogsInMemory - 1)
+        _manualSubstitutions.value = trimmed + log
+    }
+
+    private fun clearManualSubstitutionLogs() {
+        _manualSubstitutions.value = emptyList()
+    }
+
+    private fun clearManualStreakLogs() {
+        _manualStreakAdjustments.value = emptyList()
+    }
+
+    private fun clearAllActivityLogs() {
+        clearManualSubstitutionLogs()
+        clearManualStreakLogs()
+        _rebalancedPlayerIds.value = emptySet()
+        _autoSelectedLoserPlayerIds.value = emptySet()
+    }
+
+    private fun loadPreferences() {
+        val prefs =
+            preferences
+        _themeMode.value = try {
+            ThemeMode.valueOf(prefs.getString("theme", "SYSTEM")!!)
+        } catch (e: Exception) {
+            ThemeMode.SYSTEM
+        }
+        _showElo.value = prefs.getBoolean("show_elo", false)
+        _showToll.value = prefs.getBoolean("show_toll", false)
+        _telemetryEnabled.value = prefs.getBoolean(Telemetry.PREF_KEY_TELEMETRY_ENABLED, false)
+        _showTelemetryConsentPrompt.value = !prefs.contains(Telemetry.PREF_KEY_TELEMETRY_ENABLED)
+        telemetry.init(_telemetryEnabled.value)
+        onPlatformInit()
+        viewModelScope.launch {
+            billing.purchaseEvents.collect { event ->
+                val error = cloudFunctions.linkPurchaseToken(event.purchaseToken, event.productId)
+                if (error != null) {
+                    AppLog.d("VoleiViewModel", "linkPurchaseToken (best-effort) falhou: $error")
+                    showMessage(strings.get(Res.string.cloud_sync_purchase_link_error))
+                }
+            }
+        }
+        _debugPremiumOverride.value =
+            deviceInfo.isDebugBuild && prefs.getBoolean("debug_premium_override", false)
+        _debugPremiumPlanTier.value = prefs.getString("debug_premium_plan_tier", null)?.let {
+            try {
+                CloudPlanTier.valueOf(it).takeIf { tier -> tier != CloudPlanTier.NONE }
+            } catch (e: Exception) {
+                null
+            }
+        } ?: CloudPlanTier.SINGLE
+        _premiumBasePlanByProduct.value = listOf(BillingProductIds.SINGLE_GROUP, BillingProductIds.MULTI_GROUP)
+            .mapNotNull { productId -> prefs.getString("premium_base_plan_$productId", null)?.let { productId to it } }
+            .toMap()
+        _personalTeamColorOverrideEnabled.value =
+            prefs.getBoolean("personal_team_color_override_enabled", false)
+        _personalTeamAColor.value =
+            prefs.getString("personal_team_color_a", null)?.let(::parseTeamAccentColorOrNull)
+                ?: TeamAccentColor.BLUE
+        _personalTeamBColor.value =
+            prefs.getString("personal_team_color_b", null)?.let(::parseTeamAccentColorOrNull)
+                ?: TeamAccentColor.YELLOW
+        _userProfileType.value = prefs.getString("user_profile_type", null)?.let {
+            try {
+                UserProfileType.valueOf(it)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        _premiumScreenPersona.value = prefs.getString("premium_screen_persona", null)?.let {
+            try {
+                PremiumScreenPersona.valueOf(it)
+            } catch (e: Exception) {
+                null
+            }
+        } ?: if (_userProfileType.value == UserProfileType.ESPECTADOR) {
+            PremiumScreenPersona.ESPECTADOR
+        } else {
+            PremiumScreenPersona.ADMIN
+        }
+    }
+
+    fun isGameInProgress(): Boolean = _teamA.value.isNotEmpty() || _teamB.value.isNotEmpty()
+
+    fun loadGroupConfig(name: String, balancingMode: String? = null) {
+        if (name.isBlank()) {
+            startFreshGroupOnboarding()
+            return
+        }
+        val same = _currentGroupConfig.value.groupName == name
+        val loadToken = ++groupLoadToken
+        if (!same || !persistenceReady) {
+            _isGroupDataLoading.value = true
+        }
+        viewModelScope.launch {
+            val loaded = repository.getGroupConfig(name)
+            val knownGroups = repository.getAllGroupNames()
+            val existingGroupWithoutConfig = loaded == null && knownGroups.contains(name)
+            val normalized = loaded?.let {
+                val loadedType = GroupType.fromStoredValue(it.groupType)
+                it.copy(
+                    victoryLimit = it.victoryLimit.coerceIn(2, loadedType.maxTeamSize),
+                    balancingMode = BalancingMode.fromStoredValue(it.balancingMode).name,
+                    groupType = loadedType.name,
+                    teamSize = loadedType.coerceTeamSize(it.teamSize)
+                )
+            } ?: GroupConfig(
+                groupName = name,
+                balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
+                onboardingStep = if (existingGroupWithoutConfig) {
+                    ONBOARDING_STEP_COMPLETE
+                } else {
+                    ONBOARDING_STEP_GROUP_NAME
+                }
+            )
+            if (loaded == null || normalized != loaded) {
+                repository.saveGroupConfig(normalized)
+            }
+            _currentGroupConfig.value = normalized
+            if (shouldAutoClearCurrentGameByInactivity(name)) {
+                resetGameState()
+                clearSavedGameState(name)
+            } else if (!same) {
+                // Switching groups: reset current state, then try to restore saved state for new group
+                resetGameState()
+                tryRestoreGameState(name)
+            } else if (!isGameInProgress()) {
+                // Same group, no active game: try to restore (covers process-death scenario)
+                tryRestoreGameState(name)
+            }
+            refreshCanUndoLastMatch(name)
+            persistenceReady = true
+            if (loadToken == groupLoadToken) {
+                _isGroupDataLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Reseta o estado do grupo atual para "sem grupo ainda", sem persistir nada no banco.
+     * Usado quando não há nenhum grupo existente (instalação nova ou último grupo apagado):
+     * evita recriar um grupo com nome hardcoded antes do usuário confirmar um nome válido.
+     */
+    private fun startFreshGroupOnboarding() {
+        _currentGroupConfig.value = GroupConfig(groupName = "", onboardingStep = ONBOARDING_STEP_GROUP_NAME)
+        resetGameState()
+        persistenceReady = true
+        _isGroupDataLoading.value = false
+    }
+
+    private fun resetGameState() {
+        _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
+        _presentPlayerIds.value = emptySet(); _currentStreak.value = 0; _streakOwner.value =
+            null; _hasPreviousMatch.value = false
+        _historyDateFilter.value = null
+        resetScoresAndPointIndicator()
+        _currentMatchStartTimestamp.value = null
+        _roundCounter.value = 0
+        _restingPlayers.value = emptyMap()
+        _guaranteedNextMatchPlayerIds.value = emptyList()
+        clearPositionAssignments()
+        clearAllActivityLogs()
+        lastLosers = emptyList()
+    }
+
+    // --- Modo Posições Fixas: atribuição de posições ---
+
+    private fun usesPositions(): Boolean = _currentGroupConfig.value.type.usesPositions
+
+    private fun clearPositionAssignments() {
+        _assignedPositions.value = emptyMap()
+        _assignedSlotIndices.value = emptyMap()
+        _compositionIncomplete.value = false
+    }
+
+    /**
+     * Recalcula o mapa de posições a partir dos times em quadra. Só faz efeito no Modo Posições
+     * Fixas; nos demais tipos limpa o estado para não deixar resíduo de uma conversão de tipo.
+     */
+    private fun refreshPositionAssignments() {
+        if (!usesPositions()) {
+            clearPositionAssignments()
+            return
+        }
+        val conf = _currentGroupConfig.value
+        val teamSize = conf.teamSize
+        val a = PositionAssigner.assignPositionsToExistingTeam(_teamA.value, teamSize, conf.guaranteeSetter)
+        val b = PositionAssigner.assignPositionsToExistingTeam(_teamB.value, teamSize, conf.guaranteeSetter)
+        _assignedPositions.value = a.positions + b.positions
+        _assignedSlotIndices.value = buildMap {
+            a.slots.forEachIndexed { index, slot -> slot.player?.let { put(it.id, index) } }
+            b.slots.forEachIndexed { index, slot -> slot.player?.let { put(it.id, index) } }
+        }
+        _compositionIncomplete.value = !a.isComplete || !b.isComplete
+    }
+
+    fun updateConfig(
+        s: Int,
+        l: Int,
+        priorityP: Boolean,
+        scoreEnabled: Boolean = true,
+        balancingMode: String = _currentGroupConfig.value.balancingMode,
+        groupType: String = _currentGroupConfig.value.groupType,
+        guaranteeSetter: Boolean = _currentGroupConfig.value.guaranteeSetter
+    ) {
+        val current = _currentGroupConfig.value
+        val requestedType = GroupType.fromStoredValue(groupType)
+        val newType = if (current.type.canConvertTo(requestedType)) requestedType else current.type
+        val typeChanged = newType != current.type
+        val safeTeamSize = newType.coerceTeamSize(s)
+        val safeVictoryLimit = l.coerceIn(2, newType.maxTeamSize)
+        if (current.teamSize != safeTeamSize) {
+            _currentStreak.value = 0
+            _streakOwner.value = null
+            trimGuaranteedNextMatchToCapacity(safeTeamSize * 2)
+        }
+        _currentGroupConfig.value = current.copy(
+            groupType = newType.name,
+            teamSize = safeTeamSize,
+            victoryLimit = safeVictoryLimit,
+            priorityEnabled = priorityP && newType.supportsPriority,
+            scoreEnabled = scoreEnabled,
+            balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
+            guaranteeSetter = guaranteeSetter
+        )
+        if (typeChanged && isGameInProgress()) {
+            // A partida em andamento não sobrevive à troca de tipo: as regras de composição mudam.
+            cancelGame()
+        }
+        refreshPositionAssignments()
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+        val updatedConfig = _currentGroupConfig.value
+        val cloudGroupId = updatedConfig.cloudGroupId
+        if (cloudGroupId != null && updatedConfig.remoteRole != UserProfileType.ESPECTADOR.name) {
+            // Repassa tipo/balanceamento/tamanho de time ao Firestore (organizador e Auxiliar
+            // podem editar) para que os ícones do cabeçalho fiquem sincronizados em todos os
+            // aparelhos do grupo (ver `header-meta-sync`).
+            viewModelScope.launch(ioDispatcher) {
+                cloudSync.setGroupMeta(
+                    cloudGroupId,
+                    updatedConfig.groupType,
+                    updatedConfig.balancingMode,
+                    updatedConfig.teamSize
+                )
+            }
+        }
+    }
+
+    private fun trimGuaranteedNextMatchToCapacity(maxPlayersInCourt: Int) {
+        if (maxPlayersInCourt <= 0) {
+            _guaranteedNextMatchPlayerIds.value = emptyList()
+            return
+        }
+        val current = _guaranteedNextMatchPlayerIds.value
+        if (current.size > maxPlayersInCourt) {
+            _guaranteedNextMatchPlayerIds.value = current.take(maxPlayersInCourt)
+        }
+    }
+
+    fun continueCurrentGroupOnboardingWithTeamSize(teamSize: Int) {
+        val clampedTeamSize = _currentGroupConfig.value.type.coerceTeamSize(teamSize)
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            teamSize = clampedTeamSize,
+            onboardingStep = ONBOARDING_STEP_MIN_PLAYERS
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToTeamSizeStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun continueCurrentGroupOnboardingWithGroupName(newName: String) = viewModelScope.launch(ioDispatcher) {
+        val normalizedName = normalizeGroupName(newName)
+        if (normalizedName.isBlank()) return@launch
+
+        val current = _currentGroupConfig.value
+        val oldName = current.groupName
+        if (oldName.isNotBlank() && oldName != normalizedName) {
+            repository.renameGroup(oldName, normalizedName)
+        }
+        _currentGroupConfig.value = current.copy(
+            groupName = normalizedName,
+            onboardingStep = ONBOARDING_STEP_GROUP_TYPE
+        )
+        repository.saveGroupConfig(_currentGroupConfig.value)
+    }
+
+    fun continueCurrentGroupOnboardingWithGroupType(groupType: String) {
+        val type = GroupType.fromStoredValue(groupType)
+        val current = _currentGroupConfig.value
+        _currentGroupConfig.value = current.copy(
+            groupType = type.name,
+            teamSize = type.coerceTeamSize(current.teamSize),
+            balancingMode = if (type.supportsBalancingMode) current.balancingMode else BalancingMode.REBALANCE.name,
+            onboardingStep = if (type.supportsBalancingMode) {
+                ONBOARDING_STEP_BALANCING_MODE
+            } else {
+                ONBOARDING_STEP_TEAM_SIZE
+            }
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToGroupTypeStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_GROUP_TYPE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun continueCurrentGroupOnboardingWithBalancingMode(balancingMode: String) {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
+            onboardingStep = ONBOARDING_STEP_TEAM_SIZE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToGroupNameStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_GROUP_NAME
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun returnCurrentGroupOnboardingToBalancingModeStep() {
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(
+            onboardingStep = ONBOARDING_STEP_BALANCING_MODE
+        )
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    fun completeCurrentGroupOnboarding() {
+        if (_currentGroupConfig.value.onboardingStep >= ONBOARDING_STEP_COMPLETE) return
+        _currentGroupConfig.value = _currentGroupConfig.value.copy(onboardingStep = ONBOARDING_STEP_COMPLETE)
+        viewModelScope.launch { repository.saveGroupConfig(_currentGroupConfig.value) }
+    }
+
+    suspend fun renameGroup(old: String, new: String) {
+        val normalizedNew = normalizeGroupName(new)
+        if (normalizedNew.isBlank() || normalizedNew == old) return
+        repository.renameGroup(old, normalizedNew)
+        if (_currentGroupConfig.value.groupName == old) {
+            _currentGroupConfig.value = _currentGroupConfig.value.copy(groupName = normalizedNew)
+        }
+    }
+
+    fun deleteGroup(name: String) = viewModelScope.launch {
+        // Se este grupo é o próprio grupo em nuvem do organizador (não um grupo remoto entrado
+        // por código — ver `remoteRole`), apaga também os dados na nuvem (jogadores, placar ao
+        // vivo, histórico, elo, membros, códigos de convite) antes de apagar localmente — ver
+        // `deleteCloudGroup` em `volei_manager_backend`, atendendo ao direito de exclusão da
+        // LGPD/GDPR. Melhor esforço: mesmo que essa chamada falhe (ex.: sem rede), a exclusão
+        // local sempre prossegue, só avisando o usuário para não deixar a falha passar em
+        // silêncio (ele pode tentar apagar de novo depois, já que a função é idempotente).
+        val config = repository.getGroupConfig(name)
+        val ownCloudGroupId = config?.cloudGroupId?.takeIf { config.isCloudSynced && config.remoteRole == null }
+        if (ownCloudGroupId != null) {
+            val error = cloudFunctions.deleteCloudGroup(ownCloudGroupId)
+            if (error != null) {
+                showMessage(strings.get(Res.string.cloud_sync_deletion_error))
+            }
+        }
+
+        repository.deleteGroup(name)
+        if (_currentGroupConfig.value.groupName == name) {
+            val fallbackGroup = repository.getAllGroupNames().firstOrNull()
+            if (fallbackGroup != null) {
+                loadGroupConfig(fallbackGroup)
+            } else {
+                startFreshGroupOnboarding()
+            }
+        }
+    }
+
+    fun createGroup(
+        name: String,
+        balancingMode: String = BalancingMode.REBALANCE.name,
+        groupType: String = GroupType.RECREATIONAL.name
+    ) = viewModelScope.launch(ioDispatcher) {
+        val normalizedName = normalizeGroupName(name)
+        if (normalizedName.isBlank()) return@launch
+
+        val existingConfig = repository.getGroupConfig(normalizedName)
+        if (existingConfig != null) {
+            loadGroupConfig(normalizedName)
+            return@launch
+        }
+        val type = GroupType.fromStoredValue(groupType)
+        val cfg = GroupConfig(
+            groupName = normalizedName,
+            balancingMode = if (type.supportsBalancingMode) {
+                BalancingMode.fromStoredValue(balancingMode).name
+            } else {
+                BalancingMode.REBALANCE.name
+            },
+            onboardingStep = if (type.supportsBalancingMode) {
+                ONBOARDING_STEP_BALANCING_MODE
+            } else {
+                ONBOARDING_STEP_TEAM_SIZE
+            },
+            groupType = type.name
+        )
+        repository.saveGroupConfig(cfg)
+        // Garantir que o load use o cfg salvo (faz reset e tentativa de restauração)
+        loadGroupConfig(normalizedName)
+        telemetry.logGroupCreated(cfg.groupType, cfg.balancingMode)
+    }
+
+    private fun getUsageCountMap(date: String): Map<Int, Int> {
+        return currentGroupEloLogs.value
+            .filter { it.date == date }
+            .groupingBy { it.playerId }
+            .eachCount()
+    }
+
+    private fun sortTeamPlayers(team: List<Player>): List<Player> {
+        val today = AppDateTime.todayIsoDate()
+        val usageMap = getUsageCountMap(today)
+        return team.shuffled().sortedBy { p ->
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
+        }
+    }
+
+    private fun teamSnapshotFromPlayers(players: List<Player>): TeamSnapshotWithIds {
+        val entries = players
+            .mapNotNull { player ->
+                val normalizedName = normalizePersonName(player.name)
+                if (normalizedName.isBlank()) return@mapNotNull null
+                TeamSnapshotEntry(name = normalizedName, id = player.id)
+            }
+            .sortedBy { it.name.lowercase() }
+        return TeamSnapshotWithIds(
+            names = entries.joinToString(", ") { it.name },
+            ids = entries.joinToString(",") { it.id?.toString() ?: "" }
+        )
+    }
+
+    private fun calculateTollForNewPlayer(excludePlayerId: Int? = null): Int {
+        val today = AppDateTime.todayIsoDate()
+        val usageMap = getUsageCountMap(today)
+        val presentPlayers = _presentPlayerIds.value.mapNotNull { id ->
+            currentGroupPlayers.value.find { it.id == id }
+        }
+        return TollCalculator.calculateToll(presentPlayers, usageMap, today, excludePlayerId)
+    }
+
+    private fun applyTollIfNecessary(player: Player): Player {
+        val today = AppDateTime.todayIsoDate()
+        val usageMap = getUsageCountMap(today)
+        val presentPlayers = _presentPlayerIds.value.mapNotNull { id ->
+            currentGroupPlayers.value.find { it.id == id }
+        }
+        val updatedP = TollCalculator.applyToll(player, presentPlayers, usageMap, today)
+        if (updatedP !== player) {
+            viewModelScope.launch(ioDispatcher) { repository.updatePlayer(updatedP) }
+        }
+        return updatedP
+    }
+
+    fun addPlayer(
+        n: String,
+        e: Double,
+        g: String,
+        isPriority: Boolean,
+        preferredPosition: String? = null,
+        secondaryPosition: String? = null
+    ) = viewModelScope.launch {
+        if (g.isBlank()) return@launch
+        val normalizedName = normalizePersonName(n)
+        if (normalizedName.isBlank()) return@launch
+
+        val nameAlreadyExists = currentGroupPlayers.value.any {
+            areSameCanonicalName(it.name, normalizedName)
+        }
+
+        if (nameAlreadyExists) {
+            _uiMessage.value = strings.get(Res.string.players_name_already_exists)
+            // 2. Usamos return@launch para sair da corrotina sem quebrar o viewModelScope
+            return@launch
+        }
+
+        val pToInsert = Player(
+            name = normalizedName,
+            elo = e,
+            groupName = g,
+            isPriority = isPriority,
+            dailyToll = 0,
+            tollDate = "",
+            preferredPosition = PlayerPosition.fromStoredValue(preferredPosition)?.name,
+            secondaryPosition = PlayerPosition.fromStoredValue(secondaryPosition)?.name
+        )
+        val newId = repository.insertPlayer(pToInsert)
+        val newPlayer = pToInsert.copy(id = newId.toInt())
+
+        _presentPlayerIds.update { it + newPlayer.id }
+
+        if (isGameInProgress()) {
+            val updatedP = applyTollIfNecessary(newPlayer)
+            val gamesPlayed = gamesPlayedTodayMap.value[updatedP.id] ?: 0
+            if (gamesPlayed > 0) {
+                _waitingList.update { it + updatedP }
+            } else {
+                _waitingList.update { listOf(updatedP) + it }
+            }
+        }
+    }
+
+    fun deletePlayer(p: Player) = viewModelScope.launch {
+        repository.deletePlayer(p)
+        _guaranteedNextMatchPlayerIds.value =
+            _guaranteedNextMatchPlayerIds.value.filter { it != p.id }
+        if (_presentPlayerIds.value.contains(p.id)) togglePlayerPresence(p)
+    }
+
+    fun editPlayer(
+        p: Player,
+        n: String,
+        isPriority: Boolean,
+        preferredPosition: String? = p.preferredPosition,
+        secondaryPosition: String? = p.secondaryPosition
+    ) = viewModelScope.launch(ioDispatcher) {
+        val oldName = p.name
+        val normalizedName = normalizePersonName(n)
+        if (normalizedName.isBlank()) return@launch
+
+        if (!areSameCanonicalName(oldName, normalizedName)) {
+            val nameAlreadyExists = currentGroupPlayers.value.any {
+                it.id != p.id && areSameCanonicalName(it.name, normalizedName)
+            }
+            if (nameAlreadyExists) {
+                _uiMessage.value = strings.get(Res.string.players_name_already_exists)
+                return@launch
+            }
+        }
+        val up = p.copy(
+            name = normalizedName,
+            isPriority = isPriority,
+            preferredPosition = PlayerPosition.fromStoredValue(preferredPosition)?.name,
+            secondaryPosition = PlayerPosition.fromStoredValue(secondaryPosition)?.name
+        )
+        repository.updatePlayer(up)
+        if (oldName != normalizedName) {
+            repository.renamePlayerCascade(p.id, oldName, normalizedName, p.groupName)
+        }
+        _teamA.value = sortTeamPlayers(_teamA.value.map { if (it.id == p.id) up else it })
+        _teamB.value = sortTeamPlayers(_teamB.value.map { if (it.id == p.id) up else it })
+        _waitingList.value = _waitingList.value.map { if (it.id == p.id) up else it }
+        _lastWinners.value = _lastWinners.value.map { if (it.id == p.id) up else it }
+        lastLosers = lastLosers.map { if (it.id == p.id) up else it }
+    }
+
+    fun togglePlayerPresence(p: Player) {
+        if (_currentGroupConfig.value.remoteRole == UserProfileType.AUXILIAR.name) {
+            requestRemotePresenceToggle(p.publicId)
+            return
+        }
+        val ids = _presentPlayerIds.value.toMutableSet()
+        if (ids.contains(p.id)) {
+            ids.remove(p.id)
+            _waitingList.value = _waitingList.value.filter { it.id != p.id }
+            _presentPlayerIds.value = ids
+            _guaranteedNextMatchPlayerIds.value =
+                _guaranteedNextMatchPlayerIds.value.filter { it != p.id }
+        } else {
+            ids.add(p.id)
+            _presentPlayerIds.value = ids
+
+            val isWinnerWaiting =
+                _hasPreviousMatch.value && _lastWinners.value.any { it.id == p.id }
+            if (!_teamA.value.any { it.id == p.id } && !_teamB.value.any { it.id == p.id } && !_waitingList.value.any { it.id == p.id } && !isWinnerWaiting) {
+                if (isGameInProgress()) {
+                    val updatedP = applyTollIfNecessary(p)
+                    val gamesPlayed = gamesPlayedTodayMap.value[p.id] ?: 0
+                    if (gamesPlayed > 0) {
+                        _waitingList.value = _waitingList.value + updatedP
+                    } else {
+                        _waitingList.value = listOf(updatedP) + _waitingList.value
+                    }
+                }
+            }
+        }
+    }
+
+    fun toggleGuaranteedNextMatchPlayer(player: Player) {
+        val maxPlayersInCourt = _currentGroupConfig.value.teamSize * 2
+        if (maxPlayersInCourt <= 0) return
+
+        val current = _guaranteedNextMatchPlayerIds.value
+        if (current.contains(player.id)) {
+            _guaranteedNextMatchPlayerIds.value = current.filter { it != player.id }
+            return
+        }
+
+        if (current.size >= maxPlayersInCourt) {
+            _uiMessage.value = strings.get(
+                Res.string.max_guaranteed_next_match_players,
+                maxPlayersInCourt
+            )
+            return
+        }
+
+        if (!_presentPlayerIds.value.contains(player.id)) {
+            togglePlayerPresence(player)
+        }
+        _guaranteedNextMatchPlayerIds.value = _guaranteedNextMatchPlayerIds.value + player.id
+    }
+
+    fun removePlayerFromWaitingList(p: Player) {
+        val ids = _presentPlayerIds.value.toMutableSet()
+        if (ids.contains(p.id)) {
+            ids.remove(p.id)
+            _presentPlayerIds.value = ids
+            _waitingList.value = _waitingList.value.filter { it.id != p.id }
+        }
+    }
+
+    fun movePlayerToBeginning(p: Player) {
+        val updatedPlayer = if (_presentPlayerIds.value.contains(p.id)) {
+            p
+        } else {
+            applyTollIfNecessary(p)
+        }
+
+        _presentPlayerIds.update { it + updatedPlayer.id }
+        _waitingList.update { list ->
+            buildList {
+                add(updatedPlayer)
+                addAll(list.filterNot { it.id == updatedPlayer.id })
+            }
+        }
+    }
+
+    fun movePlayerToEnd(p: Player) {
+        val updatedPlayer = if (_presentPlayerIds.value.contains(p.id)) {
+            p
+        } else {
+            applyTollIfNecessary(p)
+        }
+
+        _presentPlayerIds.update { it + updatedPlayer.id }
+        _waitingList.update { list ->
+            buildList {
+                addAll(list.filterNot { it.id == updatedPlayer.id })
+                add(updatedPlayer)
+            }
+        }
+    }
+
+    fun reorderWaitingList(from: Int, to: Int) {
+        if (from < 0 || to < 0) return
+        val newList = _waitingList.value.toMutableList()
+        if (from >= newList.size || to > newList.size) return
+        val item = newList.removeAt(from)
+        newList.add(to, item)
+        _waitingList.value = newList
+    }
+
+    fun moveWaitingPlayerToIndex(player: Player, targetIndex: Int) {
+        _waitingList.update { list ->
+            val withoutPlayer = list.filterNot { it.id == player.id }
+            val safeIndex = targetIndex.coerceIn(0, withoutPlayer.size)
+            buildList {
+                addAll(withoutPlayer.take(safeIndex))
+                add(player)
+                addAll(withoutPlayer.drop(safeIndex))
+            }
+        }
+    }
+
+    fun insertPlayerIntoWaitingList(player: Player, targetIndex: Int) {
+        val updatedPlayer = if (_presentPlayerIds.value.contains(player.id)) {
+            player
+        } else {
+            applyTollIfNecessary(player)
+        }
+
+        _presentPlayerIds.update { it + updatedPlayer.id }
+        _waitingList.update { list ->
+            val withoutPlayer = list.filterNot { it.id == updatedPlayer.id }
+            val safeIndex = targetIndex.coerceIn(0, withoutPlayer.size)
+            buildList {
+                addAll(withoutPlayer.take(safeIndex))
+                add(updatedPlayer)
+                addAll(withoutPlayer.drop(safeIndex))
+            }
+        }
+    }
+
+    fun setAllPlayersPresence(list: List<Player>, present: Boolean) {
+        // Auxiliar não tem `_presentPlayerIds` local válido (não é dono do Room do grupo) — usa a
+        // lista de presentes espelhada do organizador para saber quem já está presente antes de
+        // decidir se precisa alternar (ver `aux-full-roster-sync`/[togglePlayerPresence]).
+        val currentlyPresentIds = if (_currentGroupConfig.value.remoteRole == UserProfileType.AUXILIAR.name) {
+            _remoteSelectedPlayers.value.map { it.id }.toSet()
+        } else {
+            _presentPlayerIds.value
+        }
+        list.forEach { player ->
+            val isCurrentlyPresent = currentlyPresentIds.contains(player.id)
+            val shouldToggle =
+                (present && !isCurrentlyPresent) || (!present && isCurrentlyPresent)
+            if (shouldToggle) {
+                togglePlayerPresence(player)
+            }
+        }
+    }
+
+    fun startNewAutomaticGame(all: List<Player>, size: Int) {
+        clearAllActivityLogs()
+        val available = all.filter { _presentPlayerIds.value.contains(it.id) }
+        if (available.size < size * 2) return
+
+        val availableWithTollApplied = available.map { applyTollIfNecessary(it) }
+
+        val config = _currentGroupConfig.value
+        val today = AppDateTime.todayIsoDate()
+        val usageMap = getUsageCountMap(today)
+
+        fun getEffectiveGames(p: Player): Int =
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
+
+        val selectedPlayers = mutableListOf<Player>()
+        val pool =
+            TeamBalancer.groupAndInterleave(availableWithTollApplied) { getEffectiveGames(it) }.toMutableList()
+        val usesPositions = config.type.usesPositions
+        val guaranteedIdsSet = _guaranteedNextMatchPlayerIds.value.toSet()
+        if (guaranteedIdsSet.isNotEmpty()) {
+            val guaranteedPlayers = pool.filter { guaranteedIdsSet.contains(it.id) }.take(size * 2)
+            selectedPlayers.addAll(guaranteedPlayers)
+            val guaranteedSelectedIds = guaranteedPlayers.map { it.id }.toSet()
+            pool.removeAll { guaranteedSelectedIds.contains(it.id) }
+        } else if (!usesPositions) {
+            val shouldApplyPriorityRuleInSelection = shouldApplyPriorityRule(config.priorityEnabled, pool)
+            if (shouldApplyPriorityRuleInSelection) {
+                val priorities = pool.filter { it.isPriority }
+                val prioritiesToSelect = priorities.take(2)
+                selectedPlayers.addAll(prioritiesToSelect)
+                pool.removeAll(prioritiesToSelect)
+            }
+        }
+
+        val remainingSlots = (size * 2) - selectedPlayers.size
+        if (remainingSlots > 0) {
+            val others = if (usesPositions) {
+                // No Modo Posições Fixas a escolha de quem entra também cobre as vagas faltantes.
+                val (picked, _) = PositionAssigner.pickToCoverComposition(
+                    base = selectedPlayers,
+                    pool = pool,
+                    count = remainingSlots,
+                    teamSize = size,
+                    guaranteeSetter = config.guaranteeSetter
+                )
+                picked
+            } else {
+                pool.take(remainingSlots)
+            }
+            selectedPlayers.addAll(others)
+            pool.removeAll(others)
+        }
+
+        val (finalA, finalB) = if (usesPositions) {
+            PositionAssigner.buildBalancedTeams(selectedPlayers, size, config.guaranteeSetter).let {
+                it.teamA to it.teamB
+            }
+        } else {
+            clearPositionAssignments()
+            balanceTeamsWithPriority(
+                players = selectedPlayers,
+                teamSize = size,
+                usePriorityRule = shouldApplyPriorityRule(config.priorityEnabled, selectedPlayers)
+            )
+        }
+        _teamA.value = sortTeamPlayers(finalA); _teamB.value =
+            sortTeamPlayers(finalB); _waitingList.value = pool
+        _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
+        resetScoresAndPointIndicator()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        _guaranteedNextMatchPlayerIds.value = emptyList()
+        refreshPositionAssignments()
+    }
+
+    private fun shouldApplyPriorityRule(priorityEnabled: Boolean, players: List<Player>): Boolean {
+        return priorityEnabled && players.count { it.isPriority } >= 2
+    }
+
+    private fun balanceTeamsWithPriority(
+        players: List<Player>,
+        teamSize: Int,
+        usePriorityRule: Boolean
+    ): Pair<List<Player>, List<Player>> {
+        val priorities = if (usePriorityRule) {
+            players.filter { it.isPriority }.sortedByDescending { it.elo }
+        } else {
+            emptyList()
+        }
+        val nonPriorities = if (usePriorityRule) {
+            players.filter { !it.isPriority }.sortedByDescending { it.elo }
+        } else {
+            players.sortedByDescending { it.elo }
+        }
+        val tA = mutableListOf<Player>()
+        val tB = mutableListOf<Player>()
+
+        priorities.forEachIndexed { i, p ->
+            if (tA.size < teamSize && tB.size < teamSize) {
+                if (i % 2 == 0) tA.add(p) else tB.add(p)
+            } else if (tA.size < teamSize) tA.add(p) else tB.add(p)
+        }
+        nonPriorities.forEach { p ->
+            if (tA.size < teamSize && tB.size < teamSize) {
+                if (tA.sumOf { it.elo } <= tB.sumOf { it.elo }) tA.add(p) else tB.add(p)
+            } else if (tA.size < teamSize) {
+                tA.add(p)
+            } else if (tB.size < teamSize) {
+                tB.add(p)
+            }
+        }
+        return tA to tB
+    }
+
+    private fun splitPlayersEvenlyForRebalance(
+        players: List<Player>,
+        priorityEnabled: Boolean
+    ): Pair<MutableList<Player>, MutableList<Player>> {
+        if (players.isEmpty()) return mutableListOf<Player>() to mutableListOf<Player>()
+        val targetA = (players.size + 1) / 2
+        val targetB = players.size / 2
+        val remaining = players.sortedByDescending { it.elo }.toMutableList()
+        val teamA = mutableListOf<Player>()
+        val teamB = mutableListOf<Player>()
+
+        if (shouldApplyPriorityRule(priorityEnabled, players)) {
+            val orderedPriorities = TeamBalancer.interleaveByElo(remaining.filter { it.isPriority })
+            val firstPriority = orderedPriorities.getOrNull(0)
+            val secondPriority = orderedPriorities.getOrNull(1)
+            if (firstPriority != null && teamA.size < targetA) {
+                teamA.add(firstPriority)
+                remaining.remove(firstPriority)
+            }
+            if (secondPriority != null && teamB.size < targetB) {
+                teamB.add(secondPriority)
+                remaining.remove(secondPriority)
+            }
+        }
+
+        remaining.forEach { player ->
+            val canAddA = teamA.size < targetA
+            val canAddB = teamB.size < targetB
+            when {
+                canAddA && canAddB -> {
+                    if (teamA.sumOf { it.elo } <= teamB.sumOf { it.elo }) teamA.add(player) else teamB.add(player)
+                }
+                canAddA -> teamA.add(player)
+                canAddB -> teamB.add(player)
+            }
+        }
+        return teamA to teamB
+    }
+
+    fun startManualGame(tA: List<Player>, tB: List<Player>, rem: List<Player>) {
+        clearAllActivityLogs()
+        val tAWithToll = tA.map { applyTollIfNecessary(it) }
+        val tBWithToll = tB.map { applyTollIfNecessary(it) }
+        val remWithToll = rem.map { applyTollIfNecessary(it) }
+
+        _teamA.value = sortTeamPlayers(tAWithToll); _teamB.value =
+            sortTeamPlayers(tBWithToll); _waitingList.value = remWithToll
+        _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
+        resetScoresAndPointIndicator()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        _guaranteedNextMatchPlayerIds.value = emptyList()
+        refreshPositionAssignments()
+    }
+
+    fun cancelGame() {
+        clearAllActivityLogs()
+        _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
+        _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
+        resetScoresAndPointIndicator()
+        _currentMatchStartTimestamp.value = null
+        clearPositionAssignments()
+    }
+
+    fun substitutePlayer(out: Player, `in`: Player) {
+        val wait = _waitingList.value.toMutableList()
+        val nA = _teamA.value.toMutableList()
+        val nB = _teamB.value.toMutableList()
+        val idxOutA = nA.indexOfFirst { it.id == out.id }
+        val idxOutB = nB.indexOfFirst { it.id == out.id }
+
+        val inWithToll = applyTollIfNecessary(`in`)
+
+        val idxInA = nA.indexOfFirst { it.id == inWithToll.id }
+        val idxInB = nB.indexOfFirst { it.id == inWithToll.id }
+        val idxInWait = wait.indexOfFirst { it.id == inWithToll.id }
+
+        var resetStreak = false
+        var substitutionLog: ManualSubstitutionLog? = null
+
+        fun swapAssignedSlotsWithinSameTeam(targetTeam: String) {
+            val positions = _assignedPositions.value.toMutableMap()
+            val slots = _assignedSlotIndices.value.toMutableMap()
+            val outPosition = positions[out.id]
+            val inPosition = positions[inWithToll.id]
+            val outSlot = slots[out.id]
+            val inSlot = slots[inWithToll.id]
+            if (outPosition != null && inPosition != null) {
+                positions[out.id] = inPosition
+                positions[inWithToll.id] = outPosition
+                _assignedPositions.value = positions
+            }
+            if (outSlot != null && inSlot != null) {
+                slots[out.id] = inSlot
+                slots[inWithToll.id] = outSlot
+                _assignedSlotIndices.value = slots
+            }
+            substitutionLog = ManualSubstitutionLog(
+                timestamp = AppDateTime.nowMillis(),
+                groupName = _currentGroupConfig.value.groupName,
+                playerOutName = out.name,
+                playerInName = inWithToll.name,
+                targetTeam = targetTeam,
+                incomingSource = "BENCH"
+            )
+        }
+
+        if (idxOutA != -1) {
+            if (_streakOwner.value == "A") resetStreak = true
+            if (idxInA != -1) {
+                swapAssignedSlotsWithinSameTeam("A")
+            } else {
+                nA[idxOutA] = inWithToll
+            }
+            if (idxInWait != -1) {
+                wait[idxInWait] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = AppDateTime.nowMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "A",
+                    incomingSource = "WAIT"
+                )
+            } else if (idxInB != -1) {
+                nB[idxInB] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = AppDateTime.nowMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "A",
+                    incomingSource = "B"
+                )
+            }
+        } else if (idxOutB != -1) {
+            if (_streakOwner.value == "B") resetStreak = true
+            if (idxInB != -1) {
+                swapAssignedSlotsWithinSameTeam("B")
+            } else {
+                nB[idxOutB] = inWithToll
+            }
+            if (idxInWait != -1) {
+                wait[idxInWait] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = AppDateTime.nowMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "B",
+                    incomingSource = "WAIT"
+                )
+            } else if (idxInA != -1) {
+                nA[idxInA] = out
+                substitutionLog = ManualSubstitutionLog(
+                    timestamp = AppDateTime.nowMillis(),
+                    groupName = _currentGroupConfig.value.groupName,
+                    playerOutName = out.name,
+                    playerInName = inWithToll.name,
+                    targetTeam = "B",
+                    incomingSource = "A"
+                )
+            }
+        }
+
+        if (resetStreak) {
+            _currentStreak.value = 0
+            _streakOwner.value = null
+        }
+
+        substitutionLog?.let(::appendManualSubstitutionLog)
+
+        _teamA.value = sortTeamPlayers(nA); _teamB.value = sortTeamPlayers(nB); _waitingList.value =
+            wait
+        if (idxInA != -1 && idxOutA != -1 || idxInB != -1 && idxOutB != -1) return
+        refreshPositionAssignments()
+    }
+
+    fun finishGame(winner: String) {
+        val conf = _currentGroupConfig.value
+        if (conf.remoteRole == UserProfileType.AUXILIAR.name) {
+            requestRemoteFinish(winner)
+            return
+        }
+        clearAllActivityLogs()
+        val cA = _teamA.value
+        val cB = _teamB.value
+        val sA = _scoreA.value
+        val sB = _scoreB.value
+        if (cA.isEmpty() || cB.isEmpty()) return
+
+        registerCompletedMatchForReviewFallback()
+
+        // Capturado antes de mutar o estado atual: é o que `undoLastMatch` vai restaurar se o
+        // usuário desfizer esta partida (ver UndoMatchSnapshot).
+        val groupName = conf.groupName
+        val previousStreak = _currentStreak.value
+        val previousStreakOwner = _streakOwner.value
+        val previousLastWinnerIds = _lastWinners.value.map { it.id }
+        val previousLastLoserIds = lastLosers.map { it.id }
+        val previousHasPreviousMatch = _hasPreviousMatch.value
+
+        if (_streakOwner.value == winner) _currentStreak.value++ else {
+            _streakOwner.value = winner; _currentStreak.value = 1
+        }
+        val (winners, losers) = if (winner == "A") cA to cB else cB to cA
+        _lastWinners.value = winners; lastLosers = losers; _hasPreviousMatch.value = true
+
+        viewModelScope.launch(ioDispatcher) {
+            val conf = _currentGroupConfig.value
+            val cloudGroupId = conf.cloudGroupId.takeIf { conf.remoteRole == null && conf.isCloudSynced }
+            val avgA = cA.map { it.elo }.average()
+            val avgB = cB.map { it.elo }.average()
+            val delta =
+                if (winner == "A") EloCalculator.calculateEloChange(avgA, avgB)
+                else EloCalculator.calculateEloChange(avgB, avgA)
+            val dateLog = AppDateTime.todayIsoDate()
+            val endTimestamp = AppDateTime.nowMillis()
+            val dateDisplay =
+                AppDateTime.formatMatchDateTime(endTimestamp)
+            val startTimestamp = _currentMatchStartTimestamp.value
+
+            // Inserida antes do loop por jogador (`undo-last-match`) para que o id gerado possa
+            // ser gravado em cada PlayerEloLog, permitindo localizar com precisão os logs desta
+            // partida específica depois (mesmo havendo várias partidas no mesmo dia).
+            val teamASnapshot = teamSnapshotFromPlayers(cA)
+            val teamBSnapshot = teamSnapshotFromPlayers(cB)
+            val matchId = repository.insertMatch(
+                MatchHistory(
+                    date = dateDisplay,
+                    teamA = teamASnapshot.names,
+                    teamB = teamBSnapshot.names,
+                    teamAIds = teamASnapshot.ids,
+                    teamBIds = teamBSnapshot.ids,
+                    winner = winner,
+                    eloPoints = delta,
+                    groupName = cA.first().groupName,
+                    teamAAverageElo = avgA,
+                    teamBAverageElo = avgB,
+                    teamAScore = sA,
+                    teamBScore = sB,
+                    startTimestamp = startTimestamp,
+                    endTimestamp = endTimestamp
+                )
+            ).toInt()
+            val cloudHistoryDocId = cloudGroupId?.let {
+                cloudSync.pushHistoryEntry(
+                    it,
+                    RemoteHistoryEntry(
+                        date = dateDisplay,
+                        teamA = teamASnapshot.names,
+                        teamB = teamBSnapshot.names,
+                        winner = winner,
+                        teamAScore = sA,
+                        teamBScore = sB,
+                        endTimestamp = endTimestamp,
+                        startTimestamp = startTimestamp,
+                        eloPoints = delta,
+                        teamAAverageElo = avgA,
+                        teamBAverageElo = avgB
+                    )
+                )
+            }
+
+            val updatedPlayers = mutableListOf<Player>()
+            val newWinners = mutableListOf<Player>()
+            val newLosers = mutableListOf<Player>()
+            val cloudEloLogDocIds = mutableListOf<String>()
+
+            suspend fun process(list: List<Player>, won: Boolean, opponentAvgElo: Double) {
+                val deltas = EloCalculator.calculateNormalizedDeltas(list, opponentAvgElo, won, delta)
+                list.forEachIndexed { i, p ->
+                    val newElo = p.elo + deltas[i]
+                    val u = p.copy(
+                        elo = newElo,
+                        matchesPlayed = p.matchesPlayed + 1,
+                        victories = if (won) p.victories + 1 else p.victories
+                    )
+                    updatedPlayers.add(u); if (won) newWinners.add(u) else newLosers.add(u)
+                    val nameSnapshot = normalizePersonName(u.name).ifBlank { "Desconhecido" }
+                    repository.insertEloLog(
+                        PlayerEloLog(
+                            playerId = u.id,
+                            playerNameSnapshot = nameSnapshot,
+                            date = dateLog,
+                            elo = newElo,
+                            groupName = u.groupName,
+                            won = won,
+                            matchHistoryId = matchId
+                        )
+                    )
+                    if (cloudGroupId != null) {
+                        cloudSync.pushEloLogEntry(
+                            cloudGroupId,
+                            RemoteEloLogEntry(playerNameSnapshot = nameSnapshot, date = dateLog, elo = newElo, won = won, endTimestamp = endTimestamp)
+                        )?.let { cloudEloLogDocIds.add(it) }
+                    }
+                }
+            }
+            process(winners, true, if (winner == "A") avgB else avgA)
+            process(losers, false, if (winner == "A") avgA else avgB)
+
+            _lastWinners.value = newWinners; lastLosers = newLosers
+            repository.updatePlayers(updatedPlayers)
+
+            val expiresAt = endTimestamp + UNDO_MATCH_WINDOW_MILLIS
+            saveUndoSnapshot(
+                UndoMatchSnapshot(
+                    groupName = groupName,
+                    matchId = matchId,
+                    previousStreak = previousStreak,
+                    previousStreakOwner = previousStreakOwner,
+                    previousLastWinnerIds = previousLastWinnerIds,
+                    previousLastLoserIds = previousLastLoserIds,
+                    previousHasPreviousMatch = previousHasPreviousMatch,
+                    cloudGroupId = cloudGroupId,
+                    cloudHistoryDocId = cloudHistoryDocId,
+                    cloudEloLogDocIds = cloudEloLogDocIds,
+                    expiresAt = expiresAt
+                )
+            )
+            _canUndoLastMatch.value = true
+            armUndoExpiry(groupName, expiresAt)
+
+            telemetry.logMatchFinished(groupType = conf.groupType,
+                teamSize = conf.teamSize,
+                streakBroken = conf.victoryLimit > 0 && _currentStreak.value >= conf.victoryLimit
+            )
+            _teamA.value = emptyList(); _teamB.value = emptyList()
+            resetScoresAndPointIndicator()
+            _currentMatchStartTimestamp.value = null
+        }
+    }
+
+    /**
+     * `undo-last-match`: desfaz a última partida finalizada do grupo atual (ex.: vencedor
+     * marcado errado), restaurando o jogo exatamente como estava antes de [finishGame] — volta
+     * para a tela de jogo em andamento com os mesmos times, placar e horário de início. Só
+     * funciona enquanto [canUndoLastMatch] for `true` (ver [UndoMatchSnapshot] /
+     * [refreshCanUndoLastMatch]): até 1h após o fim da partida e só para partidas finalizadas
+     * depois desta funcionalidade existir (precisam do vínculo matchHistoryId/snapshot).
+     */
+    fun undoLastMatch() {
+        val conf = _currentGroupConfig.value
+        if (conf.remoteRole != null) return
+        if (isGameInProgress()) return
+        if (!_canUndoLastMatch.value) return
+        val groupName = conf.groupName
+
+        viewModelScope.launch(ioDispatcher) {
+            val snapshot = loadUndoSnapshot(groupName) ?: return@launch
+            val lastMatch = repository.getLastMatchForGroupSync(groupName) ?: return@launch
+            if (lastMatch.id != snapshot.matchId || AppDateTime.nowMillis() >= snapshot.expiresAt) {
+                _canUndoLastMatch.value = false
+                clearUndoSnapshot(groupName)
+                return@launch
+            }
+
+            val logs = repository.getEloLogsForMatchSync(lastMatch.id)
+            val allPlayers = repository.getPlayersByGroupSync(groupName)
+            val playersById = allPlayers.associateBy { it.id }
+            val revertedPlayers = mutableListOf<Player>()
+            for (log in logs) {
+                val player = playersById[log.playerId] ?: continue
+                val previousElo = repository.getPreviousEloLogSync(groupName, log.playerId, log.id)?.elo ?: 1200.0
+                revertedPlayers.add(
+                    player.copy(
+                        elo = previousElo,
+                        matchesPlayed = (player.matchesPlayed - 1).coerceAtLeast(0),
+                        victories = if (log.won == true) (player.victories - 1).coerceAtLeast(0) else player.victories
+                    )
+                )
+            }
+            if (revertedPlayers.isNotEmpty()) {
+                repository.updatePlayers(revertedPlayers)
+            }
+            repository.deleteEloLogsForMatch(lastMatch.id)
+            repository.deleteMatch(lastMatch)
+
+            val snapshotCloudGroupId = snapshot.cloudGroupId
+            if (snapshotCloudGroupId != null) {
+                snapshot.cloudHistoryDocId?.let {
+                    cloudSync.deleteHistoryEntry(snapshotCloudGroupId, it)
+                }
+                if (snapshot.cloudEloLogDocIds.isNotEmpty()) {
+                    cloudSync.deleteEloLogEntries(snapshotCloudGroupId, snapshot.cloudEloLogDocIds)
+                }
+            }
+
+            val revertedById = revertedPlayers.associateBy { it.id }
+            val freshPlayersById = allPlayers.associate { it.id to (revertedById[it.id] ?: it) }
+            val idsA = lastMatch.teamAIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            val idsB = lastMatch.teamBIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+            val teamAPlayers = idsA.mapNotNull { freshPlayersById[it] }
+            val teamBPlayers = idsB.mapNotNull { freshPlayersById[it] }
+
+            _teamA.value = sortTeamPlayers(teamAPlayers)
+            _teamB.value = sortTeamPlayers(teamBPlayers)
+            _presentPlayerIds.value = _presentPlayerIds.value + idsA + idsB
+            _waitingList.value = _waitingList.value.filterNot { (idsA + idsB).contains(it.id) }
+            _scoreA.value = lastMatch.teamAScore ?: 0
+            _scoreB.value = lastMatch.teamBScore ?: 0
+            _currentMatchStartTimestamp.value = lastMatch.startTimestamp
+            _currentStreak.value = snapshot.previousStreak
+            _streakOwner.value = snapshot.previousStreakOwner
+            _lastWinners.value = snapshot.previousLastWinnerIds.mapNotNull { freshPlayersById[it] }
+            lastLosers = snapshot.previousLastLoserIds.mapNotNull { freshPlayersById[it] }
+            _hasPreviousMatch.value = snapshot.previousHasPreviousMatch
+            refreshPositionAssignments()
+
+            undoExpiryJob?.cancel()
+            undoExpiryJob = null
+            _canUndoLastMatch.value = false
+            clearUndoSnapshot(groupName)
+            saveGameState()
+        }
+    }
+
+    /**
+     * Equivalente de [finishGame] para um Auxiliar remoto: como este aparelho não tem os
+     * `Player` reais do grupo no Room (não é dono da tabela), ele não pode rodar o cálculo de
+     * Elo/vitórias/histórico localmente. Em vez disso, publica um "pedido de encerramento"
+     * (`pendingFinishWinner`/`pendingFinishRequestId`) em [LiveGameState]; o organizador (que tem
+     * os `Player` reais) detecta o pedido em [observeAndMirrorRemoteLiveState] e roda o
+     * [finishGame] de verdade, cujo push subsequente já limpa os campos pendentes e propaga o
+     * placar/times zerados de volta para este Auxiliar. Localmente só atualizamos cosméticos
+     * (sequência de vitórias e destaque de "última vitória") para dar feedback imediato.
+     */
+    private fun requestRemoteFinish(winner: String) {
+        val conf = _currentGroupConfig.value
+        val cloudGroupId = conf.cloudGroupId ?: return
+        val cA = _teamA.value
+        val cB = _teamB.value
+        if (cA.isEmpty() || cB.isEmpty()) return
+
+        if (_streakOwner.value == winner) _currentStreak.value++ else {
+            _streakOwner.value = winner; _currentStreak.value = 1
+        }
+        val (winners, losers) = if (winner == "A") cA to cB else cB to cA
+        _lastWinners.value = winners; lastLosers = losers; _hasPreviousMatch.value = true
+
+        val requestId = Uuid.random().toString()
+        val pending = LiveGameState(
+            groupName = conf.groupName,
+            teamA = cA.map { it.toRemoteSnapshot() },
+            teamB = cB.map { it.toRemoteSnapshot() },
+            waitingList = _waitingList.value.map { it.toRemoteSnapshot() },
+            scoreA = _scoreA.value,
+            scoreB = _scoreB.value,
+            currentStreak = _currentStreak.value,
+            streakOwner = _streakOwner.value,
+            updatedAt = AppDateTime.nowMillis(),
+            pendingFinishWinner = winner,
+            pendingFinishRequestId = requestId,
+            presentPlayers = lastKnownRemotePresentPlayers,
+            allPlayers = lastKnownRemoteAllPlayers,
+            matchStartTimestamp = _currentMatchStartTimestamp.value,
+            lastScoringTeam = _lastScoringTeam.value,
+            rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            writerSessionId = localSyncSessionId,
+            gamesPlayedToday = lastKnownRemoteGamesPlayedToday,
+            assignedPositions = lastKnownRemoteAssignedPositions,
+            assignedSlotIndices = lastKnownRemoteAssignedSlotIndices,
+            compositionIncomplete = lastKnownRemoteCompositionIncomplete
+        )
+        lastPushedUpdatedAt = pending.updatedAt
+        viewModelScope.launch(ioDispatcher) {
+            cloudSync.pushLiveState(cloudGroupId, pending)
+        }
+    }
+
+    /**
+     * Pedido de um Auxiliar remoto para alternar a presença de um jogador (marcar/desmarcar antes
+     * da partida começar). Como este aparelho não tem o roster real no Room, não pode recalcular
+     * localmente os efeitos colaterais de presença (fila de espera, tolerância, etc.) — em vez
+     * disso publica um pedido (`pendingPresenceTogglePublicId`/`pendingPresenceToggleRequestId`)
+     * que o organizador detecta em [observeAndMirrorRemoteLiveState] e resolve chamando sua
+     * própria lógica real de [togglePlayerPresence]; o push seguinte do organizador já limpa os
+     * campos pendentes e propaga o novo estado de volta. Mesmo padrão de [requestRemoteFinish].
+     */
+    private fun requestRemotePresenceToggle(publicId: String) {
+        val conf = _currentGroupConfig.value
+        val cloudGroupId = conf.cloudGroupId ?: return
+        val requestId = Uuid.random().toString()
+        val pending = LiveGameState(
+            groupName = conf.groupName,
+            teamA = _teamA.value.map { it.toRemoteSnapshot() },
+            teamB = _teamB.value.map { it.toRemoteSnapshot() },
+            waitingList = _waitingList.value.map { it.toRemoteSnapshot() },
+            scoreA = _scoreA.value,
+            scoreB = _scoreB.value,
+            currentStreak = _currentStreak.value,
+            streakOwner = _streakOwner.value,
+            updatedAt = AppDateTime.nowMillis(),
+            presentPlayers = lastKnownRemotePresentPlayers,
+            allPlayers = lastKnownRemoteAllPlayers,
+            matchStartTimestamp = _currentMatchStartTimestamp.value,
+            lastScoringTeam = _lastScoringTeam.value,
+            rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            pendingPresenceTogglePublicId = publicId,
+            pendingPresenceToggleRequestId = requestId,
+            writerSessionId = localSyncSessionId,
+            gamesPlayedToday = lastKnownRemoteGamesPlayedToday,
+            assignedPositions = lastKnownRemoteAssignedPositions,
+            assignedSlotIndices = lastKnownRemoteAssignedSlotIndices,
+            compositionIncomplete = lastKnownRemoteCompositionIncomplete
+        )
+        lastPushedUpdatedAt = pending.updatedAt
+        viewModelScope.launch(ioDispatcher) {
+            cloudSync.pushLiveState(cloudGroupId, pending)
+        }
+    }
+
+    fun startNextRound() {
+        try {
+            val conf = _currentGroupConfig.value
+            if (conf.teamSize <= 0) {
+                startNextRoundRebalance(conf.copy(teamSize = 6))
+                return
+            }
+            val mode = BalancingMode.fromStoredValue(conf.balancingMode)
+            when (mode) {
+                BalancingMode.REBALANCE -> startNextRoundRebalance(conf)
+                BalancingMode.REST -> startNextRoundRest(conf)
+            }
+        } finally {
+            _guaranteedNextMatchPlayerIds.value = emptyList()
+        }
+    }
+
+
+    private fun startNextRoundRebalance(conf: GroupConfig) {
+        if (conf.teamSize <= 0) return
+        telemetry.logTeamsRebalanced(conf.groupType, conf.balancingMode)
+        _rebalancedPlayerIds.value = emptySet()
+        _autoSelectedLoserPlayerIds.value = emptySet()
+        val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
+        val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
+
+        val activeWinnerIds = activeWinners.map { it.id }.toSet()
+        val loserIds = losers.map { it.id }.toSet()
+        val existingWaitlistIds = _waitingList.value.map { it.id }.toSet()
+
+        val newPresentPlayerIds = _presentPlayerIds.value.filter { id ->
+            !activeWinnerIds.contains(id) && !loserIds.contains(id) && !existingWaitlistIds.contains(id)
+        }
+
+        val newPlayersWithToll = newPresentPlayerIds.mapNotNull { id ->
+            currentGroupPlayers.value.find { it.id == id }?.let { applyTollIfNecessary(it) }
+        }
+
+        val waitlist =
+            _waitingList.value.filter { p -> !activeWinnerIds.contains(p.id) && !loserIds.contains(p.id) } + newPlayersWithToll
+
+        val today = AppDateTime.todayIsoDate()
+        val usageMap = getUsageCountMap(today)
+        fun getEffectiveGames(p: Player): Int =
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
+
+        val sortedLosers = if (conf.type.usesPositions) {
+            PositionAssigner.orderByIdealComposition(losers, conf.teamSize, conf.guaranteeSetter) { getEffectiveGames(it) }
+        } else {
+            TeamBalancer.groupAndInterleave(losers) { getEffectiveGames(it) }
+        }
+
+        if (_currentStreak.value >= conf.victoryLimit) {
+            _currentStreak.value = 0; _streakOwner.value = null
+            telemetry.logStreakBreakRebalance(conf.groupType)
+
+            val sortedWinners = TeamBalancer.groupAndInterleave(activeWinners) { getEffectiveGames(it) }
+            val winnersToKeep = sortedWinners.take(conf.teamSize * 2)
+            val winnersToDrop = sortedWinners.drop(conf.teamSize * 2)
+
+            val fullPool = (winnersToDrop + waitlist + sortedLosers).toMutableList()
+
+            if (conf.type.usesPositions) {
+                // Divide o time vencedor em duas metades equilibradas por Elo e só depois
+                // completa as vagas de posição faltantes com o topo da fila de espera.
+                val kept = winnersToKeep.take(conf.teamSize * 2)
+                val (halfA, halfB) = PositionAssigner.splitByElo(kept)
+                var pool: List<Player> = fullPool
+
+                fun completeTeam(base: List<Player>): List<Player> {
+                    val missing = conf.teamSize - base.size
+                    if (missing <= 0) return base
+                    val (picked, leftover) = PositionAssigner.pickToCoverComposition(
+                        base = base,
+                        pool = pool,
+                        count = missing,
+                        teamSize = conf.teamSize,
+                        teams = 1,
+                        guaranteeSetter = conf.guaranteeSetter,
+                        losers = losers
+                    )
+                    pool = leftover
+                    return base + picked
+                }
+
+                val finalA = completeTeam(halfA)
+                val finalB = completeTeam(halfB)
+                _teamA.value = sortTeamPlayers(finalA)
+                _teamB.value = sortTeamPlayers(finalB)
+                _waitingList.value = pool
+                val keptIds = kept.map { it.id }.toSet()
+                _rebalancedPlayerIds.value = (finalA + finalB)
+                    .map { it.id }
+                    .filter { keptIds.contains(it) }
+                    .toSet()
+                refreshPositionAssignments()
+                finishRoundSetup(loserIds)
+                return
+            }
+
+            val (cA, cB) = splitPlayersEvenlyForRebalance(
+                players = winnersToKeep,
+                priorityEnabled = conf.priorityEnabled
+            )
+
+            if (shouldApplyPriorityRule(conf.priorityEnabled, cA + cB + fullPool)) {
+                if (cA.none { it.isPriority } && cA.size < conf.teamSize) {
+                    val p = fullPool.firstOrNull { it.isPriority }
+                    if (p != null) {
+                        cA.add(p)
+                        fullPool.remove(p)
+                    }
+                }
+                if (cB.none { it.isPriority } && cB.size < conf.teamSize) {
+                    val p = fullPool.firstOrNull { it.isPriority }
+                    if (p != null) {
+                        cB.add(p)
+                        fullPool.remove(p)
+                    }
+                }
+            }
+
+            val totalNeeded = (conf.teamSize - cA.size) + (conf.teamSize - cB.size)
+            if (totalNeeded > 0) {
+                val playersToAdd = fullPool.take(totalNeeded).sortedByDescending { it.elo }
+                if (fullPool.size >= totalNeeded) {
+                    fullPool.subList(0, totalNeeded).clear()
+                } else {
+                    fullPool.clear()
+                }
+
+                playersToAdd.forEach { p ->
+                    if (cA.size < conf.teamSize && cB.size < conf.teamSize) {
+                        if (cA.sumOf { it.elo } <= cB.sumOf { it.elo }) cA.add(p) else cB.add(p)
+                    } else if (cA.size < conf.teamSize) {
+                        cA.add(p)
+                    } else {
+                        cB.add(p)
+                    }
+                }
+            }
+
+            _teamA.value = sortTeamPlayers(cA)
+            _teamB.value = sortTeamPlayers(cB)
+            _waitingList.value = fullPool
+            val winnersToKeepIds = winnersToKeep.map { it.id }.toSet()
+            _rebalancedPlayerIds.value =
+                (cA + cB).map { it.id }.filter { winnersToKeepIds.contains(it) }.toSet()
+        } else {
+            val previousWinnerSide = _streakOwner.value
+            var resetStreakAfterAutomaticReplacement = false
+            var teamWin = activeWinners.toMutableList()
+            var remainingPool = (waitlist + sortedLosers).toMutableList()
+            val guaranteedIdsSet = _guaranteedNextMatchPlayerIds.value.toSet()
+            val shuffledPool = remainingPool.shuffled()
+
+            if (teamWin.size > conf.teamSize) {
+                val sorted = TeamBalancer.groupAndInterleave(teamWin.toList()) { getEffectiveGames(it) }
+                teamWin = sorted.take(conf.teamSize).toMutableList()
+                val droppedWinners = TeamBalancer.interleaveByElo(sorted.drop(conf.teamSize))
+                remainingPool.addAll(0, droppedWinners)
+            } else if (teamWin.size < conf.teamSize) {
+                val guaranteedOrdered = sortPlayersByUsageForSelection(
+                    players = shuffledPool.filter { guaranteedIdsSet.contains(it.id) },
+                    getEffectiveGames = ::getEffectiveGames
+                )
+                if (conf.type.usesPositions) {
+                    // Garantidos primeiro; entre os demais, quem cobre as vagas ainda descobertas.
+                    val orderedPool = orderGuaranteedFirst(remainingPool, guaranteedOrdered)
+                    val (picked, leftover) = PositionAssigner.pickToCoverComposition(
+                        base = teamWin,
+                        pool = orderedPool,
+                        count = conf.teamSize - teamWin.size,
+                        teamSize = conf.teamSize,
+                        teams = 1,
+                        guaranteeSetter = conf.guaranteeSetter,
+                        losers = losers
+                    )
+                    if (picked.isNotEmpty()) {
+                        teamWin.addAll(picked)
+                        resetStreakAfterAutomaticReplacement = true
+                    }
+                    remainingPool = leftover.toMutableList()
+                } else {
+                    while (teamWin.size < conf.teamSize && remainingPool.isNotEmpty()) {
+                        val shouldApplyPriorityRuleInWinner =
+                            shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)
+                        val needsPriorityInWinner = shouldApplyPriorityRuleInWinner && teamWin.none { it.isPriority }
+                        val candidate = when {
+                            needsPriorityInWinner -> {
+                                remainingPool.firstOrNull { it.isPriority }
+                                    ?: guaranteedOrdered.firstOrNull { guaranteed -> remainingPool.any { it.id == guaranteed.id } }
+                                    ?: remainingPool.firstOrNull()
+                            }
+                            else -> guaranteedOrdered.firstOrNull { guaranteed ->
+                                remainingPool.any { it.id == guaranteed.id }
+                            } ?: remainingPool.firstOrNull()
+                        }
+                        if (candidate == null) {
+                            break
+                        }
+                        teamWin.add(candidate)
+                        remainingPool.remove(candidate)
+                        resetStreakAfterAutomaticReplacement = true
+                    }
+                }
+            }
+
+            val teamChal = mutableListOf<Player>()
+            if (conf.type.usesPositions) {
+                val guaranteedOrdered = sortPlayersByUsageForSelection(
+                    players = remainingPool.filter { guaranteedIdsSet.contains(it.id) },
+                    getEffectiveGames = ::getEffectiveGames
+                )
+                val (picked, leftover) = PositionAssigner.pickToCoverComposition(
+                    base = emptyList(),
+                    pool = orderGuaranteedFirst(remainingPool, guaranteedOrdered),
+                    count = conf.teamSize,
+                    teamSize = conf.teamSize,
+                    teams = 1,
+                    guaranteeSetter = conf.guaranteeSetter,
+                    losers = losers
+                )
+                teamChal.addAll(picked)
+                remainingPool = leftover.toMutableList()
+            } else {
+                val shouldApplyPriorityRuleInRound = shouldApplyPriorityRule(conf.priorityEnabled, teamWin + remainingPool)
+
+                if (shouldApplyPriorityRuleInRound) {
+                    val priorityPlayer = remainingPool.firstOrNull { it.isPriority }
+                    if (priorityPlayer != null) {
+                        teamChal.add(priorityPlayer); remainingPool.remove(priorityPlayer)
+                    }
+                }
+
+                val slotsNeeded = conf.teamSize - teamChal.size
+                if (slotsNeeded > 0) {
+                    val guaranteedOrdered = sortPlayersByUsageForSelection(
+                        players = remainingPool.filter { guaranteedIdsSet.contains(it.id) },
+                        getEffectiveGames = ::getEffectiveGames
+                    )
+                    val guaranteedPicked = guaranteedOrdered.take(slotsNeeded)
+                    teamChal.addAll(guaranteedPicked)
+                    remainingPool.removeAll(guaranteedPicked)
+                    val pendingSlots = conf.teamSize - teamChal.size
+                    if (pendingSlots > 0) {
+                        val queuePicked = remainingPool.take(pendingSlots)
+                        teamChal.addAll(queuePicked)
+                        remainingPool.removeAll(queuePicked)
+                    }
+                }
+            }
+
+            _waitingList.value = remainingPool
+            if (previousWinnerSide == "B") {
+                _teamB.value = sortTeamPlayers(teamWin); _teamA.value = sortTeamPlayers(teamChal)
+            } else {
+                _teamA.value = sortTeamPlayers(teamWin); _teamB.value = sortTeamPlayers(teamChal)
+                if (!resetStreakAfterAutomaticReplacement) {
+                    _streakOwner.value = "A"
+                }
+            }
+
+            if (resetStreakAfterAutomaticReplacement) {
+                _currentStreak.value = 0
+                _streakOwner.value = null
+            }
+        }
+        _autoSelectedLoserPlayerIds.value = (_teamA.value + _teamB.value)
+            .map { it.id }
+            .filter { loserIds.contains(it) }
+            .toSet()
+
+        _hasPreviousMatch.value = false
+        resetScoresAndPointIndicator()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        refreshPositionAssignments()
+    }
+
+    /** Reordena o pool colocando os jogadores garantidos na frente, preservando a ordem original. */
+    private fun orderGuaranteedFirst(pool: List<Player>, guaranteed: List<Player>): List<Player> {
+        if (guaranteed.isEmpty()) return pool
+        val guaranteedIds = guaranteed.map { it.id }.toSet()
+        val head = guaranteed.filter { g -> pool.any { it.id == g.id } }
+        return head + pool.filterNot { guaranteedIds.contains(it.id) }
+    }
+
+    /**
+     * Ordenação estável para escolhas automáticas: prioriza menor uso do dia e,
+     * em empate, menor histórico total de partidas.
+     */
+    private fun sortPlayersByUsageForSelection(
+        players: List<Player>,
+        getEffectiveGames: (Player) -> Int
+    ): List<Player> {
+        return players.sortedWith(
+            compareBy<Player> { getEffectiveGames(it) }
+                .thenBy { it.matchesPlayed }
+                .thenBy { it.id }
+        )
+    }
+
+    /** Encerramento comum de uma rodada: destaca perdedores reaproveitados e reinicia o placar. */
+    private fun finishRoundSetup(loserIds: Set<Int>) {
+        _autoSelectedLoserPlayerIds.value = (_teamA.value + _teamB.value)
+            .map { it.id }
+            .filter { loserIds.contains(it) }
+            .toSet()
+        _hasPreviousMatch.value = false
+        resetScoresAndPointIndicator()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+    }
+
+    private fun startNextRoundRest(conf: GroupConfig) {
+        if (conf.teamSize <= 0) return
+        _rebalancedPlayerIds.value = emptySet()
+        _autoSelectedLoserPlayerIds.value = emptySet()
+        _roundCounter.value += 1
+        if (tryScheduleReturningTeamMatchIfAny(conf)) return
+
+        val activeWinners = _lastWinners.value.filter { _presentPlayerIds.value.contains(it.id) }
+        val losers = lastLosers.filter { _presentPlayerIds.value.contains(it.id) }
+
+        val activeWinnerIds = activeWinners.map { it.id }.toSet()
+        val loserIds = losers.map { it.id }.toSet()
+        val existingWaitlistIds = _waitingList.value.map { it.id }.toSet()
+
+        val newPresentPlayerIds = _presentPlayerIds.value.filter { id ->
+            !activeWinnerIds.contains(id) && !loserIds.contains(id) && !existingWaitlistIds.contains(id)
+        }
+
+        val newPlayersWithToll = newPresentPlayerIds.mapNotNull { id ->
+            currentGroupPlayers.value.find { it.id == id }?.let { applyTollIfNecessary(it) }
+        }
+
+        val waitlist = (
+            _waitingList.value.filter { p -> !activeWinnerIds.contains(p.id) && !loserIds.contains(p.id) } +
+                newPlayersWithToll
+            ).distinctBy { it.id }
+
+        val today = AppDateTime.todayIsoDate()
+        val usageMap = getUsageCountMap(today)
+        fun getEffectiveGames(p: Player): Int =
+            TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
+
+        val sortedLosers = if (conf.type.usesPositions) {
+            PositionAssigner.orderByIdealComposition(losers, conf.teamSize, conf.guaranteeSetter) { getEffectiveGames(it) }
+        } else {
+            TeamBalancer.groupAndInterleave(losers) { getEffectiveGames(it) }
+        }
+        val fullTeamsInWait = waitlist.size / conf.teamSize
+        val winnerSide = _streakOwner.value
+
+        fun buildChallengerTeam(
+            basePlayers: List<Player>,
+            fillPool: List<Player>
+        ): Pair<List<Player>, List<Player>> {
+            val team = basePlayers.take(conf.teamSize).toMutableList()
+            val remaining = fillPool.toMutableList()
+            if (team.size < conf.teamSize) {
+                if (conf.type.usesPositions) {
+                    val (picked, leftover) = PositionAssigner.pickToCoverComposition(
+                        base = team,
+                        pool = remaining,
+                        count = conf.teamSize - team.size,
+                        teamSize = conf.teamSize,
+                        teams = 1,
+                        guaranteeSetter = conf.guaranteeSetter,
+                        losers = fillPool
+                    )
+                    team.addAll(picked)
+                    return team to leftover
+                }
+                if (shouldApplyPriorityRule(conf.priorityEnabled, team + remaining)) {
+                    val priorityPlayer = remaining.firstOrNull { it.isPriority }
+                    if (priorityPlayer != null) {
+                        team.add(priorityPlayer)
+                        remaining.remove(priorityPlayer)
+                    }
+                }
+                while (team.size < conf.teamSize && remaining.isNotEmpty()) {
+                    team.add(remaining.removeAt(0))
+                }
+            }
+            return team to remaining
+        }
+
+        if (_currentStreak.value < conf.victoryLimit) {
+            startNextRoundRebalance(conf)
+            return
+        }
+
+        _currentStreak.value = 0
+        _streakOwner.value = null
+
+        when {
+            fullTeamsInWait >= 2 -> {
+                val team1: List<Player>
+                val team2: List<Player>
+                if (conf.type.usesPositions) {
+                    val assignment = PositionAssigner.buildBalancedTeams(
+                        waitlist.take(conf.teamSize * 2),
+                        conf.teamSize,
+                        conf.guaranteeSetter
+                    )
+                    team1 = assignment.teamA
+                    team2 = assignment.teamB
+                } else {
+                    team1 = waitlist.take(conf.teamSize)
+                    team2 = waitlist.drop(conf.teamSize).take(conf.teamSize)
+                }
+                val remainingWait = waitlist.drop(conf.teamSize * 2)
+                val restedWinners = activeWinners.map { applyTollIfNecessary(it) }
+
+                _teamA.value = sortTeamPlayers(team1)
+                _teamB.value = sortTeamPlayers(team2)
+
+                val returnRound = _roundCounter.value + 1
+                val restMap = _restingPlayers.value.toMutableMap()
+                restedWinners.forEach { restMap[it.id] = returnRound }
+                _restingPlayers.value = restMap
+                _waitingList.value = (restedWinners + remainingWait + sortedLosers).distinctBy { it.id }
+            }
+
+            else -> {
+                val reigningTeam = activeWinners.toMutableList()
+                val queueForNextTeams = waitlist.toMutableList()
+                if (reigningTeam.size < conf.teamSize) {
+                    val needed = conf.teamSize - reigningTeam.size
+                    val picks = if (conf.type.usesPositions) {
+                        val (picked, leftover) = PositionAssigner.pickToCoverComposition(
+                            base = reigningTeam,
+                            pool = queueForNextTeams,
+                            count = needed,
+                            teamSize = conf.teamSize,
+                            teams = 1,
+                            guaranteeSetter = conf.guaranteeSetter
+                        )
+                        reigningTeam.addAll(picked)
+                        queueForNextTeams.clear()
+                        queueForNextTeams.addAll(leftover)
+                        emptyList()
+                    } else {
+                        queueForNextTeams.take(needed)
+                    }
+                    reigningTeam.addAll(picks)
+                    if (picks.isNotEmpty()) queueForNextTeams.subList(0, picks.size).clear()
+                }
+
+                if (reigningTeam.size < conf.teamSize) {
+                    startNextRoundRebalance(conf)
+                    return
+                }
+
+                if (queueForNextTeams.size >= conf.teamSize) {
+                    val teamFromWait: List<Player>
+                    val remainingAfterTeam: List<Player>
+                    if (conf.type.usesPositions) {
+                        val (picked, leftover) = PositionAssigner.pickToCoverComposition(
+                            base = emptyList(),
+                            pool = queueForNextTeams,
+                            count = conf.teamSize,
+                            teamSize = conf.teamSize,
+                            teams = 1,
+                            guaranteeSetter = conf.guaranteeSetter
+                        )
+                        teamFromWait = picked
+                        remainingAfterTeam = leftover
+                    } else {
+                        teamFromWait = queueForNextTeams.take(conf.teamSize)
+                        remainingAfterTeam = queueForNextTeams.drop(conf.teamSize)
+                    }
+                    if (winnerSide == "B") {
+                        _teamA.value = sortTeamPlayers(teamFromWait)
+                        _teamB.value = sortTeamPlayers(reigningTeam)
+                    } else {
+                        _teamA.value = sortTeamPlayers(reigningTeam)
+                        _teamB.value = sortTeamPlayers(teamFromWait)
+                    }
+
+                    _waitingList.value = (remainingAfterTeam + sortedLosers).distinctBy { it.id }
+                } else {
+                    val (challengerTeam, remainingWait) = buildChallengerTeam(queueForNextTeams, sortedLosers)
+
+                    if (winnerSide == "B") {
+                        _teamA.value = sortTeamPlayers(challengerTeam)
+                        _teamB.value = sortTeamPlayers(reigningTeam)
+                    } else {
+                        _teamA.value = sortTeamPlayers(reigningTeam)
+                        _teamB.value = sortTeamPlayers(challengerTeam)
+                    }
+
+                    _waitingList.value = remainingWait.distinctBy { it.id }
+                }
+            }
+        }
+        _autoSelectedLoserPlayerIds.value = (_teamA.value + _teamB.value)
+            .map { it.id }
+            .filter { loserIds.contains(it) }
+            .toSet()
+
+        _hasPreviousMatch.value = false
+        resetScoresAndPointIndicator()
+        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        refreshPositionAssignments()
+    }
+
+
+    private fun formatElo(elo: Double): String = formatTwoDecimals(elo)
+
+    private fun normalizePersonName(name: String): String {
+        return name.trim().replace(Regex("\\s+"), " ").take(MAX_PLAYER_NAME_LENGTH)
+    }
+
+    private fun normalizeGroupName(name: String): String {
+        return name.trim().replace(Regex("\\s+"), " ").take(MAX_GROUP_NAME_LENGTH)
+    }
+
+    private fun canonicalPersonName(name: String): String {
+        return canonicalizePersonNameCompat(name)
+    }
+
+    private fun areSameCanonicalName(a: String, b: String): Boolean {
+        return canonicalPersonName(a) == canonicalPersonName(b)
+    }
+
+    private fun normalizeTeamNamesSnapshot(raw: String): String {
+        return normalizeTeamSnapshotWithIds(
+            rawNames = raw,
+            rawIds = "",
+            normalizeName = ::normalizePersonName
+        ).names
+    }
+
+    /**
+     * `derive-won-from-history`: backups antigos (de antes do app registrar vitória/derrota em
+     * [PlayerEloLog.won]) chegam com `won == null` para cada log — sem essa reconstrução, a tela
+     * de Histórico ([computeHistoryComputation] em `AppScreens.kt`) contava `won == true` para
+     * vitórias, o que tratava silenciosamente todo log antigo sem essa marca como derrota (número
+     * de vitórias/porcentagem de aproveitamento errados, mesmo tendo o dado real disponível em
+     * [MatchHistory.winner]). Reconstrói `won` casando, para cada dia (`groupName` + `date`), os
+     * logs sem marca de um jogador com as partidas daquele dia em que esse jogador aparece em
+     * `teamA`/`teamB` — na mesma ordem relativa em que log e partida foram originalmente criados
+     * (um log é sempre gravado logo após a partida que o gerou, então a ordem de inserção
+     * preservada pelo backup casa 1:1 mesmo quando o mesmo jogador jogou várias partidas no
+     * mesmo dia). Logs que já têm `won` definido (backups mais novos) não são tocados.
+     */
+    private fun deriveMissingWonFromHistory(
+        logs: List<PlayerEloLog>,
+        history: List<MatchHistory>
+    ): List<PlayerEloLog> {
+        if (logs.none { it.won == null }) return logs
+
+        fun matchDayKey(rawDate: String): String? = AppDateTime.matchDateToIsoDay(rawDate)
+
+        fun teamCanonicalNames(namesCsv: String): Set<String> =
+            namesCsv.split(",").map { canonicalPersonName(it.trim()) }.filter { it.isNotEmpty() }.toSet()
+
+        // Partidas agrupadas por dia+grupo, na ordem original do backup (ordem de criação).
+        val matchesByGroupDay = mutableMapOf<Pair<String, String>, MutableList<MatchHistory>>()
+        history.forEach { match ->
+            val day = matchDayKey(match.date) ?: return@forEach
+            matchesByGroupDay.getOrPut(match.groupName to day) { mutableListOf() }.add(match)
+        }
+
+        // Cursor por (grupo, dia, jogador) para consumir as partidas daquele jogador em ordem.
+        val cursorByGroupDayPlayer = mutableMapOf<Triple<String, String, String>, Int>()
+
+        return logs.map { log ->
+            if (log.won != null) return@map log
+            val canonicalPlayer = canonicalPersonName(log.playerNameSnapshot)
+            val dayMatches = matchesByGroupDay[log.groupName to log.date] ?: return@map log
+            val relevantMatches = dayMatches.filter { match ->
+                canonicalPlayer in teamCanonicalNames(match.teamA) || canonicalPlayer in teamCanonicalNames(match.teamB)
+            }
+            if (relevantMatches.isEmpty()) return@map log
+            val cursorKey = Triple(log.groupName, log.date, canonicalPlayer)
+            val idx = (cursorByGroupDayPlayer[cursorKey] ?: 0).coerceAtMost(relevantMatches.lastIndex)
+            cursorByGroupDayPlayer[cursorKey] = idx + 1
+            val match = relevantMatches[idx]
+            val playedForTeamA = canonicalPlayer in teamCanonicalNames(match.teamA)
+            val won = (playedForTeamA && match.winner == "A") || (!playedForTeamA && match.winner == "B")
+            log.copy(won = won)
+        }
+    }
+
+    /**
+     * `eloLog-endTimestamp-backfill`: [PlayerEloLog] não guarda `endTimestamp` localmente, mas o
+     * documento remoto publicado por [backfillGroupHistoryIfNeeded] precisa de um valor real
+     * nesse campo — publicá-lo como `null` faz [com.bismarck.voleimanager.app.util.CloudSyncManager.observeEloLogs]
+     * (que usa `orderBy("endTimestamp", DESCENDING)`) tratar todos os logs de backfill como
+     * empatados/indefinidos entre si, o que tanto pode excluí-los da consulta quanto embaralhar
+     * qual é "o mais recente" (Elo atual errado, jogos/vitórias/aproveitamento zerados). Casa cada
+     * log com a partida do mesmo dia em que o jogador aparece (mesma lógica de cursor por
+     * `grupo+dia+jogador`, na ordem original, usada em [deriveMissingWonFromHistory]) e usa o
+     * `endTimestamp`/`startTimestamp` real dessa partida. Quando nem a partida casada tem essas
+     * marcas (backups muito antigos) ou não há partida correspondente, cai para a meia-noite do
+     * dia do log somado à posição do log naquele dia — só para garantir um valor não-nulo e
+     * distinto; a ordenação exata dentro do mesmo dia deixa de importar nesse caso extremo.
+     */
+    private fun resolveEloLogEndTimestamps(logs: List<PlayerEloLog>, history: List<MatchHistory>): List<Long> {
+        fun matchDayKey(rawDate: String): String? = AppDateTime.matchDateToIsoDay(rawDate)
+
+        fun teamCanonicalNames(namesCsv: String): Set<String> =
+            namesCsv.split(",").map { canonicalPersonName(it.trim()) }.filter { it.isNotEmpty() }.toSet()
+
+        val matchesByGroupDay = mutableMapOf<Pair<String, String>, MutableList<MatchHistory>>()
+        history.forEach { match ->
+            val day = matchDayKey(match.date) ?: return@forEach
+            matchesByGroupDay.getOrPut(match.groupName to day) { mutableListOf() }.add(match)
+        }
+
+        val cursorByGroupDayPlayer = mutableMapOf<Triple<String, String, String>, Int>()
+        return logs.map { log ->
+            val fallbackBase = AppDateTime.parseIsoDate(log.date) ?: 0L
+            val canonicalPlayer = canonicalPersonName(log.playerNameSnapshot)
+            val dayMatches = matchesByGroupDay[log.groupName to log.date] ?: return@map fallbackBase
+            val relevantMatches = dayMatches.filter { match ->
+                canonicalPlayer in teamCanonicalNames(match.teamA) || canonicalPlayer in teamCanonicalNames(match.teamB)
+            }
+            if (relevantMatches.isEmpty()) return@map fallbackBase
+            val cursorKey = Triple(log.groupName, log.date, canonicalPlayer)
+            val idx = (cursorByGroupDayPlayer[cursorKey] ?: 0).coerceAtMost(relevantMatches.lastIndex)
+            cursorByGroupDayPlayer[cursorKey] = idx + 1
+            val match = relevantMatches[idx]
+            match.endTimestamp ?: match.startTimestamp ?: (fallbackBase + idx)
+        }
+    }
+
+    fun importData(file: FileRef, type: CsvType) {
+        viewModelScope.launch(ioDispatcher) {
+            if (type == CsvType.BACKUP_COMPLETO) {
+                telemetry.logBackupImported()
+            } else {
+                telemetry.logCsvImported(type.name)
+            }
+            try {
+                if (type == CsvType.BACKUP_COMPLETO) {
+                    val json =
+                        (fileService.readBytes(file) ?: throw IllegalStateException("Arquivo ileg?vel")).decodeToString()
+                    val backup = AppJson.decodeFromString(BackupData.serializer(), json)
+
+                    if (backup != null) {
+                        val rawSafePlayers = backup.players.map { p ->
+                            p.copy(
+                                id = if (p.id > 0) p.id else 0,
+                                name = normalizePersonName(p.name).ifBlank { "Desconhecido" },
+                                // Must match the group's own name length limit (MAX_GROUP_NAME_LENGTH):
+                                // older backups could carry a longer groupName than the app currently
+                                // allows when renaming, which made the rename dialog silently reject
+                                // every keystroke until the name was saved once and got truncated.
+                                groupName = normalizeGroupName(p.groupName),
+                                // Backups antigos (anteriores ao publicId) não têm esse campo no
+                                // JSON e backups gerados pelo Gson podem tê-lo vazio: garante um
+                                // UUID válido para a constraint NOT NULL/UNIQUE da coluna.
+                                publicId = p.publicId.ifBlank { Uuid.random().toString() }
+                            )
+                        }
+                        val safeGroupConfig = backup.groupConfig?.let { gc ->
+                            gc.copy(
+                                groupName = normalizeGroupName(gc.groupName),
+                                publicId = gc.publicId.ifBlank { Uuid.random().toString() }
+                            )
+                        }
+
+                        val rawSafeHistory = backup.history.map { h ->
+                            val teamASnapshot = normalizeTeamSnapshotWithIds(
+                                rawNames = h.teamA,
+                                rawIds = h.teamAIds,
+                                normalizeName = ::normalizePersonName
+                            )
+                            val teamBSnapshot = normalizeTeamSnapshotWithIds(
+                                rawNames = h.teamB,
+                                rawIds = h.teamBIds,
+                                normalizeName = ::normalizePersonName
+                            )
+                            h.copy(
+                                id = 0,
+                                date = h.date.take(20),
+                                teamA = teamASnapshot.names,
+                                teamB = teamBSnapshot.names,
+                                teamAIds = teamASnapshot.ids,
+                                teamBIds = teamBSnapshot.ids,
+                                winner = h.winner.take(50),
+                                groupName = normalizeGroupName(h.groupName)
+                            )
+                        }
+
+                        val rawSafeLogs = deriveMissingWonFromHistory(
+                            logs = backup.logs.map { l ->
+                                l.copy(
+                                    id = 0,
+                                    playerNameSnapshot = normalizePersonName(l.playerNameSnapshot)
+                                        .ifBlank { "Desconhecido" },
+                                    date = l.date.take(20),
+                                    groupName = normalizeGroupName(l.groupName)
+                                )
+                            },
+                            history = rawSafeHistory
+                        )
+
+
+                        // Ids/publicIds do backup podem colidir com jogadores já existentes no
+                        // dispositivo (de outro grupo ou de um import parcial anterior). Como o
+                        // insert usa IGNORE em conflito, isso descartaria o jogador em silêncio.
+                        val existingPlayerIds = repository.getAllPlayerIds().toSet()
+                        val existingPlayerPublicIds = repository.getAllPlayerPublicIds().toSet()
+                        val (safePlayers, safeHistory, safeLogs) = remapCollidingPlayerIdentities(
+                            players = rawSafePlayers,
+                            history = rawSafeHistory,
+                            logs = rawSafeLogs,
+                            existingIds = existingPlayerIds,
+                            existingPublicIds = existingPlayerPublicIds
+                        )
+
+                        val importedGroups = (safePlayers.map { it.groupName } +
+                            safeHistory.map { it.groupName } +
+                            safeLogs.map { it.groupName }).toSet()
+                        val existingGroups = repository.getAllGroupNames().toSet()
+                        val overlapping = importedGroups.intersect(existingGroups).toList()
+                        val duplicatePlayerNames = collectDuplicatePlayerNames(safePlayers)
+                        val duplicatePlayerGroups = safePlayers.groupBy { it.groupName }
+                            .mapValues { (_, players) ->
+                                players.groupBy { canonicalizePersonNameCompat(it.name) }
+                                    .count { it.value.size > 1 }
+                            }
+                            .filterValues { it > 0 }
+
+                        if (overlapping.isNotEmpty() || duplicatePlayerNames.isNotEmpty()) {
+                            _pendingMergeImport.value = PendingMergeImportData(
+                                players = safePlayers,
+                                history = safeHistory,
+                                logs = safeLogs,
+                                overlappingGroups = overlapping,
+                                duplicatePlayerNames = duplicatePlayerNames,
+                                duplicatePlayerGroups = duplicatePlayerGroups,
+                                groupConfig = safeGroupConfig
+                            )
+                        } else {
+                            performImportWithDedup(safePlayers, safeHistory, safeLogs, emptySet())
+                            finalizeGroupImport(
+                                groupConfig = safeGroupConfig,
+                                groupNameFallback = safePlayers.firstOrNull()?.groupName
+                                    ?: safeHistory.firstOrNull()?.groupName
+                                    ?: safeLogs.firstOrNull()?.groupName
+                            )
+                        }
+                    } else {
+                        AppLog.e("Import", strings.get(Res.string.invalid_backup_format))
+                    }
+                } else {
+                    val rows = readTabularRows(file)
+                    if (rows.isEmpty()) {
+                        _uiMessage.value = strings.get(Res.string.import_error_empty_or_unreadable)
+                        return@launch
+                    }
+                    val dataLines = rows.drop(1)
+
+                    when (type) {
+                        CsvType.JOGADORES -> {
+                            val list = dataLines.mapNotNull { cols ->
+                                try {
+                                    if (cols.size >= 6) {
+                                        Player(
+                                            id = 0,
+                                            name = cols[1].takeIf { it.isNotBlank() }
+                                                ?.let { normalizePersonName(it) }
+                                                ?.ifBlank { "Desconhecido" }
+                                                ?: "Desconhecido",
+                                            elo = cols[2].toDoubleOrNull() ?: 1200.0,
+                                            matchesPlayed = cols[3].toIntOrNull() ?: 0,
+                                            victories = cols[4].toIntOrNull() ?: 0,
+                                            groupName = cols[5].takeIf { it.isNotBlank() }
+                                                ?.let(::normalizeGroupName)
+                                                ?: DEFAULT_GROUP_NAME,
+                                            isPriority = cols.getOrElse(6) { "false" }
+                                                .toBooleanStrictOrNull() ?: false,
+                                            dailyToll = cols.getOrElse(7) { "0" }.toIntOrNull()
+                                                ?: 0,
+                                            tollDate = cols.getOrElse(8) { "" }.take(20),
+                                            preferredPosition = PlayerPosition
+                                                .fromStoredValue(cols.getOrElse(9) { "" })?.name,
+                                            secondaryPosition = PlayerPosition
+                                                .fromStoredValue(cols.getOrElse(10) { "" })?.name
+                                        )
+                                    } else null
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                            if (list.isNotEmpty()) {
+                                val importedGroups = list.map { it.groupName }.toSet()
+                                val existingGroups = repository.getAllGroupNames().toSet()
+                                val overlapping = importedGroups.intersect(existingGroups)
+                                val duplicatePlayerNames = collectDuplicatePlayerNames(list)
+                                val duplicatePlayerGroups = list.groupBy { it.groupName }
+                                    .mapValues { (_, players) ->
+                                        players.groupBy { canonicalizePersonNameCompat(it.name) }
+                                            .count { it.value.size > 1 }
+                                    }
+                                    .filterValues { it > 0 }
+                                if (overlapping.isNotEmpty() || duplicatePlayerNames.isNotEmpty()) {
+                                    _pendingMergeImport.value = PendingMergeImportData(
+                                        players = list, history = emptyList(), logs = emptyList(),
+                                        overlappingGroups = overlapping.toList(),
+                                        duplicatePlayerNames = duplicatePlayerNames,
+                                        duplicatePlayerGroups = duplicatePlayerGroups
+                                    )
+                                } else {
+                                    performImportWithDedup(list, emptyList(), emptyList(), emptySet())
+                                    finalizeGroupImport(
+                                        groupConfig = null,
+                                        groupNameFallback = list.firstOrNull()?.groupName
+                                    )
+                                }
+                            } else {
+                                _uiMessage.value = strings.get(Res.string.import_error_no_valid_rows)
+                            }
+                        }
+
+                        CsvType.HISTORICO -> {
+                            val list = dataLines.mapNotNull { cols ->
+                                try {
+                                    if (cols.size >= 6) {
+                                        MatchHistory(
+                                            id = 0,
+                                            date = cols[0].takeIf { it.isNotBlank() }?.take(20)
+                                                ?: AppDateTime.formatMatchDateTime(),
+                                            teamA = normalizeTeamNamesSnapshot(cols[1]),
+                                            teamB = normalizeTeamNamesSnapshot(cols[2]),
+                                            winner = cols[3].take(50),
+                                            eloPoints = cols[4].toDoubleOrNull() ?: 0.0,
+                                            groupName = cols[5].takeIf { it.isNotBlank() }
+                                                ?.let(::normalizeGroupName)
+                                                ?: DEFAULT_GROUP_NAME,
+                                            teamAAverageElo = cols.getOrElse(6) { "" }
+                                                .toDoubleOrNull(),
+                                            teamBAverageElo = cols.getOrElse(7) { "" }
+                                                .toDoubleOrNull(),
+                                            teamAScore = cols.getOrElse(8) { "" }.toIntOrNull(),
+                                            teamBScore = cols.getOrElse(9) { "" }.toIntOrNull(),
+                                            startTimestamp = cols.getOrElse(10) { "" }
+                                                .toLongOrNull(),
+                                            endTimestamp = cols.getOrElse(11) { "" }
+                                                .toLongOrNull()
+                                        )
+                                    } else null
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                            if (list.isNotEmpty()) {
+                                val importedGroups = list.map { it.groupName }.toSet()
+                                val existingGroups = repository.getAllGroupNames().toSet()
+                                val overlapping = importedGroups.intersect(existingGroups)
+                                if (overlapping.isNotEmpty()) {
+                                    _pendingMergeImport.value = PendingMergeImportData(
+                                        players = emptyList(), history = list, logs = emptyList(),
+                                        overlappingGroups = overlapping.toList()
+                                    )
+                                } else {
+                                    performImportWithDedup(emptyList(), list, emptyList(), emptySet())
+                                    finalizeGroupImport(
+                                        groupConfig = null,
+                                        groupNameFallback = list.firstOrNull()?.groupName
+                                    )
+                                }
+                            } else {
+                                _uiMessage.value = strings.get(Res.string.import_error_no_valid_rows)
+                            }
+                        }
+
+                        CsvType.ELO_LOGS -> {
+                            val list = dataLines.mapNotNull { cols ->
+                                try {
+                                    if (cols.size >= 6) {
+                                        PlayerEloLog(
+                                            id = 0,
+                                            playerId = cols[1].toIntOrNull() ?: 0,
+                                            playerNameSnapshot = normalizePersonName(cols[2])
+                                                .ifBlank { "Desconhecido" },
+                                            date = cols[3].takeIf { it.isNotBlank() }?.take(20)
+                                                ?: AppDateTime.todayIsoDate(),
+                                            elo = cols[4].toDoubleOrNull() ?: 1200.0,
+                                            groupName = cols[5].takeIf { it.isNotBlank() }
+                                                ?.let(::normalizeGroupName)
+                                                ?: DEFAULT_GROUP_NAME,
+                                            won = cols.getOrElse(6) { "" }.toBooleanStrictOrNull()
+                                        )
+                                    } else null
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                            if (list.isNotEmpty()) {
+                                val importedGroups = list.map { it.groupName }.toSet()
+                                val existingGroups = repository.getAllGroupNames().toSet()
+                                val overlapping = importedGroups.intersect(existingGroups)
+                                if (overlapping.isNotEmpty()) {
+                                    _pendingMergeImport.value = PendingMergeImportData(
+                                        players = emptyList(), history = emptyList(), logs = list,
+                                        overlappingGroups = overlapping.toList()
+                                    )
+                                } else {
+                                    performImportWithDedup(emptyList(), emptyList(), list, emptySet())
+                                    finalizeGroupImport(
+                                        groupConfig = null,
+                                        groupNameFallback = list.firstOrNull()?.groupName
+                                    )
+                                }
+                            } else {
+                                _uiMessage.value = strings.get(Res.string.import_error_no_valid_rows)
+                            }
+                        }
+
+                        else -> {}
+                    }
+                }
+            } catch (e: UnsupportedXlsException) {
+                _uiMessage.value = strings.get(Res.string.import_error_xls_unsupported)
+            } catch (e: Exception) {
+                AppLog.e("Import", "Erro: ${e.message}")
+                _uiMessage.value = strings.get(Res.string.import_error_generic)
+                telemetry.recordException(e)
+            }
+        }
+    }
+
+    fun confirmMergeImport(renameDuplicates: Boolean = false) {
+        viewModelScope.launch(ioDispatcher) {
+            val data = _pendingMergeImport.value ?: return@launch
+            try {
+                val resolvedPlayers = if (renameDuplicates) {
+                    val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
+                        repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+                    }
+                    resolveImportedPlayersWithAutoRename(data.players, existingNamesByGroup).first
+                } else {
+                    val existingNamesByGroup = data.overlappingGroups.associateWith { groupName ->
+                        repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+                    }
+                    resolveImportedPlayersForInsert(data.players, existingNamesByGroup).first
+                }
+
+                val groupedByGroup = resolvedPlayers.groupBy { it.groupName }
+                groupedByGroup.forEach { (_, playersInGroup) ->
+                    if (playersInGroup.isNotEmpty()) repository.insertPlayers(playersInGroup)
+                }
+
+                val historyByGroup = data.history.groupBy { it.groupName }
+                for ((groupName, groupHistory) in historyByGroup) {
+                    val existingKeys = repository.getHistoryByGroupSync(groupName)
+                        .map { Triple(it.date, it.teamA, it.teamB) }.toSet()
+                    val toInsert = groupHistory.filter { Triple(it.date, it.teamA, it.teamB) !in existingKeys }
+                    if (toInsert.isNotEmpty()) repository.insertHistoryList(toInsert)
+                }
+
+                val logsByGroup = data.logs.groupBy { it.groupName }
+                for ((groupName, groupLogs) in logsByGroup) {
+                    val existingKeys = repository.getEloLogsByGroupSync(groupName)
+                        .map { Pair(it.playerNameSnapshot, it.date) }.toSet()
+                    val toInsert = groupLogs.filter { Pair(it.playerNameSnapshot, it.date) !in existingKeys }
+                    if (toInsert.isNotEmpty()) repository.insertEloLogs(toInsert)
+                }
+                finalizeGroupImport(
+                    groupConfig = data.groupConfig,
+                    groupNameFallback = data.players.firstOrNull()?.groupName
+                        ?: data.history.firstOrNull()?.groupName
+                        ?: data.logs.firstOrNull()?.groupName
+                )
+            } catch (e: Exception) {
+                AppLog.e("Import", "Erro ao mesclar importação: ${e.message}")
+                _uiMessage.value = strings.get(Res.string.import_error_generic)
+                telemetry.recordException(e)
+            }
+            _pendingMergeImport.value = null
+        }
+    }
+
+    fun cancelMergeImport() {
+        _pendingMergeImport.value = null
+    }
+
+    /**
+     * Após uma importação de backup (.vlz), salva a config do grupo importado (se for um grupo
+     * novo, sem sobrescrever a config de um grupo já existente) e troca o grupo ativo para ele,
+     * para que as telas exibam os dados recém-importados sem precisar de troca manual pelo usuário.
+     */
+    private suspend fun finalizeGroupImport(groupConfig: GroupConfig?, groupNameFallback: String?) {
+        val targetGroupName = (groupConfig?.groupName?.takeIf { it.isNotBlank() } ?: groupNameFallback)
+            ?.takeIf { it.isNotBlank() } ?: return
+        if (groupConfig != null && repository.getGroupConfig(targetGroupName) == null) {
+            // Um grupo importado sempre já está "pronto para uso": força onboarding concluído
+            // independente do valor vindo do backup, para não reabrir o assistente de configuração.
+            repository.saveGroupConfig(
+                groupConfig.copy(groupName = targetGroupName, onboardingStep = ONBOARDING_STEP_COMPLETE)
+            )
+        }
+        loadGroupConfig(targetGroupName)
+    }
+
+    private suspend fun performImportWithDedup(
+        players: List<Player>,
+        history: List<MatchHistory>,
+        logs: List<PlayerEloLog>,
+        overlappingGroups: Set<String>
+    ) {
+        val existingNamesByGroup = overlappingGroups.associateWith { groupName ->
+            repository.getPlayersByGroupSync(groupName).map { canonicalPersonName(it.name) }.toSet()
+        }
+        val (playersToInsert, _) = resolveImportedPlayersForInsert(players, existingNamesByGroup)
+        val playersByGroup = playersToInsert.groupBy { it.groupName }
+        for ((groupName, groupPlayers) in playersByGroup) {
+            if (groupPlayers.isNotEmpty()) repository.insertPlayers(groupPlayers)
+        }
+
+        // History: dedup by date+teamA+teamB within same group
+        val historyByGroup = history.groupBy { it.groupName }
+        for ((groupName, groupHistory) in historyByGroup) {
+            val toInsert = if (groupName in overlappingGroups) {
+                val existingKeys = repository.getHistoryByGroupSync(groupName)
+                    .map { Triple(it.date, it.teamA, it.teamB) }.toSet()
+                groupHistory.filter { Triple(it.date, it.teamA, it.teamB) !in existingKeys }
+            } else {
+                groupHistory
+            }
+            if (toInsert.isNotEmpty()) repository.insertHistoryList(toInsert)
+        }
+
+        // EloLogs: dedup by playerNameSnapshot+date within same group
+        val logsByGroup = logs.groupBy { it.groupName }
+        for ((groupName, groupLogs) in logsByGroup) {
+            val toInsert = if (groupName in overlappingGroups) {
+                val existingKeys = repository.getEloLogsByGroupSync(groupName)
+                    .map { Pair(it.playerNameSnapshot, it.date) }.toSet()
+                groupLogs.filter { Pair(it.playerNameSnapshot, it.date) !in existingKeys }
+            } else {
+                groupLogs
+            }
+            if (toInsert.isNotEmpty()) repository.insertEloLogs(toInsert)
+        }
+    }
+
+    fun exportData(type: CsvType, fileName: String) {
+        viewModelScope.launch(ioDispatcher) {
+            if (type == CsvType.BACKUP_COMPLETO) {
+                telemetry.logBackupExported()
+            } else {
+                telemetry.logCsvExported(type.name)
+            }
+            val safeFileName = fileName.replace(Regex("[^a-zA-Z0-9_\\-\\.]"), "")
+            val extension = if (type == CsvType.BACKUP_COMPLETO) "vlz" else "xlsx"
+            val finalName =
+                if (safeFileName.endsWith(".$extension")) safeFileName else "$safeFileName.$extension"
+
+            if (type == CsvType.BACKUP_COMPLETO) {
+                val groupName = _currentGroupConfig.value.groupName
+                val backup = BackupData(
+                    date = AppDateTime.formatMatchDateTime(),
+                    players = currentGroupPlayers.value,
+                    history = currentGroupHistory.value,
+                    logs = currentGroupEloLogs.value,
+                    groupConfig = _currentGroupConfig.value,
+                    tournamentTeams = repository.getTournamentTeamsByGroupSync(groupName).takeIf { it.isNotEmpty() },
+                    tournamentTeamMembers = repository.getTournamentTeamMembersByGroupSync(groupName).takeIf { it.isNotEmpty() },
+                    tournamentMatches = repository.getTournamentMatchesByGroupSync(groupName).takeIf { it.isNotEmpty() },
+                    groupLogs = repository.getGroupLogsByGroupSync(groupName).takeIf { it.isNotEmpty() }
+                )
+                val json = AppJson.encodeToString(BackupData.serializer(), backup)
+                shareFile(finalName, json, "application/octet-stream")
+            } else {
+                val (headers, rows) = when (type) {
+                    CsvType.JOGADORES -> {
+                        val headers = PLAYERS_CSV_HEADER.split(",")
+                        val rows = currentGroupPlayers.value.map {
+                            listOf(
+                                it.id.toString(),
+                                it.name,
+                                formatElo(it.elo),
+                                it.matchesPlayed.toString(),
+                                it.victories.toString(),
+                                it.groupName,
+                                it.isPriority.toString(),
+                                it.dailyToll.toString(),
+                                it.tollDate,
+                                it.preferredPosition.orEmpty(),
+                                it.secondaryPosition.orEmpty()
+                            )
+                        }
+                        headers to rows
+                    }
+
+                    CsvType.HISTORICO -> {
+                        val headers = listOf(
+                            "Data", "TimeA", "TimeB", "Vencedor", "EloGanho", "Grupo",
+                            "MediaEloTimeA", "MediaEloTimeB", "PlacarTimeA", "PlacarTimeB",
+                            "InicioPartida", "FimPartida"
+                        )
+                        val rows = currentGroupHistory.value.map {
+                            listOf(
+                                it.date,
+                                it.teamA,
+                                it.teamB,
+                                it.winner,
+                                formatElo(it.eloPoints),
+                                it.groupName,
+                                it.teamAAverageElo?.let { e -> formatElo(e) } ?: "",
+                                it.teamBAverageElo?.let { e -> formatElo(e) } ?: "",
+                                it.teamAScore?.toString() ?: "",
+                                it.teamBScore?.toString() ?: "",
+                                it.startTimestamp?.toString() ?: "",
+                                it.endTimestamp?.toString() ?: ""
+                            )
+                        }
+                        headers to rows
+                    }
+
+                    CsvType.ELO_LOGS -> {
+                        val headers = listOf("ID", "PlayerID", "Nome", "Data", "Elo", "Grupo", "Vitoria")
+                        val rows = currentGroupEloLogs.value.map {
+                            listOf(
+                                it.id.toString(),
+                                it.playerId.toString(),
+                                it.playerNameSnapshot,
+                                it.date,
+                                formatElo(it.elo),
+                                it.groupName,
+                                it.won?.toString() ?: ""
+                            )
+                        }
+                        headers to rows
+                    }
+
+                    else -> emptyList<String>() to emptyList<List<String>>()
+                }
+                shareBytes(finalName, spreadsheet.buildXlsx(headers, rows), XLSX_MIME_TYPE)
+            }
+        }
+    }
+
+    /**
+     * Gera e compartilha um modelo .xlsx de jogadores, com o cabeçalho real (mesma fonte usada em
+     * [exportData]) e uma linha de exemplo claramente marcada, para o usuário preencher em lote
+     * no Excel/Google Sheets/celular e importar depois via "Importar CSV > Jogadores" (que já lê
+     * .xlsx normalmente, ver [readTabularRows]).
+     */
+    fun exportPlayersTemplate() {
+        viewModelScope.launch(ioDispatcher) {
+            val exampleGroup = _currentGroupConfig.value.groupName.takeIf { it.isNotBlank() }
+                ?: DEFAULT_GROUP_NAME
+            val headers = PLAYERS_CSV_HEADER.split(",")
+            val exampleRow = listOf(
+                "0",
+                strings.get(Res.string.template_example_name),
+                "1200.00",
+                "0",
+                "0",
+                exampleGroup,
+                "false",
+                "0",
+                "",
+                strings.get(Res.string.template_position_hint),
+                strings.get(Res.string.template_secondary_position_hint)
+            )
+            val bytes = spreadsheet.buildXlsx(headers, listOf(exampleRow))
+            shareBytes("modelo_jogadores.xlsx", bytes, XLSX_MIME_TYPE)
+        }
+    }
+
+    private fun shareFile(name: String, content: String, mimeType: String) {
+        shareBytes(name, content.encodeToByteArray(), mimeType)
+    }
+
+    private fun shareBytes(name: String, bytes: ByteArray, mimeType: String) {
+        try {
+            fileService.shareFile(name, bytes, mimeType, strings.get(Res.string.save_file, name))
+        } catch (e: Exception) {
+            AppLog.e("Export", strings.get(Res.string.error, e.message ?: "null"))
+            telemetry.recordException(e)
+        }
+    }
+
+    fun shareHistoryImage(pngBytes: ByteArray, date: String) {
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val safeDate = date.replace(Regex("[^a-zA-Z0-9]"), "_")
+                fileService.shareFile("history_$safeDate.png", pngBytes, "image/png", "Share history")
+            } catch (e: Exception) {
+                AppLog.e("Share", "Erro ao compartilhar imagem: ${e.message}")
+            }
+        }
+    }
+
+    private fun smartSplit(line: String): List<String> {
+        val result = mutableListOf<String>()
+        var current = StringBuilder()
+        var inQuotes = false
+        for (c in line) {
+            when {
+                c == '"' -> inQuotes = !inQuotes
+                c == ',' && !inQuotes -> {
+                    result.add(current.toString().trim()); current.clear()
+                }
+
+                else -> current.append(c)
+            }
+        }
+        result.add(current.toString().trim())
+        return result.map { it.replace("\"", "").trim() }
+    }
+
+    /**
+     * Lê um arquivo tabular (CSV/texto ou XLSX) apontado por [uri] e devolve uma lista de linhas,
+     * cada uma já dividida em colunas. Isso permite que o restante do fluxo de importação
+     * (JOGADORES/HISTORICO/ELO_LOGS) trabalhe sempre com `List<String>` por linha, seja a origem
+     * um .csv puro ou uma planilha .xlsx exportada/editada no Excel, Google Sheets etc.
+     * Arquivos .xls (formato binário antigo do Excel) são detectados e sinalizados via
+     * [UnsupportedXlsException], pois exigiriam um parser binário próprio (fora de escopo).
+     */
+    private fun readTabularRows(file: FileRef): List<List<String>> {
+        val bytes = fileService.readBytes(file) ?: return emptyList()
+        return when {
+            isZipFormat(bytes) -> spreadsheet.readXlsxRows(bytes)
+            isLegacyXlsFormat(bytes) -> throw UnsupportedXlsException()
+            else -> {
+                bytes.decodeToString().lineSequence()
+                    .filter { it.isNotBlank() }
+                    .map { smartSplit(it) }
+                    .toList()
+            }
+        }
+    }
+
+    private fun isZipFormat(bytes: ByteArray): Boolean =
+        bytes.size >= 2 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte()
+
+    private fun isLegacyXlsFormat(bytes: ByteArray): Boolean =
+        bytes.size >= 4 &&
+            bytes[0] == 0xD0.toByte() && bytes[1] == 0xCF.toByte() &&
+            bytes[2] == 0x11.toByte() && bytes[3] == 0xE0.toByte()
+
+    private class UnsupportedXlsException : Exception("Formato .xls (binário antigo) não suportado")
+
+    fun standardizeJsonBackupData(jsonString: String): String {
+        val data = AppJson.parseToJsonElement(jsonString).jsonObject.toMutableMap()
+        fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+        data["version"] = JsonPrimitive(1)
+        (data["history"] as? JsonArray)?.let { historyArray ->
+            data["history"] = JsonArray(historyArray.map { element ->
+                val match = element.jsonObject.toMutableMap()
+                val original = element.jsonObject
+                val teamASnapshot = normalizeTeamSnapshotWithIds(
+                    rawNames = original.string("teamA") ?: "",
+                    rawIds = original.string("teamAIds") ?: "",
+                    normalizeName = ::normalizePersonName
+                )
+                val teamBSnapshot = normalizeTeamSnapshotWithIds(
+                    rawNames = original.string("teamB") ?: "",
+                    rawIds = original.string("teamBIds") ?: "",
+                    normalizeName = ::normalizePersonName
+                )
+                match["teamA"] = JsonPrimitive(teamASnapshot.names)
+                match["teamB"] = JsonPrimitive(teamBSnapshot.names)
+                match["teamAIds"] = JsonPrimitive(teamASnapshot.ids)
+                match["teamBIds"] = JsonPrimitive(teamBSnapshot.ids)
+                match.getOrPut("teamAScore") { JsonPrimitive(0) }
+                match.getOrPut("teamBScore") { JsonPrimitive(0) }
+                match.getOrPut("teamAAverageElo") { JsonPrimitive(0.0) }
+                match.getOrPut("teamBAverageElo") { JsonPrimitive(0.0) }
+                match.getOrPut("startTimestamp") { JsonPrimitive(0L) }
+                match.getOrPut("endTimestamp") { JsonPrimitive(0L) }
+                JsonObject(match)
+            })
+        }
+        (data["players"] as? JsonArray)?.let { playersArray ->
+            var nextId = (playersArray.mapNotNull { (it.jsonObject["id"] as? JsonPrimitive)?.intOrNull }.maxOrNull() ?: 0) + 1
+            data["players"] = JsonArray(playersArray.map { element ->
+                val p = element.jsonObject.toMutableMap()
+                val id = (p["id"] as? JsonPrimitive)?.intOrNull
+                if (id == null || id <= 0) p["id"] = JsonPrimitive(nextId++)
+                element.jsonObject.string("name")?.let { name ->
+                    p["name"] = JsonPrimitive(normalizePersonName(name).ifBlank { "Desconhecido" })
+                }
+                JsonObject(p)
+            })
+        }
+        (data["logs"] as? JsonArray)?.let { logsArray ->
+            data["logs"] = JsonArray(logsArray.map { element ->
+                val log = element.jsonObject.toMutableMap()
+                element.jsonObject.string("playerNameSnapshot")?.let { snapshot ->
+                    log["playerNameSnapshot"] = JsonPrimitive(normalizePersonName(snapshot).ifBlank { "Desconhecido" })
+                }
+                JsonObject(log)
+            })
+        }
+        return AppJson.encodeToString(JsonObject.serializer(), JsonObject(data))
+    }
+
+    fun clearRecentGameData() {
+        val wasQualifyingClear = isGameInProgress() || _hasPreviousMatch.value
+        resetGameState()
+        clearSavedGameState()
+        if (wasQualifyingClear) {
+            registerQualifyingGameClear()
+        }
+    }
+}

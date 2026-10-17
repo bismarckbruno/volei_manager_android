@@ -31,7 +31,7 @@ private const val FIELD_AT = "at"
  * `google-services.json` configurado (ou em testes de unidade), todas as chamadas abaixo falham
  * de forma silenciosa em vez de travar o app.
  */
-object LivePresenceManager {
+object LivePresenceManager : com.bismarck.voleimanager.app.platform.LivePresenceService {
     private const val TAG = "LivePresenceManager"
 
     private fun databaseOrNull(): FirebaseDatabase? {
@@ -47,7 +47,7 @@ object LivePresenceManager {
     /** Marca [uid] como presente em [cloudGroupId] (tela ao vivo aberta agora) e agenda a remoção
      *  automática via `onDisconnect()` para quando o app fechar ou a conexão cair sem passar por
      *  [clearPresence]. Chamar de novo com o mesmo par é idempotente (só atualiza o timestamp). */
-    fun markPresent(cloudGroupId: String, uid: String) {
+    override fun markPresent(cloudGroupId: String, uid: String) {
         val database = databaseOrNull() ?: return
         val ref = database.getReference(PRESENCE_ROOT).child(cloudGroupId).child(uid)
         ref.onDisconnect().removeValue()
@@ -58,7 +58,7 @@ object LivePresenceManager {
     /** Remove a presença de [uid] em [cloudGroupId] imediatamente — chamado ao sair de propósito
      *  da tela ao vivo, sem precisar esperar o `onDisconnect()` (ex.: o usuário troca de grupo mas
      *  mantém o app aberto). */
-    fun clearPresence(cloudGroupId: String, uid: String) {
+    override fun clearPresence(cloudGroupId: String, uid: String) {
         val database = databaseOrNull() ?: return
         database.getReference(PRESENCE_ROOT).child(cloudGroupId).child(uid)
             .removeValue()
@@ -67,7 +67,7 @@ object LivePresenceManager {
 
     /** Observa em tempo real quantas sessões estão presentes em [cloudGroupId] agora — usado para
      *  mostrar "N assistindo agora" na tela Premium do organizador. */
-    fun observePresenceCount(cloudGroupId: String): Flow<Int> = callbackFlow {
+    override fun observePresenceCount(cloudGroupId: String): Flow<Int> = callbackFlow {
         val database = databaseOrNull()
         if (database == null) {
             trySend(0)

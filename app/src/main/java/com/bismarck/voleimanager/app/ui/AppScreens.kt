@@ -2738,7 +2738,7 @@ fun FAQScreen(viewModel: VoleiViewModel? = null, onSendQuestionClick: () -> Unit
             keywords = stringResource(Res.string.faq_kw15),
             action = if (viewModel != null) {
                 {
-                    Button(onClick = { viewModel.exportPlayersTemplate(context) }) {
+                    Button(onClick = { viewModel.exportPlayersTemplate() }) {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(Res.string.download_players_template))

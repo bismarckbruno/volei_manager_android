@@ -384,7 +384,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
     val launcherImport =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let {
-                viewModel.importData(FileRef(it.toString()), pendingImportType, context)
+                viewModel.importData(FileRef(it.toString()), pendingImportType)
                 Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
             }
         }
@@ -549,7 +549,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
-                            viewModel.exportData(context, CsvType.BACKUP_COMPLETO, exportFileName)
+                            viewModel.exportData(CsvType.BACKUP_COMPLETO, exportFileName)
                             showExportDialog = false
                         }) {
                         Icon(Icons.Default.Share, null)
@@ -606,7 +606,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = {
-                                    viewModel.exportData(context, CsvType.JOGADORES, exportFileName)
+                                    viewModel.exportData(CsvType.JOGADORES, exportFileName)
                                     showExportDialog = false
                                 }) {
                                 Box(
@@ -623,7 +623,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = {
-                                    viewModel.exportData(context, CsvType.HISTORICO, exportFileName)
+                                    viewModel.exportData(CsvType.HISTORICO, exportFileName)
                                     showExportDialog = false
                                 }) {
                                 Box(
@@ -640,7 +640,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                                 onClick = {
-                                    viewModel.exportData(context, CsvType.ELO_LOGS, exportFileName)
+                                    viewModel.exportData(CsvType.ELO_LOGS, exportFileName)
                                     showExportDialog = false
                                 }) {
                                 Box(
@@ -767,7 +767,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                         )
                                     }
                                 }
-                                IconButton(onClick = { viewModel.exportPlayersTemplate(context) }) {
+                                IconButton(onClick = { viewModel.exportPlayersTemplate() }) {
                                     Icon(
                                         Icons.Default.Download,
                                         contentDescription = stringResource(Res.string.download_players_template)
@@ -880,7 +880,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
             text = { Text(stringResource(Res.string.external_import_text)) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.importData(uri, CsvType.BACKUP_COMPLETO, context)
+                    viewModel.importData(uri, CsvType.BACKUP_COMPLETO)
                     Toast.makeText(context, importing, Toast.LENGTH_SHORT).show()
                     viewModel.cancelExternalImport()
                 }) { Text(stringResource(Res.string.import_word)) }

@@ -21,35 +21,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
-/** Usuário autenticado, já convertido para um tipo simples (sem depender do SDK do Firebase fora
- *  desta camada). [nickname] é o nome público exibido no topo do app (definido pelo próprio
- *  usuário no cadastro/edição de perfil, pode ser diferente do nome completo); [fullName] e
- *  [birthDate] (ISO `yyyy-MM-dd`) ficam guardados para uma futura verificação de elegibilidade de
- *  compra premium. [photoBase64] é uma miniatura JPEG já reduzida (ver [encodeAvatarBase64]),
- *  guardada no documento Firestore `users/{uid}` — não usamos Firebase Storage para isso. */
-data class AppAuthUser(
-    val uid: String,
-    val email: String?,
-    val nickname: String?,
-    val fullName: String?,
-    val birthDate: String?,
-    val photoBase64: String?,
-    val photoUrl: String?,
-    /** `true` para contas Google (verificadas pelo próprio provedor) ou e-mail/senha já
-     *  confirmado pelo link enviado por [AuthManager.signUp]/[AuthManager.resendVerificationEmail].
-     *  Gateia a assinatura Premium (ver premium-purchase-gating). */
-    val emailVerified: Boolean,
-    /** `true` só para contas com login por e-mail/senha (permite alterar e-mail/senha pelo app);
-     *  contas exclusivamente Google gerenciam e-mail/senha do lado do Google, então essas opções
-     *  ficam ocultas na UI para elas. */
-    val hasPasswordProvider: Boolean,
-    /** `true` para a sessão anônima criada por [AuthManager.signInAnonymously] (Espectador que só
-     *  quer acompanhar um grupo por código, sem cadastro). Não conta como "logado de verdade" para
-     *  fins de menu/UI — ver uso em `VoleiManagerApp.AccountMenu` — porque não tem e-mail/perfil
-     *  editável e pode ser substituída a qualquer momento por um login/cadastro real. */
-    val isAnonymous: Boolean
-)
-
 private const val USERS_COLLECTION = "users"
 private const val FIELD_NICKNAME = "nickname"
 private const val FIELD_FULL_NAME = "fullName"
@@ -72,7 +43,7 @@ private const val SIGNUP_RATE_LIMIT_BASE_COOLDOWN_MS = 30L * 1000L
  * app não tiver um `google-services.json` válido, todas as chamadas abaixo falham de forma segura
  * (nunca derruba o app) e [currentUser] simplesmente nunca emite um usuário logado.
  */
-object AuthManager {
+object AuthManager : com.bismarck.voleimanager.app.platform.AuthService {
     private const val TAG = "AuthManager"
     private const val CACHE_PREFS_NAME = "auth_profile_cache"
 
@@ -168,7 +139,7 @@ object AuthManager {
      *  alcança o valor local, o override correspondente é liberado (permitindo que futuras
      *  mudanças feitas em outro dispositivo voltem a valer). */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val currentUser: Flow<AppAuthUser?> = authStateFlow().flatMapLatest { user ->
+    override val currentUser: Flow<AppAuthUser?> = authStateFlow().flatMapLatest { user ->
         if (user == null) {
             localOverridesUid = null
             localOverrides.value = emptyMap()
@@ -193,7 +164,7 @@ object AuthManager {
     /** Recarrega o [FirebaseUser] logado (via [FirebaseUser.reload]) para refletir mudanças feitas
      *  fora do app — hoje, apenas a confirmação de e-mail por link. Chamado quando o app volta ao
      *  primeiro plano; não falha nada se estiver deslogado/offline, apenas não atualiza. */
-    suspend fun refreshCurrentUser() {
+    override suspend fun refreshCurrentUser() {
         val user = authOrNull()?.currentUser ?: return
         try {
             suspendCancellableCoroutine<Unit> { cont ->
@@ -305,7 +276,7 @@ object AuthManager {
 
     /** Reenvia o e-mail de confirmação da conta logada. Retorna uma mensagem amigável de erro (ou
      *  de aviso, se o e-mail já estiver confirmado), ou `null` em caso de sucesso. */
-    suspend fun resendVerificationEmail(): String? {
+    override suspend fun resendVerificationEmail(): String? {
         val user = authOrNull()?.currentUser ?: return "Você precisa estar logado para reenviar a confirmação."
         if (user.isEmailVerified) return "Seu e-mail já está confirmado."
         return try {
@@ -328,7 +299,7 @@ object AuthManager {
      *  app, nome completo e data de nascimento — usada futuramente para checar elegibilidade de
      *  compra premium) e já efetua o login. Retorna uma mensagem de erro amigável em caso de
      *  falha, ou `null` em caso de sucesso. */
-    suspend fun signUp(
+    override suspend fun signUp(
         email: String,
         password: String,
         fullName: String,
@@ -369,7 +340,7 @@ object AuthManager {
 
     /** Autentica com e-mail/senha. Retorna uma mensagem de erro amigável em caso de falha, ou
      *  `null` em caso de sucesso. */
-    suspend fun signIn(email: String, password: String): String? {
+    override suspend fun signIn(email: String, password: String): String? {
         if (email.length > MAX_EMAIL_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
             return "Entrada inválida."
         }
@@ -401,7 +372,7 @@ object AuthManager {
      *  já faz isso sozinho (mantém o mesmo `uid` enquanto o app não for desinstalado/dados
      *  limpos). Retorna uma mensagem de erro amigável em caso de falha, ou `null` em caso de
      *  sucesso. */
-    suspend fun signInAnonymously(): String? {
+    override suspend fun signInAnonymously(): String? {
         val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
         if (auth.currentUser != null) return null
         return try {
@@ -429,7 +400,7 @@ object AuthManager {
      *  usuário preenchê-la manualmente (necessária futuramente para checar elegibilidade de compra
      *  premium). Logins seguintes não sobrescrevem um perfil já existente. Retorna uma mensagem de
      *  erro amigável em caso de falha, ou `null` em caso de sucesso. */
-    suspend fun signInWithGoogleIdToken(idToken: String): String? {
+    override suspend fun signInWithGoogleIdToken(idToken: String): String? {
         val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
         return try {
             val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
@@ -483,7 +454,7 @@ object AuthManager {
         }
     }
 
-    fun signOut() {
+    override fun signOut() {
         authOrNull()?.signOut()
     }
 
@@ -492,7 +463,7 @@ object AuthManager {
      *  o Firestore — assim o app continua funcionando normalmente mesmo se o Firestore ainda não
      *  estiver provisionado ou o dispositivo estiver offline. Retorna uma mensagem de erro amigável
      *  em caso de falha na sincronização com a conta (ex.: sem login), ou `null` em caso de sucesso. */
-    suspend fun updateProfile(nickname: String, fullName: String, birthDate: String): String? {
+    override suspend fun updateProfile(nickname: String, fullName: String, birthDate: String): String? {
         val user = authOrNull()?.currentUser ?: return "Você precisa estar logado para editar o perfil."
         if (nickname.isNotBlank() && nickname != user.displayName) {
             try {
@@ -509,7 +480,7 @@ object AuthManager {
      *  Assim como [updateProfile], aplica a mudança localmente de imediato para que a foto apareça
      *  na hora, e sincroniza com o Firestore em segundo plano (sem bloquear nem falhar a operação
      *  local caso o Firestore esteja indisponível). */
-    suspend fun updateProfilePhoto(base64: String?): String? {
+    override suspend fun updateProfilePhoto(base64: String?): String? {
         val uid = authOrNull()?.currentUser?.uid ?: return "Você precisa estar logado para editar a foto."
         applyLocalOverride(uid, mapOf(FIELD_PHOTO_BASE64 to base64))
         val firestore = firestoreOrNull() ?: return null
@@ -555,7 +526,7 @@ object AuthManager {
      *  [FirebaseAuth.AuthStateListener] refletirá o novo e-mail automaticamente quando o usuário
      *  voltar a abrir o app após confirmar). Retorna uma mensagem de erro amigável, ou `null` em
      *  caso de sucesso (a UI deve avisar o usuário para checar a caixa de entrada do novo e-mail). */
-    suspend fun changeEmail(currentPassword: String, newEmail: String): String? {
+    override suspend fun changeEmail(currentPassword: String, newEmail: String): String? {
         if (!isValidEmail(newEmail)) return "Informe um e-mail válido."
         val user = authOrNull()?.currentUser ?: return "Você precisa estar logado."
         reauthenticateWithPassword(user, currentPassword)?.let { return it }
@@ -577,7 +548,7 @@ object AuthManager {
 
     /** Altera a senha da conta logada, exigindo a senha atual por segurança. Retorna uma mensagem
      *  de erro amigável em caso de falha, ou `null` em caso de sucesso. */
-    suspend fun changePassword(currentPassword: String, newPassword: String): String? {
+    override suspend fun changePassword(currentPassword: String, newPassword: String): String? {
         if (!isValidPassword(newPassword)) {
             return "A nova senha deve ter $MIN_PASSWORD_LENGTH-$MAX_PASSWORD_LENGTH caracteres, com maiúscula, " +
                 "minúscula, número e caractere especial."
@@ -603,7 +574,7 @@ object AuthManager {
     /** Dispara o e-mail de "esqueci minha senha" do Firebase (link para redefinir a senha),
      *  usado a partir da tela de login sem precisar estar logado. Retorna uma mensagem amigável
      *  de erro, ou `null` em caso de sucesso. */
-    suspend fun sendPasswordResetEmail(email: String): String? {
+    override suspend fun sendPasswordResetEmail(email: String): String? {
         if (!isValidEmail(email)) return "Informe um e-mail válido."
         val auth = authOrNull() ?: return "Serviço de conta indisponível no momento."
         return try {
@@ -626,7 +597,7 @@ object AuthManager {
      *  local). Retorna uma mensagem de erro amigável em caso de falha (por exemplo, quando o
      *  Firebase exige um login recente antes de permitir apagar a conta), ou `null` em caso de
      *  sucesso. */
-    suspend fun deleteAccount(): String? {
+    override suspend fun deleteAccount(): String? {
         val user = authOrNull()?.currentUser ?: return "Você precisa estar logado para apagar a conta."
         val uid = user.uid
         return try {

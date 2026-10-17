@@ -555,7 +555,7 @@ class VoleiViewModelRestingIntegrationTest {
         val uri = android.net.Uri.fromFile(file)
         val context = ApplicationProvider.getApplicationContext<Application>()
 
-        env.vm.importData(FileRef(uri.toString()), CsvType.JOGADORES, context)
+        env.vm.importData(FileRef(uri.toString()), CsvType.JOGADORES)
 
         val imported = withTimeout(5_000) {
             var players: List<Player> = emptyList()
@@ -648,7 +648,7 @@ class VoleiViewModelRestingIntegrationTest {
             )
         )
 
-        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
+        val vm = createVoleiViewModel(app, repo, KeyStringProvider)
         withTimeout(3_000) {
             vm.currentGroupConfig.first { it.groupName == "Amigos" }
         }
@@ -666,7 +666,7 @@ class VoleiViewModelRestingIntegrationTest {
         val dao = FakeVoleiDao()
         val repo = VoleiRepository(dao)
 
-        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
+        val vm = createVoleiViewModel(app, repo, KeyStringProvider)
         withTimeout(3_000) {
             vm.currentGroupConfig.first { it.onboardingStep == ONBOARDING_STEP_GROUP_NAME }
         }
@@ -697,7 +697,7 @@ class VoleiViewModelRestingIntegrationTest {
         val repo = VoleiRepository(dao)
         repo.insertPlayer(Player(name = "Bruno", groupName = "Amigos", elo = 1200.0))
 
-        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
+        val vm = createVoleiViewModel(app, repo, KeyStringProvider)
         val loaded = withTimeout(3_000) {
             vm.currentGroupConfig.first { it.groupName == "Amigos" }
         }
@@ -737,7 +737,7 @@ class VoleiViewModelRestingIntegrationTest {
             )
         )
 
-        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
+        val vm = createVoleiViewModel(app, repo, KeyStringProvider)
         val groups = withTimeout(3_000) {
             vm.groupsSortedByRecentHistory.first {
                 it.contains("MaisRecente") && it.contains("MaisAntigo") && it.contains("SemHistorico")
@@ -792,7 +792,7 @@ class VoleiViewModelRestingIntegrationTest {
             .putString("game_state_$DEFAULT_GROUP_NAME", AppJson.encodeToString(GameStateSnapshot.serializer(), savedSnapshot))
             .apply()
 
-        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
+        val vm = createVoleiViewModel(app, repo, KeyStringProvider)
         withTimeout(3_000) {
             vm.isGroupDataLoading.first { !it }
         }
@@ -847,7 +847,7 @@ class VoleiViewModelRestingIntegrationTest {
             .putString("game_state_$DEFAULT_GROUP_NAME", AppJson.encodeToString(GameStateSnapshot.serializer(), savedSnapshot))
             .apply()
 
-        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
+        val vm = createVoleiViewModel(app, repo, KeyStringProvider)
         withTimeout(3_000) {
             vm.isGroupDataLoading.first { !it }
         }
@@ -904,7 +904,7 @@ class VoleiViewModelRestingIntegrationTest {
 
         val dao = FakeVoleiDao()
         val repo = VoleiRepository(dao)
-        val vm = VoleiViewModel(app, repo, strings = KeyStringProvider)
+        val vm = createVoleiViewModel(app, repo, KeyStringProvider)
 
         runBlocking {
             repo.saveGroupConfig(

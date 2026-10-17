@@ -98,7 +98,7 @@ object TeamBalancer {
     fun groupAndInterleave(players: List<Player>, keySelector: (Player) -> Int): List<Player> {
         return players
             .groupBy { keySelector(it) }
-            .toSortedMap()
+            .entries.sortedBy { it.key }
             .flatMap { (_, tier) -> interleaveByElo(tier) }
     }
 }

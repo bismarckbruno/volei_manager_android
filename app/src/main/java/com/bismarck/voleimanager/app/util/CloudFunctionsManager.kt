@@ -9,26 +9,6 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-/** Papel concedido por um código de convite de grupo em nuvem — espelha `JoinRole` no backend
- *  (`volei_manager_backend/functions/src/groups/joinCodes.ts`). */
-enum class JoinRole { AUXILIAR, ESPECTADOR }
-
-/** Limite de caracteres para o campo de código digitado manualmente pelo usuário — os códigos
- *  gerados são bem mais curtos que isso; o limite existe só para barrar colagens absurdamente
- *  longas antes de enviar ao backend. */
-const val MAX_JOIN_CODE_LENGTH = 20
-
-/** Código de convite recém-gerado, pronto para compartilhar (expira em 30 minutos). */
-data class GeneratedJoinCode(val code: String, val expiresAtMillis: Long)
-
-/** Resultado de trocar o código permanente de Espectador de um grupo: o novo código e quantos
- *  espectadores tiveram o acesso revogado na troca (precisarão resgatar o novo código de novo). */
-data class RegeneratedSpectatorCode(val code: String, val revokedCount: Int)
-
-/** Resultado de resgatar um código de convite: grupo em nuvem + papel concedido + nome real do
- *  grupo (para não depender de um placeholder local com o código dentro). */
-data class RedeemedJoinCode(val cloudGroupId: String, val role: JoinRole, val groupName: String?)
-
 /**
  * Fachada sobre as Cloud Functions "callable" do backend (`volei_manager_backend`) responsáveis
  * pela sincronização em nuvem (`createJoinCode`, `redeemJoinCode`, `switchPremiumGroup`). Segue o
@@ -37,7 +17,7 @@ data class RedeemedJoinCode(val cloudGroupId: String, val role: JoinRole, val gr
  * derrubar o app — quem decide se um erro é bloqueante (ex.: sem assinatura ativa ainda, já que o
  * pagamento chega em uma fase seguinte) é quem chama esta fachada.
  */
-object CloudFunctionsManager {
+object CloudFunctionsManager : com.bismarck.voleimanager.app.platform.CloudFunctionsService {
     private const val TAG = "CloudFunctionsManager"
 
     /** Segundos de espera antes de desistir de uma chamada e devolver erro amigável, evitando que
@@ -61,7 +41,7 @@ object CloudFunctionsManager {
      *  `failed-precondition` (sem entitlement) para todo mundo — é esperado, e a simulação de
      *  premium em debug continua liberando a UI localmente sem depender deste retorno. Retorna
      *  `null` em caso de sucesso, ou uma mensagem amigável em caso de falha. */
-    suspend fun switchPremiumGroup(localGroupPublicId: String, groupName: String): String? {
+    override suspend fun switchPremiumGroup(localGroupPublicId: String, groupName: String): String? {
         val functions = functionsOrNull() ?: return null
         return try {
             call(functions, "switchPremiumGroup", mapOf("localGroupPublicId" to localGroupPublicId, "groupName" to groupName))
@@ -76,7 +56,7 @@ object CloudFunctionsManager {
      *  do client) antes de gravar `users/{uid}.activeEntitlement` com o tier e a expiração reais,
      *  liberando o acesso premium sem esperar a primeira notificação RTDN chegar. Chamado
      *  automaticamente pelo [VoleiViewModel] sempre que [BillingManager] emite uma compra. */
-    suspend fun linkPurchaseToken(purchaseToken: String, productId: String): String? {
+    override suspend fun linkPurchaseToken(purchaseToken: String, productId: String): String? {
         val functions = functionsOrNull() ?: return null
         return try {
             call(functions, "linkPurchaseToken", mapOf("purchaseToken" to purchaseToken, "productId" to productId))
@@ -91,7 +71,7 @@ object CloudFunctionsManager {
      *  app — ver `hide-auxiliar-role-temporarily`). O código de Espectador não usa mais esta
      *  função: é permanente, criado automaticamente pelo backend na primeira ativação do grupo e
      *  só muda via [regenerateSpectatorCode]. */
-    suspend fun createJoinCode(cloudGroupId: String, role: JoinRole): Result<GeneratedJoinCode> {
+    override suspend fun createJoinCode(cloudGroupId: String, role: JoinRole): Result<GeneratedJoinCode> {
         val functions = functionsOrNull()
             ?: return Result.failure(Exception("Serviço de nuvem indisponível no momento."))
         return try {
@@ -113,7 +93,7 @@ object CloudFunctionsManager {
      *  os membros Espectador do grupo — ver `regenerateSpectatorCode` em
      *  `volei_manager_backend`) — use só quando o organizador quiser resetar os acessos por
      *  segurança, já que todo mundo precisará resgatar o novo código de novo. */
-    suspend fun regenerateSpectatorCode(cloudGroupId: String): Result<RegeneratedSpectatorCode> {
+    override suspend fun regenerateSpectatorCode(cloudGroupId: String): Result<RegeneratedSpectatorCode> {
         val functions = functionsOrNull()
             ?: return Result.failure(Exception("Serviço de nuvem indisponível no momento."))
         return try {
@@ -132,7 +112,7 @@ object CloudFunctionsManager {
 
     /** Resgata um código de convite recebido (digitado ou lido via QR Code), entrando como
      *  auxiliar ou espectador do grupo correspondente. */
-    suspend fun redeemJoinCode(code: String): Result<RedeemedJoinCode> {
+    override suspend fun redeemJoinCode(code: String): Result<RedeemedJoinCode> {
         val functions = functionsOrNull()
             ?: return Result.failure(Exception("Serviço de nuvem indisponível no momento."))
         return try {
@@ -163,7 +143,7 @@ object CloudFunctionsManager {
      *  partir de [VoleiViewModel.deleteGroup]: a exclusão local sempre prossegue mesmo que esta
      *  chamada falhe (ex.: sem rede), avisando o usuário para não deixar a falha passar em
      *  silêncio. */
-    suspend fun deleteCloudGroup(cloudGroupId: String): String? {
+    override suspend fun deleteCloudGroup(cloudGroupId: String): String? {
         val functions = functionsOrNull() ?: return null
         return try {
             call(functions, "deleteCloudGroup", mapOf("cloudGroupId" to cloudGroupId))

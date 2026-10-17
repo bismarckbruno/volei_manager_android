@@ -21,45 +21,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * IDs de produto/plano base das assinaturas premium — precisam bater exatamente com o que for
- * cadastrado no Play Console (Monetizar > Produtos > Assinaturas). Os preços em si (incluindo o
- * ajuste de preço por país, ex.: R$ 9,99/R$ 19,99 por mês no Brasil x ~US$1,89/US$3,89 fora dele)
- * ficam inteiramente configurados lá — o app nunca hardcoda valores monetários usados de verdade, só um
- * texto de fallback (ver `cloud_sync_plan_*_price` em strings.xml) para quando a Play Store ainda
- * não respondeu com o preço real (offline, sem os produtos cadastrados, etc.).
- */
-object BillingProductIds {
-    const val SINGLE_GROUP = "premium_single_group"
-    const val MULTI_GROUP = "premium_multi_group"
-    const val BASE_PLAN_MONTHLY = "mensal"
-    const val BASE_PLAN_ANNUAL = "anual"
-}
-
-/** Uma oferta de assinatura comprável: um par (produto, plano base) já com o preço formatado e
- *  localizado devolvido pela própria Play Store (respeita moeda/preço regional configurados no
- *  Play Console, sem o app precisar saber a conversão). */
-data class SubscriptionOffer(
-    val productId: String,
-    val basePlanId: String,
-    val offerToken: String,
-    val formattedPrice: String,
-    /** Período de faturamento ISO-8601 (ex.: "P1M" mensal, "P1Y" anual). */
-    val billingPeriodIso: String,
-    /** Preço bruto (micros da unidade monetária, ex.: R$ 1,00 = 1_000_000) e código ISO-4217 da
-     *  moeda — usados só para calcular localmente o "equivalente por mês" do plano anual (preço
-     *  anual / 12) e mostrar a economia real na moeda do próprio usuário, sem o app precisar saber
-     *  taxas de câmbio. [formattedPrice] continua sendo o texto oficial mostrado como preço. */
-    val priceAmountMicros: Long,
-    val priceCurrencyCode: String
-)
-
-/** Compra vista pelo Play Billing neste aparelho (nova ou já conhecida de uma sessão anterior),
- *  emitida para o [VoleiViewModel][com.bismarck.voleimanager.app.ui.viewmodel.VoleiViewModel]
- *  repassar ao backend (`linkPurchaseToken`) e obter um entitlement validado de verdade — ver
- *  `purchase-validation-function`. */
-data class AcknowledgedPurchase(val purchaseToken: String, val productId: String)
-
-/**
  * Fachada sobre o Google Play Billing Library — busca as ofertas de assinatura cadastradas no
  * Play Console, lança o fluxo de compra nativo da Play Store e reconhece (`acknowledge`) compras
  * concluídas (obrigatório em até 3 dias, senão a Play Store estorna automaticamente).
@@ -73,24 +34,24 @@ data class AcknowledgedPurchase(val purchaseToken: String, val productId: String
  * best-effort, do mesmo jeito que [CloudFunctionsManager.switchPremiumGroup] já é "melhor esforço"
  * enquanto não há assinatura validada no servidor.
  */
-object BillingManager {
+object BillingManager : com.bismarck.voleimanager.app.platform.BillingService {
     private const val TAG = "BillingManager"
 
     private var billingClient: BillingClient? = null
     private var productDetailsCache: Map<String, ProductDetails> = emptyMap()
 
     private val _offers = MutableStateFlow<List<SubscriptionOffer>>(emptyList())
-    val offers: StateFlow<List<SubscriptionOffer>> = _offers.asStateFlow()
+    override val offers: StateFlow<List<SubscriptionOffer>> = _offers.asStateFlow()
 
     /** IDs de produto (ex.: [BillingProductIds.SINGLE_GROUP]) com uma compra ativa reconhecida
      *  localmente. Vazio enquanto não há nenhuma assinatura ativa conhecida. */
     private val _activeProductIds = MutableStateFlow<Set<String>>(emptySet())
-    val activeProductIds: StateFlow<Set<String>> = _activeProductIds.asStateFlow()
+    override val activeProductIds: StateFlow<Set<String>> = _activeProductIds.asStateFlow()
 
     /** Ver [AcknowledgedPurchase]. Buffer pequeno só para não perder um evento emitido antes do
      *  ViewModel terminar de se inscrever (init roda [init] e a coleta quase na mesma linha). */
     private val _purchaseEvents = MutableSharedFlow<AcknowledgedPurchase>(extraBufferCapacity = 4)
-    val purchaseEvents: SharedFlow<AcknowledgedPurchase> = _purchaseEvents.asSharedFlow()
+    override val purchaseEvents: SharedFlow<AcknowledgedPurchase> = _purchaseEvents.asSharedFlow()
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         when (billingResult.responseCode) {
@@ -195,7 +156,7 @@ object BillingManager {
 
     /** Reconsulta as assinaturas ativas conhecidas pela Play Store neste aparelho/conta (ex.: ao
      *  reabrir o app), atualizando [activeProductIds] e reconhecendo qualquer compra pendente. */
-    fun refreshPurchases() {
+    override fun refreshPurchases() {
         val client = billingClient ?: return
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)

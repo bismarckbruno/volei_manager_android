@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.bismarck.voleimanager.app.util.AppJsonCompatibilityTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:49:18.031Z" hostname="NITRO-5-BIS" time="0.228">
-  <properties/>
-  <testcase name="decodesGameStateSavedByGson" classname="com.bismarck.voleimanager.app.util.AppJsonCompatibilityTest" time="0.133"/>
-  <testcase name="encodesLikeGson_defaultsWrittenAndNullsOmitted" classname="com.bismarck.voleimanager.app.util.AppJsonCompatibilityTest" time="0.057"/>
-  <testcase name="decodesLegacyGsonBackup" classname="com.bismarck.voleimanager.app.util.AppJsonCompatibilityTest" time="0.037"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
