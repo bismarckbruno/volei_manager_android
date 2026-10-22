@@ -4075,9 +4075,11 @@ class VoleiViewModel(
                 teamSize = conf.teamSize,
                 streakBroken = conf.victoryLimit > 0 && _currentStreak.value >= conf.victoryLimit
             )
-            _teamA.value = emptyList(); _teamB.value = emptyList()
+            // Os times são zerados por último: quem aguarda o fim da partida observando os times
+            // vazios (ex.: `startNextRound`) não pode competir com estas escritas finais.
             resetScoresAndPointIndicator()
             _currentMatchStartTimestamp.value = null
+            _teamA.value = emptyList(); _teamB.value = emptyList()
         }
     }
 

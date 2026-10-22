@@ -12,6 +12,8 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # O módulo :shared só tem os targets iosArm64 e iosSimulatorArm64.
+    EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
 targets:
   Voleizin:
     type: application
