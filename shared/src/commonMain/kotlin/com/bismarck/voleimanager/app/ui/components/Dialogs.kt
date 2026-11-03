@@ -373,13 +373,9 @@ fun SubstitutionDialog(
                 teamB.forEach { list.add(Triple(it, team_b_parentheses, 2)) }
             }
         }
-        list.sortedWith(
-            compareBy<Triple<Player, String, Int>>(
-                { it.third },
-                { assignedSlotIndices[it.first.id] ?: Int.MAX_VALUE },
-                { it.first.name.lowercase() }
-            )
-        ).map { it.first to it.second }
+        // Ordem estável: só agrupa por rank; dentro de cada grupo vale a ordem exibida na tela
+        // (fila de espera e cards dos times), já refletida nas listas recebidas.
+        list.sortedBy { it.third }.map { it.first to it.second }
     }
     var selectedPlayerId by remember(playerOut.id, allOptions) {
         mutableStateOf(

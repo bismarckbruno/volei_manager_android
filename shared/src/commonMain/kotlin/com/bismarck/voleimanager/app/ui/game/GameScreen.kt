@@ -168,6 +168,22 @@ private fun orderedActiveTeamPlayers(
     return if (reverseOrder) ordered.asReversed() else ordered
 }
 
+// Ordem em que os jogadores de um time aparecem no card. Portrait: o card de cima mostra quem
+// jogou menos partidas primeiro e o de baixo quem jogou mais; em landscape vale a ordem original.
+private fun displayedTeamOrder(
+    players: List<Player>,
+    isFirstCard: Boolean,
+    usesPositions: Boolean,
+    assignedSlotIndices: Map<Int, Int>?,
+    isLandscape: Boolean,
+    gamesPlayedMap: Map<Int, Int>
+): List<Player> = when {
+    usesPositions -> orderedActiveTeamPlayers(players, assignedSlotIndices, reverseOrder = isFirstCard && !isLandscape)
+    isLandscape -> players
+    isFirstCard -> players.sortedBy { gamesPlayedMap[it.id] ?: 0 }
+    else -> players.sortedByDescending { gamesPlayedMap[it.id] ?: 0 }
+}
+
 @Composable
 fun GameScreenContent(
     viewModel: VoleiViewModel,
@@ -301,11 +317,20 @@ fun GameScreenContent(
         })
 
     subOut?.let { p ->
+        val teamsSwappedForSub by viewModel.teamsSwapped.collectAsState()
+        val isLandscapeForSub = rememberIsLandscape()
+        val usesPositionsForSub = config.type.usesPositions
+        val displayedTeamA = displayedTeamOrder(
+            teamA, teamsSwappedForSub, usesPositionsForSub, assignedSlotIndices, isLandscapeForSub, gamesPlayedMap
+        )
+        val displayedTeamB = displayedTeamOrder(
+            teamB, !teamsSwappedForSub, usesPositionsForSub, assignedSlotIndices, isLandscapeForSub, gamesPlayedMap
+        )
         SubstitutionDialog(
             p,
             waitingList,
-            teamA,
-            teamB,
+            displayedTeamA,
+            displayedTeamB,
             config.type.usesPositions,
             config.teamSize,
             assignedPositions,
@@ -1403,32 +1428,10 @@ fun ActiveGameView(
 
     val isLandscape = rememberIsLandscape()
     val orderedFirstPlayers = remember(firstPlayers, assignedSlotIndices, isLandscape, usesPositions, gamesPlayedMap) {
-        if (usesPositions) {
-            orderedActiveTeamPlayers(
-                players = firstPlayers,
-                assignedSlotIndices = assignedSlotIndices,
-                reverseOrder = !isLandscape
-            )
-        } else if (!isLandscape) {
-            // Portrait, top card: fewest games played today first.
-            firstPlayers.sortedBy { gamesPlayedMap[it.id] ?: 0 }
-        } else {
-            firstPlayers
-        }
+        displayedTeamOrder(firstPlayers, true, usesPositions, assignedSlotIndices, isLandscape, gamesPlayedMap)
     }
     val orderedSecondPlayers = remember(secondPlayers, assignedSlotIndices, isLandscape, usesPositions, gamesPlayedMap) {
-        if (usesPositions) {
-            orderedActiveTeamPlayers(
-                players = secondPlayers,
-                assignedSlotIndices = assignedSlotIndices,
-                reverseOrder = false
-            )
-        } else if (!isLandscape) {
-            // Portrait, bottom card: most games played today first.
-            secondPlayers.sortedByDescending { gamesPlayedMap[it.id] ?: 0 }
-        } else {
-            secondPlayers
-        }
+        displayedTeamOrder(secondPlayers, false, usesPositions, assignedSlotIndices, isLandscape, gamesPlayedMap)
     }
 
     val navBarColor = MaterialTheme.colorScheme.surfaceContainerLow
