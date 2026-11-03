@@ -72,6 +72,13 @@ Em **Posições Fixas**, a mesma matemática de "quantos sobram" vale, mas quem 
 (e não só quantos) depende de quais vagas de composição (levantador, ponteiro, oposto, central,
 líbero) ainda precisam ser cobertas — ver `TeamComposition.requiredSlots` para o time de 6.
 
+**Sistema de jogo 5x1 / 4x2:** em Posições Fixas com 6 ou 7 jogadores por time, as regras do grupo
+permitem escolher 4x2 (`GroupConfig.setterSystem = FOUR_TWO`, padrão `FIVE_ONE`). No 4x2 a vaga de
+oposto vira um segundo levantador (`TeamSlot.isSecondSetter`). "Garantir levantador" continua
+travado em ligado nesses tamanhos, mas a garantia (e o "pular a fila") vale para apenas 1
+levantador por time; o 2º vem do melhor encaixe de posição, sem prioridade na fila. Com menos de
+6 jogadores a opção não aparece e o time tem sempre 1 levantador.
+
 ## 3.3 Cenário com déficit de jogadores (menos de 12 presentes)
 
 ```mermaid

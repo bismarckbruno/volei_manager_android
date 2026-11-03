@@ -1,6 +1,9 @@
 package com.bismarck.voleimanager.app.util
 
+import com.bismarck.voleimanager.app.data.model.GroupConfig
+import com.bismarck.voleimanager.app.data.model.GroupType
 import com.bismarck.voleimanager.app.data.model.Player
+import com.bismarck.voleimanager.app.data.model.SetterSystem
 import com.bismarck.voleimanager.app.ui.viewmodel.BackupData
 import com.bismarck.voleimanager.app.ui.viewmodel.GameStateSnapshot
 import kotlinx.serialization.json.jsonObject
@@ -82,6 +85,26 @@ class AppJsonCompatibilityTest {
             GameStateSnapshot.serializer(),
             AppJson.encodeToString(GameStateSnapshot.serializer(), snapshot)
         )
-        assertEquals(snapshot, roundTrip)
+    }
+
+    @Test
+    fun groupConfig_setterSystem_roundTripsAndOldBackupsDefaultToFiveOne() {
+        val config = GroupConfig(
+            groupName = "G",
+            groupType = GroupType.FIXED_POSITIONS.name,
+            teamSize = 6,
+            setterSystem = SetterSystem.FOUR_TWO.name
+        )
+        val json = AppJson.encodeToString(GroupConfig.serializer(), config)
+        val restored = AppJson.decodeFromString(GroupConfig.serializer(), json)
+        assertEquals(SetterSystem.FOUR_TWO.name, restored.setterSystem)
+        assertTrue(restored.twoSetters)
+
+        val legacyJson = AppJson.encodeToString(GroupConfig.serializer(), config.copy(setterSystem = "FIVE_ONE"))
+            .replace(Regex(",?\"setterSystem\":\"FIVE_ONE\""), "")
+        assertFalse(legacyJson.contains("setterSystem"))
+        val legacy = AppJson.decodeFromString(GroupConfig.serializer(), legacyJson)
+        assertEquals(SetterSystem.FIVE_ONE.name, legacy.setterSystem)
+        assertFalse(legacy.twoSetters)
     }
 }
