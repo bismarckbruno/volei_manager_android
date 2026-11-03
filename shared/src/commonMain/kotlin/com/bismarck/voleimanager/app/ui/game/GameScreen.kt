@@ -3136,7 +3136,8 @@ fun ActiveTeamCard(
                 tooltipText = scoreIndicatorTooltip,
                 onClick = onSelectServing,
                 autoShowTooltip = autoShowScoreTooltip,
-                servingBall = if (onSelectServing != null) showLatestPointBorder else null
+                servingBall = if (onSelectServing != null) showLatestPointBorder else null,
+                servingBallBackground = cardColor
             )
             Spacer(Modifier.width(4.dp))
             if (swapButtons) decrementButton() else incrementButton()
@@ -3661,6 +3662,7 @@ private fun ScoreValueIndicator(
     textStyle: TextStyle = MaterialTheme.typography.headlineMedium,
     onClick: (() -> Unit)? = null,
     servingBall: Boolean? = null,
+    servingBallBackground: Color = Color.Transparent,
     autoShowTooltip: Boolean = false
 ) {
     // O ícone fica fora do conteúdo recortado (clip circular) para não ser cortado.
@@ -3670,15 +3672,21 @@ private fun ScoreValueIndicator(
             tooltipText, circleSize, strokeWidth, textStyle, onClick, autoShowTooltip
         )
         if (servingBall != null) {
-            Icon(
-                Icons.Default.SportsVolleyball,
-                contentDescription = null,
-                tint = indicatorColor.copy(alpha = if (servingBall) 1f else 0.35f),
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(x = 2.dp, y = 2.dp)
                     .size(16.dp)
-            )
+                    .background(servingBallBackground, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.SportsVolleyball,
+                    contentDescription = null,
+                    tint = indicatorColor.copy(alpha = if (servingBall) 1f else 0.35f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }
