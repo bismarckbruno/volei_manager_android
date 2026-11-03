@@ -560,7 +560,12 @@
     <string name="composition_slot_empty">Vazia</string>
     <string name="guarantee_setter">Garantir levantador</string>
     <string name="guarantee_setter_tooltip">Reserva uma vaga de levantador em cada time. Se não houver levantador na fila de espera, o levantador do time perdedor continua em quadra; se não houver nenhum, a vaga é preenchida por alguém de ataque e, em último caso, por alguém de defesa.</string>
-    <string name="guarantee_setter_locked_tooltip">Obrigatório em times de 6 ou 7 jogadores, pois a vaga de levantador tem posição específica nessas composições. Só é possível desligar em times de 2 a 5 jogadores.</string>
+    <string name="guarantee_setter_locked_tooltip">Obrigatório em times de 6 ou 7 jogadores, pois a vaga de levantador tem posição específica nessas composições. Só é possível desligar em times de 2 a 5 jogadores. No 4x2, só um levantador por time tem prioridade; o segundo entra pelo melhor encaixe.</string>
+    <string name="setter_system_title">Sistema de jogo</string>
+    <string name="setter_system_five_one">5x1 (um levantador)</string>
+    <string name="setter_system_five_one_tooltip">Cada time joga com um levantador e um oposto (padrão).</string>
+    <string name="setter_system_four_two">4x2 (dois levantadores)</string>
+    <string name="setter_system_four_two_tooltip">Cada time joga com dois levantadores no lugar do oposto. O segundo levantador entra pelo melhor encaixe, sem furar a fila.</string>
     <string name="position_badge_secondary_tooltip">%1$s: escalado na segunda posição que escolheu.</string>
     <string name="position_badge_improvised_tooltip">%1$s: escalado fora das posições que escolheu.</string>
     <string name="position_badge_improvised_tooltip_with_choices">%1$s: escalado fora das posições que escolheu (%2$s).</string>

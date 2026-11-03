@@ -560,7 +560,12 @@
     <string name="composition_slot_empty">Empty</string>
     <string name="guarantee_setter">Guarantee a setter</string>
     <string name="guarantee_setter_tooltip">Keeps one slot for a setter on every team. If nobody in the queue plays as a setter, the setter from the losing team stays on court; otherwise the slot is filled by an attacker and, as a last resort, by a defender.</string>
-    <string name="guarantee_setter_locked_tooltip">Mandatory for teams of 6 or 7 players, since the setter slot has a specific position in these compositions. It can only be turned off for teams of 2 to 5 players.</string>
+    <string name="guarantee_setter_locked_tooltip">Mandatory for teams of 6 or 7 players, since the setter slot has a specific position in these compositions. It can only be turned off for teams of 2 to 5 players. In 4x2, only one setter per team is prioritized; the second comes from the best positional fit.</string>
+    <string name="setter_system_title">Game system</string>
+    <string name="setter_system_five_one">5x1 (one setter)</string>
+    <string name="setter_system_five_one_tooltip">Each team plays with one setter and an opposite hitter (default).</string>
+    <string name="setter_system_four_two">4x2 (two setters)</string>
+    <string name="setter_system_four_two_tooltip">Each team plays with two setters instead of an opposite hitter. Players are placed in the second setter slot by best fit, without skipping the queue.</string>
     <string name="position_badge_secondary_tooltip">%1$s: playing in the second position they chose.</string>
     <string name="position_badge_improvised_tooltip">%1$s: playing outside their chosen positions.</string>
     <string name="position_badge_improvised_tooltip_with_choices">%1$s: playing outside their chosen positions (%2$s).</string>

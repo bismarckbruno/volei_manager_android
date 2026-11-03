@@ -660,4 +660,73 @@ class PositionAssignerTest {
         }
         assertEquals(10, result.teamA.size + result.teamB.size)
     }
+
+    @Test
+    fun fourTwo_sixVsSix_eachTeamGetsTwoSetters() {
+        val pool = buildList {
+            repeat(4) { add(player(PlayerPosition.SETTER)) }
+            repeat(4) { add(player(PlayerPosition.OUTSIDE_HITTER)) }
+            repeat(4) { add(player(PlayerPosition.MIDDLE_BLOCKER)) }
+        }
+
+        val result = PositionAssigner.buildBalancedTeams(pool, teamSize = 6, twoSetters = true)
+
+        listOf(result.teamA, result.teamB).forEach { team ->
+            assertEquals(2, team.count { result.positions[it.id] == PlayerPosition.SETTER })
+        }
+        assertTrue(result.unfilledSlots.isEmpty())
+    }
+
+    @Test
+    fun fourTwo_requiredSlotsReplaceOppositeWithSecondSetter() {
+        listOf(6, 7).forEach { size ->
+            val slots = TeamComposition.requiredSlots(size, guaranteeSetter = true, twoSetters = true)
+            assertEquals(2, slots.count { it.role == PositionRole.PLAYMAKER })
+            assertEquals(0, slots.count { it.position == PlayerPosition.OPPOSITE })
+            assertEquals(1, slots.count { it.isSecondSetter })
+        }
+        val fiveOne = TeamComposition.requiredSlots(6, guaranteeSetter = true)
+        assertEquals(1, fiveOne.count { it.role == PositionRole.PLAYMAKER })
+    }
+
+    @Test
+    fun fourTwo_withSingleSetter_reportsMissingSecondSetterSlot() {
+        val team = listOf(
+            player(PlayerPosition.SETTER),
+            player(PlayerPosition.OUTSIDE_HITTER),
+            player(PlayerPosition.OUTSIDE_HITTER),
+            player(PlayerPosition.MIDDLE_BLOCKER),
+            player(PlayerPosition.OPPOSITE),
+            player(PlayerPosition.MIDDLE_BLOCKER)
+        )
+
+        val assignment = PositionAssigner.assignPositionsToExistingTeam(team, 6, true, twoSetters = true)
+
+        assertEquals(2, assignment.slots.count { it.slot.role == PositionRole.PLAYMAKER })
+        assertTrue(assignment.slots.filter { it.slot.role == PositionRole.PLAYMAKER }.any { it.player != null })
+    }
+
+    @Test
+    fun fourTwo_queueJumpOnlyForFirstSetter() {
+        val queue = listOf(
+            player(PlayerPosition.OUTSIDE_HITTER, name = "O1"),
+            player(PlayerPosition.OUTSIDE_HITTER, name = "O2"),
+            player(PlayerPosition.OUTSIDE_HITTER, name = "O3"),
+            player(PlayerPosition.SETTER, name = "S1"),
+            player(PlayerPosition.SETTER, name = "S2")
+        )
+
+        val (picked, _) = PositionAssigner.pickToCoverComposition(
+            base = emptyList(),
+            pool = queue,
+            count = 3,
+            teamSize = 6,
+            teams = 1,
+            twoSetters = true
+        )
+
+        // Só o 1º levantador fura a fila (S1); o 2º entra apenas se encaixar melhor que a fila.
+        assertTrue(picked.any { it.name == "S1" })
+        assertEquals(3, picked.size)
+    }
 }

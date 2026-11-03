@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.ui.components.PlayerNameWithPositionBadges
 import com.bismarck.voleimanager.app.data.model.GroupType
+import com.bismarck.voleimanager.app.data.model.SetterSystem
 import com.bismarck.voleimanager.app.ui.components.TeamCompositionIndicator
 import com.bismarck.voleimanager.app.ui.theme.ColorFamily
 import com.bismarck.voleimanager.app.util.EloCalculator
@@ -44,6 +45,7 @@ fun ManualSetupScreen(
     players: List<Player>, // Jogadores do grupo selecionado
     showElo: Boolean, // Passado do ViewModel para respeitar a configuração
     groupType: GroupType = GroupType.RECREATIONAL,
+    setterSystem: String = SetterSystem.FIVE_ONE.name,
     teamAColorFamily: ColorFamily,
     teamBColorFamily: ColorFamily,
     onConfirm: (List<Player>, List<Player>, List<Player>, Int) -> Unit, // Retorna (TimeA, TimeB, Resto, TeamSize)
@@ -68,16 +70,24 @@ fun ManualSetupScreen(
     val canStart = teamA.size == teamB.size && teamA.size in groupType.teamSizeRange
 
     // Indicador de composição: só faz sentido nos tipos com posições fixas e não bloqueia o início.
-    val compositionA = remember(teamA, groupType) {
+    val compositionA = remember(teamA, groupType, setterSystem) {
         if (groupType.usesPositions && teamA.isNotEmpty()) {
-            PositionAssigner.describeComposition(teamA, teamA.size)
+            PositionAssigner.describeComposition(
+                teamA,
+                teamA.size,
+                twoSetters = SetterSystem.isTwoSetters(groupType, teamA.size, setterSystem)
+            )
         } else {
             emptyList()
         }
     }
-    val compositionB = remember(teamB, groupType) {
+    val compositionB = remember(teamB, groupType, setterSystem) {
         if (groupType.usesPositions && teamB.isNotEmpty()) {
-            PositionAssigner.describeComposition(teamB, teamB.size)
+            PositionAssigner.describeComposition(
+                teamB,
+                teamB.size,
+                twoSetters = SetterSystem.isTwoSetters(groupType, teamB.size, setterSystem)
+            )
         } else {
             emptyList()
         }

@@ -1,0 +1,84 @@
+package com.bismarck.voleimanager.app.data
+
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+private const val TEST_DB_17_18 = "migration_17_18_test_db"
+
+/**
+ * Chega até a versão 17 pelo caminho real de atualização, aplica [AppDatabase.MIGRATION_17_18] e
+ * abre com Room na versão 18. Cobre a nova coluna `setterSystem` em `group_configs`, com 'FIVE_ONE'
+ * como padrão para grupos existentes.
+ */
+@RunWith(RobolectricTestRunner::class)
+class Migration17To18Test {
+
+    private lateinit var context: Context
+
+    @Before
+    fun setUp() {
+        context = ApplicationProvider.getApplicationContext()
+        context.deleteDatabase(TEST_DB_17_18)
+    }
+
+    @Test
+    fun migrate17To18_addsSetterSystemColumnDefaultingToFiveOne() {
+        val legacyDb = createVersion6Database(context, TEST_DB_17_18)
+        legacyDb.execSQL(
+            "INSERT INTO group_configs (groupName, teamSize, victoryLimit, priorityEnabled, scoreEnabled, balancingMode, onboardingStep) " +
+                "VALUES ('Grupo', 6, 3, 1, 1, 'REBALANCE', 5)"
+        )
+        AppDatabase.MIGRATION_6_7.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_7_8.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_8_9.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_9_10.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_10_11.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_11_12.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_12_13.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_13_14.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_14_15.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_15_16.migrate(legacyDb.asConnection())
+        AppDatabase.MIGRATION_16_17.migrate(legacyDb.asConnection())
+
+        AppDatabase.MIGRATION_17_18.migrate(legacyDb.asConnection())
+        legacyDb.version = 18
+        legacyDb.close()
+
+        val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB_17_18)
+            .addMigrations(
+                AppDatabase.MIGRATION_6_7,
+                AppDatabase.MIGRATION_7_8,
+                AppDatabase.MIGRATION_8_9,
+                AppDatabase.MIGRATION_9_10,
+                AppDatabase.MIGRATION_10_11,
+                AppDatabase.MIGRATION_11_12,
+                AppDatabase.MIGRATION_12_13,
+                AppDatabase.MIGRATION_13_14,
+                AppDatabase.MIGRATION_14_15,
+                AppDatabase.MIGRATION_15_16,
+                AppDatabase.MIGRATION_16_17,
+                AppDatabase.MIGRATION_17_18
+            )
+            .build()
+
+        try {
+            val migratedDb = room.openHelper.writableDatabase
+            assertEquals(18, migratedDb.version)
+
+            migratedDb.query("SELECT setterSystem FROM group_configs WHERE groupName = 'Grupo'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("FIVE_ONE", cursor.getString(0))
+            }
+        } finally {
+            room.close()
+            context.deleteDatabase(TEST_DB_17_18)
+        }
+    }
+}

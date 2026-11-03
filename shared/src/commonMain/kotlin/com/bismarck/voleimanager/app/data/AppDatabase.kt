@@ -20,7 +20,7 @@ import kotlin.uuid.Uuid
         com.bismarck.voleimanager.app.data.model.TournamentMatch::class,
         com.bismarck.voleimanager.app.data.model.GroupLog::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 @ConstructedBy(AppDatabaseConstructor::class)
@@ -311,13 +311,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(connection: SQLiteConnection) {
+                // Sistema de jogo (5x1 | 4x2) do modo Posições Fixas.
+                connection.execSQL("ALTER TABLE group_configs ADD COLUMN setterSystem TEXT NOT NULL DEFAULT 'FIVE_ONE'")
+            }
+        }
+
         /** Todas as migrações, em ordem — usadas pelo builder de cada plataforma. */
         val ALL_MIGRATIONS: Array<Migration>
             get() = arrayOf(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
                 MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
                 MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
-                MIGRATION_15_16, MIGRATION_16_17
+                MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18
             )
     }
 }

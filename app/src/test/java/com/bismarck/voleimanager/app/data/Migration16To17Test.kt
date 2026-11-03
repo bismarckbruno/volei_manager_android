@@ -68,13 +68,14 @@ class Migration16To17Test {
                 AppDatabase.MIGRATION_13_14,
                 AppDatabase.MIGRATION_14_15,
                 AppDatabase.MIGRATION_15_16,
-                AppDatabase.MIGRATION_16_17
+                AppDatabase.MIGRATION_16_17,
+                AppDatabase.MIGRATION_17_18
             )
             .build()
 
         try {
             val migratedDb = room.openHelper.writableDatabase
-            assertEquals(17, migratedDb.version)
+            assertEquals(18, migratedDb.version)
 
             migratedDb.query("SELECT matchHistoryId FROM elo_logs WHERE groupName = 'Grupo'").use { cursor ->
                 assertTrue(cursor.moveToFirst())

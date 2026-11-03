@@ -73,11 +73,12 @@ object PositionAssigner {
     fun buildBalancedTeams(
         pool: List<Player>,
         teamSize: Int,
-        guaranteeSetter: Boolean = true
+        guaranteeSetter: Boolean = true,
+        twoSetters: Boolean = false
     ): PositionAssignment {
         val hasLibero = TeamComposition.hasLibero(pool)
-        val slotsA = requiredSlots(teamSize, hasLibero, guaranteeSetter)
-        val slotsB = requiredSlots(teamSize, hasLibero, guaranteeSetter)
+        val slotsA = requiredSlots(teamSize, hasLibero, guaranteeSetter, twoSetters)
+        val slotsB = requiredSlots(teamSize, hasLibero, guaranteeSetter, twoSetters)
 
         val remaining = pool.toMutableList()
         val teamA = mutableListOf<Player>()
@@ -145,11 +146,12 @@ object PositionAssigner {
     fun assignPositionsToExistingTeam(
         team: List<Player>,
         teamSize: Int,
-        guaranteeSetter: Boolean = true
+        guaranteeSetter: Boolean = true,
+        twoSetters: Boolean = false
     ): TeamAssignment {
         val effectiveSize = maxOf(teamSize, team.size).coerceAtMost(TeamComposition.MAX_TEAM_SIZE)
         val hasLibero = TeamComposition.hasLibero(team)
-        val slots = requiredSlots(effectiveSize, hasLibero, guaranteeSetter)
+        val slots = requiredSlots(effectiveSize, hasLibero, guaranteeSetter, twoSetters)
 
         val remaining = team.toMutableList()
         val positions = mutableMapOf<Int, PlayerPosition>()
@@ -188,8 +190,9 @@ object PositionAssigner {
     fun describeComposition(
         team: List<Player>,
         teamSize: Int,
-        guaranteeSetter: Boolean = true
-    ): List<FilledSlot> = assignPositionsToExistingTeam(team, teamSize, guaranteeSetter).slots
+        guaranteeSetter: Boolean = true,
+        twoSetters: Boolean = false
+    ): List<FilledSlot> = assignPositionsToExistingTeam(team, teamSize, guaranteeSetter, twoSetters).slots
 
     /**
      * Escolhe [count] jogadores de [pool] para cobrir as vagas ainda descobertas, considerando
@@ -221,12 +224,13 @@ object PositionAssigner {
         teamSize: Int,
         teams: Int = 2,
         guaranteeSetter: Boolean = true,
-        losers: List<Player> = emptyList()
+        losers: List<Player> = emptyList(),
+        twoSetters: Boolean = false
     ): Pair<List<Player>, List<Player>> {
         if (count <= 0 || pool.isEmpty()) return emptyList<Player>() to pool
         val hasLibero = TeamComposition.hasLibero(base + pool)
         val needs = (1..teams)
-            .flatMap { requiredSlots(teamSize, hasLibero, guaranteeSetter) }
+            .flatMap { requiredSlots(teamSize, hasLibero, guaranteeSetter, twoSetters) }
             .toMutableList()
 
         // Vagas já cobertas por quem está escalado saem da lista de necessidades.
@@ -250,7 +254,7 @@ object PositionAssigner {
         // Único caso em que se pode "furar fila" incondicionalmente: buscar um levantador para a
         // vaga de armador ainda descoberta, quando a garantia estiver ligada (1ª opção, depois 2ª).
         if (guaranteeSetter && picked.size < count) {
-            val playmakerIndex = needs.indexOfFirst { it.role == PositionRole.PLAYMAKER }
+            val playmakerIndex = needs.indexOfFirst { it.role == PositionRole.PLAYMAKER && !it.isSecondSetter }
             if (playmakerIndex >= 0) {
                 val slot = needs[playmakerIndex]
                 val allowLoser = losersPicked < maxLosersAllowed
@@ -323,11 +327,12 @@ object PositionAssigner {
         players: List<Player>,
         teamSize: Int,
         guaranteeSetter: Boolean,
+        twoSetters: Boolean = false,
         effectiveGames: (Player) -> Int
     ): List<Player> {
         if (players.size <= 1) return players
         val hasLibero = TeamComposition.hasLibero(players)
-        val pattern = slotPattern(teamSize, hasLibero, guaranteeSetter)
+        val pattern = slotPattern(teamSize, hasLibero, guaranteeSetter, twoSetters)
         val remaining = players.toMutableList()
         val ordered = mutableListOf<Player>()
         var step = 0
@@ -342,8 +347,13 @@ object PositionAssigner {
     }
 
     /** Sequência ideal de vagas de um time segue a ordem canônica declarada em [TeamComposition]. */
-    private fun slotPattern(teamSize: Int, hasLibero: Boolean, guaranteeSetter: Boolean): List<TeamSlot> =
-        requiredSlots(teamSize, hasLibero, guaranteeSetter)
+    private fun slotPattern(
+        teamSize: Int,
+        hasLibero: Boolean,
+        guaranteeSetter: Boolean,
+        twoSetters: Boolean
+    ): List<TeamSlot> =
+        requiredSlots(teamSize, hasLibero, guaranteeSetter, twoSetters)
             .ifEmpty { listOf(TeamSlot(PositionRole.ATTACK)) }
 
     /**
@@ -370,9 +380,10 @@ object PositionAssigner {
     private fun requiredSlots(
         teamSize: Int,
         hasLibero: Boolean,
-        guaranteeSetter: Boolean
+        guaranteeSetter: Boolean,
+        twoSetters: Boolean = false
     ): List<TeamSlot> {
-        val slots = TeamComposition.requiredSlots(teamSize, guaranteeSetter).map { slot ->
+        val slots = TeamComposition.requiredSlots(teamSize, guaranteeSetter, twoSetters).map { slot ->
             when {
                 // No 6x6, sem líbero presente, a última vaga vira mais uma vaga de central.
                 !hasLibero && teamSize < 7 && slot.position == PlayerPosition.LIBERO ->
@@ -385,7 +396,7 @@ object PositionAssigner {
 
     /** Ordena a vaga de armador antes das demais quando a garantia de levantador está ligada. */
     private fun setterFirstRank(slot: TeamSlot, guaranteeSetter: Boolean): Int =
-        if (guaranteeSetter && slot.role == PositionRole.PLAYMAKER) 0 else 1
+        if (guaranteeSetter && slot.role == PositionRole.PLAYMAKER && !slot.isSecondSetter) 0 else 1
 
     /**
      * Divide [players] em duas metades com somas de Elo próximas, preservando tamanhos iguais

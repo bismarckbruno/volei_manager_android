@@ -53,7 +53,7 @@ class RoomMigrationPathTest {
 
             val config = runBlocking { room.voleiDao().getGroupConfig("Grupo") }
             assertTrue(config != null && config.publicId.isNotBlank())
-            assertEquals(17, room.openHelper.writableDatabase.version)
+            assertEquals(18, room.openHelper.writableDatabase.version)
         } finally {
             room.close()
             context.deleteDatabase(TEST_DB_ROOM_PATH)

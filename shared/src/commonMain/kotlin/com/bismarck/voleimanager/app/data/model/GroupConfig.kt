@@ -45,6 +45,26 @@ enum class MatchFormat {
     }
 }
 
+/** Sistema de jogo do modo Posições Fixas: um levantador (5x1) ou dois por time (4x2). */
+enum class SetterSystem {
+    FIVE_ONE,
+    FOUR_TWO;
+
+    companion object {
+        const val MIN_TEAM_SIZE_FOUR_TWO = 6
+
+        fun fromStoredValue(value: String?): SetterSystem =
+            entries.firstOrNull { it.name == value } ?: FIVE_ONE
+
+        /** O 4x2 só existe em tipos com posições e com 6 ou 7 jogadores por time. */
+        fun isAvailable(type: GroupType, teamSize: Int): Boolean =
+            type.usesPositions && teamSize >= MIN_TEAM_SIZE_FOUR_TWO
+
+        fun isTwoSetters(type: GroupType, teamSize: Int, stored: String?): Boolean =
+            isAvailable(type, teamSize) && fromStoredValue(stored) == FOUR_TWO
+    }
+}
+
 const val ONBOARDING_STEP_GROUP_NAME = 0
 const val ONBOARDING_STEP_GROUP_TYPE = 1
 const val ONBOARDING_STEP_BALANCING_MODE = 2
@@ -179,10 +199,19 @@ data class GroupConfig(
     val activeAdminDeviceId: String? = null,
     /** Timestamp (epoch millis) da última transferência de sessão de administrador — só para
      *  exibição ("sessão transferida em..."), sem papel na lógica de bloqueio em si. */
-    val activeAdminSince: Long? = null
+    val activeAdminSince: Long? = null,
+    /**
+     * Sistema de jogo ([SetterSystem]) dos tipos com posições: 5x1 (padrão) ou 4x2. O 4x2 só vale
+     * com 6 ou 7 jogadores por time; veja [twoSetters].
+     */
+    val setterSystem: String = SetterSystem.FIVE_ONE.name
 ) {
     val type: GroupType
         get() = GroupType.fromStoredValue(groupType)
+
+    /** True quando cada time joga com dois levantadores (4x2): posições fixas e 6–7 jogadores. */
+    val twoSetters: Boolean
+        get() = SetterSystem.isTwoSetters(type, teamSize, setterSystem)
 
     val format: MatchFormat
         get() = MatchFormat.fromStoredValue(matchFormat)

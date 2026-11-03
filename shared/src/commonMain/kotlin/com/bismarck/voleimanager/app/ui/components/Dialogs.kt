@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.sp
 import com.bismarck.voleimanager.app.data.model.BalancingMode
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.GroupType
+import com.bismarck.voleimanager.app.data.model.SetterSystem
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_GROUP_NAME_LENGTH
 import com.bismarck.voleimanager.app.ui.viewmodel.MAX_PLAYER_NAME_LENGTH
@@ -832,9 +833,10 @@ fun GroupConfigDialog(
     initialBalancingMode: String = BalancingMode.REBALANCE.name,
     initialGroupType: String = GroupType.RECREATIONAL.name,
     initialGuaranteeSetter: Boolean = true,
+    initialSetterSystem: String = SetterSystem.FIVE_ONE.name,
     isGameInProgress: Boolean = false,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int, Boolean, Boolean, String, String, Boolean) -> Unit
+    onConfirm: (Int, Int, Boolean, Boolean, String, String, Boolean, String) -> Unit
 ) {
     val initialType = GroupType.fromStoredValue(initialGroupType)
     var groupType by remember { mutableStateOf(initialType) }
@@ -844,6 +846,7 @@ fun GroupConfigDialog(
     var scoreEnabled by remember { mutableStateOf(initialScoreEnabled) }
     var balancingMode by remember { mutableStateOf(initialBalancingMode) }
     var guaranteeSetter by remember { mutableStateOf(initialGuaranteeSetter) }
+    var setterSystem by remember { mutableStateOf(SetterSystem.fromStoredValue(initialSetterSystem)) }
     var showTypeChangeConfirmation by remember { mutableStateOf(false) }
 
     val isLandscape = rememberIsLandscape()
@@ -867,7 +870,8 @@ fun GroupConfigDialog(
             scoreEnabled,
             balancingMode,
             groupType.name,
-            guaranteeSetter || forcesGuaranteeSetter
+            guaranteeSetter || forcesGuaranteeSetter,
+            setterSystem.name
         )
     }
 
@@ -997,6 +1001,32 @@ fun GroupConfigDialog(
             valueRange = 2f..groupType.maxTeamSize.toFloat(),
             steps = groupType.maxTeamSize - 3
         )
+
+        if (SetterSystem.isAvailable(groupType, teamSize.roundToInt())) {
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(Res.string.setter_system_title), fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(8.dp))
+            listOf(
+                Triple(
+                    SetterSystem.FIVE_ONE,
+                    stringResource(Res.string.setter_system_five_one),
+                    stringResource(Res.string.setter_system_five_one_tooltip)
+                ),
+                Triple(
+                    SetterSystem.FOUR_TWO,
+                    stringResource(Res.string.setter_system_four_two),
+                    stringResource(Res.string.setter_system_four_two_tooltip)
+                )
+            ).forEach { (system, label, tooltip) ->
+                BalancingModeOptionRow(
+                    label = label,
+                    tooltip = tooltip,
+                    selected = setterSystem == system,
+                    onSelect = { setterSystem = system },
+                    iconRes = setterIconRes()
+                )
+            }
+        }
 
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 16.dp),

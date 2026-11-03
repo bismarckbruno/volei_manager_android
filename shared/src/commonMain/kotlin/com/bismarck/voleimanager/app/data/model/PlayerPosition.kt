@@ -46,7 +46,9 @@ data class TeamSlot(
     val position: PlayerPosition? = null,
     val fallbackPosition: PlayerPosition? = null,
     val acceptedPositions: Set<PlayerPosition>? = null,
-    val assignedPositionOverride: PlayerPosition? = null
+    val assignedPositionOverride: PlayerPosition? = null,
+    /** 2ª vaga de levantador do 4x2: preenchida por melhor encaixe, sem prioridade de fila. */
+    val isSecondSetter: Boolean = false
 ) {
     fun accepts(playerPosition: PlayerPosition?): Boolean {
         if (playerPosition == null) return false
@@ -70,8 +72,15 @@ object TeamComposition {
 
     fun requiredSlots(
         teamSize: Int,
-        guaranteeSetter: Boolean = true
+        guaranteeSetter: Boolean = true,
+        twoSetters: Boolean = false
     ): List<TeamSlot> {
+        // No 4x2 (6–7 jogadores) a vaga de oposto vira a 2ª vaga de levantador.
+        val oppositeOrSecondSetter = if (twoSetters && teamSize >= 6) {
+            TeamSlot(PositionRole.PLAYMAKER, PlayerPosition.SETTER, isSecondSetter = true)
+        } else {
+            TeamSlot(PositionRole.ATTACK, PlayerPosition.OPPOSITE)
+        }
         val attackCore = TeamSlot(
             role = PositionRole.ATTACK,
             acceptedPositions = setOf(PlayerPosition.OUTSIDE_HITTER, PlayerPosition.OPPOSITE)
@@ -145,7 +154,7 @@ object TeamComposition {
                 TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
                 TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
                 TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
-                TeamSlot(PositionRole.ATTACK, PlayerPosition.OPPOSITE),
+                oppositeOrSecondSetter,
                 TeamSlot(PositionRole.DEFENSE, PlayerPosition.LIBERO, PlayerPosition.MIDDLE_BLOCKER)
             )
 
@@ -154,7 +163,7 @@ object TeamComposition {
                 TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
                 TeamSlot(PositionRole.ATTACK, PlayerPosition.OUTSIDE_HITTER),
                 TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
-                TeamSlot(PositionRole.ATTACK, PlayerPosition.OPPOSITE),
+                oppositeOrSecondSetter,
                 TeamSlot(PositionRole.DEFENSE, PlayerPosition.MIDDLE_BLOCKER),
                 TeamSlot(
                     role = PositionRole.DEFENSE,

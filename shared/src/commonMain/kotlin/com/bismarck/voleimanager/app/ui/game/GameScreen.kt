@@ -463,6 +463,7 @@ fun GameScreenContent(
                     players = presentPlayers,
                     showElo = showElo,
                     groupType = config.type,
+                    setterSystem = config.setterSystem,
                     teamAColorFamily = teamAColorFamily,
                     teamBColorFamily = teamBColorFamily,
                     onConfirm = { tA, tB, b, teamSize ->

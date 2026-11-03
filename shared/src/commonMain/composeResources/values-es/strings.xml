@@ -559,7 +559,12 @@
     <string name="composition_slot_empty">Vacía</string>
     <string name="guarantee_setter">Garantizar armador</string>
     <string name="guarantee_setter_tooltip">Reserva un puesto de armador en cada equipo. Si no hay armador en la cola, el armador del equipo perdedor sigue en cancha; si no hay ninguno, el puesto lo ocupa alguien de ataque y, como último recurso, alguien de defensa.</string>
-    <string name="guarantee_setter_locked_tooltip">Obligatorio en equipos de 6 o 7 jugadores, ya que el puesto de armador tiene posición específica en esas composiciones. Solo se puede desactivar en equipos de 2 a 5 jugadores.</string>
+    <string name="guarantee_setter_locked_tooltip">Obligatorio en equipos de 6 o 7 jugadores, ya que el puesto de armador tiene posición específica en esas composiciones. Solo se puede desactivar en equipos de 2 a 5 jugadores. En 4x2, solo un armador por equipo tiene prioridad; el segundo entra por mejor encaje.</string>
+    <string name="setter_system_title">Sistema de juego</string>
+    <string name="setter_system_five_one">5x1 (un armador)</string>
+    <string name="setter_system_five_one_tooltip">Cada equipo juega con un armador y un opuesto (predeterminado).</string>
+    <string name="setter_system_four_two">4x2 (dos armadores)</string>
+    <string name="setter_system_four_two_tooltip">Cada equipo juega con dos armadores en lugar del opuesto. El segundo armador entra por mejor encaje, sin saltarse la cola.</string>
     <string name="position_badge_secondary_tooltip">%1$s: juega en la segunda posición que eligió.</string>
     <string name="position_badge_improvised_tooltip">%1$s: juega fuera de las posiciones que eligió.</string>
     <string name="position_badge_improvised_tooltip_with_choices">%1$s: juega fuera de las posiciones que eligió (%2$s).</string>

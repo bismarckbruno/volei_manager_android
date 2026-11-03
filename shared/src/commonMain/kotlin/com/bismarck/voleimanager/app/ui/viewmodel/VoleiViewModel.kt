@@ -20,6 +20,7 @@ import com.bismarck.voleimanager.app.data.model.ONBOARDING_STEP_TEAM_SIZE
 import com.bismarck.voleimanager.app.data.model.Player
 import com.bismarck.voleimanager.app.data.model.PlayerEloLog
 import com.bismarck.voleimanager.app.data.model.PlayerPosition
+import com.bismarck.voleimanager.app.data.model.SetterSystem
 import com.bismarck.voleimanager.app.data.model.TournamentMatch
 import com.bismarck.voleimanager.app.data.model.TournamentTeam
 import com.bismarck.voleimanager.app.data.model.TournamentTeamMember
@@ -3161,8 +3162,8 @@ class VoleiViewModel(
         }
         val conf = _currentGroupConfig.value
         val teamSize = conf.teamSize
-        val a = PositionAssigner.assignPositionsToExistingTeam(_teamA.value, teamSize, conf.guaranteeSetter)
-        val b = PositionAssigner.assignPositionsToExistingTeam(_teamB.value, teamSize, conf.guaranteeSetter)
+        val a = PositionAssigner.assignPositionsToExistingTeam(_teamA.value, teamSize, conf.guaranteeSetter, conf.twoSetters)
+        val b = PositionAssigner.assignPositionsToExistingTeam(_teamB.value, teamSize, conf.guaranteeSetter, conf.twoSetters)
         _assignedPositions.value = a.positions + b.positions
         _assignedSlotIndices.value = buildMap {
             a.slots.forEachIndexed { index, slot -> slot.player?.let { put(it.id, index) } }
@@ -3178,7 +3179,8 @@ class VoleiViewModel(
         scoreEnabled: Boolean = true,
         balancingMode: String = _currentGroupConfig.value.balancingMode,
         groupType: String = _currentGroupConfig.value.groupType,
-        guaranteeSetter: Boolean = _currentGroupConfig.value.guaranteeSetter
+        guaranteeSetter: Boolean = _currentGroupConfig.value.guaranteeSetter,
+        setterSystem: String = _currentGroupConfig.value.setterSystem
     ) {
         val current = _currentGroupConfig.value
         val requestedType = GroupType.fromStoredValue(groupType)
@@ -3198,7 +3200,8 @@ class VoleiViewModel(
             priorityEnabled = priorityP && newType.supportsPriority,
             scoreEnabled = scoreEnabled,
             balancingMode = BalancingMode.fromStoredValue(balancingMode).name,
-            guaranteeSetter = guaranteeSetter
+            guaranteeSetter = guaranteeSetter,
+            setterSystem = SetterSystem.fromStoredValue(setterSystem).name
         )
         if (typeChanged && isGameInProgress()) {
             // A partida em andamento não sobrevive à troca de tipo: as regras de composição mudam.
@@ -3730,7 +3733,8 @@ class VoleiViewModel(
                     pool = pool,
                     count = remainingSlots,
                     teamSize = size,
-                    guaranteeSetter = config.guaranteeSetter
+                    guaranteeSetter = config.guaranteeSetter,
+                    twoSetters = config.twoSetters
                 )
                 picked
             } else {
@@ -3741,7 +3745,7 @@ class VoleiViewModel(
         }
 
         val (finalA, finalB) = if (usesPositions) {
-            PositionAssigner.buildBalancedTeams(selectedPlayers, size, config.guaranteeSetter).let {
+            PositionAssigner.buildBalancedTeams(selectedPlayers, size, config.guaranteeSetter, config.twoSetters).let {
                 it.teamA to it.teamB
             }
         } else {
@@ -4384,7 +4388,7 @@ class VoleiViewModel(
             TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
 
         val sortedLosers = if (conf.type.usesPositions) {
-            PositionAssigner.orderByIdealComposition(losers, conf.teamSize, conf.guaranteeSetter) { getEffectiveGames(it) }
+            PositionAssigner.orderByIdealComposition(losers, conf.teamSize, conf.guaranteeSetter, conf.twoSetters) { getEffectiveGames(it) }
         } else {
             TeamBalancer.groupAndInterleave(losers) { getEffectiveGames(it) }
         }
@@ -4416,7 +4420,8 @@ class VoleiViewModel(
                         teamSize = conf.teamSize,
                         teams = 1,
                         guaranteeSetter = conf.guaranteeSetter,
-                        losers = losers
+                        losers = losers,
+                        twoSetters = conf.twoSetters
                     )
                     pool = leftover
                     return base + picked
@@ -4513,7 +4518,8 @@ class VoleiViewModel(
                         teamSize = conf.teamSize,
                         teams = 1,
                         guaranteeSetter = conf.guaranteeSetter,
-                        losers = losers
+                        losers = losers,
+                        twoSetters = conf.twoSetters
                     )
                     if (picked.isNotEmpty()) {
                         teamWin.addAll(picked)
@@ -4558,7 +4564,8 @@ class VoleiViewModel(
                     teamSize = conf.teamSize,
                     teams = 1,
                     guaranteeSetter = conf.guaranteeSetter,
-                    losers = losers
+                    losers = losers,
+                    twoSetters = conf.twoSetters
                 )
                 teamChal.addAll(picked)
                 remainingPool = leftover.toMutableList()
@@ -4683,7 +4690,7 @@ class VoleiViewModel(
             TollCalculator.getEffectiveGames(p, usageMap[p.id] ?: 0, today)
 
         val sortedLosers = if (conf.type.usesPositions) {
-            PositionAssigner.orderByIdealComposition(losers, conf.teamSize, conf.guaranteeSetter) { getEffectiveGames(it) }
+            PositionAssigner.orderByIdealComposition(losers, conf.teamSize, conf.guaranteeSetter, conf.twoSetters) { getEffectiveGames(it) }
         } else {
             TeamBalancer.groupAndInterleave(losers) { getEffectiveGames(it) }
         }
@@ -4705,7 +4712,8 @@ class VoleiViewModel(
                         teamSize = conf.teamSize,
                         teams = 1,
                         guaranteeSetter = conf.guaranteeSetter,
-                        losers = fillPool
+                        losers = fillPool,
+                        twoSetters = conf.twoSetters
                     )
                     team.addAll(picked)
                     return team to leftover
@@ -4740,7 +4748,8 @@ class VoleiViewModel(
                     val assignment = PositionAssigner.buildBalancedTeams(
                         waitlist.take(conf.teamSize * 2),
                         conf.teamSize,
-                        conf.guaranteeSetter
+                        conf.guaranteeSetter,
+                        conf.twoSetters
                     )
                     team1 = assignment.teamA
                     team2 = assignment.teamB
@@ -4773,7 +4782,8 @@ class VoleiViewModel(
                             count = needed,
                             teamSize = conf.teamSize,
                             teams = 1,
-                            guaranteeSetter = conf.guaranteeSetter
+                            guaranteeSetter = conf.guaranteeSetter,
+                            twoSetters = conf.twoSetters
                         )
                         reigningTeam.addAll(picked)
                         queueForNextTeams.clear()
@@ -4801,7 +4811,8 @@ class VoleiViewModel(
                             count = conf.teamSize,
                             teamSize = conf.teamSize,
                             teams = 1,
-                            guaranteeSetter = conf.guaranteeSetter
+                            guaranteeSetter = conf.guaranteeSetter,
+                            twoSetters = conf.twoSetters
                         )
                         teamFromWait = picked
                         remainingAfterTeam = leftover
