@@ -646,10 +646,10 @@
     <string name="matches">partidas</string>
     <string name="average_duration">Duração média: %1$s</string>
     <string name="average_elo">Elo médio: %1$s</string>
-    <string name="average_played_time">Tempo jogado médio: %1$s</string>
+    <string name="average_played_time">Tempo médio: %1$s</string>
     <string name="average_matches_played">Partidas em média: %1$s</string>
     <string name="average_victories">Vitórias em média: %1$s</string>
-    <string name="average_win_percentage">Aproveitamento médio: %1$s</string>
+    <string name="average_win_percentage">Porcentagem média: %1$s</string>
     <string name="by_longest_duration">Por duração da partida</string>
     <string name="sort_longest_duration">Ordenação: Maior duração de partida</string>
     <string name="average_elo_indicator_cd">Indicador de Elo médio do time</string>

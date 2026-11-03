@@ -639,7 +639,7 @@
     <string name="matches">partidos</string>
     <string name="average_duration">Duración promedio: %1$s</string>
     <string name="average_elo">Elo promedio: %1$s</string>
-    <string name="average_played_time">Tiempo jugado promedio: %1$s</string>
+    <string name="average_played_time">Tiempo promedio: %1$s</string>
     <string name="average_matches_played">Partidos promedio: %1$s</string>
     <string name="average_victories">Victorias promedio: %1$s</string>
     <string name="average_win_percentage">Porcentaje de victorias promedio: %1$s</string>
