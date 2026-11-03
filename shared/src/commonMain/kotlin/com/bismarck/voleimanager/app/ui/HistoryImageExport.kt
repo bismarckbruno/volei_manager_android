@@ -27,7 +27,6 @@ fun captureHistoryScreenAsImage(
     showElo: Boolean,
     showScore: Boolean,
     matchDurationsMinutes: Map<Int, Int>? = null,
-    averagePlayersEloText: String? = null,
     averageMatchDurationText: String? = null
 ) {
     val groupName = viewModel.currentGroupConfig.value.groupName
@@ -50,7 +49,6 @@ fun captureHistoryScreenAsImage(
                         showElo = showElo,
                         showScore = showScore,
                         matchDurationsMinutes = matchDurationsMinutes,
-                        averagePlayersEloText = averagePlayersEloText,
                         averageMatchDurationText = averageMatchDurationText,
                         usesPositions = usesPositions,
                         teamAColorFamily = teamAColorFamily,

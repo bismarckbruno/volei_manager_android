@@ -639,6 +639,12 @@
     <string name="matches">matches</string>
     <string name="average_duration">Average duration: %1$s</string>
     <string name="average_elo">Average Elo: %1$s</string>
+    <string name="average_played_time">Average played time: %1$s</string>
+    <string name="average_matches_played">Average matches: %1$s</string>
+    <string name="average_victories">Average victories: %1$s</string>
+    <string name="average_win_percentage">Average win rate: %1$s</string>
+    <string name="by_longest_duration">By match duration</string>
+    <string name="sort_longest_duration">Sort: Longest match duration</string>
     <string name="average_elo_indicator_cd">Average team Elo indicator</string>
     <string name="average_elo_indicator_tooltip">Average team skill level calculated with Elo methodology.</string>
     <string name="time_played">Time: %1$s</string>

@@ -154,7 +154,7 @@ data class HistoryPlayerInfo(
 )
 
 enum class PlayerSortMode { ALPHABETICAL, ELO, PLAYED_TIME, GAMES, VICTORIES, PERCENTAGE }
-enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF }
+enum class MatchSortMode { NEWEST, OLDEST, ELO_DELTA, SCORE_DIFF, DURATION }
 
 data class PlayerIdentifier(val id: Int?, val name: String)
 private val historyDiacriticsRegex = Regex("\\p{M}+")
@@ -188,6 +188,12 @@ private fun SortModeIcon(
             )
             MatchSortMode.SCORE_DIFF -> Icon(
                 imageVector = Icons.Outlined.Scoreboard,
+                contentDescription = null,
+                modifier = modifier,
+                tint = tint
+            )
+            MatchSortMode.DURATION -> Icon(
+                imageVector = Icons.Default.AccessTime,
                 contentDescription = null,
                 modifier = modifier,
                 tint = tint
@@ -298,8 +304,7 @@ data class HistoryComputationResult(
     val matchDurationsMinutes: Map<Int, Int>,
     val averageMatchDurationMinutes: Int?,
     val uniquePlayerCount: Int,
-    val historyPlayerList: List<HistoryPlayerInfo>,
-    val averagePlayersEloText: String?
+    val historyPlayerList: List<HistoryPlayerInfo>
 )
 
 private data class HistoryFilterIndex(
@@ -344,6 +349,9 @@ fun computeHistoryComputation(
             compareByDescending<MatchHistory> {
                 kotlin.math.abs((it.teamAScore ?: 0) - (it.teamBScore ?: 0))
             }.thenByDescending { it.id }
+        )
+        MatchSortMode.DURATION -> filteredHistory.sortedWith(
+            compareByDescending<MatchHistory> { matchDurationMinutes(it) ?: -1 }.thenByDescending { it.id }
         )
     }
 
@@ -474,17 +482,55 @@ fun computeHistoryComputation(
         )
     }
 
-    val averagePlayersEloText = if (sortedPlayers.isEmpty()) null
-    else formatInteger(sortedPlayers.map { it.displayElo }.average().toLong())
-
     return HistoryComputationResult(
         sortedHistory = sortedHistory,
         matchDurationsMinutes = matchDurationsMinutes,
         averageMatchDurationMinutes = averageMatchDurationMinutes,
         uniquePlayerCount = uniquePlayerIdentifiers.size,
-        historyPlayerList = sortedPlayers,
-        averagePlayersEloText = averagePlayersEloText
+        historyPlayerList = sortedPlayers
     )
+}
+
+fun matchDurationMinutes(match: MatchHistory): Int? {
+    val start = match.startTimestamp
+    val end = match.endTimestamp
+    return if (start != null && end != null && end > start) {
+        ((end - start) / 60000L).toInt().coerceAtLeast(1)
+    } else null
+}
+
+class PlayersAverageSummary(val text: String, val icon: ImageVector)
+
+/** Média exibida no topo da aba de jogadores; acompanha o critério de ordenação ativo. */
+@Composable
+fun playersAverageSummary(players: List<HistoryPlayerInfo>, mode: PlayerSortMode?): PlayersAverageSummary {
+    val effectiveMode = when (mode) {
+        null, PlayerSortMode.ALPHABETICAL -> PlayerSortMode.ELO
+        else -> mode
+    }
+    fun avg(selector: (HistoryPlayerInfo) -> Double): Double? =
+        if (players.isEmpty()) null else players.map(selector).average()
+    val value = when (effectiveMode) {
+        PlayerSortMode.ELO, PlayerSortMode.ALPHABETICAL -> avg { it.displayElo }
+        PlayerSortMode.PLAYED_TIME -> avg { it.playedMinutes.toDouble() }
+        PlayerSortMode.GAMES -> avg { it.gamesPlayed.toDouble() }
+        PlayerSortMode.VICTORIES -> avg { it.victories.toDouble() }
+        PlayerSortMode.PERCENTAGE -> avg { if (it.gamesPlayed > 0) it.victories * 100.0 / it.gamesPlayed else 0.0 }
+    }
+    val valueText = when {
+        value == null -> "--"
+        effectiveMode == PlayerSortMode.ELO -> formatInteger(value.toLong())
+        effectiveMode == PlayerSortMode.PLAYED_TIME -> formatPlayedDuration(value.toInt())
+        effectiveMode == PlayerSortMode.PERCENTAGE -> "${formatInteger(value.toLong())}%"
+        else -> formatDecimal((value * 10).toLong() / 10.0)
+    }
+    return when (effectiveMode) {
+        PlayerSortMode.PLAYED_TIME -> PlayersAverageSummary(stringResource(Res.string.average_played_time, valueText), Icons.Default.AccessTime)
+        PlayerSortMode.GAMES -> PlayersAverageSummary(stringResource(Res.string.average_matches_played, valueText), vectorResource(Res.drawable.volei_manager_icon))
+        PlayerSortMode.VICTORIES -> PlayersAverageSummary(stringResource(Res.string.average_victories, valueText), vectorResource(Res.drawable.crown_icon))
+        PlayerSortMode.PERCENTAGE -> PlayersAverageSummary(stringResource(Res.string.average_win_percentage, valueText), Icons.Default.Percent)
+        else -> PlayersAverageSummary(stringResource(Res.string.average_elo, valueText), Icons.Default.WorkspacePremium)
+    }
 }
 
 fun formatLocalizedDate(internalDate: String): String =
@@ -510,6 +556,7 @@ fun HistoryScreen(
     viewModel: VoleiViewModel,
     isDarkTheme: Boolean,
     showElo: Boolean,
+    allowEloSort: Boolean = true,
     showScore: Boolean = true,
     selectedTab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
@@ -659,7 +706,6 @@ fun HistoryScreen(
     val averageMatchDurationMinutes = historyComputation?.averageMatchDurationMinutes
     val uniquePlayerCount = historyComputation?.uniquePlayerCount ?: 0
     val historyPlayerList = historyComputation?.historyPlayerList.orEmpty()
-    val averagePlayersEloText = historyComputation?.averagePlayersEloText
 
     fun isActiveFilteredPlayer(playerName: String): Boolean {
         val canonical = activeHistoryPlayerFilterCanonical ?: return false
@@ -953,6 +999,7 @@ fun HistoryScreen(
                                         MatchSortMode.OLDEST -> vectorResource(Res.drawable.arrowdown)
                                         MatchSortMode.ELO_DELTA -> vectorResource(Res.drawable.plus_minus)
                                         MatchSortMode.SCORE_DIFF -> Icons.Outlined.Scoreboard
+                                        MatchSortMode.DURATION -> Icons.Default.AccessTime
                                     }
                                     else -> when (playerSortMode) {
                                         PlayerSortMode.ALPHABETICAL -> Icons.Default.SortByAlpha
@@ -1000,9 +1047,10 @@ fun HistoryScreen(
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.OLDEST, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.oldest_first)); Spacer(Modifier.weight(1f)); Icon(vectorResource(Res.drawable.arrowdown), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.OLDEST); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.ELO_DELTA, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_elo_change)); Spacer(Modifier.weight(1f)); Icon(vectorResource(Res.drawable.plus_minus), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.ELO_DELTA); expandedFilter = false })
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.SCORE_DIFF, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_score_diff)); Spacer(Modifier.weight(1f)); Icon(Icons.Outlined.Scoreboard, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false })
+                                            DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = matchSortMode == MatchSortMode.DURATION, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_longest_duration)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onMatchSortModeChanged(MatchSortMode.DURATION); expandedFilter = false })
                                         } else {
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ALPHABETICAL, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.alphabetical)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false })
-                                            if (showElo) {
+                                            if (allowEloSort) {
                                                 DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.ELO, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_elo)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.ELO); expandedFilter = false })
                                             }
                                             DropdownMenuItem(text = { Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = playerSortMode == PlayerSortMode.PLAYED_TIME, onClick = null); Spacer(Modifier.width(8.dp)); Text(stringResource(Res.string.by_played_time)); Spacer(Modifier.weight(1f)); Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } }, onClick = { onPlayerSortModeChanged(PlayerSortMode.PLAYED_TIME); expandedFilter = false })
@@ -1050,7 +1098,8 @@ fun HistoryScreen(
                                 }
                             } else {
                                 item {
-                                    HistorySummaryItem(text = stringResource(Res.string.average_elo, averagePlayersEloText ?: "--"), leadingIcon = Icons.Default.WorkspacePremium)
+                                    val summary = playersAverageSummary(historyPlayerList, playerSortMode)
+                                    HistorySummaryItem(text = summary.text, leadingIcon = summary.icon)
                                 }
                                 itemsIndexed(items = historyPlayerList, key = { _, info -> "${info.player.id}_${info.name}" }) { index, info ->
                                     HistoryPlayerCard(
@@ -1308,6 +1357,7 @@ fun HistoryScreen(
                     MatchSortMode.OLDEST -> vectorResource(Res.drawable.arrowdown)
                     MatchSortMode.ELO_DELTA -> vectorResource(Res.drawable.plus_minus)
                     MatchSortMode.SCORE_DIFF -> Icons.Outlined.Scoreboard
+                    MatchSortMode.DURATION -> Icons.Default.AccessTime
                 }
                 else -> when (playerSortMode) {
                     PlayerSortMode.ALPHABETICAL -> Icons.Default.SortByAlpha
@@ -1401,6 +1451,18 @@ fun HistoryScreen(
                             },
                             onClick = { onMatchSortModeChanged(MatchSortMode.SCORE_DIFF); expandedFilter = false }
                         )
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = matchSortMode == MatchSortMode.DURATION, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(Res.string.by_longest_duration))
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            },
+                            onClick = { onMatchSortModeChanged(MatchSortMode.DURATION); expandedFilter = false }
+                        )
                     } else {
                         DropdownMenuItem(
                             text = {
@@ -1414,7 +1476,7 @@ fun HistoryScreen(
                             },
                             onClick = { onPlayerSortModeChanged(PlayerSortMode.ALPHABETICAL); expandedFilter = false }
                         )
-                        if (showElo) {
+                        if (allowEloSort) {
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1571,12 +1633,10 @@ fun HistoryScreen(
                                 }
                             } else {
                                 item {
+                                    val summary = playersAverageSummary(historyPlayerList, playerSortMode)
                                     HistorySummaryItem(
-                                        text = stringResource(
-                                            Res.string.average_elo,
-                                            averagePlayersEloText ?: "--"
-                                        ),
-                                        leadingIcon = Icons.Default.WorkspacePremium
+                                        text = summary.text,
+                                        leadingIcon = summary.icon
                                     )
                                 }
                                 itemsIndexed(
@@ -3249,7 +3309,6 @@ fun ExportableImageContent(
     teamAColorFamily: ColorFamily,
     teamBColorFamily: ColorFamily,
     matchDurationsMinutes: Map<Int, Int>? = null,
-    averagePlayersEloText: String? = null,
     averageMatchDurationText: String? = null,
     usesPositions: Boolean = false
 ) {
@@ -3297,12 +3356,15 @@ fun ExportableImageContent(
             modifier = Modifier.padding(bottom = 4.dp)
         )
         
+        val showPlayersSummary = players != null && players.isNotEmpty() &&
+            (showElo || (playerSortMode != null && playerSortMode != PlayerSortMode.ALPHABETICAL && playerSortMode != PlayerSortMode.ELO))
         val sortLabel = when {
             matches != null -> when (matchSortMode) {
                 MatchSortMode.NEWEST -> stringResource(Res.string.sort_newest_first)
                 MatchSortMode.OLDEST -> stringResource(Res.string.sort_oldest_first)
                 MatchSortMode.ELO_DELTA -> stringResource(Res.string.sort_highest_elo_change)
                 MatchSortMode.SCORE_DIFF -> stringResource(Res.string.sort_largest_score_difference)
+                MatchSortMode.DURATION -> stringResource(Res.string.sort_longest_duration)
                 else -> ""
             }
             players != null -> when (playerSortMode) {
@@ -3321,7 +3383,7 @@ fun ExportableImageContent(
             val sortIconSize = with(LocalDensity.current) { MaterialTheme.typography.bodySmall.fontSize.toDp() }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = if (players != null && !showElo) Modifier.padding(bottom = 8.dp) else Modifier
+                modifier = if (players != null && !showPlayersSummary) Modifier.padding(bottom = 8.dp) else Modifier
             ) {
                 Text(
                     text = sortLabel,
@@ -3338,20 +3400,21 @@ fun ExportableImageContent(
             }
         }
         
-        if (players != null && showElo && averagePlayersEloText != null) {
+        if (players != null && showPlayersSummary) {
+            val summary = playersAverageSummary(players, playerSortMode)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.WorkspacePremium,
+                    imageVector = summary.icon,
                     contentDescription = null,
                     modifier = Modifier.size(with(LocalDensity.current) { MaterialTheme.typography.bodyMedium.fontSize.toDp() }),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = stringResource(Res.string.average_elo, averagePlayersEloText),
+                    text = summary.text,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

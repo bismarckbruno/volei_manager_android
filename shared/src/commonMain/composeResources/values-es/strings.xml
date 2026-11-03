@@ -639,6 +639,12 @@
     <string name="matches">partidos</string>
     <string name="average_duration">Duración promedio: %1$s</string>
     <string name="average_elo">Elo promedio: %1$s</string>
+    <string name="average_played_time">Tiempo jugado promedio: %1$s</string>
+    <string name="average_matches_played">Partidos promedio: %1$s</string>
+    <string name="average_victories">Victorias promedio: %1$s</string>
+    <string name="average_win_percentage">Porcentaje de victorias promedio: %1$s</string>
+    <string name="by_longest_duration">Por duración del partido</string>
+    <string name="sort_longest_duration">Ordenar: Mayor duración de partido</string>
     <string name="average_elo_indicator_cd">Indicador de Elo promedio del equipo</string>
     <string name="average_elo_indicator_tooltip">Nivel promedio de habilidad del equipo calculado con la metodología Elo.</string>
     <string name="time_played">Tiempo: %1$s</string>

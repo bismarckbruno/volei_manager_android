@@ -2153,6 +2153,11 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                         kotlin.math.abs(sa - sb)
                                                     }.thenByDescending { it.id }
                                                 )
+
+                                                MatchSortMode.DURATION -> filteredMatches.sortedWith(
+                                                    compareByDescending<MatchHistory> { matchDurationMinutes(it) ?: -1 }
+                                                        .thenByDescending { it.id }
+                                                )
                                             }
 
                                             val mdm = mutableMapOf<Int, Int>()
@@ -2182,7 +2187,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 showElo = showElo,
                                                 showScore = showScore,
                                                 matchDurationsMinutes = mdm,
-                                                averagePlayersEloText = null,
                                                 averageMatchDurationText = avgDurationText
                                             )
                                         } else {
@@ -2377,13 +2381,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 )
                                             }
 
-                                            val avgText = if (sortedPlayers.isNotEmpty()) {
-                                                val eloAvg = sortedPlayers.map { it.displayElo }
-                                                    .average()
-                                                com.bismarck.voleimanager.app.util.EloCalculator.formatElo(
-                                                    eloAvg
-                                                )
-                                            } else null
                                             captureHistoryScreenAsImage(
                                                 viewModel = viewModel,
                                                 actions = actions,
@@ -2396,7 +2393,6 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                                 showElo = showElo,
                                                 showScore = showScore,
                                                 matchDurationsMinutes = null,
-                                                averagePlayersEloText = avgText,
                                                 averageMatchDurationText = null
                                             )
                                         }
@@ -2507,6 +2503,7 @@ fun VoleiManagerApp(viewModel: VoleiViewModel, isDarkTheme: Boolean) {
                                 viewModel = viewModel,
                                 isDarkTheme = isDarkTheme,
                                 showElo = showElo,
+                                allowEloSort = !isSpectatorOfCurrentGroup || groupConfig.showEloToObservers,
                                 showScore = showScore,
                                 selectedTab = historySelectedTab,
                                 onTabChanged = { historySelectedTab = it },
