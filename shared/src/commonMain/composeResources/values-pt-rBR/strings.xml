@@ -389,6 +389,8 @@
     <string name="team_b">Time B</string>
     <string name="vs">VS</string>
     <string name="score_latest_point_tooltip">%1$s fez o ponto mais recente.</string>
+    <string name="score_serving_tooltip">%1$s está com o saque.</string>
+    <string name="score_select_serving_hint">Toque no número do placar para marcar quem saca primeiro.</string>
     <string name="score_rotation_tooltip">%1$s deve fazer a rotação.</string>
     <string name="big_scoreboard_cd">Abrir placar grande</string>
     <string name="big_scoreboard_tooltip">Abre uma versão maior do placar, mais fácil de ver de longe.</string>

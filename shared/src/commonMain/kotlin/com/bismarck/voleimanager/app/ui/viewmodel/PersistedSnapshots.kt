@@ -52,6 +52,8 @@ data class GameStateSnapshot(
     val guaranteedNextMatchPlayerIds: List<Int> = emptyList(),
     val lastScoringTeam: String? = null,
     val rotationRequiredForTeam: String? = null,
+    val servingTeam: String? = null,
+    val matchSetupTimestamp: Long? = null,
     /** Posição ocupada por cada jogador na partida (Modo Posições Fixas). playerId -> nome do enum. */
     val assignedPositions: Map<Int, String> = emptyMap(),
     /** Índice da vaga ocupada por cada jogador dentro do próprio time (0 = topo do card base). */
@@ -79,5 +81,9 @@ data class UndoMatchSnapshot(
     val cloudGroupId: String? = null,
     val cloudHistoryDocId: String? = null,
     val cloudEloLogDocIds: List<String> = emptyList(),
+    val lastScoringTeam: String? = null,
+    val rotationRequiredForTeam: String? = null,
+    val servingTeam: String? = null,
+    val matchSetupTimestamp: Long? = null,
     val expiresAt: Long
 )

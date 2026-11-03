@@ -133,6 +133,7 @@ object CloudSyncManager : com.bismarck.voleimanager.app.platform.CloudSyncServic
                             matchStartTimestamp = (data["matchStartTimestamp"] as? Number)?.toLong(),
                             lastScoringTeam = data["lastScoringTeam"] as? String,
                             rotationRequiredForTeam = data["rotationRequiredForTeam"] as? String,
+                            servingTeam = data["servingTeam"] as? String,
                             pendingPresenceTogglePublicId = data["pendingPresenceTogglePublicId"] as? String,
                             pendingPresenceToggleRequestId = data["pendingPresenceToggleRequestId"] as? String,
                             writerSessionId = data["writerSessionId"] as? String,

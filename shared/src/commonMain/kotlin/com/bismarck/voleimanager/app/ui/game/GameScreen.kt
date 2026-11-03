@@ -62,6 +62,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Scoreboard
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SportsVolleyball
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
@@ -1374,19 +1375,28 @@ fun ActiveGameView(
     val secondWinId = secondTeamId
     // These "last point"/"rotation" indicators only make sense when the scoreboard itself
     // is enabled; hide them entirely when "Usar placar" is off.
+    val servingTeamId by viewModel.servingTeam.collectAsState()
+    val canSelectServing = showScore && !isSpectator && scoreA == 0 && scoreB == 0
+    val firstOnSelectServing: (() -> Unit)? = if (canSelectServing) { { viewModel.setServingTeam(firstTeamId) } } else null
+    val secondOnSelectServing: (() -> Unit)? = if (canSelectServing) { { viewModel.setServingTeam(secondTeamId) } } else null
+    val effectiveLastTeamId = lastScoringTeamId ?: servingTeamId
     val firstShowRotationIndicator = showScore && rotationRequiredForTeamId == firstTeamId
-    val firstShowLatestPointBorder = showScore && !firstShowRotationIndicator && lastScoringTeamId == firstTeamId
+    val firstShowLatestPointBorder = showScore && !firstShowRotationIndicator && effectiveLastTeamId == firstTeamId
     val firstScoreTooltip = when {
         firstShowRotationIndicator -> stringResource(Res.string.score_rotation_tooltip, firstName)
+        firstShowLatestPointBorder && lastScoringTeamId == null -> stringResource(Res.string.score_serving_tooltip, firstName)
         firstShowLatestPointBorder -> stringResource(Res.string.score_latest_point_tooltip, firstName)
+        canSelectServing && servingTeamId == null -> stringResource(Res.string.score_select_serving_hint)
         else -> null
     }
 
     val secondShowRotationIndicator = showScore && rotationRequiredForTeamId == secondTeamId
-    val secondShowLatestPointBorder = showScore && !secondShowRotationIndicator && lastScoringTeamId == secondTeamId
+    val secondShowLatestPointBorder = showScore && !secondShowRotationIndicator && effectiveLastTeamId == secondTeamId
     val secondScoreTooltip = when {
         secondShowRotationIndicator -> stringResource(Res.string.score_rotation_tooltip, secondName)
+        secondShowLatestPointBorder && lastScoringTeamId == null -> stringResource(Res.string.score_serving_tooltip, secondName)
         secondShowLatestPointBorder -> stringResource(Res.string.score_latest_point_tooltip, secondName)
+        canSelectServing && servingTeamId == null -> stringResource(Res.string.score_select_serving_hint)
         else -> null
     }
     val useCompactTeamCards = !showScore && firstPlayers.size <= 2 && secondPlayers.size <= 2
@@ -1595,7 +1605,10 @@ fun ActiveGameView(
                                         showScore = showScore,
                                         showLatestPointBorder = firstShowLatestPointBorder,
                                         showRotationIndicator = firstShowRotationIndicator,
+
                                         scoreIndicatorTooltip = firstScoreTooltip,
+                                        onSelectServing = firstOnSelectServing,
+                                        autoShowScoreTooltip = firstOnSelectServing != null && servingTeamId == null,
                                         onIncrementScore = firstOnIncrement,
                                         onDecrementScore = firstOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
@@ -1668,7 +1681,9 @@ fun ActiveGameView(
                                         showScore = showScore,
                                         showLatestPointBorder = secondShowLatestPointBorder,
                                         showRotationIndicator = secondShowRotationIndicator,
+
                                         scoreIndicatorTooltip = secondScoreTooltip,
+                                        onSelectServing = secondOnSelectServing,
                                         onIncrementScore = secondOnIncrement,
                                         onDecrementScore = secondOnDecrement,
                                         onStreakLongClick = ::openStreakDialog,
@@ -1777,6 +1792,8 @@ fun ActiveGameView(
                             showLatestPointBorder = firstShowLatestPointBorder,
                             showRotationIndicator = firstShowRotationIndicator,
                             scoreIndicatorTooltip = firstScoreTooltip,
+                            onSelectServing = firstOnSelectServing,
+                            autoShowScoreTooltip = firstOnSelectServing != null && servingTeamId == null,
                             onIncrementScore = firstOnIncrement,
                             onDecrementScore = firstOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
@@ -1855,6 +1872,7 @@ fun ActiveGameView(
                             showLatestPointBorder = secondShowLatestPointBorder,
                             showRotationIndicator = secondShowRotationIndicator,
                             scoreIndicatorTooltip = secondScoreTooltip,
+                            onSelectServing = secondOnSelectServing,
                             onIncrementScore = secondOnIncrement,
                             onDecrementScore = secondOnDecrement,
                             onStreakLongClick = ::openStreakDialog,
@@ -2852,6 +2870,8 @@ fun ActiveTeamCard(
     showLatestPointBorder: Boolean = false,
     showRotationIndicator: Boolean = false,
     scoreIndicatorTooltip: String? = null,
+    onSelectServing: (() -> Unit)? = null,
+    autoShowScoreTooltip: Boolean = false,
     onIncrementScore: () -> Unit,
     onDecrementScore: () -> Unit,
     onStreakLongClick: (String) -> Unit,
@@ -3113,7 +3133,10 @@ fun ActiveTeamCard(
                 indicatorColor = buttonColor,
                 showLatestPointBorder = showLatestPointBorder,
                 showRotationIndicator = showRotationIndicator,
-                tooltipText = scoreIndicatorTooltip
+                tooltipText = scoreIndicatorTooltip,
+                onClick = onSelectServing,
+                autoShowTooltip = autoShowScoreTooltip,
+                servingBall = if (onSelectServing != null) showLatestPointBorder else null
             )
             Spacer(Modifier.width(4.dp))
             if (swapButtons) decrementButton() else incrementButton()
@@ -3635,10 +3658,51 @@ private fun ScoreValueIndicator(
     tooltipText: String?,
     circleSize: Dp = 48.dp,
     strokeWidth: Dp = 1.dp,
-    textStyle: TextStyle = MaterialTheme.typography.headlineMedium
+    textStyle: TextStyle = MaterialTheme.typography.headlineMedium,
+    onClick: (() -> Unit)? = null,
+    servingBall: Boolean? = null,
+    autoShowTooltip: Boolean = false
+) {
+    // O ícone fica fora do conteúdo recortado (clip circular) para não ser cortado.
+    Box {
+        ScoreValueIndicatorContent(
+            score, textColor, indicatorColor, showLatestPointBorder, showRotationIndicator,
+            tooltipText, circleSize, strokeWidth, textStyle, onClick, autoShowTooltip
+        )
+        if (servingBall != null) {
+            Icon(
+                Icons.Default.SportsVolleyball,
+                contentDescription = null,
+                tint = indicatorColor.copy(alpha = if (servingBall) 1f else 0.35f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 2.dp, y = 2.dp)
+                    .size(16.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun ScoreValueIndicatorContent(
+    score: Int,
+    textColor: Color,
+    indicatorColor: Color,
+    showLatestPointBorder: Boolean,
+    showRotationIndicator: Boolean,
+    tooltipText: String?,
+    circleSize: Dp,
+    strokeWidth: Dp,
+    textStyle: TextStyle,
+    onClick: (() -> Unit)?,
+    autoShowTooltip: Boolean
 ) {
     val hasTooltip = !tooltipText.isNullOrBlank()
     val tooltipState = rememberTooltipState(isPersistent = true)
+    LaunchedEffect(autoShowTooltip && hasTooltip) {
+        if (autoShowTooltip && hasTooltip) tooltipState.show() else tooltipState.dismiss()
+    }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
 
@@ -3716,7 +3780,15 @@ private fun ScoreValueIndicator(
     }
 
     if (!hasTooltip) {
-        scoreContent()
+        if (onClick == null) {
+            scoreContent()
+        } else {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .combinedClickable(onClick = onClick)
+            ) { scoreContent() }
+        }
         return
     }
 
@@ -3737,7 +3809,7 @@ private fun ScoreValueIndicator(
             modifier = Modifier
                 .clip(RoundedCornerShape(24.dp))
                 .combinedClickable(
-                    onClick = {},
+                    onClick = { onClick?.invoke() },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         scope.launch {
@@ -4615,21 +4687,6 @@ fun EmptyStateCard(
                                     }
                                 )
 
-                                // OpÃ§Ã£o: Limpar jogo atual
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(Res.string.clear_match)) },
-                                    onClick = {
-                                        showSecondaryMenu = false
-                                        showClearConfirmation = true
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Default.DeleteSweep,
-                                            contentDescription = null
-                                        )
-                                    }
-                                )
-
                                 // Opção: Desfazer última vitória (só aparece dentro da janela em
                                 // que a partida ainda pode ser desfeita com segurança)
                                 if (canUndoLastMatch) {
@@ -4647,6 +4704,21 @@ fun EmptyStateCard(
                                         }
                                     )
                                 }
+
+                                // OpÃ§Ã£o: Limpar jogo atual
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.clear_match)) },
+                                    onClick = {
+                                        showSecondaryMenu = false
+                                        showClearConfirmation = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.DeleteSweep,
+                                            contentDescription = null
+                                        )
+                                    }
+                                )
                             }
                         }
                     }

@@ -1,4 +1,4 @@
-package com.bismarck.voleimanager.app.ui.viewmodel
+﻿package com.bismarck.voleimanager.app.ui.viewmodel
 
 import com.bismarck.voleimanager.app.platform.*
 import kotlin.uuid.Uuid
@@ -69,6 +69,7 @@ private const val REVIEW_FALLBACK_MIN_DISTINCT_DAYS = 2
  *  seguida, não para reescrever histórico antigo nem distorcer demais o horário de término
  *  registrado. */
 const val UNDO_MATCH_WINDOW_MILLIS = 60L * 60L * 1000L
+private const val FIRST_POINT_START_OFFSET_MILLIS = 60_000L
 private const val REVIEW_FALLBACK_MIN_MATCHES_FINISHED = 7
 private const val KEY_MATCHES_FINISHED_COUNT = "matches_finished_count"
 private const val KEY_LAST_MATCH_FINISHED_DATE = "last_match_finished_date"
@@ -1791,7 +1792,7 @@ class VoleiViewModel(
             _currentStreak.value = 0
             _streakOwner.value = null
         }
-        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        markMatchSetup()
 
         refreshPositionAssignments()
         return true
@@ -1862,6 +1863,29 @@ class VoleiViewModel(
     val manualSubstitutions = _manualSubstitutions.asStateFlow()
     private var lastLosers: List<Player> = emptyList()
     private val _currentMatchStartTimestamp = MutableStateFlow<Long?>(null)
+    /** Momento em que os times foram gerados: fallback do início da partida quando o placar não é usado. */
+    private var matchSetupTimestamp: Long? = null
+    private val _servingTeam = MutableStateFlow<String?>(null)
+    val servingTeam = _servingTeam.asStateFlow()
+
+    private fun markMatchSetup() {
+        val now = AppDateTime.nowMillis()
+        matchSetupTimestamp = now
+        _currentMatchStartTimestamp.value = now
+        _servingTeam.value = null
+    }
+
+    private fun clearMatchSetup() {
+        matchSetupTimestamp = null
+        _currentMatchStartTimestamp.value = null
+    }
+
+    /** Marca (ou desmarca) manualmente o time sacador; só vale antes do primeiro ponto. */
+    fun setServingTeam(teamId: String?) {
+        if (teamId != null && teamId != "A" && teamId != "B") return
+        if (_scoreA.value != 0 || _scoreB.value != 0) return
+        _servingTeam.value = if (_servingTeam.value == teamId) null else teamId
+    }
 
     // Controla quando a persistência do estado de jogo fica ativa (após a primeira carga do grupo)
     private var persistenceReady = false
@@ -1905,7 +1929,7 @@ class VoleiViewModel(
             ) { _, _, _, _, _ -> }.collect { if (persistenceReady) saveGameState() }
         }
         viewModelScope.launch {
-            combine(_lastScoringTeam, _rotationRequiredForTeam) { _, _ -> }
+            combine(_lastScoringTeam, _rotationRequiredForTeam, _servingTeam) { _, _, _ -> }
                 .collect { if (persistenceReady) saveGameState() }
         }
         // Persiste também os jogadores em descanso e o contador de rodadas
@@ -1965,10 +1989,12 @@ class VoleiViewModel(
             val scoreB: Int,
             val presentPlayerIds: Set<Int>
         )
+        data class ExtraIndicators(val ts: Long?, val lastTeam: String?, val rotation: String?, val serving: String?)
         data class ExtraFieldsPartial(
             val matchStartTimestamp: Long?,
             val lastScoringTeam: String?,
             val rotationRequiredForTeam: String?,
+            val servingTeam: String?,
             val assignedPositions: Map<Int, PlayerPosition>,
             val assignedSlotIndices: Map<Int, Int>,
             val compositionIncomplete: Boolean,
@@ -1985,10 +2011,10 @@ class VoleiViewModel(
         // ponto/rodízio, início da partida, posições atribuídas) são agrupados aqui para não
         // estourar o limite de 5 flows tipadas do combine() abaixo.
         val extraFlow = combine(
-            combine(_currentMatchStartTimestamp, _lastScoringTeam, _rotationRequiredForTeam) { ts, lastTeam, rotation -> Triple(ts, lastTeam, rotation) },
+            combine(_currentMatchStartTimestamp, _lastScoringTeam, _rotationRequiredForTeam, _servingTeam) { ts, lastTeam, rotation, serving -> ExtraIndicators(ts, lastTeam, rotation, serving) },
             combine(_assignedPositions, _assignedSlotIndices, _compositionIncomplete) { positions, slots, incomplete -> Triple(positions, slots, incomplete) },
             combine(_hasPreviousMatch, _lastWinners) { hasPrev, winners -> hasPrev to winners }
-        ) { a, b, c -> ExtraFieldsPartial(a.first, a.second, a.third, b.first, b.second, b.third, c.first, c.second) }
+        ) { a, b, c -> ExtraFieldsPartial(a.ts, a.lastTeam, a.rotation, a.serving, b.first, b.second, b.third, c.first, c.second) }
         val groupPlayersAndExtra = combine(currentGroupPlayers, extraFlow, gamesPlayedStrictTodayMap, isLocalDeviceActiveAdmin) { players, extra, gamesMap, adminOk ->
             Triple(players, extra, gamesMap) to adminOk
         }
@@ -2061,6 +2087,7 @@ class VoleiViewModel(
                         matchStartTimestamp = extra.matchStartTimestamp,
                         lastScoringTeam = extra.lastScoringTeam,
                         rotationRequiredForTeam = extra.rotationRequiredForTeam,
+                        servingTeam = extra.servingTeam,
                         writerSessionId = localSyncSessionId,
                         gamesPlayedToday = gamesPlayedTodayByPublicId,
                         assignedPositions = assignedPositionsByPublicId,
@@ -2122,8 +2149,9 @@ class VoleiViewModel(
         _assignedPositions.value = emptyMap()
         _assignedSlotIndices.value = emptyMap()
         _compositionIncomplete.value = false
-        _currentMatchStartTimestamp.value = null
+        clearMatchSetup()
         _lastScoringTeam.value = null
+        _servingTeam.value = null
         _rotationRequiredForTeam.value = null
         _hasPreviousMatch.value = false
         _lastWinners.value = emptyList()
@@ -2171,6 +2199,7 @@ class VoleiViewModel(
                     _currentMatchStartTimestamp.value = state.matchStartTimestamp
                     _lastScoringTeam.value = state.lastScoringTeam
                     _rotationRequiredForTeam.value = state.rotationRequiredForTeam
+                    _servingTeam.value = state.servingTeam
 
                     if (config.remoteRole == null) {
                         // Organizador: remapeia os snapshots remotos para os Players reais deste
@@ -2429,6 +2458,8 @@ class VoleiViewModel(
             guaranteedNextMatchPlayerIds = _guaranteedNextMatchPlayerIds.value,
             lastScoringTeam = _lastScoringTeam.value,
             rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            servingTeam = _servingTeam.value,
+            matchSetupTimestamp = matchSetupTimestamp,
             assignedPositions = _assignedPositions.value.mapValues { it.value.name },
             assignedSlotIndices = _assignedSlotIndices.value,
             compositionIncomplete = _compositionIncomplete.value
@@ -2550,6 +2581,8 @@ class VoleiViewModel(
             _guaranteedNextMatchPlayerIds.value = snapshot.guaranteedNextMatchPlayerIds
             _lastScoringTeam.value = snapshot.lastScoringTeam
             _rotationRequiredForTeam.value = snapshot.rotationRequiredForTeam
+            _servingTeam.value = snapshot.servingTeam
+            matchSetupTimestamp = snapshot.matchSetupTimestamp ?: snapshot.currentMatchStartTimestamp
             _assignedPositions.value = (snapshot.assignedPositions ?: emptyMap())
                 .mapNotNull { (id, name) ->
                     PlayerPosition.fromStoredValue(name)?.let { id to it }
@@ -2815,7 +2848,9 @@ class VoleiViewModel(
 
     fun incrementScoreA() {
         if (_scoreA.value < 99) {
+            val firstPoint = _scoreA.value == 0 && _scoreB.value == 0
             _scoreA.value++
+            if (firstPoint) startMatchOnFirstPoint()
             registerPointForTeam("A")
         }
     }
@@ -2824,12 +2859,15 @@ class VoleiViewModel(
         if (_scoreA.value > 0) {
             _scoreA.value--
             clearPointIndicator()
+            revertStartIfScoreCleared()
         }
     }
 
     fun incrementScoreB() {
         if (_scoreB.value < 99) {
+            val firstPoint = _scoreA.value == 0 && _scoreB.value == 0
             _scoreB.value++
+            if (firstPoint) startMatchOnFirstPoint()
             registerPointForTeam("B")
         }
     }
@@ -2838,6 +2876,20 @@ class VoleiViewModel(
         if (_scoreB.value > 0) {
             _scoreB.value--
             clearPointIndicator()
+            revertStartIfScoreCleared()
+        }
+    }
+
+    // O início real da partida é o primeiro ponto menos 1 min, sem passar do horário de geração dos times.
+    private fun startMatchOnFirstPoint() {
+        if (_currentMatchStartTimestamp.value == null) return
+        val estimated = AppDateTime.nowMillis() - FIRST_POINT_START_OFFSET_MILLIS
+        _currentMatchStartTimestamp.value = maxOf(estimated, matchSetupTimestamp ?: estimated)
+    }
+
+    private fun revertStartIfScoreCleared() {
+        if (_scoreA.value == 0 && _scoreB.value == 0) {
+            matchSetupTimestamp?.let { _currentMatchStartTimestamp.value = it }
         }
     }
 
@@ -3079,7 +3131,7 @@ class VoleiViewModel(
             null; _hasPreviousMatch.value = false
         _historyDateFilter.value = null
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = null
+        clearMatchSetup()
         _roundCounter.value = 0
         _restingPlayers.value = emptyMap()
         _guaranteedNextMatchPlayerIds.value = emptyList()
@@ -3704,7 +3756,7 @@ class VoleiViewModel(
             sortTeamPlayers(finalB); _waitingList.value = pool
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        markMatchSetup()
         _guaranteedNextMatchPlayerIds.value = emptyList()
         refreshPositionAssignments()
     }
@@ -3797,7 +3849,7 @@ class VoleiViewModel(
             sortTeamPlayers(tBWithToll); _waitingList.value = remWithToll
         _hasPreviousMatch.value = false; _currentStreak.value = 0; _streakOwner.value = null
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        markMatchSetup()
         _guaranteedNextMatchPlayerIds.value = emptyList()
         refreshPositionAssignments()
     }
@@ -3807,7 +3859,7 @@ class VoleiViewModel(
         _teamA.value = emptyList(); _teamB.value = emptyList(); _waitingList.value = emptyList()
         _currentStreak.value = 0; _streakOwner.value = null; _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = null
+        clearMatchSetup()
         clearPositionAssignments()
     }
 
@@ -4065,6 +4117,10 @@ class VoleiViewModel(
                     cloudGroupId = cloudGroupId,
                     cloudHistoryDocId = cloudHistoryDocId,
                     cloudEloLogDocIds = cloudEloLogDocIds,
+                    lastScoringTeam = _lastScoringTeam.value,
+                    rotationRequiredForTeam = _rotationRequiredForTeam.value,
+                    servingTeam = _servingTeam.value,
+                    matchSetupTimestamp = matchSetupTimestamp,
                     expiresAt = expiresAt
                 )
             )
@@ -4078,7 +4134,7 @@ class VoleiViewModel(
             // Os times são zerados por último: quem aguarda o fim da partida observando os times
             // vazios (ex.: `startNextRound`) não pode competir com estas escritas finais.
             resetScoresAndPointIndicator()
-            _currentMatchStartTimestamp.value = null
+            clearMatchSetup()
             _teamA.value = emptyList(); _teamB.value = emptyList()
         }
     }
@@ -4152,8 +4208,11 @@ class VoleiViewModel(
             _scoreA.value = lastMatch.teamAScore ?: 0
             _scoreB.value = lastMatch.teamBScore ?: 0
             _currentMatchStartTimestamp.value = lastMatch.startTimestamp
+            matchSetupTimestamp = snapshot.matchSetupTimestamp ?: lastMatch.startTimestamp
+            _lastScoringTeam.value = snapshot.lastScoringTeam
+            _rotationRequiredForTeam.value = snapshot.rotationRequiredForTeam
+            _servingTeam.value = snapshot.servingTeam
             _currentStreak.value = snapshot.previousStreak
-            _streakOwner.value = snapshot.previousStreakOwner
             _lastWinners.value = snapshot.previousLastWinnerIds.mapNotNull { freshPlayersById[it] }
             lastLosers = snapshot.previousLastLoserIds.mapNotNull { freshPlayersById[it] }
             _hasPreviousMatch.value = snapshot.previousHasPreviousMatch
@@ -4208,6 +4267,7 @@ class VoleiViewModel(
             matchStartTimestamp = _currentMatchStartTimestamp.value,
             lastScoringTeam = _lastScoringTeam.value,
             rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            servingTeam = _servingTeam.value,
             writerSessionId = localSyncSessionId,
             gamesPlayedToday = lastKnownRemoteGamesPlayedToday,
             assignedPositions = lastKnownRemoteAssignedPositions,
@@ -4248,6 +4308,7 @@ class VoleiViewModel(
             matchStartTimestamp = _currentMatchStartTimestamp.value,
             lastScoringTeam = _lastScoringTeam.value,
             rotationRequiredForTeam = _rotationRequiredForTeam.value,
+            servingTeam = _servingTeam.value,
             pendingPresenceTogglePublicId = publicId,
             pendingPresenceToggleRequestId = requestId,
             writerSessionId = localSyncSessionId,
@@ -4274,8 +4335,22 @@ class VoleiViewModel(
                 BalancingMode.REBALANCE -> startNextRoundRebalance(conf)
                 BalancingMode.REST -> startNextRoundRest(conf)
             }
+            assignServingTeamToPreviousWinners()
         } finally {
             _guaranteedNextMatchPlayerIds.value = emptyList()
+        }
+    }
+
+    // Quem venceu a partida anterior saca primeiro; sem time único de vencedores, o usuário escolhe.
+    private fun assignServingTeamToPreviousWinners() {
+        val winnerIds = _lastWinners.value.map { it.id }.toSet()
+        if (winnerIds.isEmpty()) return
+        val inA = _teamA.value.map { it.id }.filter { it in winnerIds }
+        val inB = _teamB.value.map { it.id }.filter { it in winnerIds }
+        _servingTeam.value = when {
+            inA.isNotEmpty() && inB.isEmpty() -> "A"
+            inB.isNotEmpty() && inA.isEmpty() -> "B"
+            else -> null
         }
     }
 
@@ -4537,7 +4612,7 @@ class VoleiViewModel(
 
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        markMatchSetup()
         refreshPositionAssignments()
     }
 
@@ -4572,7 +4647,7 @@ class VoleiViewModel(
             .toSet()
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        markMatchSetup()
     }
 
     private fun startNextRoundRest(conf: GroupConfig) {
@@ -4765,7 +4840,7 @@ class VoleiViewModel(
 
         _hasPreviousMatch.value = false
         resetScoresAndPointIndicator()
-        _currentMatchStartTimestamp.value = AppDateTime.nowMillis()
+        markMatchSetup()
         refreshPositionAssignments()
     }
 

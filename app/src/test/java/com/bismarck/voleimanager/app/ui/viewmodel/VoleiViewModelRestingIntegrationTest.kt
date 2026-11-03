@@ -879,6 +879,139 @@ class VoleiViewModelRestingIntegrationTest {
         flow.value = value
     }
 
+    @Test
+    fun matchStart_followsFirstPointMinusOneMinute_andRevertsWhenScoreIsCleared() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        val byName = insertPlayers(env, listOf(player(1, "A1"), player(2, "A2"), player(3, "B1"), player(4, "B2")))
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+        vm.startManualGame(
+            listOf(byName.getValue("A1"), byName.getValue("A2")),
+            listOf(byName.getValue("B1"), byName.getValue("B2")),
+            emptyList()
+        )
+
+        val setup = readMatchStart(vm)!!
+        // Primeiro ponto logo após a geração: não pode ficar antes do horário de geração.
+        vm.incrementScoreA()
+        assertEquals(setup, readMatchStart(vm))
+        vm.decrementScoreA()
+        assertEquals(setup, readMatchStart(vm))
+
+        // Times gerados há 10 min: o 1º ponto grava agora - 1 min.
+        val tenMinutesAgo = setup - 10 * 60_000L
+        setPrivateVar(vm, "matchSetupTimestamp", tenMinutesAgo)
+        vm.incrementScoreB()
+        val start = readMatchStart(vm)!!
+        assertTrue(start > tenMinutesAgo)
+        assertTrue(kotlin.math.abs((System.currentTimeMillis() - 60_000L) - start) < 5_000L)
+
+        // Voltar a 0x0 retorna ao horário de geração; marcar de novo sobrescreve.
+        vm.decrementScoreB()
+        assertEquals(tenMinutesAgo, readMatchStart(vm))
+        vm.incrementScoreA()
+        assertTrue(readMatchStart(vm)!! > tenMinutesAgo)
+    }
+
+    @Test
+    fun servingTeam_manualChoice_doesNotMakeFirstPointRequireRotation() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+
+        assertNull(vm.servingTeam.value)
+        vm.setServingTeam("B")
+        assertEquals("B", vm.servingTeam.value)
+        vm.setServingTeam("B")
+        assertNull(vm.servingTeam.value)
+
+        vm.setServingTeam("B")
+        vm.incrementScoreA()
+        assertNull(vm.rotationRequiredForTeam.value)
+        assertEquals("A", vm.lastScoringTeam.value)
+        // Depois do primeiro ponto não dá mais para mudar o sacador manualmente.
+        vm.setServingTeam("A")
+        assertEquals("B", vm.servingTeam.value)
+    }
+
+    @Test
+    fun servingTeam_servingTeamScoringFirstPoint_doesNotRequireRotation() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+
+        vm.setServingTeam("A")
+        vm.incrementScoreA()
+        assertNull(vm.rotationRequiredForTeam.value)
+        assertEquals("A", vm.lastScoringTeam.value)
+    }
+
+    @Test
+    fun servingTeam_nextRoundInRestMode_startsWithPreviousWinners() = runBlocking {
+        val env = createViewModel(BalancingMode.REST)
+        val vm = env.vm
+        val byName = insertPlayers(
+            env,
+            listOf(
+                player(1, "A1"), player(2, "A2"), player(3, "B1"), player(4, "B2"),
+                player(5, "C1"), player(6, "C2")
+            )
+        )
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+        vm.startManualGame(
+            listOf(byName.getValue("A1"), byName.getValue("A2")),
+            listOf(byName.getValue("B1"), byName.getValue("B2")),
+            listOf(byName.getValue("C1"), byName.getValue("C2"))
+        )
+        assertNull(vm.servingTeam.value)
+        vm.finishGame("B")
+        awaitFinishGamePersistence(vm)
+
+        vm.startNextRound()
+        val winnerIds = setOf(byName.getValue("B1").id, byName.getValue("B2").id)
+        val serving = vm.servingTeam.value
+        val servingPlayers = if (serving == "A") vm.teamA.value else vm.teamB.value
+        assertTrue(serving == "A" || serving == "B")
+        assertEquals(winnerIds, servingPlayers.map { it.id }.toSet())
+    }
+
+    @Test
+    fun undoLastMatch_restoresScoreIndicatorsServingAndMatchStart() = runBlocking {
+        val env = createViewModel(BalancingMode.REBALANCE)
+        val vm = env.vm
+        val byName = insertPlayers(env, listOf(player(1, "A1"), player(2, "A2"), player(3, "B1"), player(4, "B2")))
+        vm.setAllPlayersPresence(byName.values.toList(), present = true)
+        vm.startManualGame(
+            listOf(byName.getValue("A1"), byName.getValue("A2")),
+            listOf(byName.getValue("B1"), byName.getValue("B2")),
+            emptyList()
+        )
+        vm.setServingTeam("A")
+        vm.incrementScoreA()
+        vm.incrementScoreB()
+        val startBeforeFinish = readMatchStart(vm)
+
+        vm.finishGame("B")
+        awaitFinishGamePersistence(vm)
+        withTimeout(5_000) { while (!vm.canUndoLastMatch.value) delay(20) }
+
+        vm.undoLastMatch()
+        withTimeout(5_000) { while (vm.canUndoLastMatch.value) delay(20) }
+
+        assertEquals(1, vm.scoreA.value)
+        assertEquals(1, vm.scoreB.value)
+        assertEquals("B", vm.lastScoringTeam.value)
+        assertEquals("B", vm.rotationRequiredForTeam.value)
+        assertEquals("A", vm.servingTeam.value)
+        assertEquals(startBeforeFinish, readMatchStart(vm))
+        assertFalse(vm.canUndoLastMatch.value)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun readMatchStart(vm: VoleiViewModel): Long? {
+        val field = VoleiViewModel::class.java.getDeclaredField("_currentMatchStartTimestamp")
+        field.isAccessible = true
+        return (field.get(vm) as MutableStateFlow<Long?>).value
+    }
+
     private fun setPrivateVar(vm: VoleiViewModel, fieldName: String, value: Any?) {
         val field = VoleiViewModel::class.java.getDeclaredField(fieldName)
         field.isAccessible = true

@@ -179,6 +179,7 @@ data class LiveGameState(
     val lastScoringTeam: String? = null,
     /** Time ("A"/"B") que deve fazer rodízio, para o indicador visual no placar. */
     val rotationRequiredForTeam: String? = null,
+    val servingTeam: String? = null,
     /** publicId do jogador cuja presença um Auxiliar remoto pediu para alternar; só o organizador
      *  processa este campo (aplicando sua própria lógica local de presença/fila) e volta a
      *  publicá-lo como `null` assim que atender o pedido — mesmo padrão de
@@ -231,6 +232,7 @@ data class LiveGameState(
         "matchStartTimestamp" to matchStartTimestamp,
         "lastScoringTeam" to lastScoringTeam,
         "rotationRequiredForTeam" to rotationRequiredForTeam,
+        "servingTeam" to servingTeam,
         "pendingPresenceTogglePublicId" to pendingPresenceTogglePublicId,
         "pendingPresenceToggleRequestId" to pendingPresenceToggleRequestId,
         "writerSessionId" to writerSessionId,

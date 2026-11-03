@@ -389,6 +389,8 @@
     <string name="team_b">Team B</string>
     <string name="vs">VS</string>
     <string name="score_latest_point_tooltip">%1$s scored the most recent point.</string>
+    <string name="score_serving_tooltip">%1$s has the serve.</string>
+    <string name="score_select_serving_hint">Tap the score number to mark who serves first.</string>
     <string name="score_rotation_tooltip">%1$s must rotate now.</string>
     <string name="big_scoreboard_cd">Open big scoreboard</string>
     <string name="big_scoreboard_tooltip">Open a bigger scoreboard view, easier to see from a distance.</string>
