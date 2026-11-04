@@ -1003,7 +1003,11 @@ fun GroupConfigDialog(
         )
 
         if (SetterSystem.isAvailable(groupType, teamSize.roundToInt())) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+            )
             Text(stringResource(Res.string.setter_system_title), fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
             listOf(
@@ -1023,7 +1027,7 @@ fun GroupConfigDialog(
                     tooltip = tooltip,
                     selected = setterSystem == system,
                     onSelect = { setterSystem = system },
-                    iconRes = setterIconRes()
+                    iconRes = null
                 )
             }
         }
@@ -1141,7 +1145,7 @@ private fun BalancingModeOptionRow(
     tooltip: String,
     selected: Boolean,
     onSelect: () -> Unit,
-    iconRes: DrawableResource,
+    iconRes: DrawableResource?,
     iconSize: Dp = 20.dp
 ) {
     val scope = rememberCoroutineScope()
@@ -1188,13 +1192,15 @@ private fun BalancingModeOptionRow(
                 }
             )
             Spacer(Modifier.width(8.dp))
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(iconSize)
-            )
-            Spacer(Modifier.width(8.dp))
+            if (iconRes != null) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(iconSize)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             Text(
                 text = label,
                 fontWeight = FontWeight.Medium,

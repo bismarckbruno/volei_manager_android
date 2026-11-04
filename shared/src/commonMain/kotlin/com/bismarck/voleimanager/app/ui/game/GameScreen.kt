@@ -4990,6 +4990,7 @@ fun WaitingPlayerCard(
             .then(
                 if (isLandscape) Modifier.widthIn(min = 120.dp, max = 220.dp) else Modifier
             )
+            .clip(CardDefaults.shape)
             .clickable(onClick = onClick)
     ) {
         Box(

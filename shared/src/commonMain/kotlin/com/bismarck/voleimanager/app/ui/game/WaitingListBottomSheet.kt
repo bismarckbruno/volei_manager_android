@@ -716,7 +716,8 @@ private fun WaitingListPlayerItem(
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                offset = DpOffset(x = 16.dp, y = 0.dp)
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                offset = DpOffset(x = 16.dp, y = 4.dp)
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(Res.string.start_of_queue)) },
@@ -918,7 +919,8 @@ private fun InactivePlayerItem(
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                offset = DpOffset(x = 16.dp, y = 0.dp)
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                offset = DpOffset(x = 16.dp, y = 4.dp)
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(Res.string.start_of_queue)) },
